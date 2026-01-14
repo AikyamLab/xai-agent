@@ -7,7 +7,7 @@ import gdown
 # Google Drive file ID of stl10_binary.tar.gz
 # Example link:
 # https://drive.google.com/file/d/FILE_ID/view
-GDRIVE_FILE_ID = "PUT_YOUR_FILE_ID_HERE"
+GDRIVE_FILE_ID = "https://drive.google.com/file/d/1qrEgd5-O-xE04PJ9uGbADK3NFAa0LGA7/view?usp=sharing"
 
 DATA_ROOT = "./stl10_data"
 ARCHIVE_PATH = os.path.join(DATA_ROOT, "stl10_binary.tar.gz")
@@ -22,8 +22,8 @@ def download_and_extract_stl10():
     if not os.path.exists(ARCHIVE_PATH):
         print("Downloading STL-10 from Google Drive...")
         gdown.download(
-            f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}",
-            ARCHIVE_PATH,
+            id='1qrEgd5-O-xE04PJ9uGbADK3NFAa0LGA7',
+            output=ARCHIVE_PATH,
             quiet=False
         )
     else:
@@ -37,18 +37,18 @@ def download_and_extract_stl10():
     else:
         print("STL-10 already extracted.")
 
-class STL10Dataset(Dataset):
+
+class STL10BinaryDataset(Dataset):
     def __init__(self, data_path, label_path=None):
         with open(data_path, 'rb') as f:
             data = np.fromfile(f, dtype=np.uint8)
 
-        # [N, 3, 96, 96]
         self.images = data.reshape(-1, 3, 96, 96).astype(np.float32) / 255.0
 
         if label_path is not None:
             with open(label_path, 'rb') as f:
                 labels = np.fromfile(f, dtype=np.uint8)
-            self.labels = labels - 1  # 1–10 → 0–9
+            self.labels = labels - 1
         else:
             self.labels = None
 
@@ -68,35 +68,16 @@ def get_stl10_dataloaders():
     test_y  = os.path.join(EXTRACT_PATH, "test_y.bin")
     unlab_X = os.path.join(EXTRACT_PATH, "unlabeled_X.bin")
 
-    train_dataset = STL10Dataset(train_X, train_y)
-    test_dataset = STL10Dataset(test_X, test_y)
-    unlabeled_dataset = STL10Dataset(unlab_X)
+    train_dataset = STL10BinaryDataset(train_X, train_y)
+    test_dataset = STL10BinaryDataset(test_X, test_y)
+    unlabeled_dataset = STL10BinaryDataset(unlab_X)
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=NUM_WORKERS,
-        pin_memory=True
-    )
-
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-        num_workers=NUM_WORKERS,
-        pin_memory=True
-    )
-
-    unlabeled_loader = DataLoader(
-        unlabeled_dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=NUM_WORKERS,
-        pin_memory=True
-    )
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    test_loader  = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     return train_loader, test_loader, unlabeled_loader
+
 
 if __name__ == "__main__":
     download_and_extract_stl10()
