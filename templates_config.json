@@ -1,0 +1,808 @@
+{
+  "templates": {
+    "vision": {
+      "feature_attribution": [
+        {
+          "q_id": "q1",
+          "q_type": "vision_feature_attribution_1",
+          "template": "Which part of the input was most responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "vision",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "most",
+          "extraction_fields": [
+            {
+              "name": "responsible_regions",
+              "field_type": "List[BoundingBox]",
+              "description": "List of bounding boxes (pixel coordinates) indicating responsible regions",
+              "required": true
+            },
+            {
+              "name": "importance_distribution",
+              "field_type": "Dict[str, float]",
+              "description": "Distribution of importance across primary/secondary/background regions",
+              "required": true
+            },
+            {
+              "name": "key_visual_features",
+              "field_type": "List[str]",
+              "description": "List of specific visual features that influenced prediction",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q2",
+          "q_type": "vision_feature_attribution_2",
+          "template": "Which part of the input was least responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "vision",
+          "evaluation_metric": "LeRF",
+          "attribution_type": "least",
+          "extraction_fields": [
+            {
+              "name": "least_responsible_regions",
+              "field_type": "List[BoundingBox]",
+              "description": "List of bounding boxes indicating regions with minimal impact",
+              "required": true
+            },
+            {
+              "name": "irrelevance_scores",
+              "field_type": "Dict[str, float]",
+              "description": "Scores indicating how irrelevant each region is",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q3",
+          "q_type": "vision_feature_attribution_3",
+          "template": "Which specific parts of the input distinguish its prediction from the next-best alternative?",
+          "category": "feature_attribution",
+          "modality": "vision",
+          "evaluation_metric": "Acc/MoRF",
+          "attribution_type": "distinctive",
+          "extraction_fields": [
+            {
+              "name": "decisive_regions",
+              "field_type": "List[BoundingBox]",
+              "description": "Regions that distinguish between top predictions",
+              "required": true
+            },
+            {
+              "name": "contrast_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of how these regions distinguish predictions",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q4",
+          "q_type": "vision_feature_attribution_4",
+          "template": "Why are [instances A] and [B] given different predictions?",
+          "category": "feature_attribution",
+          "modality": "vision",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "contrastive",
+          "extraction_fields": [
+            {
+              "name": "distinguishing_features_a",
+              "field_type": "List[BoundingBox]",
+              "description": "Features specific to instance A",
+              "required": true
+            },
+            {
+              "name": "distinguishing_features_b",
+              "field_type": "List[BoundingBox]",
+              "description": "Features specific to instance B",
+              "required": true
+            },
+            {
+              "name": "comparison_summary",
+              "field_type": "str",
+              "description": "Summary of key differences",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "counterfactual": [
+        {
+          "q_id": "q5",
+          "q_type": "vision_counterfactual_1",
+          "template": "If we mask the {certain} part of this input, would the prediction change?",
+          "category": "counterfactual",
+          "modality": "vision",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_region",
+              "field_type": "BoundingBox",
+              "description": "The region to be masked",
+              "required": true
+            },
+            {
+              "name": "prediction_change_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of whether and how prediction would change",
+              "required": true
+            },
+            {
+              "name": "confidence_shift",
+              "field_type": "Dict[str, float]",
+              "description": "Expected confidence changes for different classes",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q6",
+          "q_type": "vision_counterfactual_2",
+          "template": "How should the instance change to flip the model into the {next-best alternative / a different prediction}?",
+          "category": "counterfactual",
+          "modality": "vision",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "modification_plan",
+              "field_type": "List[ImageModification]",
+              "description": "Specific modifications needed to flip prediction",
+              "required": true
+            },
+            {
+              "name": "target_prediction",
+              "field_type": "str",
+              "description": "The target class for the flip",
+              "required": true
+            },
+            {
+              "name": "modification_difficulty",
+              "field_type": "float",
+              "description": "Estimated difficulty of achieving the flip (0-1)",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q7",
+          "q_type": "vision_counterfactual_3",
+          "template": "If we remove/change {one important part of the instance}, how would the prediction change?",
+          "category": "counterfactual",
+          "modality": "vision",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_part",
+              "field_type": "BoundingBox",
+              "description": "The important part to be removed/changed",
+              "required": true
+            },
+            {
+              "name": "predicted_change",
+              "field_type": "Dict[str, Any]",
+              "description": "Detailed prediction of how output would change",
+              "required": true
+            },
+            {
+              "name": "alternative_predictions",
+              "field_type": "List[Dict[str, float]]",
+              "description": "Likely alternative predictions with probabilities",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "spurious_features": [
+        {
+          "q_id": "q8",
+          "q_type": "vision_spurious_1",
+          "template": "Is there any irrelevant part in this input that causes the model's wrong prediction?",
+          "category": "spurious_features",
+          "modality": "vision",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "spurious_regions",
+              "field_type": "List[BoundingBox]",
+              "description": "Regions containing spurious features",
+              "required": true
+            },
+            {
+              "name": "spurious_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of why these features are spurious",
+              "required": true
+            },
+            {
+              "name": "impact_assessment",
+              "field_type": "float",
+              "description": "Estimated impact of spurious features on prediction",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q9",
+          "q_type": "vision_spurious_2",
+          "template": "What shared feature makes the misclassified {input A and B and C…} difficult for the model?",
+          "category": "spurious_features",
+          "modality": "vision",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "shared_feature_description",
+              "field_type": "str",
+              "description": "Description of the shared confusing feature",
+              "required": true
+            },
+            {
+              "name": "feature_locations",
+              "field_type": "Dict[str, List[BoundingBox]]",
+              "description": "Locations of shared feature in each instance",
+              "required": true
+            },
+            {
+              "name": "confusion_mechanism",
+              "field_type": "str",
+              "description": "Explanation of how this feature confuses the model",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q10",
+          "q_type": "vision_spurious_3",
+          "template": "Why are [instances A] and [B] given different predictions? (one correct, one wrong)",
+          "category": "spurious_features",
+          "modality": "vision",
+          "evaluation_metric": "LeRF",
+          "extraction_fields": [
+            {
+              "name": "correct_instance_features",
+              "field_type": "List[BoundingBox]",
+              "description": "Features leading to correct prediction",
+              "required": true
+            },
+            {
+              "name": "incorrect_instance_features",
+              "field_type": "List[BoundingBox]",
+              "description": "Features leading to incorrect prediction",
+              "required": true
+            },
+            {
+              "name": "error_analysis",
+              "field_type": "str",
+              "description": "Analysis of what causes the error",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    "text": {
+      "feature_attribution": [
+        {
+          "q_id": "q1",
+          "q_type": "text_feature_attribution_1",
+          "template": "Which part of the input was most responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "text",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "most",
+          "extraction_fields": [
+            {
+              "name": "important_words",
+              "field_type": "List[Tuple[str, int, int, float]]",
+              "description": "List of (word, start_idx, end_idx, importance_score)",
+              "required": true
+            },
+            {
+              "name": "important_phrases",
+              "field_type": "List[Tuple[str, int, int, float]]",
+              "description": "List of (phrase, start_idx, end_idx, importance_score)",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q2",
+          "q_type": "text_feature_attribution_2",
+          "template": "Which part of the input was least responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "text",
+          "evaluation_metric": "LeRF",
+          "attribution_type": "least",
+          "extraction_fields": [
+            {
+              "name": "least_important_words",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "List of (word, start_idx, end_idx)",
+              "required": true
+            },
+            {
+              "name": "irrelevance_analysis",
+              "field_type": "str",
+              "description": "Analysis of why these words are least important",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q3",
+          "q_type": "text_feature_attribution_3",
+          "template": "Which specific parts of the input distinguish its prediction from the next-best alternative?",
+          "category": "feature_attribution",
+          "modality": "text",
+          "evaluation_metric": "Acc/MoRF",
+          "attribution_type": "distinctive",
+          "extraction_fields": [
+            {
+              "name": "decisive_words",
+              "field_type": "List[Tuple[str, int, int, float]]",
+              "description": "Words that distinguish between top predictions",
+              "required": true
+            },
+            {
+              "name": "contrast_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of how these words distinguish predictions",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q4",
+          "q_type": "text_feature_attribution_4",
+          "template": "Why are [instances A] and [B] given different predictions?",
+          "category": "feature_attribution",
+          "modality": "text",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "contrastive",
+          "extraction_fields": [
+            {
+              "name": "distinguishing_features_a",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "Words/phrases specific to instance A",
+              "required": true
+            },
+            {
+              "name": "distinguishing_features_b",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "Words/phrases specific to instance B",
+              "required": true
+            },
+            {
+              "name": "comparison_summary",
+              "field_type": "str",
+              "description": "Summary of key differences",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "counterfactual": [
+        {
+          "q_id": "q5",
+          "q_type": "text_counterfactual_1",
+          "template": "If we mask the {certain} part of this input, would the prediction change?",
+          "category": "counterfactual",
+          "modality": "text",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_text",
+              "field_type": "Tuple[str, int, int]",
+              "description": "The text segment to be masked (text, start_idx, end_idx)",
+              "required": true
+            },
+            {
+              "name": "prediction_change_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of whether and how prediction would change",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q6",
+          "q_type": "text_counterfactual_2",
+          "template": "How should the instance change to flip the model into the {next-best alternative / a different prediction}?",
+          "category": "counterfactual",
+          "modality": "text",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "text_modifications",
+              "field_type": "List[Dict[str, Any]]",
+              "description": "List of text modification operations",
+              "required": true
+            },
+            {
+              "name": "target_prediction",
+              "field_type": "str",
+              "description": "The target class for the flip",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q7",
+          "q_type": "text_counterfactual_3",
+          "template": "If we remove/change {one important part of the instance}, how would the prediction change?",
+          "category": "counterfactual",
+          "modality": "text",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_part",
+              "field_type": "Tuple[str, int, int]",
+              "description": "The important part to be removed/changed",
+              "required": true
+            },
+            {
+              "name": "predicted_change",
+              "field_type": "Dict[str, Any]",
+              "description": "Detailed prediction of how output would change",
+              "required": true
+            },
+            {
+              "name": "alternative_predictions",
+              "field_type": "List[Dict[str, float]]",
+              "description": "Likely alternative predictions with probabilities",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "spurious_features": [
+        {
+          "q_id": "q8",
+          "q_type": "text_spurious_1",
+          "template": "Is there any irrelevant part in this input that causes the model's wrong prediction?",
+          "category": "spurious_features",
+          "modality": "text",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "spurious_words",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "List of spurious (word, start_idx, end_idx)",
+              "required": true
+            },
+            {
+              "name": "spurious_analysis",
+              "field_type": "str",
+              "description": "Why these words are spurious",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q9",
+          "q_type": "text_spurious_2",
+          "template": "What shared feature makes the misclassified {input A and B and C…} difficult for the model?",
+          "category": "spurious_features",
+          "modality": "text",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "shared_feature_description",
+              "field_type": "str",
+              "description": "Description of the shared confusing feature",
+              "required": true
+            },
+            {
+              "name": "feature_examples",
+              "field_type": "Dict[str, List[Tuple[str, int, int]]]",
+              "description": "Examples of shared feature in each instance",
+              "required": true
+            },
+            {
+              "name": "confusion_mechanism",
+              "field_type": "str",
+              "description": "Explanation of how this feature confuses the model",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q10",
+          "q_type": "text_spurious_3",
+          "template": "Why are [instances A] and [B] given different predictions? (one correct, one wrong)",
+          "category": "spurious_features",
+          "modality": "text",
+          "evaluation_metric": "LeRF",
+          "extraction_fields": [
+            {
+              "name": "correct_instance_features",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "Words/phrases leading to correct prediction",
+              "required": true
+            },
+            {
+              "name": "incorrect_instance_features",
+              "field_type": "List[Tuple[str, int, int]]",
+              "description": "Words/phrases leading to incorrect prediction",
+              "required": true
+            },
+            {
+              "name": "error_analysis",
+              "field_type": "str",
+              "description": "Analysis of what causes the error",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    "tabular": {
+      "feature_attribution": [
+        {
+          "q_id": "q1",
+          "q_type": "tabular_feature_attribution_1",
+          "template": "Which part of the input was most responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "tabular",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "most",
+          "extraction_fields": [
+            {
+              "name": "important_features",
+              "field_type": "Dict[str, float]",
+              "description": "Feature importance scores {column_name: score}",
+              "required": true
+            },
+            {
+              "name": "critical_values",
+              "field_type": "Dict[str, Any]",
+              "description": "Critical values that triggered prediction",
+              "required": true
+            },
+            {
+              "name": "feature_interactions",
+              "field_type": "List[Tuple[str, str, float]]",
+              "description": "Important feature interactions",
+              "required": false
+            }
+          ]
+        },
+        {
+          "q_id": "q2",
+          "q_type": "tabular_feature_attribution_2",
+          "template": "Which part of the input was least responsible for the model's prediction?",
+          "category": "feature_attribution",
+          "modality": "tabular",
+          "evaluation_metric": "LeRF",
+          "attribution_type": "least",
+          "extraction_fields": [
+            {
+              "name": "least_important_features",
+              "field_type": "List[str]",
+              "description": "List of least important feature names",
+              "required": true
+            },
+            {
+              "name": "irrelevance_analysis",
+              "field_type": "Dict[str, str]",
+              "description": "Analysis of why each feature is least important",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q3",
+          "q_type": "tabular_feature_attribution_3",
+          "template": "Which specific parts of the input distinguish its prediction from the next-best alternative?",
+          "category": "feature_attribution",
+          "modality": "tabular",
+          "evaluation_metric": "Acc/MoRF",
+          "attribution_type": "distinctive",
+          "extraction_fields": [
+            {
+              "name": "decisive_features",
+              "field_type": "Dict[str, float]",
+              "description": "Features that distinguish between top predictions",
+              "required": true
+            },
+            {
+              "name": "contrast_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of how these features distinguish predictions",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q4",
+          "q_type": "tabular_feature_attribution_4",
+          "template": "Why are [instances A] and [B] given different predictions?",
+          "category": "feature_attribution",
+          "modality": "tabular",
+          "evaluation_metric": "MoRF",
+          "attribution_type": "contrastive",
+          "extraction_fields": [
+            {
+              "name": "distinguishing_features_a",
+              "field_type": "Dict[str, Any]",
+              "description": "Feature values specific to instance A",
+              "required": true
+            },
+            {
+              "name": "distinguishing_features_b",
+              "field_type": "Dict[str, Any]",
+              "description": "Feature values specific to instance B",
+              "required": true
+            },
+            {
+              "name": "comparison_summary",
+              "field_type": "str",
+              "description": "Summary of key differences",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "counterfactual": [
+        {
+          "q_id": "q5",
+          "q_type": "tabular_counterfactual_1",
+          "template": "If we mask the {certain} part of this input, would the prediction change?",
+          "category": "counterfactual",
+          "modality": "tabular",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_feature",
+              "field_type": "str",
+              "description": "The feature to be masked",
+              "required": true
+            },
+            {
+              "name": "prediction_change_analysis",
+              "field_type": "Dict[str, Any]",
+              "description": "Analysis of whether and how prediction would change",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q6",
+          "q_type": "tabular_counterfactual_2",
+          "template": "How should the instance change to flip the model into the {next-best alternative / a different prediction}?",
+          "category": "counterfactual",
+          "modality": "tabular",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "feature_changes",
+              "field_type": "Dict[str, Any]",
+              "description": "Recommended feature value changes",
+              "required": true
+            },
+            {
+              "name": "target_prediction",
+              "field_type": "str",
+              "description": "The target class",
+              "required": true
+            },
+            {
+              "name": "feasibility",
+              "field_type": "float",
+              "description": "Feasibility of the changes (0-1)",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q7",
+          "q_type": "tabular_counterfactual_3",
+          "template": "If we remove/change {one important part of the instance}, how would the prediction change?",
+          "category": "counterfactual",
+          "modality": "tabular",
+          "evaluation_metric": "Acc/MoRF",
+          "extraction_fields": [
+            {
+              "name": "target_feature",
+              "field_type": "str",
+              "description": "The important feature to be removed/changed",
+              "required": true
+            },
+            {
+              "name": "predicted_change",
+              "field_type": "Dict[str, Any]",
+              "description": "Detailed prediction of how output would change",
+              "required": true
+            },
+            {
+              "name": "alternative_predictions",
+              "field_type": "List[Dict[str, float]]",
+              "description": "Likely alternative predictions with probabilities",
+              "required": true
+            }
+          ]
+        }
+      ],
+      "spurious_features": [
+        {
+          "q_id": "q8",
+          "q_type": "tabular_spurious_1",
+          "template": "Is there any irrelevant part in this input that causes the model's wrong prediction?",
+          "category": "spurious_features",
+          "modality": "tabular",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "spurious_features",
+              "field_type": "List[str]",
+              "description": "List of spurious feature names",
+              "required": true
+            },
+            {
+              "name": "spurious_analysis",
+              "field_type": "Dict[str, str]",
+              "description": "Analysis of why each feature is spurious",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q9",
+          "q_type": "tabular_spurious_2",
+          "template": "What shared feature makes the misclassified {input A and B and C…} difficult for the model?",
+          "category": "spurious_features",
+          "modality": "tabular",
+          "evaluation_metric": "MoRF",
+          "extraction_fields": [
+            {
+              "name": "shared_feature_description",
+              "field_type": "str",
+              "description": "Description of the shared confusing feature",
+              "required": true
+            },
+            {
+              "name": "feature_patterns",
+              "field_type": "Dict[str, Any]",
+              "description": "Pattern of shared feature across instances",
+              "required": true
+            },
+            {
+              "name": "confusion_mechanism",
+              "field_type": "str",
+              "description": "Explanation of how this feature confuses the model",
+              "required": true
+            }
+          ]
+        },
+        {
+          "q_id": "q10",
+          "q_type": "tabular_spurious_3",
+          "template": "Why are [instances A] and [B] given different predictions? (one correct, one wrong)",
+          "category": "spurious_features",
+          "modality": "tabular",
+          "evaluation_metric": "LeRF",
+          "extraction_fields": [
+            {
+              "name": "correct_instance_features",
+              "field_type": "Dict[str, Any]",
+              "description": "Feature values leading to correct prediction",
+              "required": true
+            },
+            {
+              "name": "incorrect_instance_features",
+              "field_type": "Dict[str, Any]",
+              "description": "Feature values leading to incorrect prediction",
+              "required": true
+            },
+            {
+              "name": "error_analysis",
+              "field_type": "str",
+              "description": "Analysis of what causes the error",
+              "required": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
