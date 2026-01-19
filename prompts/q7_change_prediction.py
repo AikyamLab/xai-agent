@@ -1,0 +1,199 @@
+"""
+Q7: If we remove/change one important part, how would the prediction change?
+
+Expected Output:
+- changed_class: predicted class after the modification
+- changed_confidence: optional confidence estimate
+
+Evaluation:
+- Apply the modification (remove/change the specified part)
+- Metric: 1 if R1_modified == agent_predicted_class, else 0
+"""
+
+from typing import Any, Dict
+
+from .base_prompt import PromptBuilder, QuestionCategory
+from .output_schemas import get_output_schema
+
+
+class Q7ChangePredictionPromptBuilder(PromptBuilder):
+    """Prompt builder for Q7: Predict outcome of changing important part"""
+
+    @property
+    def question_type(self) -> int:
+        return 7
+
+    @property
+    def question_category(self) -> QuestionCategory:
+        return QuestionCategory.COUNTERFACTUAL
+
+    @property
+    def question_template(self) -> str:
+        return "If we remove/change one important part, how would the prediction change?"
+
+    def get_output_schema(self) -> Dict[str, Any]:
+        return get_output_schema(7, self.modality)
+
+    def build_proposer_prompt(self, context: Dict[str, Any]) -> str:
+        """Build prompt for Proposer"""
+        prediction = context.get('prediction', {})
+        part_to_change = context.get('part_to_change', 'the most important part')
+        modality_config = self._get_modality_config()
+
+        prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
+
+**User Question**: {context.get('user_question', self.question_template)}
+
+**Model Information**:
+- Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
+- Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
+- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+(Confidence: {prediction.get('confidence', 0.0):.4f})
+- Top-5 Predictions: {prediction.get('top5_predictions', [])}
+
+**Part to be Changed/Removed**:
+{part_to_change}
+
+**Input Content Description**:
+{context.get(modality_config['description_key'], 'Not available')}
+
+**Task**: Design a strategy to PREDICT how the model's prediction would change if we REMOVE or MODIFY the specified {modality_config['element_type']}.
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Assess the importance of the specified {modality_config['element_type']}
+   - Reason about what alternative prediction the model would make
+   - Consider the distribution of remaining {modality_config['element_type']} importance
+
+2. **External XAI Tools**: Use established explainability methods to predict outcome:
+{modality_config['tools_description']}
+
+**Your Response Must Be Valid JSON** with the following structure:
+{{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for predicting outcome (2-3 sentences)",
+    "confidence": 0.0-1.0,
+    "autonomous_tasks": [
+        {{
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous prediction analysis",
+            "expected_output": "What should be extracted from this task"
+        }}
+    ],
+    "tool_selection": {{
+        "selected_tools": {modality_config['tool_list']},
+        "tool_params": {{
+            {modality_config['tool_params_example']}
+        }},
+        "reasoning": "Why these tools for predicting {self.modality} modification outcome"
+    }}
+}}
+
+**Guidelines for {self.modality.upper()} tasks (counterfactual outcome prediction)**:
+- {modality_config['spatial_note']}
+- Target: Predict the NEW class and confidence after modifying the specified {modality_config['element_type']}
+- Evaluation metric: 1 if predicted new class matches actual modified outcome, else 0
+- Consider the importance distribution and alternative class probabilities
+
+Provide your strategy as a JSON object:
+"""
+        return prompt
+
+    def _get_modality_config(self) -> Dict[str, Any]:
+        """Get modality-specific configuration for prompt building"""
+        if self.modality == "vision":
+            return {
+                'input_type': 'an IMAGE',
+                'description_key': 'image_description',
+                'element_type': 'region/object',
+                'spatial_note': 'Analyze remaining visual features after modification to predict new class',
+                'tool_list': '["gradcam", "integrated_gradients", "lime", "shap", "object_detection", "guided_backprop", "sensitivity_analysis", "layer_cam"]',
+                'tools_description': '''   - GradCAM: Assess importance of the region and see alternative activation
+   - IntegratedGradients: Understand attribution distribution across the image
+   - LIME: Analyze how removing segment affects local prediction
+   - SHAP: Understand contribution distribution to predict new outcome
+   - ObjectDetection: Identify remaining objects after modification
+   - GuidedBackprop: Visualize what else the model relies on
+   - SensitivityAnalysis: Measure sensitivity to predict change magnitude
+   - LayerCAM: Understand layer-wise dependence on the region''',
+                'tool_params_example': '"gradcam": {"layer": "layer4", "analyze_alternatives": true, "priority": 1},\n            "integrated_gradients": {"compute_distribution": true, "priority": 2}'
+            }
+        elif self.modality == "text":
+            return {
+                'input_type': 'TEXT',
+                'description_key': 'text_description',
+                'element_type': 'token/phrase',
+                'spatial_note': 'Analyze remaining token importance to predict new class',
+                'tool_list': '["integrated_gradients", "lime", "shap", "attention_analysis", "token_importance", "sensitivity_analysis"]',
+                'tools_description': '''   - IntegratedGradients: Understand attribution distribution across tokens
+   - LIME: Analyze how removing tokens affects local prediction
+   - SHAP: Understand contribution distribution to predict new outcome
+   - AttentionAnalysis: See what else the model attends to
+   - TokenImportance: Understand token-level importance distribution
+   - SensitivityAnalysis: Measure sensitivity to predict change magnitude''',
+                'tool_params_example': '"integrated_gradients": {"compute_distribution": true, "priority": 1},\n            "attention_analysis": {"analyze_alternatives": true, "priority": 2}'
+            }
+        else:  # tabular
+            return {
+                'input_type': 'TABULAR DATA',
+                'description_key': 'data_description',
+                'element_type': 'feature/column',
+                'spatial_note': 'Analyze remaining feature importance to predict new class',
+                'tool_list': '["integrated_gradients", "lime", "shap", "permutation_importance", "sensitivity_analysis"]',
+                'tools_description': '''   - IntegratedGradients: Understand attribution distribution across features
+   - LIME: Analyze how changing feature affects local prediction
+   - SHAP: Understand contribution distribution to predict new outcome
+   - PermutationImportance: Understand importance of remaining features
+   - SensitivityAnalysis: Measure sensitivity to predict change magnitude''',
+                'tool_params_example': '"shap": {"compute_distribution": true, "priority": 1},\n            "sensitivity_analysis": {"analyze_alternatives": true, "priority": 2}'
+            }
+
+    def build_actor_prompt(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any]
+    ) -> str:
+        """Build prompt for Actor"""
+        prediction = context.get('prediction', {})
+        part_to_change = context.get('part_to_change', 'the most important part')
+        top5 = prediction.get('top5_predictions', [])
+        tool_results = results.get('tool_results', {})
+
+        # Get image size constraint for vision modality
+        size_constraint = self._build_image_size_constraint(tool_results)
+
+        prompt = f"""You are an XAI expert. Predict the new class after modifying an important part.
+
+## Question
+{context.get('user_question', self.question_template)}
+
+## Current State
+- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Top-5 Predictions: {top5}
+- Part to Change: {part_to_change}
+{size_constraint}
+## XAI Analysis
+{self._format_results_comprehensive(results)}
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{{
+    "output": {{
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.75
+    }},
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.85
+}}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+
+Respond with ONLY JSON:"""
+        return prompt
