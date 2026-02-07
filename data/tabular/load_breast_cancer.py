@@ -22,10 +22,6 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=RANDOM_SEED,
     stratify=y
 )
-# Use the preprocessed X_test and y_test from the breast cancer dataset
-X_test_torch = X_test.to(DEVICE)
-y_test_torch = y_test.to(DEVICE)
-
 with torch.no_grad():
     y_pred_proba = model(X_test_torch)
 
