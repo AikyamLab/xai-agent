@@ -10,8 +10,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 
 GDRIVE_FILE_ID = "PUT_YOUR_FILE_ID_HERE"
-WEIGHTS_PATH = "./two_layer_breast_cancer.pth"
-HIDDEN_SIZE = 64
+WEIGHTS_PATH = "/content/2_layer_cancer (1).pth"
+HIDDEN_SIZE = 32 # Changed from 64 to 32 to match pretrained weights
 RANDOM_SEED = 42
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,13 +56,14 @@ class TwoLayerNN(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.bn1 = nn.BatchNorm1d(hidden_size)
+        # Removed BatchNorm1d layer
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.relu(self.bn1(self.fc1(x)))
+        # Adjusted forward pass to remove BatchNorm1d
+        x = self.relu(self.fc1(x))
         x = self.sigmoid(self.fc2(x))
         return x
 
@@ -74,17 +75,3 @@ print("Loading model weights...")
 state_dict = torch.load(WEIGHTS_PATH, map_location=DEVICE)
 model.load_state_dict(state_dict)
 model.eval()
-
-with torch.no_grad():
-    X_test = X_test.to(DEVICE)
-    y_test = y_test.to(DEVICE)
-
-    probs = model(X_test)
-    preds = (probs >= 0.5).float()
-
-    acc = accuracy_score(
-        y_test.cpu().numpy(),
-        preds.cpu().numpy()
-    )
-
-print(f"Test Accuracy (pretrained model): {acc:.4f}")
