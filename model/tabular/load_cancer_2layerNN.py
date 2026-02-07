@@ -1,35 +1,12 @@
-import os
 import torch
-import torch.nn as nn
-import gdown
-import numpy as np
-
-from sklearn.datasets import load_breast_cancer
+import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.datasets import fetch_openml, load_breast_cancer
 
-GDRIVE_FILE_ID = "PUT_YOUR_FILE_ID_HERE"
-WEIGHTS_PATH = "/content/2_layer_cancer (1).pth"
-HIDDEN_SIZE = 32 # Changed from 64 to 32 to match pretrained weights
 RANDOM_SEED = 42
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# =============================
-# 1. Download pretrained weights
-# =============================
-if not os.path.exists(WEIGHTS_PATH):
-    print("Downloading pretrained weights from Google Drive...")
-    gdown.download(
-        f"https://drive.google.com/uc?id={GDRIVE_FILE_ID}",
-        WEIGHTS_PATH,
-        quiet=False
-    )
-else:
-    print("Pretrained weights already exist.")
-
-
-print("Loading Breast Cancer Wisconsin dataset...")
 data = load_breast_cancer()
 
 X = data.data          # shape: (n_samples, 30)
@@ -45,12 +22,22 @@ X_train, X_test, y_train, y_test = train_test_split(
     random_state=RANDOM_SEED,
     stratify=y
 )
+# # Use the preprocessed X_test and y_test from the breast cancer dataset
+# X_test_torch = X_test.to(DEVICE)
+# y_test_torch = y_test.to(DEVICE)
 
-# Convert to PyTorch tensors
-X_train = torch.tensor(X_train, dtype=torch.float32)
-X_test  = torch.tensor(X_test, dtype=torch.float32)
-y_train = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
-y_test  = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
+# with torch.no_grad():
+#     y_pred_proba = model(X_test_torch)
+
+# # Convert probabilities to binary predictions
+# y_pred = (y_pred_proba >= 0.5).int()
+
+# # Compare predictions with true target values
+# correct_predictions = (y_pred == y_test_torch)
+
+# # Calculate accuracy
+# accuracy = accuracy_score(y_test_torch.cpu().numpy(), y_pred.cpu().numpy())
+# print(f"Model Accuracy on Test Set: {accuracy:.4f}")
 
 class TwoLayerNN(nn.Module):
     def __init__(self, input_size, hidden_size):
