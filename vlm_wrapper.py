@@ -65,7 +65,8 @@ class VisionLanguageModel:
         top_k: int = 50,
         top_p: float = 0.9,
         do_sample: bool = True,
-        use_flash_attention: bool = True
+        use_flash_attention: bool = True,
+        cache_dir: Optional[str] = None
     ):
         """
         Initialize the VLM wrapper.
@@ -80,6 +81,7 @@ class VisionLanguageModel:
             top_p: Top-p (nucleus) sampling parameter
             do_sample: Whether to use sampling (True for Qwen3-VL)
             use_flash_attention: Whether to use flash_attention_2 (recommended for Qwen3-VL)
+            cache_dir: Directory to cache downloaded models.
         """
         self.model_id = model_id
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -90,6 +92,7 @@ class VisionLanguageModel:
         self.top_p = top_p
         self.do_sample = do_sample
         self.use_flash_attention = use_flash_attention
+        self.cache_dir = cache_dir
 
         self.model = None
         self.processor = None
@@ -115,13 +118,15 @@ class VisionLanguageModel:
                     self.model_id,
                     min_pixels=self.MIN_PIXELS,
                     max_pixels=self.MAX_PIXELS,
-                    trust_remote_code=True
+                    trust_remote_code=True,
+                    cache_dir=self.cache_dir
                 )
             else:
                 self.processor = AutoProcessor.from_pretrained(
                     self.model_id,
                     trust_remote_code=True,
-                    use_fast=False
+                    use_fast=False,
+                    cache_dir=self.cache_dir
                 )
 
             model_loaded = False
@@ -168,6 +173,7 @@ class VisionLanguageModel:
                         device_map="auto",
                         trust_remote_code=True,
                         attn_implementation="flash_attention_2",
+                        cache_dir=self.cache_dir
                     ).eval()
                     print(f"  ✓ Loaded with flash_attention_2")
                     return True
@@ -181,6 +187,7 @@ class VisionLanguageModel:
                 torch_dtype=dtype,
                 device_map="auto" if self.device == "cuda" else None,
                 trust_remote_code=True,
+                cache_dir=self.cache_dir
             ).eval()
 
             if self.device != "cuda":
@@ -204,7 +211,8 @@ class VisionLanguageModel:
                 self.model_id,
                 torch_dtype=dtype,
                 device_map="auto" if self.device == "cuda" else None,
-                trust_remote_code=True
+                trust_remote_code=True,
+                cache_dir=self.cache_dir
             ).eval()
 
             if self.device != "cuda":
@@ -219,7 +227,7 @@ class VisionLanguageModel:
 
     def _load_generic_model(self) -> bool:
         """Load model using generic Auto classes."""
-        config = AutoConfig.from_pretrained(self.model_id, trust_remote_code=True)
+        config = AutoConfig.from_pretrained(self.model_id, trust_remote_code=True, cache_dir=self.cache_dir)
         dtype = torch.float16 if self.device == "cuda" else torch.float32
 
         # Try different model classes
@@ -236,7 +244,8 @@ class VisionLanguageModel:
                     self.model_id,
                     torch_dtype=dtype,
                     device_map="auto" if self.device == "cuda" else None,
-                    trust_remote_code=True
+                    trust_remote_code=True,
+                    cache_dir=self.cache_dir
                 ).eval()
 
                 if self.device != "cuda":
@@ -812,6 +821,522 @@ class VisionLanguageModel:
             "is_qwen_vl": self.is_qwen_vl,
             "qwen_vl_utils_available": QWEN_VL_UTILS_AVAILABLE
         }
+
+
+class GeminiVLM:
+    """
+    Gemini API wrapper implementing the same interface as VisionLanguageModel.
+
+    Supports models like:
+    - gemini-2.5-pro
+    - gemini-3-pro
+    - gemini-2.5-flash
+    - gemini-3-flash
+    """
+
+    def __init__(
+        self,
+        model_id: str = "gemini-2.5-pro",
+        temperature: float = 0.1,
+        max_new_tokens: int = 8192,
+        **kwargs
+    ):
+        """
+        Initialize Gemini API wrapper.
+
+        Args:
+            model_id: Gemini model name (e.g., 'gemini-2.5-pro', 'gemini-3-pro')
+            temperature: Sampling temperature
+            max_new_tokens: Maximum output tokens
+        """
+        self.model_id = model_id
+        self.temperature = temperature
+        self.max_new_tokens = max_new_tokens
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "GEMINI_API_KEY environment variable not set. "
+                "Set it with: export GEMINI_API_KEY='your-api-key'"
+            )
+
+        try:
+            from google import genai
+            from google.genai import types
+            self._genai = genai
+            self._types = types
+        except ImportError:
+            raise ImportError(
+                "google-genai package not installed. "
+                "Install with: pip install google-genai"
+            )
+
+        self.client = genai.Client(api_key=api_key)
+
+        # Retry settings for rate limiting
+        self._max_retries = 5
+        self._base_retry_delay = 10  # seconds
+
+        self._system_instruction = (
+            "You are an AI assistant that follows instructions precisely. "
+            "When given a task with a specific format to follow, "
+            "you MUST follow that exact format. Never respond with greetings or small talk. "
+            "Always focus on the task at hand and provide structured responses as requested."
+        )
+
+        print(f"GeminiVLM initialized: {self.model_id}")
+        print(f"  Temperature: {self.temperature}")
+        print(f"  Max output tokens: {self.max_new_tokens}")
+
+    def invoke(
+        self,
+        prompt: str,
+        images: Optional[Union[Image.Image, List[Image.Image], str, List[str]]] = None,
+        **kwargs
+    ) -> str:
+        """
+        Invoke the Gemini API with text and optional images.
+
+        Args:
+            prompt: Text prompt
+            images: Optional image(s) - PIL Image, image path, or list of either
+            **kwargs: Additional generation arguments
+
+        Returns:
+            Generated text response
+        """
+        if images:
+            if isinstance(images, list):
+                image_paths = []
+                for img in images:
+                    if isinstance(img, Image.Image):
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                            img.save(f.name)
+                            image_paths.append(f.name)
+                    else:
+                        image_paths.append(img)
+                return self.invoke_with_images(prompt, image_paths, **kwargs)
+            elif isinstance(images, Image.Image):
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                    images.save(f.name)
+                    return self.invoke_with_images(prompt, [f.name], **kwargs)
+            else:
+                return self.invoke_with_images(prompt, [images], **kwargs)
+
+        return self._generate_text(prompt, **kwargs)
+
+    def _call_with_retry(self, contents, config):
+        """Call Gemini API with automatic retry on rate limit (429) errors."""
+        import time
+        import re as _re
+
+        for attempt in range(self._max_retries):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_id,
+                    contents=contents,
+                    config=config,
+                )
+                return response.text
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    # Extract retry delay from error message if available
+                    delay_match = _re.search(r'retry in ([\d.]+)s', error_str)
+                    if delay_match:
+                        delay = float(delay_match.group(1)) + 1
+                    else:
+                        delay = self._base_retry_delay * (2 ** attempt)
+
+                    if attempt < self._max_retries - 1:
+                        print(f"  Rate limited (attempt {attempt + 1}/{self._max_retries}). "
+                              f"Retrying in {delay:.0f}s...")
+                        time.sleep(delay)
+                    else:
+                        print(f"  Rate limited: max retries ({self._max_retries}) exceeded.")
+                        raise
+                else:
+                    raise
+
+    def _generate_text(self, prompt: str, **kwargs) -> str:
+        """Generate text-only response via Gemini API."""
+        config = self._types.GenerateContentConfig(
+            temperature=kwargs.get('temperature', self.temperature),
+            max_output_tokens=kwargs.get('max_new_tokens', self.max_new_tokens),
+            system_instruction=self._system_instruction,
+        )
+
+        return self._call_with_retry(prompt, config)
+
+    def invoke_with_images(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """
+        Invoke Gemini API with multiple images.
+
+        Args:
+            prompt: Text prompt
+            image_paths: List of image paths
+            **kwargs: Additional generation arguments
+
+        Returns:
+            Generated text response
+        """
+        parts = []
+        for path in image_paths:
+            if isinstance(path, Image.Image):
+                parts.append(path)
+            else:
+                img = Image.open(path).convert('RGB')
+                parts.append(img)
+        parts.append(prompt)
+
+        config = self._types.GenerateContentConfig(
+            temperature=kwargs.get('temperature', self.temperature),
+            max_output_tokens=kwargs.get('max_new_tokens', self.max_new_tokens),
+            system_instruction=self._system_instruction,
+        )
+
+        return self._call_with_retry(parts, config)
+
+    def invoke_multimodal(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """Alias for invoke_with_images."""
+        return self.invoke_with_images(prompt, image_paths, **kwargs)
+
+    def generate_with_image(
+        self,
+        prompt: str,
+        image: Union[str, Image.Image],
+        **kwargs
+    ) -> str:
+        """Generate response with single image input."""
+        if isinstance(image, Image.Image):
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                image.save(f.name)
+                return self.invoke_with_images(prompt, [f.name], **kwargs)
+        return self.invoke_with_images(prompt, [image], **kwargs)
+
+    def generate_with_images(
+        self,
+        prompt: str,
+        images: List[Union[str, Image.Image]],
+        image_labels: Optional[List[str]] = None,
+        **kwargs
+    ) -> str:
+        """Generate response with multiple image inputs."""
+        if not images:
+            return self._generate_text(prompt, **kwargs)
+
+        # Convert PIL images to paths if needed
+        image_paths = []
+        for img in images:
+            if isinstance(img, Image.Image):
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+                    img.save(f.name)
+                    image_paths.append(f.name)
+            else:
+                image_paths.append(img)
+
+        # Build content with labels
+        parts = []
+        for i, path in enumerate(image_paths):
+            if image_labels and i < len(image_labels):
+                parts.append(f"[{image_labels[i]}]:")
+            img = Image.open(path).convert('RGB')
+            parts.append(img)
+        parts.append(prompt)
+
+        config = self._types.GenerateContentConfig(
+            temperature=kwargs.get('temperature', self.temperature),
+            max_output_tokens=kwargs.get('max_new_tokens', self.max_new_tokens),
+            system_instruction=self._system_instruction,
+        )
+
+        return self._call_with_retry(parts, config)
+
+    def get_info(self) -> Dict[str, Any]:
+        """Get model information."""
+        return {
+            "model_id": self.model_id,
+            "type": "gemini_api",
+            "temperature": self.temperature,
+            "max_new_tokens": self.max_new_tokens,
+        }
+
+
+class ClaudeVLM:
+    """
+    Claude API wrapper implementing the same interface as VisionLanguageModel.
+
+    Supports models like:
+    - claude-sonnet-4-5-20250929
+    - claude-haiku-4-5-20251001
+    - claude-opus-4-6
+    """
+
+    def __init__(
+        self,
+        model_id: str = "claude-sonnet-4-5-20250929",
+        temperature: float = 0.1,
+        max_new_tokens: int = 8192,
+        **kwargs
+    ):
+        """
+        Initialize Claude API wrapper.
+
+        Args:
+            model_id: Claude model name (e.g., 'claude-sonnet-4-5-20250929')
+            temperature: Sampling temperature
+            max_new_tokens: Maximum output tokens
+        """
+        self.model_id = model_id
+        self.temperature = temperature
+        self.max_new_tokens = max_new_tokens
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY environment variable not set. "
+                "Set it with: export ANTHROPIC_API_KEY='your-api-key'"
+            )
+
+        try:
+            import anthropic
+            self._anthropic = anthropic
+        except ImportError:
+            raise ImportError(
+                "anthropic package not installed. "
+                "Install with: pip install anthropic"
+            )
+
+        self.client = anthropic.Anthropic(api_key=api_key)
+
+        self._system_instruction = (
+            "You are an AI assistant that follows instructions precisely. "
+            "When given a task with a specific format to follow, "
+            "you MUST follow that exact format. Never respond with greetings or small talk. "
+            "Always focus on the task at hand and provide structured responses as requested."
+        )
+
+        # Retry settings for rate limiting
+        self._max_retries = 5
+        self._base_retry_delay = 10  # seconds
+
+        print(f"ClaudeVLM initialized: {self.model_id}")
+        print(f"  Temperature: {self.temperature}")
+        print(f"  Max output tokens: {self.max_new_tokens}")
+
+    def _call_with_retry(self, messages, system=None):
+        """Call Claude API with automatic retry on rate limit (429) errors."""
+        import time
+
+        kwargs = {
+            "model": self.model_id,
+            "max_tokens": self.max_new_tokens,
+            "temperature": self.temperature,
+            "messages": messages,
+        }
+        if system:
+            kwargs["system"] = system
+
+        for attempt in range(self._max_retries):
+            try:
+                response = self.client.messages.create(**kwargs)
+                return response.content[0].text
+            except self._anthropic.RateLimitError as e:
+                delay = self._base_retry_delay * (2 ** attempt)
+                if attempt < self._max_retries - 1:
+                    print(f"  Rate limited (attempt {attempt + 1}/{self._max_retries}). "
+                          f"Retrying in {delay:.0f}s...")
+                    time.sleep(delay)
+                else:
+                    print(f"  Rate limited: max retries ({self._max_retries}) exceeded.")
+                    raise
+            except self._anthropic.APIError as e:
+                if e.status_code == 529:  # Overloaded
+                    delay = self._base_retry_delay * (2 ** attempt)
+                    if attempt < self._max_retries - 1:
+                        print(f"  API overloaded (attempt {attempt + 1}/{self._max_retries}). "
+                              f"Retrying in {delay:.0f}s...")
+                        time.sleep(delay)
+                    else:
+                        raise
+                else:
+                    raise
+
+    def _encode_image(self, image_path: str) -> dict:
+        """Encode an image file as a base64 content block for Claude API."""
+        import base64
+
+        if isinstance(image_path, Image.Image):
+            import io
+            buffer = io.BytesIO()
+            image_path.save(buffer, format='PNG')
+            image_data = base64.standard_b64encode(buffer.getvalue()).decode("utf-8")
+            media_type = "image/png"
+        else:
+            ext = os.path.splitext(image_path)[1].lower()
+            media_type_map = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+            }
+            media_type = media_type_map.get(ext, 'image/png')
+
+            with open(image_path, 'rb') as f:
+                image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        return {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": media_type,
+                "data": image_data,
+            }
+        }
+
+    def _generate_text(self, prompt: str, **kwargs) -> str:
+        """Generate text-only response via Claude API."""
+        messages = [{"role": "user", "content": prompt}]
+        return self._call_with_retry(messages, system=self._system_instruction)
+
+    def invoke(
+        self,
+        prompt: str,
+        images: Optional[Union[Image.Image, List[Image.Image], str, List[str]]] = None,
+        **kwargs
+    ) -> str:
+        """
+        Invoke the Claude API with text and optional images.
+
+        Args:
+            prompt: Text prompt
+            images: Optional image(s) - PIL Image, image path, or list of either
+            **kwargs: Additional generation arguments
+
+        Returns:
+            Generated text response
+        """
+        if images:
+            if isinstance(images, list):
+                return self.invoke_with_images(prompt, images, **kwargs)
+            else:
+                return self.invoke_with_images(prompt, [images], **kwargs)
+
+        return self._generate_text(prompt, **kwargs)
+
+    def invoke_with_images(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """
+        Invoke Claude API with multiple images.
+
+        Args:
+            prompt: Text prompt
+            image_paths: List of image paths or PIL Images
+            **kwargs: Additional generation arguments
+
+        Returns:
+            Generated text response
+        """
+        content = []
+        for path in image_paths:
+            content.append(self._encode_image(path))
+        content.append({"type": "text", "text": prompt})
+
+        messages = [{"role": "user", "content": content}]
+        return self._call_with_retry(messages, system=self._system_instruction)
+
+    def invoke_multimodal(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """Alias for invoke_with_images."""
+        return self.invoke_with_images(prompt, image_paths, **kwargs)
+
+    def generate_with_image(
+        self,
+        prompt: str,
+        image: Union[str, Image.Image],
+        **kwargs
+    ) -> str:
+        """Generate response with single image input."""
+        return self.invoke_with_images(prompt, [image], **kwargs)
+
+    def generate_with_images(
+        self,
+        prompt: str,
+        images: List[Union[str, Image.Image]],
+        image_labels: Optional[List[str]] = None,
+        **kwargs
+    ) -> str:
+        """Generate response with multiple image inputs."""
+        if not images:
+            return self._generate_text(prompt, **kwargs)
+
+        content = []
+        for i, img in enumerate(images):
+            if image_labels and i < len(image_labels):
+                content.append({"type": "text", "text": f"[{image_labels[i]}]:"})
+            content.append(self._encode_image(img))
+        content.append({"type": "text", "text": prompt})
+
+        messages = [{"role": "user", "content": content}]
+        return self._call_with_retry(messages, system=self._system_instruction)
+
+    def get_info(self) -> Dict[str, Any]:
+        """Get model information."""
+        return {
+            "model_id": self.model_id,
+            "type": "claude_api",
+            "temperature": self.temperature,
+            "max_new_tokens": self.max_new_tokens,
+        }
+
+
+# ============================================================================
+# Factory Function
+# ============================================================================
+
+def create_vlm(model_id: str, **kwargs):
+    """
+    Factory function to create the appropriate VLM based on model_id.
+
+    Args:
+        model_id: Model identifier.
+                  Use 'gemini-*' for Gemini API models,
+                  use 'claude-*' for Claude API models,
+                  or HuggingFace model IDs for local models.
+        **kwargs: Additional arguments passed to the VLM constructor.
+
+    Returns:
+        ClaudeVLM, GeminiVLM, or VisionLanguageModel instance.
+    """
+    if model_id.startswith("gemini-"):
+        return GeminiVLM(model_id=model_id, **kwargs)
+    elif model_id.startswith("claude-"):
+        return ClaudeVLM(model_id=model_id, **kwargs)
+    else:
+        return VisionLanguageModel(model_id=model_id, **kwargs)
 
 
 # Test code

@@ -44,30 +44,22 @@ class ActorAgent(BaseAgent):
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
         self.tool_registry: Optional[Any] = None
+        self.data_model_loader: Optional[Any] = None
 
-    def initialize_tools(
-        self,
-        model: Any,
-        model_type: str,
-        processor: Any,
-        modality: str = "vision"
-    ):
+    def initialize_tools(self, data_model_loader: Any):
         """
-        Initialize XAI tools with model.
+        Initialize XAI tools with a data model loader.
 
         Args:
-            model: PyTorch model
-            model_type: Model type
-            processor: Data processor
-            modality: Data modality
+            data_model_loader: An instance of DataModelLoader.
         """
+        # Store data_model_loader for use in multi-instance methods (Q4, Q9, Q10)
+        self.data_model_loader = data_model_loader
+
         try:
             from xai_tools_native import create_xai_tools
             self.tool_registry = create_xai_tools(
-                model=model,
-                model_type=model_type,
-                processor=processor,
-                modality=modality,
+                data_model_loader=data_model_loader,
                 output_dir=str(self.output_dir / "xai_outputs")
             )
             print("XAI Tools initialized for Actor Agent")
@@ -81,7 +73,10 @@ class ActorAgent(BaseAgent):
         question_template: Any,
         input_path: Optional[str] = None,
         model_info: Optional[Dict[str, Any]] = None,
-        prediction: Optional[Dict[str, Any]] = None
+        prediction: Optional[Dict[str, Any]] = None,
+        # Multi-instance parameters (for Q4, Q9, Q10)
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Main entry point - execute strategy and generate explanation.
@@ -90,16 +85,19 @@ class ActorAgent(BaseAgent):
             strategy: Strategy from Proposer
             question: Question dictionary
             question_template: QuestionTemplate or PromptBuilder
-            input_path: Path to input data
+            input_path: Path to input data (single instance)
             model_info: Model information
-            prediction: Prediction results
+            prediction: Prediction results (single instance)
+            input_paths: List of paths for multi-instance questions
+            predictions: List of predictions for multi-instance questions
 
         Returns:
             Result dictionary with explanation
         """
         return self.execute_and_explain(
             strategy, question, question_template,
-            input_path, model_info, prediction
+            input_path, model_info, prediction,
+            input_paths=input_paths, predictions=predictions
         )
 
     def execute_and_explain(
@@ -109,107 +107,872 @@ class ActorAgent(BaseAgent):
         question_template: Any,
         input_path: Optional[str] = None,
         model_info: Optional[Dict[str, Any]] = None,
-        prediction: Optional[Dict[str, Any]] = None
+        prediction: Optional[Dict[str, Any]] = None,
+        # Multi-instance parameters
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Execute strategy and generate explanation.
+
+        Handles both single-instance and multi-instance questions.
+        For multi-instance (Q4, Q9, Q10):
+        - Executes tools on each instance separately (loop)
+        - Combines results and generates comparative explanation (one VLM call)
 
         Args:
             strategy: Strategy from Proposer
             question: Question dictionary
             question_template: QuestionTemplate or PromptBuilder
-            input_path: Path to input (image, text, etc.)
+            input_path: Path to input (single instance)
             model_info: Model information
-            prediction: Prediction results
+            prediction: Prediction results (single instance)
+            input_paths: List of paths for multi-instance
+            predictions: List of predictions for multi-instance
 
         Returns:
             Result dictionary with explanation and output
         """
+        is_multi_instance = question.get('is_multi_instance', False)
+        num_instances = question.get('num_instances', 1)
+        q_type = question.get('q_type')
+        modality = question.get('modality', 'vision')
+
         print("\n" + "=" * 70)
-        print("ACTOR AGENT: Executing Strategy")
+        if is_multi_instance:
+            print(f"ACTOR AGENT: Executing Strategy for Q{q_type} ({num_instances} instances)")
+        else:
+            print("ACTOR AGENT: Executing Strategy")
+        print("=" * 70)
+
+        if is_multi_instance and input_paths and predictions:
+            # Multi-instance execution
+            return self._execute_multi_instance(
+                strategy=strategy,
+                question=question,
+                question_template=question_template,
+                input_paths=input_paths,
+                model_info=model_info,
+                predictions=predictions
+            )
+        else:
+            # Single instance execution (original logic)
+            return self._execute_single_instance(
+                strategy=strategy,
+                question=question,
+                question_template=question_template,
+                input_path=input_path,
+                model_info=model_info,
+                prediction=prediction
+            )
+
+    def _execute_single_instance(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        question_template: Any,
+        input_path: Optional[str] = None,
+        model_info: Optional[Dict[str, Any]] = None,
+        prediction: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute strategy for single instance (original logic)."""
+        modality = question.get('modality', 'vision')
+
+        # Step 1: Execute XAI tools
+        print("  Step 1: Executing XAI tools...")
+        tool_results = self._execute_tools(
+            strategy=strategy,
+            input_path=input_path or "",
+            prediction=prediction or {},
+            modality=modality,
+            question=question
+        )
+
+        # Step 1.5: Execute autonomous tasks (if any)
+        print("  Step 1.5: Executing autonomous tasks...")
+        autonomous_results = self._execute_autonomous_tasks(
+            strategy=strategy,
+            input_path=input_path or "",
+            prediction=prediction or {},
+            question=question,
+            tool_results=tool_results
+        )
+
+        # Merge autonomous results into tool_results for unified storage
+        if autonomous_results:
+            tool_results['autonomous_results'] = autonomous_results
+            tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+            self._save_tool_outputs(tool_results['tool_results'], question)
+
+        # Step 2: Extract features via VLM
+        print("  Step 2: Extracting features via VLM reasoning...")
+        extracted_features = self._extract_features_via_vlm(
+            tool_results=tool_results,
+            input_path=input_path,
+            question=question,
+            question_template=question_template,
+            prediction=prediction or {}
+        )
+
+        # Step 3: Generate structured explanation
+        print("  Step 3: Generating explanation...")
+        prompt_builder = self._get_prompt_builder(question_template, question)
+
+        context = self._build_context(question, model_info, prediction, input_path)
+        results_for_prompt = {
+            "tool_results": tool_results.get('tool_results', {}),
+            "extracted_features": extracted_features,
+            "autonomous_results": autonomous_results
+        }
+
+        parsed_result = self._generate_explanation_with_prompt_builder(
+            prompt_builder=prompt_builder,
+            context=context,
+            strategy=strategy,
+            results=results_for_prompt,
+            tool_results=tool_results
+        )
+
+        # Add metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = question.get('q_type', 'unknown')
+        parsed_result['tool_results'] = tool_results.get('tool_results', {})
+        parsed_result['autonomous_results'] = autonomous_results
+        parsed_result['visualization_paths'] = tool_results.get('visualization_paths', [])
+
+        # Save results
+        self._save_results(parsed_result, question)
+
+        print(f"\nExplanation generated")
+        return parsed_result
+
+    def _execute_multi_instance(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        question_template: Any,
+        input_paths: List[str],
+        model_info: Optional[Dict[str, Any]] = None,
+        predictions: List[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute strategy for multi-instance questions (Q4, Q9, Q10).
+
+        Approach:
+        1. Execute XAI tools on each instance separately (loop)
+        2. Combine all tool results
+        3. One VLM call to generate comparative explanation
+        """
+        modality = question.get('modality', 'vision')
+        num_instances = len(input_paths)
+        q_type = question.get('q_type')
+
+        # Step 1: Execute XAI tools on each instance
+        all_tool_results = []
+        all_viz_paths = []
+
+        for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
+            print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")
+
+            # Modify question for this instance (for output naming)
+            instance_question = question.copy()
+            instance_question['instance_index'] = i
+            instance_question['instance_suffix'] = f"_inst{i}"
+
+            tool_results = self._execute_tools(
+                strategy=strategy,
+                input_path=input_path,
+                prediction=prediction,
+                modality=modality,
+                question=instance_question
+            )
+
+            all_tool_results.append(tool_results)
+            all_viz_paths.extend(tool_results.get('visualization_paths', []))
+
+        # Combine tool results
+        combined_tool_results = {
+            'instances': all_tool_results,
+            'tool_results': {f'instance_{i}': tr.get('tool_results', {}) for i, tr in enumerate(all_tool_results)},
+            'visualization_paths': all_viz_paths,
+            'tool_results_summary': "; ".join([
+                f"Instance {i}: {tr.get('tool_results_summary', 'no results')}"
+                for i, tr in enumerate(all_tool_results)
+            ])
+        }
+
+        # Step 2: Extract comparative features via VLM
+        print("  Step 2: Extracting comparative features via VLM...")
+        extracted_features = self._extract_features_multi(
+            tool_results=combined_tool_results,
+            input_paths=input_paths,
+            question=question,
+            question_template=question_template,
+            predictions=predictions
+        )
+
+        # Step 3: Generate comparative explanation
+        print("  Step 3: Generating comparative explanation...")
+        prompt_builder = self._get_prompt_builder(question_template, question)
+
+        context = self._build_context_multi(question, model_info, predictions, input_paths)
+        results_for_prompt = {
+            "tool_results": combined_tool_results['tool_results'],
+            "extracted_features": extracted_features,
+            "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
+        }
+
+        # Use multi-instance prompt if available
+        if hasattr(prompt_builder, 'build_actor_prompt_multi'):
+            parsed_result = self._generate_explanation_multi(
+                prompt_builder=prompt_builder,
+                context=context,
+                strategy=strategy,
+                results=results_for_prompt,
+                tool_results=combined_tool_results,
+                instances=results_for_prompt['instances']
+            )
+        else:
+            # Fallback to single-instance prompt
+            parsed_result = self._generate_explanation_with_prompt_builder(
+                prompt_builder=prompt_builder,
+                context=context,
+                strategy=strategy,
+                results=results_for_prompt,
+                tool_results=combined_tool_results
+            )
+
+        # Ensure multi-instance output format
+        if 'output' not in parsed_result:
+            parsed_result['output'] = {}
+
+        # Add per-instance outputs if not present
+        for i in range(num_instances):
+            key = f'input_{i}' if num_instances > 2 else ('input_A' if i == 0 else 'input_B')
+            if key not in parsed_result['output']:
+                parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
+
+        # Add metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = q_type
+        parsed_result['is_multi_instance'] = True
+        parsed_result['num_instances'] = num_instances
+        parsed_result['tool_results'] = combined_tool_results['tool_results']
+        parsed_result['visualization_paths'] = all_viz_paths
+
+        # Save results
+        self._save_results(parsed_result, question)
+
+        print(f"\nMulti-instance explanation generated for {num_instances} instances")
+        return parsed_result
+
+    def _extract_features_multi(
+        self,
+        tool_results: Dict[str, Any],
+        input_paths: List[str],
+        question: Dict[str, Any],
+        question_template: Any,
+        predictions: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Extract features for multi-instance comparison (Q9, Q10)."""
+        num_instances = len(input_paths)
+        modality = question.get('modality', 'vision')
+        q_type = question.get('q_type', 9)
+
+        # Get image size from tool results
+        image_width, image_height = 224, 224
+        for inst_results in tool_results.get('instances', []):
+            for tool_name, result in inst_results.get('tool_results', {}).items():
+                if isinstance(result, dict) and result.get('success'):
+                    img_size = result.get('original_image_size', {})
+                    if img_size:
+                        image_width = img_size.get('width', image_width)
+                        image_height = img_size.get('height', image_height)
+                        break
+            if image_width != 224:
+                break
+
+        # Build size constraint
+        if modality == "vision":
+            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
+            size_constraint = f"""
+**CRITICAL IMAGE SIZE CONSTRAINT:**
+- Image dimensions: {image_width} x {image_height} pixels
+- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- Ensure x_max <= {image_width} and y_max <= {image_height}"""
+        elif modality == "text":
+            output_format = '"start_index": int, "end_index": int'
+            size_constraint = ""
+        else:
+            output_format = '"feature_key": "string"'
+            size_constraint = ""
+
+        # Build per-instance summaries with detailed tool statistics
+        instance_sections = []
+        for i in range(num_instances):
+            pred = predictions[i] if i < len(predictions) else {}
+            inst_results = tool_results.get('instances', [{}])[i] if i < len(tool_results.get('instances', [])) else {}
+
+            pred_class = pred.get('predicted_class_name', pred.get('predicted_class_idx', 'Unknown'))
+            confidence = pred.get('confidence', 0.0)
+
+            section = f"""### Instance {i}
+- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+
+**Tool Results Summary:**
+{inst_results.get('tool_results_summary', 'No tools executed')}
+
+**Detailed Tool Statistics:**
+{self._format_tool_statistics(inst_results)}"""
+            instance_sections.append(section)
+
+        prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract key features for {num_instances} instances.
+
+## Context
+- Question: {question.get('question', '')}
+- Question Type: Q{q_type}
+- Modality: {modality}
+{size_constraint}
+
+## Instance Analysis
+{chr(10).join(instance_sections)}
+
+## Your Task
+For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes its prediction.
+
+**CRITICAL: Your response MUST be valid JSON with this exact structure:**
+{{
+    {', '.join([f'"output_{i}": {{{output_format}, "description": "explanation for instance {i}"}}' for i in range(num_instances)])},
+    "comparison": "Brief explanation of key differences between instances"
+}}
+
+**Important Guidelines:**
+- For vision: Provide bounding box as [x_min, y_min, x_max, y_max] in pixel coordinates
+  - MUST respect image bounds: x in [0, {image_width}], y in [0, {image_height}]
+  - Use the top_attention_coords from tool results to determine the region
+- For text: Provide character indices (start_index, end_index)
+- For tabular: Provide the exact feature name
+
+Respond with ONLY valid JSON:"""
+
+        response = self.invoke_vlm(prompt)
+        features = self.parse_json_response(response)
+        if not features:
+            raise RuntimeError(
+                f"Failed to parse VLM response for multi-instance feature extraction. "
+                f"Response preview: {response[:500]}"
+            )
+        return features
+
+    def _format_tool_summary(self, tool_results: Dict[str, Any]) -> str:
+        """Format tool results as brief summary."""
+        summaries = []
+        for tool_name, result in tool_results.items():
+            if isinstance(result, dict) and result.get('success'):
+                bbox = result.get('suggested_bounding_box')
+                if bbox:
+                    summaries.append(f"{tool_name}: bbox={bbox}")
+                else:
+                    summaries.append(f"{tool_name}: success")
+        return ", ".join(summaries) if summaries else "no results"
+
+    def _build_context_multi(
+        self,
+        question: Dict[str, Any],
+        model_info: Optional[Dict[str, Any]],
+        predictions: List[Dict[str, Any]],
+        input_paths: List[str]
+    ) -> Dict[str, Any]:
+        """Build context for multi-instance comparison."""
+        modality = question.get("modality", "vision")
+
+        clean_model_info = {}
+        if model_info:
+            clean_model_info = {
+                "model_name": model_info.get("model_name", "Unknown"),
+                "architecture": model_info.get("architecture", "Unknown"),
+                "num_classes": model_info.get("num_classes", "Unknown"),
+            }
+
+        context = {
+            "user_question": question.get("question", ""),
+            "model_info": clean_model_info,
+            "num_instances": len(predictions),
+            "predictions": predictions,
+            "input_paths": input_paths,
+        }
+
+        # Add indexed access
+        for i, pred in enumerate(predictions):
+            context[f"prediction_{i}"] = pred
+        for i, path in enumerate(input_paths):
+            context[f"image_path_{i}"] = path
+
+        # For compatibility with existing prompts
+        if predictions:
+            context["prediction"] = predictions[0]
+            context["prediction_A"] = predictions[0] if len(predictions) > 0 else {}
+            context["prediction_B"] = predictions[1] if len(predictions) > 1 else {}
+        if input_paths:
+            context["image_path"] = input_paths[0]
+            context["image_path_A"] = input_paths[0] if len(input_paths) > 0 else ""
+            context["image_path_B"] = input_paths[1] if len(input_paths) > 1 else ""
+
+        return context
+
+    def _generate_explanation_multi(
+        self,
+        prompt_builder: Any,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any],
+        tool_results: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Generate explanation using multi-instance prompt builder."""
+        prompt = prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
+        print(f"  Generated multi-instance actor prompt ({len(prompt)} chars)")
+
+        response = self.invoke_vlm(prompt)
+        print(f"  VLM Response preview: {response[:200]}...")
+
+        parsed = self.parse_json_response(response)
+        if not parsed:
+            raise RuntimeError(
+                f"Failed to parse VLM response for multi-instance explanation. "
+                f"Response preview: {response[:500]}"
+            )
+        return parsed
+
+    # =========================================================================
+    # Q4 Specific Methods (instance_A / instance_B format)
+    # =========================================================================
+
+    def run_q4(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        question_template: Any,
+        instances: List[Dict[str, Any]],  # [{'prediction': ..., 'path': ..., 'label': 'A/B'}]
+        model_info: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute strategy for Q4 contrastive instances.
+
+        Approach:
+        1. Execute XAI tools on Instance A
+        2. Execute XAI tools on Instance B
+        3. One VLM call to generate comparative explanation
+
+        Args:
+            strategy: Strategy from Proposer
+            question: Question dict with instance_A, instance_B
+            question_template: Q4ContrastiveInstancesPromptBuilder
+            instances: [{'prediction': pred_A, 'path': path_A, 'label': 'A'}, ...]
+            model_info: Model information
+
+        Returns:
+            Result dict with output.input_A and output.input_B
+        """
+        print("\n" + "=" * 70)
+        print("ACTOR AGENT: Executing Q4 Strategy (Instance A vs B)")
         print("=" * 70)
 
         modality = question.get('modality', 'vision')
 
-        try:
-            # Step 1: Execute XAI tools
-            print("  Step 1: Executing XAI tools...")
-            tool_results = self._execute_tools(
-                strategy=strategy,
-                input_path=input_path or "",
-                prediction=prediction or {},
-                modality=modality
+        # ═══════════════════════════════════════════════════════
+        # Step 1: Execute XAI tools on Instance A
+        # ═══════════════════════════════════════════════════════
+        inst_a = instances[0]
+        print(f"  Step 1: Executing XAI tools on Instance A...")
+
+        # CRITICAL: Reload the correct sample for Instance A before tool execution
+        # This ensures XAI tools use get_current_image() returns A's image, not B's
+        if self.data_model_loader and 'image_index' in inst_a:
+            split = inst_a.get('split', 'test')
+            print(f"    Reloading sample: image_index={inst_a['image_index']}, split={split}")
+            self.data_model_loader.load_sample(index=inst_a['image_index'], split=split)
+
+        question_a = question.copy()
+        question_a['instance_suffix'] = '_A'
+
+        tool_results_a = self._execute_tools(
+            strategy=strategy,
+            input_path=inst_a['path'],
+            prediction=inst_a['prediction'],
+            modality=modality,
+            question=question_a
+        )
+        print(f"    Instance A tools complete: {tool_results_a.get('tool_results_summary', 'N/A')}")
+
+        # ═══════════════════════════════════════════════════════
+        # Step 2: Execute XAI tools on Instance B
+        # ═══════════════════════════════════════════════════════
+        inst_b = instances[1]
+        print(f"  Step 2: Executing XAI tools on Instance B...")
+
+        # CRITICAL: Reload the correct sample for Instance B before tool execution
+        # This ensures XAI tools use get_current_image() returns B's image
+        if self.data_model_loader and 'image_index' in inst_b:
+            split = inst_b.get('split', 'test')
+            print(f"    Reloading sample: image_index={inst_b['image_index']}, split={split}")
+            self.data_model_loader.load_sample(index=inst_b['image_index'], split=split)
+
+        question_b = question.copy()
+        question_b['instance_suffix'] = '_B'
+
+        tool_results_b = self._execute_tools(
+            strategy=strategy,
+            input_path=inst_b['path'],
+            prediction=inst_b['prediction'],
+            modality=modality,
+            question=question_b
+        )
+        print(f"    Instance B tools complete: {tool_results_b.get('tool_results_summary', 'N/A')}")
+
+        # ═══════════════════════════════════════════════════════
+        # Step 3: Combine tool results
+        # ═══════════════════════════════════════════════════════
+        combined_tool_results = {
+            'instance_A': tool_results_a.get('tool_results', {}),
+            'instance_B': tool_results_b.get('tool_results', {}),
+            'tool_results': {
+                'instance_A': tool_results_a.get('tool_results', {}),
+                'instance_B': tool_results_b.get('tool_results', {})
+            },
+            'visualization_paths': (
+                tool_results_a.get('visualization_paths', []) +
+                tool_results_b.get('visualization_paths', [])
+            ),
+            'tool_results_summary': (
+                f"Instance A: {tool_results_a.get('tool_results_summary', 'N/A')}; "
+                f"Instance B: {tool_results_b.get('tool_results_summary', 'N/A')}"
+            )
+        }
+
+        # ═══════════════════════════════════════════════════════
+        # Step 4: Extract comparative features via VLM
+        # ═══════════════════════════════════════════════════════
+        print("  Step 3: Extracting comparative features...")
+        extracted_features = self._extract_features_q4(
+            tool_results_a=tool_results_a,
+            tool_results_b=tool_results_b,
+            instances=instances,
+            question=question
+        )
+
+        # ═══════════════════════════════════════════════════════
+        # Step 5: Generate Q4 explanation (one VLM call)
+        # ═══════════════════════════════════════════════════════
+        print("  Step 4: Generating Q4 comparative explanation...")
+
+        prompt_builder = self._get_prompt_builder(question_template, question)
+        context = self._build_context_q4(question, model_info, instances)
+
+        results_for_prompt = {
+            "tool_results": combined_tool_results['tool_results'],
+            "extracted_features": extracted_features
+        }
+
+        # Use Q4-specific actor prompt
+        parsed_result = self._generate_explanation_q4(
+            prompt_builder=prompt_builder,
+            context=context,
+            strategy=strategy,
+            results=results_for_prompt,
+            tool_results=combined_tool_results,
+            instances=instances
+        )
+
+        # Ensure Q4 output format
+        if 'output' not in parsed_result:
+            parsed_result['output'] = {}
+
+        if 'input_A' not in parsed_result['output']:
+            parsed_result['output']['input_A'] = extracted_features.get('output_A', {})
+        if 'input_B' not in parsed_result['output']:
+            parsed_result['output']['input_B'] = extracted_features.get('output_B', {})
+
+        # Add metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = 4
+        parsed_result['is_q4'] = True
+        parsed_result['tool_results'] = combined_tool_results['tool_results']
+        parsed_result['visualization_paths'] = combined_tool_results['visualization_paths']
+
+        # Save results
+        self._save_results(parsed_result, question)
+
+        print(f"\nQ4 Explanation generated")
+        return parsed_result
+
+    def _extract_features_q4(
+        self,
+        tool_results_a: Dict[str, Any],
+        tool_results_b: Dict[str, Any],
+        instances: List[Dict[str, Any]],
+        question: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Extract features for Q4 comparison (Instance A vs B)."""
+        modality = question.get('modality', 'vision')
+        pred_a = instances[0].get('prediction', {})
+        pred_b = instances[1].get('prediction', {})
+
+        # Get image size from tool results
+        image_width, image_height = 224, 224
+        for tool_name, result in tool_results_a.get('tool_results', {}).items():
+            if isinstance(result, dict) and result.get('success'):
+                img_size = result.get('original_image_size', {})
+                if img_size:
+                    image_width = img_size.get('width', image_width)
+                    image_height = img_size.get('height', image_height)
+                    break
+
+        # Build size constraint based on modality
+        if modality == "vision":
+            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
+            size_constraint = f"""
+**CRITICAL IMAGE SIZE CONSTRAINT:**
+- Image dimensions: {image_width} x {image_height} pixels
+- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- Example valid bounding box for this image: [10, 20, 80, 70]
+- Ensure x_max <= {image_width} and y_max <= {image_height}. Do not hallucinate coordinates outside this range."""
+        elif modality == "text":
+            output_format = '"start_index": int, "end_index": int'
+            text_input = question.get('text_input', '')
+            text_length = len(text_input) if text_input else 100
+            size_constraint = f"""
+**CRITICAL TEXT LENGTH CONSTRAINT:**
+- Text length: {text_length} characters
+- ALL indices MUST be within: [0, {text_length}]"""
+        else:
+            output_format = '"feature_key": "string"'
+            size_constraint = ""
+
+        # Format predictions
+        pred_a_class = pred_a.get('predicted_class_name', pred_a.get('predicted_class_idx', 'Unknown'))
+        pred_a_conf = pred_a.get('confidence', 0.0)
+        pred_b_class = pred_b.get('predicted_class_name', pred_b.get('predicted_class_idx', 'Unknown'))
+        pred_b_conf = pred_b.get('confidence', 0.0)
+
+        prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract key features for two instances with DIFFERENT predictions.
+
+## Context
+- Question: {question.get('question', 'Why are instances A and B given different predictions?')}
+- Question Type: Q4 (Contrastive Instances)
+- Modality: {modality}
+{size_constraint}
+
+## Instance A Analysis
+- Model Prediction: {pred_a_class} (confidence: {pred_a_conf:.2%})
+
+**Tool Results Summary:**
+{tool_results_a.get('tool_results_summary', 'No tools executed')}
+
+**Detailed Tool Statistics:**
+{self._format_tool_statistics(tool_results_a)}
+
+## Instance B Analysis
+- Model Prediction: {pred_b_class} (confidence: {pred_b_conf:.2%})
+
+**Tool Results Summary:**
+{tool_results_b.get('tool_results_summary', 'No tools executed')}
+
+**Detailed Tool Statistics:**
+{self._format_tool_statistics(tool_results_b)}
+
+## Your Task
+For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes its prediction.
+Explain why these regions lead to DIFFERENT predictions.
+
+**CRITICAL: Your response MUST be valid JSON with this exact structure:**
+{{
+    "output_A": {{
+        {output_format},
+        "description": "2-3 sentences explaining why this region causes prediction A"
+    }},
+    "output_B": {{
+        {output_format},
+        "description": "2-3 sentences explaining why this region causes prediction B"
+    }},
+    "comparison": "Brief explanation of why these regions lead to different predictions"
+}}
+
+**Important Guidelines:**
+- For vision: Provide bounding box as [x_min, y_min, x_max, y_max] in pixel coordinates
+  - MUST respect image bounds: x in [0, {image_width}], y in [0, {image_height}]
+  - Use the top_attention_coords from tool results to determine the region
+- For text: Provide character indices (start_index, end_index)
+- For tabular: Provide the exact feature name
+
+Respond with ONLY valid JSON:"""
+
+        response = self.invoke_vlm(prompt)
+        features = self.parse_json_response(response)
+        if not features:
+            raise RuntimeError(
+                f"Failed to parse VLM response for Q4 feature extraction. "
+                f"Response preview: {response[:500]}"
+            )
+        return features
+
+    def _compute_bbox_from_tool_results(
+        self,
+        tool_results: Dict[str, Any],
+        image_size: Tuple[int, int]
+    ) -> List[int]:
+        """Compute bounding box from tool results."""
+        width, height = image_size
+        all_xs = []
+        all_ys = []
+
+        for tool_name, result in tool_results.get('tool_results', {}).items():
+            if not isinstance(result, dict) or not result.get('success'):
+                continue
+
+            # Check for suggested_bounding_box first
+            if 'suggested_bounding_box' in result:
+                return result['suggested_bounding_box']
+
+            stats = result.get('statistics', {})
+            top_coords = (
+                stats.get('top_attention_coords') or
+                stats.get('top_importance_coords') or
+                stats.get('top_gradient_coords')
             )
 
-            # Step 2: Extract features via VLM
-            print("  Step 2: Extracting features via VLM reasoning...")
-            extracted_features = self._extract_features_via_vlm(
-                tool_results=tool_results,
-                input_path=input_path,
-                question=question,
-                question_template=question_template,
-                prediction=prediction or {}
+            if top_coords:
+                for coord in top_coords:
+                    x, y = coord.get('x', 0), coord.get('y', 0)
+                    if 0 <= x < width and 0 <= y < height:
+                        all_xs.append(x)
+                        all_ys.append(y)
+
+        if all_xs and all_ys:
+            padding = max(width, height) // 10
+            x_min = max(0, min(all_xs) - padding)
+            y_min = max(0, min(all_ys) - padding)
+            x_max = min(width, max(all_xs) + padding)
+            y_max = min(height, max(all_ys) + padding)
+            return [int(x_min), int(y_min), int(x_max), int(y_max)]
+
+        # Fallback: center region
+        margin_x = width // 4
+        margin_y = height // 4
+        return [margin_x, margin_y, width - margin_x, height - margin_y]
+
+    def _build_context_q4(
+        self,
+        question: Dict[str, Any],
+        model_info: Optional[Dict[str, Any]],
+        instances: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Build context for Q4."""
+        clean_model_info = {}
+        if model_info:
+            clean_model_info = {
+                "model_name": model_info.get("model_name", "Unknown"),
+                "architecture": model_info.get("architecture", "Unknown"),
+                "num_classes": model_info.get("num_classes", "Unknown"),
+            }
+
+        context = {
+            "user_question": question.get("question", question.get("example", "")),
+            "model_info": clean_model_info,
+            "num_instances": 2,
+        }
+
+        if instances and len(instances) >= 2:
+            context["prediction_A"] = instances[0].get('prediction', {})
+            context["prediction_B"] = instances[1].get('prediction', {})
+            context["image_path_A"] = instances[0].get('path', '')
+            context["image_path_B"] = instances[1].get('path', '')
+
+        return context
+
+    def _generate_explanation_q4(
+        self,
+        prompt_builder: Any,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any],
+        tool_results: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Generate Q4 explanation using the prompt builder."""
+        # Use build_actor_prompt_multi for Q4
+        prompt = prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
+        print(f"  Generated Q4 actor prompt ({len(prompt)} chars)")
+
+        print("=" * 70)
+        print(f"\n DEBUG Q4 EXPLANATION PROMPT:\n{prompt}")
+        print("=" * 70)
+
+        response = self.invoke_vlm(prompt)
+
+        print("=" * 70)
+        print(f"\n DEBUG Q4 EXPLANATION RESPONSE:\n{response}")
+        print("=" * 70)
+
+        parsed = self.parse_json_response(response)
+        if not parsed:
+            raise RuntimeError(
+                f"Failed to parse VLM response for Q4 explanation. "
+                f"Response preview: {response[:500]}"
             )
-
-            # Step 3: Generate structured explanation
-            print("  Step 3: Generating explanation...")
-            prompt_builder = self._get_prompt_builder(question_template, question)
-
-            if prompt_builder is not None:
-                context = self._build_context(question, model_info, prediction, input_path)
-                results_for_prompt = {
-                    "tool_results": tool_results.get('tool_results', {}),
-                    "extracted_features": extracted_features,
-                    "autonomous_results": {}
-                }
-
-                parsed_result = self._generate_explanation_with_prompt_builder(
-                    prompt_builder=prompt_builder,
-                    context=context,
-                    strategy=strategy,
-                    results=results_for_prompt,
-                    tool_results=tool_results
-                )
-            else:
-                # Fallback
-                parsed_result = {
-                    "explanation": extracted_features.get('explanation', 'Analysis completed.'),
-                    "output": self._format_output_from_features(extracted_features, modality),
-                    "extracted_features": extracted_features,
-                    "confidence": extracted_features.get('confidence', 0.7)
-                }
-
-            # Add metadata
-            parsed_result['question_id'] = question.get('question_id', 'unknown')
-            parsed_result['question_type'] = question.get('q_type', 'unknown')
-            parsed_result['tool_results'] = tool_results.get('tool_results', {})
-            parsed_result['visualization_paths'] = tool_results.get('visualization_paths', [])
-
-            # Save results
-            self._save_results(parsed_result)
-
-            print(f"\nExplanation generated")
-            return parsed_result
-
-        except Exception as e:
-            print(f"Warning: Execution failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return self._create_error_result(str(e), question)
+        return parsed
 
     def _execute_tools(
         self,
         strategy: Dict[str, Any],
         input_path: str,
         prediction: Dict[str, Any],
-        modality: str = "vision"
+        modality: str = "vision",
+        question: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Execute XAI tools based on strategy"""
+        import re
+        from xai_tools import set_output_dir
+
         all_viz_paths = []
         tool_summaries = []
         tool_outputs = {}
 
         target_class = prediction.get('predicted_class_idx', 0)
+
+        # Build image_id and set xai_outputs directory based on question info
+        # Directory structure: /xai_outputs/{modality}/{dataset_name}/{q_type}/{question_id}/
+        # e.g., /xai_outputs/vision/stl10_resnet/q1/0/
+        if question:
+            dataset_base_name = question.get('dataset_base_name', 'unknown')
+            row_no = question.get('row_no', question.get('question_id', 0))
+            q_modality = question.get('modality', modality)
+
+            # Extract dataset_name and q_type from dataset_base_name
+            # e.g., "stl10_resnet_q1_test" -> dataset_name="stl10_resnet", q_type="q1"
+            match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+            if match:
+                dataset_name = match.group(1)  # e.g., "stl10_resnet"
+                q_type_str = match.group(2)    # e.g., "q1"
+            else:
+                dataset_name = dataset_base_name
+                q_type_str = f"q{question.get('q_type', 1)}"
+
+            # Get instance suffix for multi-instance questions (Q4, Q9, Q10)
+            instance_suffix = question.get('instance_suffix', '')
+
+            # Set nested output directory for xai_outputs: /{modality}/{dataset_name}/{q_type}/{question_id}/
+            # For multi-instance: /{modality}/{dataset_name}/{q_type}/{question_id}/{instance_suffix}/
+            if instance_suffix:
+                xai_output_dir = self.output_dir / "xai_outputs" / q_modality / dataset_name / q_type_str / str(row_no) / instance_suffix.strip('_')
+            else:
+                xai_output_dir = self.output_dir / "xai_outputs" / q_modality / dataset_name / q_type_str / str(row_no)
+            xai_output_dir.mkdir(parents=True, exist_ok=True)
+            set_output_dir(str(xai_output_dir))
+
+            image_id_prefix = f"{dataset_name}_{q_type_str}_{row_no}{instance_suffix}"
+        else:
+            image_id_prefix = "direct"
 
         for tool_spec in strategy.get('selected_tools', []):
             tool_name = tool_spec.get('tool_name', 'gradcam')
@@ -228,9 +991,24 @@ class ActorAgent(BaseAgent):
                 result_str = tool.run(
                     image_path=input_path,
                     target_class=target_class,
-                    image_id=f"direct_{tool_name}"
+                    image_id=f"{image_id_prefix}_{tool_name}"
                 )
                 result = json.loads(result_str)
+
+                # Compute suggested_bounding_box from tool statistics (same logic as _format_tool_statistics)
+                if result.get('success'):
+                    stats = result.get('statistics', {})
+                    top_coords = (
+                        stats.get('top_attention_coords') or
+                        stats.get('top_importance_coords') or
+                        stats.get('top_gradient_coords')
+                    )
+                    if top_coords and len(top_coords) > 0:
+                        xs = [c.get('x', 0) for c in top_coords if isinstance(c, dict)]
+                        ys = [c.get('y', 0) for c in top_coords if isinstance(c, dict)]
+                        if xs and ys:
+                            result['suggested_bounding_box'] = [min(xs), min(ys), max(xs), max(ys)]
+
                 tool_outputs[tool_name] = result
 
                 if result.get('success'):
@@ -245,11 +1023,255 @@ class ActorAgent(BaseAgent):
                 tool_outputs[tool_name] = {"success": False, "error": str(e)}
                 tool_summaries.append(f"{tool_name}: error - {str(e)}")
 
+        # Save tool outputs
+        if question:
+            self._save_tool_outputs(tool_outputs, question)
+
         return {
             "tool_results": tool_outputs,
             "tool_results_summary": "; ".join(tool_summaries),
             "visualization_paths": all_viz_paths,
         }
+
+    def _execute_autonomous_tasks(
+        self,
+        strategy: Dict[str, Any],
+        input_path: str,
+        prediction: Dict[str, Any],
+        question: Dict[str, Any],
+        tool_results: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute autonomous tasks using VLM's own reasoning capabilities.
+
+        Args:
+            strategy: Strategy containing autonomous_tasks
+            input_path: Path to input data
+            prediction: Model prediction results
+            question: Question dictionary
+            tool_results: Results from XAI tools (for image size info)
+
+        Returns:
+            Dictionary mapping task_type to task results
+        """
+        autonomous_tasks = strategy.get('autonomous_tasks', [])
+
+        if not autonomous_tasks:
+            print("  No autonomous tasks specified in strategy")
+            return {}
+
+        print(f"\n  Executing {len(autonomous_tasks)} autonomous task(s)...")
+        autonomous_results = {}
+        modality = question.get('modality', 'vision')
+
+        for i, task in enumerate(autonomous_tasks):
+            task_type = task.get('task_type', 'unknown')
+            query = task.get('query', '')
+            expected_output = task.get('expected_output', '')
+
+            print(f"    [{i+1}/{len(autonomous_tasks)}] Executing '{task_type}' task...")
+
+            try:
+                # Build prompt directly from task specification
+                prompt = self._build_autonomous_task_prompt(
+                    task_type=task_type,
+                    query=query,
+                    expected_output=expected_output,
+                    prediction=prediction,
+                    question=question,
+                    modality=modality,
+                    tool_results=tool_results
+                )
+
+                # Prepare images for VLM (vision modality)
+                images = []
+                if modality == "vision" and input_path and os.path.exists(input_path):
+                    images.append(input_path)
+
+                # Call VLM to execute the task
+                response = self.invoke_vlm(prompt, images if images else None)
+
+                # Parse response
+                parsed = self.parse_json_response(response)
+
+                if parsed:
+                    result = {
+                        "success": True,
+                        "task_type": task_type,
+                        "query": query,
+                        "result": parsed,
+                        "raw_response": response[:1000]
+                    }
+                else:
+                    # If JSON parsing fails, store raw response
+                    result = {
+                        "success": True,
+                        "task_type": task_type,
+                        "query": query,
+                        "result": {"text_response": response[:1500]},
+                        "raw_response": response[:1000]
+                    }
+
+                autonomous_results[task_type] = result
+                print(f"        '{task_type}': completed")
+
+            except Exception as e:
+                print(f"        '{task_type}': failed - {str(e)}")
+                autonomous_results[task_type] = {
+                    "success": False,
+                    "task_type": task_type,
+                    "query": query,
+                    "error": str(e)
+                }
+
+        return autonomous_results
+
+    def _build_autonomous_task_prompt(
+        self,
+        task_type: str,
+        query: str,
+        expected_output: str,
+        prediction: Dict[str, Any],
+        question: Dict[str, Any],
+        modality: str,
+        tool_results: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Build prompt for autonomous task execution.
+
+        Directly uses task_type, query, and expected_output from proposer's strategy.
+        Includes modality-specific constraints (image size, text length, etc.)
+        """
+        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
+        confidence = prediction.get('confidence', 0.0)
+        top_predictions = prediction.get('top_predictions', [])
+
+        # Format top predictions
+        top_pred_str = ""
+        if top_predictions:
+            top_pred_str = "\n".join([
+                f"  - {p.get('class_name', p.get('class_idx', 'Unknown'))}: {p.get('confidence', 0):.2%}"
+                for p in top_predictions[:5]
+            ])
+
+        # Build modality-specific constraints
+        size_constraint = self._build_modality_constraint(modality, question, tool_results)
+
+        prompt = f"""You are an expert AI analyst. Perform the following autonomous reasoning task.
+
+## Task Type: {task_type}
+
+## Context
+- Question: {question.get('question', '')}
+- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+- Modality: {modality}
+
+## Top-5 Model Predictions
+{top_pred_str if top_pred_str else "Not available"}
+{size_constraint}
+
+## Your Task
+{query}
+
+## Expected Output
+{expected_output}
+
+## Response Format
+Provide your analysis as a JSON object. Include:
+- Your findings/results matching the expected output format
+- "explanation": Brief explanation of your analysis
+- "confidence": Your confidence score (0.0-1.0)
+
+JSON Response:"""
+
+        return prompt
+
+    def _build_modality_constraint(
+        self,
+        modality: str,
+        question: Dict[str, Any],
+        tool_results: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Build modality-specific constraints for autonomous task prompts."""
+
+        if modality == "vision":
+            # Extract image size from tool results
+            image_width, image_height = 224, 224  # Default
+            if tool_results:
+                for tool_name, result in tool_results.get('tool_results', {}).items():
+                    if isinstance(result, dict) and result.get('success'):
+                        img_size = result.get('original_image_size', {})
+                        if img_size:
+                            image_width = img_size.get('width', image_width)
+                            image_height = img_size.get('height', image_height)
+                            break
+
+            min_width = max(int(image_width * 0.1), 10)
+            min_height = max(int(image_height * 0.1), 10)
+
+            return f"""
+## CRITICAL IMAGE CONSTRAINTS
+- Image dimensions: {image_width} x {image_height} pixels
+- ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- MINIMUM bounding box size: {min_width}x{min_height} pixels
+- Format bounding boxes as [x_min, y_min, x_max, y_max]
+- Ensure x_max > x_min and y_max > y_min"""
+
+        elif modality == "text":
+            text_input = question.get('text_input', '')
+            text_length = len(text_input) if text_input else 100
+
+            return f"""
+## CRITICAL TEXT CONSTRAINTS
+- Text length: {text_length} characters
+- ALL indices MUST be within: [0, {text_length}]
+- Format text spans as {{"start_index": int, "end_index": int}}
+- Ensure end_index > start_index"""
+
+        elif modality == "tabular":
+            features = question.get('features', {})
+            feature_names = list(features.keys()) if features else []
+
+            return f"""
+## CRITICAL TABULAR CONSTRAINTS
+- Available features: {feature_names[:20]}{'...' if len(feature_names) > 20 else ''}
+- Use exact feature names as they appear above
+- Format as {{"feature_key": "feature_name"}}"""
+
+        return ""
+
+    def _save_tool_outputs(self, tool_outputs: Dict[str, Any], question: Dict[str, Any]):
+        """Save tool outputs to file."""
+        import re
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', question.get('question_id', 0))
+        modality = question.get('modality', 'vision')
+        instance_suffix = question.get('instance_suffix', '')
+
+        # Extract dataset_name and q_type from dataset_base_name
+        # e.g., "stl10_resnet_q1_test" -> dataset_name="stl10_resnet", q_type="q1"
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)  # e.g., "stl10_resnet"
+            q_type_str = match.group(2)    # e.g., "q1"
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+
+        # Directory structure: /tool_outputs/{modality}/{dataset_name}/{q_type}/{question_id}/
+        # For multi-instance: /tool_outputs/{modality}/{dataset_name}/{q_type}/{question_id}/{instance}/
+        if instance_suffix:
+            tool_outputs_dir = self.output_dir / "tool_outputs" / modality / dataset_name / q_type_str / str(row_no) / instance_suffix.strip('_')
+        else:
+            tool_outputs_dir = self.output_dir / "tool_outputs" / modality / dataset_name / q_type_str / str(row_no)
+        tool_outputs_dir.mkdir(parents=True, exist_ok=True)
+
+        output_file = tool_outputs_dir / "tool_outputs.json"
+
+        with open(output_file, 'w') as f:
+            json.dump(tool_outputs, f, indent=2)
+
+        print(f"Tool outputs saved to: {output_file}")
 
     def _extract_features_via_vlm(
         self,
@@ -260,51 +1282,46 @@ class ActorAgent(BaseAgent):
         prediction: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Use VLM to extract features from tool results"""
-        try:
-            modality = question.get('modality', 'vision')
-            q_type = question.get('q_type', 1)
+        modality = question.get('modality', 'vision')
+        q_type = question.get('q_type', 1)
 
-            # Extract image size from tool results (for validation)
-            image_size = None
-            if modality == "vision":
-                for tool_name, tool_result in tool_results.get('tool_results', {}).items():
-                    if isinstance(tool_result, dict) and tool_result.get('success'):
-                        img_size = tool_result.get('original_image_size', {})
-                        if img_size:
-                            image_size = (img_size.get('width', 224), img_size.get('height', 224))
-                            break
+        # Extract image size from tool results (for validation)
+        image_size = None
+        if modality == "vision":
+            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
+                if isinstance(tool_result, dict) and tool_result.get('success'):
+                    img_size = tool_result.get('original_image_size', {})
+                    if img_size:
+                        image_size = (img_size.get('width', 224), img_size.get('height', 224))
+                        break
 
-            # Build extraction prompt
-            prompt = self._build_feature_extraction_prompt(
-                tool_results=tool_results,
-                question=question,
-                prediction=prediction,
-                modality=modality,
-                q_type=q_type
-            )
+        # Build extraction prompt
+        prompt = self._build_feature_extraction_prompt(
+            tool_results=tool_results,
+            question=question,
+            prediction=prediction,
+            modality=modality,
+            q_type=q_type
+        )
 
-            # Collect images for VLM
-            images = []
-            if modality == "vision" and input_path and os.path.exists(input_path):
-                images.append(input_path)
-            for viz_info in tool_results.get('visualization_paths', []):
-                viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
-                if viz_path and os.path.exists(viz_path):
-                    images.append(viz_path)
+        # Collect images for VLM
+        images = []
+        if modality == "vision" and input_path and os.path.exists(input_path):
+            images.append(input_path)
+        for viz_info in tool_results.get('visualization_paths', []):
+            viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
+            if viz_path and os.path.exists(viz_path):
+                images.append(viz_path)
 
-            # Call VLM
-            response = self.invoke_vlm(prompt, images if images else None)
+        # Call VLM - let exceptions propagate
+        response = self.invoke_vlm(prompt, images if images else None)
 
-            # Parse response with validation
-            return self._parse_feature_response(
-                response, modality, q_type,
-                tool_results=tool_results,
-                image_size=image_size
-            )
-
-        except Exception as e:
-            print(f"Warning: VLM feature extraction failed: {e}")
-            return self._get_default_features(question.get('modality', 'vision'))
+        # Parse response with validation
+        return self._parse_feature_response(
+            response, modality, q_type,
+            tool_results=tool_results,
+            image_size=image_size
+        )
 
     def _build_feature_extraction_prompt(
         self,
@@ -351,6 +1368,9 @@ class ActorAgent(BaseAgent):
             output_format = '"feature_key": "string"'
             size_constraint = ""
 
+        # Format autonomous results if available
+        autonomous_summary = self._format_autonomous_results(tool_results)
+
         prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract the key feature.
 
 ## Context
@@ -365,6 +1385,7 @@ class ActorAgent(BaseAgent):
 
 ## Detailed Tool Statistics
 {self._format_tool_statistics(tool_results)}
+{autonomous_summary}
 
 ## Your Task
 Based on the XAI analysis, identify THE SINGLE MOST IMPORTANT region/feature that answers the question.
@@ -393,38 +1414,146 @@ JSON Response:"""
     def _format_tool_statistics(self, tool_results: Dict[str, Any]) -> str:
         """Format detailed tool statistics for the prompt"""
         lines = []
+
         for tool_name, result in tool_results.get('tool_results', {}).items():
             if not isinstance(result, dict) or not result.get('success'):
                 continue
 
             stats = result.get('statistics', {})
-            if not stats:
-                continue
+
+
+            method = result.get('method', tool_name)
 
             lines.append(f"\n### {tool_name}:")
 
-            # Image size
+            # Image size (common to all vision tools)
             img_size = result.get('original_image_size', {})
             if img_size:
                 lines.append(f"- Image size: {img_size.get('width')}x{img_size.get('height')}")
 
-            # Top coordinates (key for determining bounding box)
-            top_coords = stats.get('top_attention_coords') or stats.get('top_importance_coords') or stats.get('top_gradient_coords')
+            # ========== Tool-specific formatting ==========
+
+            # GradCAM / Integrated Gradients / Guided Backprop - coordinate-based tools
+            top_coords = (
+                stats.get('top_attention_coords') or
+                stats.get('top_importance_coords') or
+                stats.get('top_gradient_coords') or
+                stats.get('top_impact_coords')
+            )
             if top_coords and len(top_coords) > 0:
-                # Calculate bounding box from top coordinates
-                xs = [c.get('x', 0) for c in top_coords]
-                ys = [c.get('y', 0) for c in top_coords]
+                xs = [c.get('x', 0) for c in top_coords if isinstance(c, dict)]
+                ys = [c.get('y', 0) for c in top_coords if isinstance(c, dict)]
                 if xs and ys:
                     lines.append(f"- High attention region: x=[{min(xs)}-{max(xs)}], y=[{min(ys)}-{max(ys)}]")
                     lines.append(f"- Top 3 attention points: {[(c.get('x'), c.get('y')) for c in top_coords[:3]]}")
 
-            # Other useful stats
+            # Attention/importance metrics (GradCAM, IG, etc.)
             if 'mean_attention' in stats:
                 lines.append(f"- Mean attention: {stats['mean_attention']:.3f}")
             if 'high_attention_ratio' in stats:
                 lines.append(f"- High attention ratio: {stats['high_attention_ratio']:.2%}")
+            if 'mean_importance' in stats:
+                lines.append(f"- Mean importance: {stats['mean_importance']:.3f}")
+            if 'high_importance_ratio' in stats:
+                lines.append(f"- High importance ratio: {stats['high_importance_ratio']:.2%}")
+            if 'mean_gradient' in stats:
+                lines.append(f"- Mean gradient: {stats['mean_gradient']:.4f}")
+
+            # Layer CAM specific
+            if 'mean_activation' in stats:
+                lines.append(f"- Mean activation: {stats['mean_activation']:.3f}")
+                lines.append(f"- Max activation: {stats.get('max_activation', 0):.3f}")
+            if 'layer_name' in stats:
+                lines.append(f"- Target layer: {stats['layer_name']}")
+
+            # LIME specific - segment-based explanations with bounding boxes
+            if 'top_positive_segments' in stats:
+                lines.append(f"- Positive segments: {stats.get('num_positive_segments', 0)}")
+                lines.append(f"- Negative segments: {stats.get('num_negative_segments', 0)}")
+                lines.append(f"- Important region ratio: {stats.get('important_region_ratio', 0):.2%}")
+                lines.append(f"- Max positive weight: {stats.get('max_positive_weight', 0):.4f}")
+                top_pos = stats.get('top_positive_segments', [])[:3]
+                if top_pos:
+                    lines.append(f"- **TOP POSITIVE SEGMENTS (most important for prediction):**")
+                    for s in top_pos:
+                        bbox = s.get('bbox')
+                        bbox_str = f"bbox={bbox}" if bbox else "bbox=N/A"
+                        lines.append(f"  - Segment {s.get('segment_id')}: weight={s.get('weight', 0):.3f}, {bbox_str}")
+                # Check for suggested_bounding_box at result level
+                suggested_bbox = result.get('suggested_bounding_box')
+                if suggested_bbox:
+                    lines.append(f"- **SUGGESTED IMPORTANT REGION:** bbox={suggested_bbox}")
+
+            # SHAP specific
+            if 'total_positive_shap' in stats:
+                lines.append(f"- Total positive SHAP: {stats['total_positive_shap']:.4f}")
+                lines.append(f"- Total negative SHAP: {stats.get('total_negative_shap', 0):.4f}")
+                lines.append(f"- High impact ratio: {stats.get('high_impact_ratio', 0):.2%}")
+
+            # Object Detection specific - bounding boxes
+            detections = result.get('detections', [])
+            if detections:
+                lines.append(f"- **DETECTED OBJECTS ({len(detections)} total):**")
+                for det in detections[:5]:  # Top 5 detections
+                    cls_name = det.get('class_name', 'unknown')
+                    conf = det.get('confidence', 0)
+                    bbox = det.get('bbox', {})
+                    if bbox:
+                        lines.append(f"  - {cls_name} (conf={conf:.2f}): bbox=[{bbox.get('x1')}, {bbox.get('y1')}, {bbox.get('x2')}, {bbox.get('y2')}]")
+                class_counts = stats.get('class_counts', {})
+                if class_counts:
+                    lines.append(f"- Class distribution: {class_counts}")
+
+            # Sensitivity Analysis specific
+            if 'sensitivity_score' in stats:
+                lines.append(f"- Sensitivity score: {stats['sensitivity_score']:.4f}")
+                lines.append(f"- Original probability: {stats.get('original_probability', 0):.4f}")
+                lines.append(f"- Final probability: {stats.get('final_probability', 0):.4f}")
+                lines.append(f"- Probability drop: {stats.get('probability_drop', 0):.4f}")
+
+            # Include description if available
+            description = result.get('description', '')
+            if description and len(lines) <= 3:  # Only add description if we didn't extract much
+                lines.append(f"- Description: {description[:200]}")
 
         return "\n".join(lines) if lines else "No detailed statistics available."
+
+    def _format_autonomous_results(self, tool_results: Dict[str, Any]) -> str:
+        """Format autonomous task results for inclusion in prompts."""
+        autonomous_results = tool_results.get('autonomous_results', {})
+
+        if not autonomous_results:
+            return ""
+
+        lines = ["\n## Autonomous Reasoning Results"]
+
+        for task_type, result in autonomous_results.items():
+            if not isinstance(result, dict):
+                continue
+
+            success = result.get('success', False)
+            query = result.get('query', '')
+
+            lines.append(f"\n### {task_type.upper()} Task")
+            lines.append(f"- Query: {query[:200]}...")
+            lines.append(f"- Status: {'Success' if success else 'Failed'}")
+
+            if success and 'result' in result:
+                task_result = result['result']
+                if isinstance(task_result, dict):
+                    # Include all structured data from the result
+                    for key, value in task_result.items():
+                        if key == 'explanation':
+                            lines.append(f"- Explanation: {value}")
+                        elif key == 'confidence':
+                            lines.append(f"- Confidence: {value}")
+                        else:
+                            # Serialize structured data (objects, discriminative_features, etc.)
+                            lines.append(f"- {key}: {json.dumps(value)}")
+                elif isinstance(task_result, str):
+                    lines.append(f"- Result: {task_result}")
+
+        return "\n".join(lines) if len(lines) > 1 else ""
 
     def _parse_feature_response(
         self,
@@ -438,12 +1567,16 @@ JSON Response:"""
         parsed = self.parse_json_response(response)
 
         if not parsed:
-            return self._get_default_features(modality)
+            raise RuntimeError(
+                f"Failed to parse VLM response for feature extraction. "
+                f"Response preview: {response[:500]}"
+            )
 
         # Ensure output field exists
         if 'output' not in parsed:
             parsed['output'] = self._extract_output_from_parsed(parsed, modality)
 
+        """
         # Validate and fix bounding box for vision modality
         if modality == "vision" and image_size:
             parsed['output'] = self._validate_and_fix_bounding_box(
@@ -451,6 +1584,7 @@ JSON Response:"""
                 image_size,
                 tool_results
             )
+        """
 
         return {
             "output": parsed.get('output', {}),
@@ -731,36 +1865,22 @@ JSON Response:"""
         tool_results: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate explanation using prompt builder"""
-        try:
-            prompt = prompt_builder.build_actor_prompt(context, strategy, results)
+        prompt = prompt_builder.build_actor_prompt(context, strategy, results)
 
-            print("=" * 70)
-            print(f"\n DEBUG, EXPLANATION PROMPT: {prompt}")
+        response = self.invoke_vlm(prompt)
 
-            response = self.invoke_vlm(prompt)
+        parsed = self.parse_json_response(response)
 
-            print("=" * 70)
-            print(f"\n DEBUG, EXPLANATION RESPONSE: {response}")
+        if not parsed:
+            raise RuntimeError(
+                f"Failed to parse VLM response for explanation generation. "
+                f"Response preview: {response[:500]}"
+            )
 
-            parsed = self.parse_json_response(response)
-
-            if parsed:
-                # Merge with tool results
-                parsed['tool_results'] = tool_results.get('tool_results', {})
-                parsed['visualization_paths'] = tool_results.get('visualization_paths', [])
-                return parsed
-
-        except Exception as e:
-            print(f"  Warning: Prompt builder failed: {e}")
-            import traceback
-            traceback.print_exc()
-
-        # Fallback: use pre-extracted features directly
-        return {
-            "explanation": results.get('extracted_features', {}).get('explanation', ''),
-            "output": results.get('extracted_features', {}).get('output', {}),
-            "confidence": 0.5
-        }
+        # Merge with tool results
+        parsed['tool_results'] = tool_results.get('tool_results', {})
+        parsed['visualization_paths'] = tool_results.get('visualization_paths', [])
+        return parsed
 
     def _create_error_result(self, error: str, question: Dict) -> Dict[str, Any]:
         """Create error result"""
@@ -773,8 +1893,426 @@ JSON Response:"""
             "question_id": question.get('question_id', 'unknown')
         }
 
-    def _save_results(self, results: Dict[str, Any]):
+    def _save_results(
+        self,
+        results: Dict[str, Any],
+        question: Dict[str, Any],
+        suffix: str = ""
+    ):
         """Save results to file"""
-        question_id = results.get('question_id', 'unknown')
-        filepath = self.save_json(results, f"result_{question_id}", "results")
+        import re
+        # Extract naming components from question
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', question.get('question_id', 0))
+        modality = question.get('modality', 'vision')
+
+        # Extract dataset_name and q_type from dataset_base_name
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+
+        # Format: /results/{modality}/{dataset_name}/{q_type}/{question_id}/result.json
+        filename = f"result{suffix}" if suffix else "result"
+        subdir = f"results/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        filepath = self.save_json(results, filename, subdir)
         print(f"Results saved to: {filepath}")
+
+    def run_with_reflection(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        question_template: Any,
+        input_path: Optional[str],
+        model_info: Optional[Dict[str, Any]],
+        prediction: Optional[Dict[str, Any]],
+        actor_reflection: str,
+        original_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate improved explanation based on Critic's reflection.
+
+        Args:
+            strategy: Strategy (may be improved) from Proposer
+            question: Question dictionary
+            question_template: QuestionTemplate instance
+            input_path: Path to input data
+            model_info: Model information
+            prediction: Model prediction results
+            actor_reflection: JSON string with feedback from Critic
+            original_results: The original results that were evaluated
+
+        Returns:
+            Improved results dictionary
+        """
+        print("\n" + "=" * 70)
+        print("ACTOR AGENT: Re-executing with Reflection")
+        print("=" * 70)
+
+        modality = question.get('modality', 'vision')
+
+        # Step 1: Execute XAI tools (with potentially new strategy)
+        print("  Step 1: Executing XAI tools...")
+        tool_results = self._execute_tools(
+            strategy=strategy,
+            input_path=input_path or "",
+            prediction=prediction or {},
+            modality=modality,
+            question=question
+        )
+
+        # Step 1.5: Execute autonomous tasks if any
+        autonomous_results = self._execute_autonomous_tasks(
+            strategy=strategy,
+            input_path=input_path or "",
+            prediction=prediction or {},
+            question=question,
+            tool_results=tool_results
+        )
+
+        if autonomous_results:
+            tool_results['autonomous_results'] = autonomous_results
+            tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+
+        # Step 2: Extract features with reflection guidance
+        print("  Step 2: Extracting features with reflection...")
+        extracted_features = self._extract_features_with_reflection(
+            tool_results=tool_results,
+            input_path=input_path,
+            question=question,
+            question_template=question_template,
+            prediction=prediction or {},
+            actor_reflection=actor_reflection,
+            original_results=original_results
+        )
+
+        # Step 3: Generate improved explanation
+        print("  Step 3: Generating improved explanation...")
+        prompt_builder = self._get_prompt_builder(question_template, question)
+
+        context = self._build_context(question, model_info, prediction, input_path)
+        results_for_prompt = {
+            "tool_results": tool_results.get('tool_results', {}),
+            "extracted_features": extracted_features,
+            "autonomous_results": autonomous_results
+        }
+
+        parsed_result = self._generate_explanation_with_reflection(
+            prompt_builder=prompt_builder,
+            context=context,
+            strategy=strategy,
+            results=results_for_prompt,
+            tool_results=tool_results,
+            actor_reflection=actor_reflection,
+            original_results=original_results
+        )
+
+        # Add metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = question.get('q_type', 'unknown')
+        parsed_result['tool_results'] = tool_results.get('tool_results', {})
+        parsed_result['autonomous_results'] = autonomous_results
+        parsed_result['visualization_paths'] = tool_results.get('visualization_paths', [])
+        parsed_result['_improved'] = True
+
+        # Save improved results
+        self._save_results(parsed_result, question, suffix="_improved")
+
+        print(f"\nImproved explanation generated")
+        return parsed_result
+
+    def _extract_features_with_reflection(
+        self,
+        tool_results: Dict[str, Any],
+        input_path: Optional[str],
+        question: Dict[str, Any],
+        question_template: Any,
+        prediction: Dict[str, Any],
+        actor_reflection: str,
+        original_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Extract features using VLM with reflection guidance.
+
+        Args:
+            tool_results: Results from XAI tools
+            input_path: Path to input
+            question: Question dict
+            question_template: QuestionTemplate
+            prediction: Model prediction
+            actor_reflection: Critic's feedback
+            original_results: Previous results
+
+        Returns:
+            Extracted features dict
+        """
+        modality = question.get('modality', 'vision')
+        q_type = question.get('q_type', 1)
+
+        # Get image size for validation
+        image_size = None
+        if modality == "vision":
+            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
+                if isinstance(tool_result, dict) and tool_result.get('success'):
+                    img_size = tool_result.get('original_image_size', {})
+                    if img_size:
+                        image_size = (img_size.get('width', 224), img_size.get('height', 224))
+                        break
+
+        # Build reflection-aware feature extraction prompt
+        prompt = self._build_feature_extraction_prompt_with_reflection(
+            tool_results=tool_results,
+            question=question,
+            prediction=prediction,
+            modality=modality,
+            q_type=q_type,
+            actor_reflection=actor_reflection,
+            original_results=original_results
+        )
+
+        # Collect images for VLM
+        images = []
+        if modality == "vision" and input_path and os.path.exists(input_path):
+            images.append(input_path)
+        for viz_info in tool_results.get('visualization_paths', []):
+            viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
+            if viz_path and os.path.exists(viz_path):
+                images.append(viz_path)
+
+        # Call VLM - let exceptions propagate
+        response = self.invoke_vlm(prompt, images if images else None)
+
+        # Parse response
+        return self._parse_feature_response(
+            response, modality, q_type,
+            tool_results=tool_results,
+            image_size=image_size
+        )
+
+    def _build_feature_extraction_prompt_with_reflection(
+        self,
+        tool_results: Dict[str, Any],
+        question: Dict[str, Any],
+        prediction: Dict[str, Any],
+        modality: str,
+        q_type: int,
+        actor_reflection: str,
+        original_results: Dict[str, Any]
+    ) -> str:
+        """
+        Build feature extraction prompt incorporating critic's feedback.
+
+        Args:
+            tool_results: XAI tool results
+            question: Question dict
+            prediction: Model prediction
+            modality: Data modality
+            q_type: Question type
+            actor_reflection: Critic's feedback
+            original_results: Previous results
+
+        Returns:
+            Prompt string
+        """
+        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
+        confidence = prediction.get('confidence', 0.0)
+
+        # Get image dimensions for vision
+        image_width, image_height = 224, 224
+        if modality == "vision":
+            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
+                if isinstance(tool_result, dict) and tool_result.get('success'):
+                    img_size = tool_result.get('original_image_size', {})
+                    if img_size:
+                        image_width = img_size.get('width', image_width)
+                        image_height = img_size.get('height', image_height)
+                        break
+
+        # Get output format
+        if modality == "vision":
+            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
+            size_constraint = f"""
+**IMAGE BOUNDS:** {image_width} x {image_height} pixels
+All coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""
+        elif modality == "text":
+            output_format = '"start_index": int, "end_index": int'
+            text_input = question.get('text_input', '')
+            size_constraint = f"**TEXT LENGTH:** {len(text_input)} characters"
+        else:
+            output_format = '"feature_key": "string"'
+            size_constraint = ""
+
+        # Get original output for reference
+        original_output = original_results.get('output', {})
+
+        prompt = f"""You are an expert XAI analyst. Your previous analysis had issues. Improve it based on feedback.
+
+## Context
+- Question: {question.get('question', '')}
+- Question Type: Q{q_type}
+- Modality: {modality}
+- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+{size_constraint}
+
+## Previous Output (had issues)
+{original_output}
+
+## Critic's Feedback on Your Previous Explanation
+{actor_reflection}
+
+## Current Tool Results Summary
+{tool_results.get('tool_results_summary', 'No tools executed')}
+
+## Detailed Tool Statistics
+{self._format_tool_statistics(tool_results)}
+
+## Your Task
+Based on the critic's feedback, provide an IMPROVED identification of the key region/feature.
+Pay special attention to:
+1. Region accuracy - use tool statistics to guide your selection
+2. Explanation clarity - be specific about why this region matters
+3. Any specific issues mentioned in the feedback
+
+**Output valid JSON:**
+{{
+    "output": {{
+        {output_format}
+    }},
+    "explanation": "2-3 sentences explaining why, addressing critic's feedback",
+    "confidence": 0.0-1.0
+}}
+
+JSON Response:"""
+
+        return prompt
+
+    def _generate_explanation_with_reflection(
+        self,
+        prompt_builder: Any,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any],
+        tool_results: Dict[str, Any],
+        actor_reflection: str,
+        original_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate improved explanation based on Critic's reflection feedback.
+
+        Builds an independent reflection prompt (not appended to base prompt)
+        that focuses on the feedback and improvement guidance.
+
+        Args:
+            prompt_builder: PromptBuilder instance
+            context: Context dict
+            strategy: Strategy dict
+            results: Current results (includes extracted_features from Step 2)
+            tool_results: Tool execution results
+            actor_reflection: Critic's feedback (JSON string or dict)
+            original_results: Previous results
+
+        Returns:
+            Parsed result dict
+        """
+        prediction = context.get('prediction', {})
+        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
+        confidence = prediction.get('confidence', 0.0)
+        modality = prompt_builder.modality if hasattr(prompt_builder, 'modality') else 'vision'
+        q_type = prompt_builder.q_type if hasattr(prompt_builder, 'q_type') else 1
+
+        # Get image dimensions for vision
+        image_width, image_height = 224, 224
+        if modality == "vision":
+            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
+                if isinstance(tool_result, dict) and tool_result.get('success'):
+                    img_size = tool_result.get('original_image_size', {})
+                    if img_size:
+                        image_width = img_size.get('width', image_width)
+                        image_height = img_size.get('height', image_height)
+                        break
+
+        # Build modality-specific output format and size constraint
+        if modality == "vision":
+            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
+            size_constraint = f"""
+**IMAGE BOUNDS:** {image_width} x {image_height} pixels
+All coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""
+        elif modality == "text":
+            output_format = '"start_index": int, "end_index": int'
+            text_input = context.get('text_input', '')
+            size_constraint = f"**TEXT LENGTH:** {len(text_input)} characters"
+        else:
+            output_format = '"feature_key": "string"'
+            size_constraint = ""
+
+        # Get previous output and explanation
+        original_output = original_results.get('output', {})
+        original_explanation = original_results.get('explanation', 'N/A')
+
+        # Get extracted features from Step 2 reflection
+        extracted_features = results.get('extracted_features', {})
+
+        prompt = f"""You are an expert XAI analyst. Your previous explanation had issues. Generate an IMPROVED explanation based on the critic's feedback.
+
+## Question
+{context.get('user_question', '')}
+
+## Context
+- Question Type: Q{q_type}
+- Modality: {modality}
+- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+{size_constraint}
+
+## Previous Output (had issues)
+{original_output}
+
+## Previous Explanation (had issues)
+{original_explanation}
+
+## Critic's Feedback
+{actor_reflection}
+
+## Updated Extracted Features (from re-analysis)
+{extracted_features}
+
+## Current Tool Results Summary
+{tool_results.get('tool_results_summary', 'No tools executed')}
+
+## Detailed Tool Statistics
+{self._format_tool_statistics(tool_results)}
+
+## Your Task
+Based on the critic's feedback and updated features, generate an IMPROVED explanation.
+Pay special attention to:
+1. Address EVERY specific issue mentioned in the critic's feedback
+2. Use the updated extracted features to guide your region/feature selection
+3. Ensure region accuracy matches tool statistics
+4. Provide clear reasoning for why this region/feature matters
+
+**Output valid JSON:**
+{{
+    "output": {{
+        {output_format}
+    }},
+    "explanation": "2-3 sentences explaining why, addressing critic's feedback",
+    "confidence": 0.0-1.0
+}}
+
+JSON Response:"""
+
+        response = self.invoke_vlm(prompt)
+
+        parsed = self.parse_json_response(response)
+
+        if not parsed:
+            raise RuntimeError(
+                f"Failed to parse VLM response for reflection explanation. "
+                f"Response preview: {response[:500]}"
+            )
+
+        parsed['tool_results'] = tool_results.get('tool_results', {})
+        parsed['visualization_paths'] = tool_results.get('visualization_paths', [])
+        return parsed

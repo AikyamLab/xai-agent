@@ -93,7 +93,13 @@ class Q8Evaluator(BaseEvaluator):
 
             # Mask spurious region (use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_input = masker.mask(original_input, region)
+            masked_input = masker.mask(
+                original_input, region,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             # Get prediction on masked input
             processor = kwargs.get('processor')

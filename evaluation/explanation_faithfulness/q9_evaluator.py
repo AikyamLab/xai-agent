@@ -113,8 +113,17 @@ class Q9Evaluator(MultiInstanceEvaluator):
                 p_correct_original = float(original_probs[correct_class_idx])
 
                 # Mask and get new prediction (use GRAY for neutral masking)
+                # Use instance suffix for multi-instance saving (e.g., _A, _B, _C...)
+                instance_suffix = f"_{chr(ord('A') + i)}"
                 masker = get_masker(self.modality, MaskingStrategy.GRAY)
-                masked_input = masker.mask(input_data, region)
+                masked_input = masker.mask(
+                    input_data, region,
+                    dataset_base_name=kwargs.get('dataset_base_name'),
+                    row_no=kwargs.get('row_no'),
+                    tool_name=kwargs.get('tool_name'),
+                    instance_suffix=instance_suffix,
+                    mask_suffix=kwargs.get('mask_suffix', '')
+                )
                 modified_pred = self.get_prediction(model, masked_input, processor, device)
                 modified_probs = modified_pred.get('probabilities')
 

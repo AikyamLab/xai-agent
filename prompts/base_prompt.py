@@ -360,6 +360,9 @@ class PromptBuilder(ABC):
     def _get_image_size_from_results(self, tool_results: Dict[str, Any]) -> tuple:
         """Extract image size from tool results"""
         for tool_name, result in tool_results.items():
+            # Skip autonomous_tasks
+            if tool_name == 'autonomous_tasks':
+                continue
             if isinstance(result, dict) and result.get('success'):
                 img_size = result.get('original_image_size', {})
                 if img_size:
@@ -373,6 +376,9 @@ class PromptBuilder(ABC):
 
         lines = []
         for tool_name, result in tool_results.items():
+            # Skip autonomous_tasks - they are formatted separately
+            if tool_name == 'autonomous_tasks':
+                continue
             if isinstance(result, dict):
                 success = result.get('success', False)
                 summary = result.get('summary', result.get('description', 'N/A'))
@@ -388,6 +394,9 @@ class PromptBuilder(ABC):
         object_detection_bboxes = []  # Collect object detection bboxes for priority
 
         for tool_name, result in tool_results.items():
+            # Skip autonomous_tasks - they are formatted separately
+            if tool_name == 'autonomous_tasks':
+                continue
             if not isinstance(result, dict) or not result.get('success'):
                 continue
 
@@ -403,14 +412,14 @@ class PromptBuilder(ABC):
             # Handle object detection results - HIGHEST PRIORITY for bounding boxes
             detections = result.get('detections', [])
             if detections:
-                lines.append("- **DETECTED OBJECTS (USE THESE BBOXES FIRST!):**")
+                lines.append("- **DETECTED OBJECTS:**")
                 for det in detections[:5]:  # Limit to top 5
                     class_name = det.get('class_name', 'unknown')
                     conf = det.get('confidence', 0)
                     bbox = det.get('bbox', {})
                     if bbox:
                         bbox_list = [bbox.get('x1'), bbox.get('y1'), bbox.get('x2'), bbox.get('y2')]
-                        lines.append(f"  - **{class_name} (conf={conf:.2f}): RECOMMENDED bbox={bbox_list}**")
+                        lines.append(f"  - {class_name} (conf={conf:.2f}): bbox={bbox_list}**")
                         object_detection_bboxes.append({
                             'class': class_name,
                             'bbox': bbox_list,
@@ -420,6 +429,34 @@ class PromptBuilder(ABC):
             # Handle statistics with attention coordinates
             stats = result.get('statistics', {})
             if stats:
+                # Handle LIME segments with bounding boxes
+                top_positive_segments = stats.get('top_positive_segments', [])
+                if top_positive_segments:
+                    lines.append("- **LIME POSITIVE SEGMENTS:**")
+                    for seg in top_positive_segments[:5]:  # Top 5 segments
+                        seg_id = seg.get('segment_id', '?')
+                        weight = seg.get('weight', 0)
+                        bbox = seg.get('bbox', [])
+                        if bbox:
+                            lines.append(f"  - Segment {seg_id}: weight={weight:.4f}, bbox={bbox}**")
+                        else:
+                            lines.append(f"  - Segment {seg_id}: weight={weight:.4f}")
+
+                    # Show important region ratio
+                    important_ratio = stats.get('important_region_ratio', 0)
+                    if important_ratio:
+                        lines.append(f"- Important region ratio: {important_ratio:.2%}")
+
+                top_negative_segments = stats.get('top_negative_segments', [])
+                if top_negative_segments:
+                    lines.append("- **LIME NEGATIVE SEGMENTS (oppose prediction):**")
+                    for seg in top_negative_segments[:3]:  # Top 3 negative
+                        seg_id = seg.get('segment_id', '?')
+                        weight = seg.get('weight', 0)
+                        bbox = seg.get('bbox', [])
+                        if bbox:
+                            lines.append(f"  - Segment {seg_id}: weight={weight:.4f}, bbox={bbox}")
+
                 # Top attention/importance/gradient coordinates
                 top_coords = (
                     stats.get('top_attention_coords') or
@@ -453,8 +490,14 @@ class PromptBuilder(ABC):
                         expanded_y_min = max(0, int(center_y - expanded_half_h))
                         expanded_y_max = min(img_height, int(center_y + expanded_half_h))
 
-                        lines.append(f"- Raw attention peaks: x=[{raw_x_min}, {raw_x_max}], y=[{raw_y_min}, {raw_y_max}] (only {raw_width}x{raw_height} pixels - TOO SMALL!)")
-                        lines.append(f"- **EXPANDED attention bbox (recommended): [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}]**")
+                        # Check if expansion actually happened
+                        was_expanded = (raw_width < min_width or raw_height < min_height)
+
+                        if was_expanded:
+                            lines.append(f"- Raw attention peaks: x=[{raw_x_min}, {raw_x_max}], y=[{raw_y_min}, {raw_y_max}] (only {raw_width}x{raw_height} pixels - TOO SMALL!)")
+                            lines.append(f"- EXPANDED attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}]**")
+                        else:
+                            lines.append(f"- Attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}] ({raw_width}x{raw_height} pixels)")
 
                 # Other useful stats
                 if 'mean_attention' in stats:
@@ -469,9 +512,44 @@ class PromptBuilder(ABC):
                     lines.append(f"- Mean gradient: {stats['mean_gradient']:.3f}")
 
         # Add summary recommendation at the end
+        """
         if object_detection_bboxes:
             best_det = max(object_detection_bboxes, key=lambda x: x['confidence'])
-            lines.append(f"\n### **RECOMMENDATION: Use object detection bbox {best_det['bbox']} for '{best_det['class']}' (highest confidence)**")
+            lines.append(f"\n### ** RECOMMENDATION: Use object detection bbox {best_det['bbox']} for '{best_det['class']}' (highest confidence)**")
+        """
+
+        # Format autonomous task results
+        autonomous_tasks = tool_results.get('autonomous_tasks', {})
+        if autonomous_tasks:
+            lines.append("\n## Autonomous Reasoning Results")
+            for task_type, task_result in autonomous_tasks.items():
+                if not isinstance(task_result, dict):
+                    continue
+
+                success = task_result.get('success', False)
+                query = task_result.get('query', '')
+
+                lines.append(f"\n### {task_type.upper()} Task")
+                lines.append(f"- Query: {query}")
+                lines.append(f"- Status: {'Success' if success else 'Failed'}")
+
+                if success and 'result' in task_result:
+                    result_data = task_result['result']
+                    if isinstance(result_data, dict):
+                        import json as _json
+                        # Include all structured data from the result
+                        for key, value in result_data.items():
+                            if key == 'explanation':
+                                lines.append(f"- Explanation: {value}")
+                            elif key == 'confidence':
+                                lines.append(f"- Confidence: {value}")
+                            else:
+                                # Serialize structured data (objects, discriminative_features, etc.)
+                                lines.append(f"- {key}: {_json.dumps(value)}")
+                    elif isinstance(result_data, str):
+                        lines.append(f"- Result: {result_data}")
+                    elif 'text_response' in task_result:
+                        lines.append(f"- Result: {task_result['text_response']}")
 
         return "\n".join(lines) if lines else "No detailed statistics available."
 
@@ -541,44 +619,68 @@ class PromptBuilder(ABC):
 - ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
 - **MINIMUM bounding box size: {min_width}x{min_height} pixels (10% of image dimensions)**
 
-## BOUNDING BOX SELECTION RULES (VERY IMPORTANT - FOLLOW THIS ORDER!)
-1. **FIRST PRIORITY: Use OBJECT DETECTION bounding box** from the tool statistics
-   - These cover semantically meaningful objects (airplane, car, dog, etc.)
-   - Example: If object detection found "airplane" at [4, 25, 95, 68], USE THIS BBOX
-2. **SECOND PRIORITY: Use PRE-EXTRACTED bounding box** from Pre-extracted Features section
-   - These have already been validated to be reasonable
-3. **LAST RESORT: Use attention/gradient coordinates** - but you MUST EXPAND them
-   - Raw attention coordinates are typically only a few pixels (e.g., 4x1 pixels)
-   - This is FAR TOO SMALL for meaningful masking evaluation
-   - You MUST expand to at least {min_width}x{min_height} pixels
-
 **CRITICAL WARNING**:
 - Bounding boxes smaller than {min_width}x{min_height} pixels are INVALID
 - Tiny bboxes (like 4x1 pixels) will cause evaluation to FAIL
 - Always prefer larger, semantically meaningful regions over tiny attention points
 """
 
+    def _format_autonomous_results(self, autonomous_results: Dict[str, Any]) -> str:
+        """Format autonomous task results for prompt"""
+        if not autonomous_results:
+            return ""
+
+        lines = []
+        for task_type, result in autonomous_results.items():
+            if not isinstance(result, dict):
+                continue
+
+            success = result.get('success', False)
+            query = result.get('query', '')
+
+            lines.append(f"\n### {task_type.upper()} Task")
+            lines.append(f"- Query: {query}")
+            lines.append(f"- Status: {'Success' if success else 'Failed'}")
+
+            if success and 'result' in result:
+                task_result = result['result']
+                if isinstance(task_result, dict):
+                    import json as _json
+                    # Include all structured data from the result
+                    for key, value in task_result.items():
+                        if key == 'explanation':
+                            lines.append(f"- Explanation: {value}")
+                        elif key == 'confidence':
+                            lines.append(f"- Confidence: {value}")
+                        else:
+                            lines.append(f"- {key}: {_json.dumps(value)}")
+                elif isinstance(task_result, str):
+                    lines.append(f"- Result: {task_result}")
+
+        return "\n".join(lines) if lines else ""
+
     def _format_results_comprehensive(self, results: Dict[str, Any]) -> str:
         """Comprehensive formatting of results including tool summaries, detailed stats, and extracted features"""
         tool_results = results.get('tool_results', {})
         extracted = results.get('extracted_features', {})
+        autonomous_results = results.get('autonomous_results', {})
 
         sections = []
 
         # Tool summary
         tool_summary = self._format_tool_results_summary(tool_results)
         if tool_summary and tool_summary != "No tool results available.":
-            sections.append(f"### Tool Results Summary\n{tool_summary}")
+            sections.append(f"### XAI Tool Results Summary\n{tool_summary}")
 
         # Detailed statistics
         detailed_stats = self._format_detailed_statistics(tool_results)
         if detailed_stats and detailed_stats != "No detailed statistics available.":
-            sections.append(f"### Detailed Statistics (USE THESE COORDINATES!)\n{detailed_stats}")
+            sections.append(f"### Detailed Statistics\n{detailed_stats}")
 
-        # Extracted features
-        extracted_str = self._format_extracted_features(extracted)
-        if extracted_str and extracted_str != "No pre-extracted features available.":
-            sections.append(f"### Pre-extracted Features\n{extracted_str}")
+        # Autonomous reasoning results
+        autonomous_str = self._format_autonomous_results(autonomous_results)
+        if autonomous_str:
+            sections.append(f"### Autonomous Reasoning Results\n{autonomous_str}")
 
         return "\n\n".join(sections) if sections else "Analysis completed."
 

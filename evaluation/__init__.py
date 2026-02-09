@@ -3,7 +3,7 @@ Evaluation module for XAI Agent Framework
 
 Contains evaluation pipelines for:
 - Explanation faithfulness: Validates that agent explanations match model behavior
-- Strategy faithfulness (TODO): Validates that agent strategies are appropriate
+- Strategy faithfulness: Validates tool selection via attribution analysis
 """
 
 from .base_evaluator import (
@@ -35,6 +35,12 @@ from .explanation_faithfulness import (
     EVALUATOR_MAP,
 )
 
+# Import strategy faithfulness evaluators
+from .strategy_faithfulness import (
+    ToolAttributionEvaluator,
+    CacheManager,
+)
+
 __all__ = [
     # Base classes
     "BaseEvaluator",
@@ -45,7 +51,7 @@ __all__ = [
     "TextMasker",
     "TabularMasker",
     "get_masker",
-    # Evaluators
+    # Explanation faithfulness evaluators
     "Q1Evaluator",
     "Q2Evaluator",
     "Q3Evaluator",
@@ -58,4 +64,7 @@ __all__ = [
     "Q10Evaluator",
     "get_evaluator",
     "EVALUATOR_MAP",
+    # Strategy faithfulness
+    "ToolAttributionEvaluator",
+    "CacheManager",
 ]

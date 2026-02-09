@@ -77,7 +77,13 @@ class Q7Evaluator(BaseEvaluator):
 
             # Apply modification (mask the important part, use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            modified_input = masker.mask(original_input, part_to_change)
+            modified_input = masker.mask(
+                original_input, part_to_change,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             # Get actual prediction after modification
             processor = kwargs.get('processor')

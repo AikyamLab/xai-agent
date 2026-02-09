@@ -191,6 +191,24 @@ class QuestionTemplate:
         """Build prompt for Actor Agent"""
         return self.prompt_builder.build_actor_prompt(context, strategy, results)
 
+    def build_actor_prompt_multi(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> str:
+        """Build prompt for Actor Agent with multiple instances (Q4, Q9, Q10)"""
+        return self.prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
+
+    def build_proposer_prompt_multi(
+        self,
+        context: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> str:
+        """Build prompt for Proposer Agent with multiple instances (Q4, Q9, Q10)"""
+        return self.prompt_builder.build_proposer_prompt_multi(context, instances)
+
 
 def get_prompt_builder(q_type: int, modality: str = "vision") -> PromptBuilder:
     """

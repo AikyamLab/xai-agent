@@ -87,7 +87,13 @@ class Q3Evaluator(BaseEvaluator):
 
             # Mask and get new prediction (use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_input = masker.mask(original_input, region)
+            masked_input = masker.mask(
+                original_input, region,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             processor = kwargs.get('processor')
             device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
@@ -102,8 +108,21 @@ class Q3Evaluator(BaseEvaluator):
                     errors=["Modified probabilities not available"]
                 )
 
+            # Probabilities of original top1/top2 classes after masking
             p_top1_modified = float(modified_probs[top1_class])
             p_top2_modified = float(modified_probs[top2_class])
+
+            # Monitor current top-1 and top-2 after masking (irrespective of original)
+            if hasattr(modified_probs, 'argsort'):
+                modified_sorted_indices = modified_probs.argsort()[::-1]
+            else:
+                import numpy as np
+                modified_sorted_indices = np.argsort(modified_probs)[::-1]
+
+            modified_top1_class = int(modified_sorted_indices[0])
+            modified_top2_class = int(modified_sorted_indices[1]) if len(modified_sorted_indices) > 1 else modified_top1_class
+            modified_top1_prob = float(modified_probs[modified_top1_class])
+            modified_top2_prob = float(modified_probs[modified_top2_class])
 
             # Check if rank flipped: top-2 now has higher probability than top-1
             rank_flipped = p_top2_modified > p_top1_modified
@@ -117,15 +136,25 @@ class Q3Evaluator(BaseEvaluator):
                 p_original=p_top1_original,
                 p_modified=p_top1_modified,
                 original_class=str(top1_class),
-                modified_class=str(modified_prediction.get('predicted_class_idx')),
+                modified_class=str(modified_top1_class),
                 details={
                     "region": region,
-                    "top1_class": top1_class,
-                    "top2_class": top2_class,
-                    "p_top1_original": p_top1_original,
-                    "p_top2_original": p_top2_original,
-                    "p_top1_modified": p_top1_modified,
-                    "p_top2_modified": p_top2_modified,
+                    # Original top-1 and top-2
+                    "original_top1_class": top1_class,
+                    "original_top2_class": top2_class,
+                    "original_top1_prob": p_top1_original,
+                    "original_top2_prob": p_top2_original,
+                    # Probabilities of original classes after masking
+                    "original_top1_prob_after_mask": p_top1_modified,
+                    "original_top2_prob_after_mask": p_top2_modified,
+                    # Current top-1 and top-2 after masking (may be different classes)
+                    "modified_top1_class": modified_top1_class,
+                    "modified_top2_class": modified_top2_class,
+                    "modified_top1_prob": modified_top1_prob,
+                    "modified_top2_prob": modified_top2_prob,
+                    # Analysis
+                    "top1_class_changed": modified_top1_class != top1_class,
+                    "top2_class_changed": modified_top2_class != top2_class,
                     "rank_flipped": rank_flipped,
                     "interpretation": "1 = masking caused rank flip (good), 0 = no flip (bad)"
                 }

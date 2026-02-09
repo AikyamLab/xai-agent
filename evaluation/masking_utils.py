@@ -173,24 +173,78 @@ class BaseMasker(ABC):
         **kwargs
     ) -> Any:
         """
-        Apply masking and AUTOMATICALLY save the output using a timestamp.
+        Apply masking and AUTOMATICALLY save the output.
 
         Args:
             input_data: Original input data
             region: Region specification (modality-specific)
             **kwargs: Additional parameters for masking
+                - dataset_base_name: Dataset base name from JSON file (e.g., 'stl10_resnet_q1_test')
+                - row_no: Row number / question_id for filename (e.g., 12)
+                - tool_name: Tool name for tool attribution masked inputs (optional)
+                - instance_suffix: Instance identifier for multi-instance questions (e.g., '_A', '_B')
 
         Returns:
             Masked input data
         """
+        import re
+
         # 1. Apply the mask logic
         masked_data = self._apply_mask(input_data, region, **kwargs)
 
-        # 2. Generate an automatic filename based on current timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        auto_filename = f"mask_{timestamp}"
+        # 2. Extract dataset_name and q_type from dataset_base_name
+        dataset_base_name = kwargs.get('dataset_base_name')
+        row_no = kwargs.get('row_no')
+        tool_name = kwargs.get('tool_name')  # For tool attribution
+        instance_suffix = kwargs.get('instance_suffix', '')  # For multi-instance (Q4, Q9, Q10)
+        mask_suffix = kwargs.get('mask_suffix', '')  # For _improved file naming
 
-        # 3. Automatically save the result
+        dataset_name = None
+        q_type_str = None
+
+        if dataset_base_name:
+            match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+            if match:
+                dataset_name = match.group(1)  # e.g., "stl10_resnet"
+                q_type_str = match.group(2)    # e.g., "q1"
+
+        # 3. Generate filename with instance suffix
+        instance_str = instance_suffix.strip('_') if instance_suffix else ''
+        if dataset_name and row_no is not None:
+            if tool_name:
+                # New format: {tool_name}_mask_{dataset_name}_{question_id}_{instance}
+                if instance_str:
+                    auto_filename = f"{tool_name}_mask_{dataset_name}_{row_no}_{instance_str}"
+                else:
+                    auto_filename = f"{tool_name}_mask_{dataset_name}_{row_no}"
+            else:
+                # Regular format: mask_{dataset_name}_{question_id}_{instance}
+                if instance_str:
+                    auto_filename = f"mask_{dataset_name}_{row_no}_{instance_str}"
+                else:
+                    auto_filename = f"mask_{dataset_name}_{row_no}"
+        else:
+            # Fallback to timestamp-based naming
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            if instance_str:
+                auto_filename = f"mask_{timestamp}_{instance_str}"
+            else:
+                auto_filename = f"mask_{timestamp}"
+
+        # 3.5. Append mask_suffix (e.g., "_improved") to filename
+        if mask_suffix:
+            auto_filename = f"{auto_filename}{mask_suffix}"
+
+        # 4. Store path info for save method (include instance in question_id path if applicable)
+        self._current_dataset_name = dataset_name
+        self._current_q_type = q_type_str
+        # For multi-instance, create subfolder for each instance
+        if instance_str:
+            self._current_question_id = f"{row_no}/{instance_str}"
+        else:
+            self._current_question_id = row_no
+
+        # 5. Automatically save the result
         self.save(masked_data, auto_filename)
 
         return masked_data
@@ -210,9 +264,16 @@ class BaseMasker(ABC):
         """Validate that region specification is valid"""
         pass
 
-    def _get_target_path(self, modality: str, extension: str, filename: str) -> Path:
-        """Helper to prepare directory and return full save path"""
-        target_dir = self.output_root / modality
+    def _get_target_path(self, modality: str, extension: str, filename: str,
+                         dataset_name: str = None, q_type: str = None, question_id: str = None) -> Path:
+        """Helper to prepare directory and return full save path
+
+        Directory structure: /{modality}/{dataset_name}/{q_type}/{question_id}/
+        """
+        if dataset_name and q_type and question_id is not None:
+            target_dir = self.output_root / modality / dataset_name / q_type / str(question_id)
+        else:
+            target_dir = self.output_root / modality
         target_dir.mkdir(parents=True, exist_ok=True)
         return target_dir / f"{filename}.{extension}"
 
@@ -244,7 +305,12 @@ class VisionMasker(BaseMasker):
 
     def save(self, masked_data: Any, filename: str):
         """Save image as PNG"""
-        save_path = self._get_target_path("vision", "png", filename)
+        save_path = self._get_target_path(
+            "vision", "png", filename,
+            dataset_name=getattr(self, '_current_dataset_name', None),
+            q_type=getattr(self, '_current_q_type', None),
+            question_id=getattr(self, '_current_question_id', None)
+        )
 
         if TORCH_AVAILABLE and isinstance(masked_data, torch.Tensor):
             from torchvision.utils import save_image
@@ -456,7 +522,12 @@ class TextMasker(BaseMasker):
 
     def save(self, masked_data: str, filename: str):
         """Save text as .txt"""
-        save_path = self._get_target_path("text", "txt", filename)
+        save_path = self._get_target_path(
+            "text", "txt", filename,
+            dataset_name=getattr(self, '_current_dataset_name', None),
+            q_type=getattr(self, '_current_q_type', None),
+            question_id=getattr(self, '_current_question_id', None)
+        )
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(masked_data)
         print(f"[Auto-Save] Text output: {save_path}")
@@ -590,12 +661,17 @@ class TabularMasker(BaseMasker):
 
     def save(self, masked_data: Any, filename: str):
         """Save tabular as JSON or CSV"""
+        path_kwargs = {
+            'dataset_name': getattr(self, '_current_dataset_name', None),
+            'q_type': getattr(self, '_current_q_type', None),
+            'question_id': getattr(self, '_current_question_id', None)
+        }
         if isinstance(masked_data, dict):
-            save_path = self._get_target_path("tabular", "json", filename)
+            save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
             with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(masked_data, f, indent=4)
         else:
-            save_path = self._get_target_path("tabular", "csv", filename)
+            save_path = self._get_target_path("tabular", "csv", filename, **path_kwargs)
             if TORCH_AVAILABLE and isinstance(masked_data, torch.Tensor):
                 arr = masked_data.cpu().numpy()
             else:

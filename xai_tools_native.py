@@ -211,26 +211,14 @@ class GradCAMTool(BaseTool):
         "The Actor Agent will analyze the visualization to identify important regions."
     )
 
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
+    def __init__(self, data_model_loader: Optional[Any] = None):
         """
         Initialize GradCAM tool.
 
         Args:
-            model: PyTorch model
-            model_type: Model type ('local_pth', 'timm', etc.)
-            processor: Image preprocessor
-            device: Torch device
+            data_model_loader: DataModelLoader instance for accessing the model and data.
         """
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -240,15 +228,17 @@ class GradCAMTool(BaseTool):
         **kwargs
     ) -> str:
         """Execute GradCAM analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
-        # Validate required fields
-        if image_path is None:
-            return json.dumps({
-                "success": False,
-                "error": "image_path is required"
-            })
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+        
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
         if target_class is None:
             return json.dumps({
                 "success": False,
@@ -256,25 +246,64 @@ class GradCAMTool(BaseTool):
             })
 
         try:
-            # Clean image path
-            image_path = str(image_path).strip().strip('"').strip("'")
             target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
+            # Get pre-processed tensor if available
+            input_tensor = self.data_model_loader.get_current_tensor()
+
             result = execute_gradcam(
                 image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
+                model=model,
+                model_type=model_type,
+                processor=processor,
                 target_class=target_class,
-                device=self.device,
-                image_id=image_id
+                device=device,
+                image_id=image_id,
+                input_tensor=input_tensor
             )
             return json.dumps(result, indent=2)
-        except FileNotFoundError:
-            return json.dumps({"success": False, "error": f"Image file not found: {image_path}"})
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
+
+
+def _get_image_from_source(data_model_loader: Optional[Any], image_path: Optional[str]) -> Optional[Image.Image]:
+    """
+    Helper function to get PIL Image from available sources.
+
+    Priority:
+    1. data_model_loader.current_image (if available)
+    2. File path (if exists)
+
+    Args:
+        data_model_loader: DataModelLoader instance
+        image_path: Path to image file
+
+    Returns:
+        PIL Image or None
+    """
+    import os
+
+    # 1. Try data_model_loader.current_image first
+    if data_model_loader is not None and hasattr(data_model_loader, 'current_image'):
+        if data_model_loader.current_image is not None:
+            img = data_model_loader.current_image
+            if isinstance(img, Image.Image):
+                return img
+
+    # 2. Try to open from file path
+    if image_path is not None:
+        image_path = str(image_path).strip().strip('"').strip("'")
+        if os.path.exists(image_path):
+            return Image.open(image_path).convert('RGB')
+
+    return None
 
 
 class IntegratedGradientsTool(BaseTool):
@@ -282,22 +311,19 @@ class IntegratedGradientsTool(BaseTool):
 
     name = "integrated_gradients"
     description = (
-        "Executes Integrated Gradients for pixel-level attribution. "
-        "Returns a heatmap showing pixel importance and statistics. "
+        "Executes Integrated Gradients to compute pixel-level importance. "
+        "Returns an attribution map showing which pixels contributed to the prediction. "
         "The Actor Agent will analyze the visualization to identify important regions."
     )
 
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize Integrated Gradients tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -308,29 +334,46 @@ class IntegratedGradientsTool(BaseTool):
         **kwargs
     ) -> str:
         """Execute Integrated Gradients analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
-        if image_path is None or target_class is None:
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+        
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
             return json.dumps({
                 "success": False,
-                "error": "image_path and target_class are required"
+                "error": "target_class is required"
             })
 
         try:
-            image_path = str(image_path).strip().strip('"').strip("'")
             target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
+            # Get pre-processed tensor if available
+            input_tensor = self.data_model_loader.get_current_tensor()
+
             result = execute_integrated_gradients(
                 image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
+                model=model,
+                model_type=model_type,
+                processor=processor,
                 target_class=target_class,
-                device=self.device,
+                device=device,
                 image_id=image_id,
-                n_steps=n_steps
+                n_steps=n_steps,
+                input_tensor=input_tensor
             )
             return json.dumps(result, indent=2)
         except Exception as e:
@@ -342,22 +385,19 @@ class LIMETool(BaseTool):
 
     name = "lime"
     description = (
-        "Executes LIME for local interpretable explanations using superpixel segmentation. "
-        "Returns segment importance map and statistics. "
+        "Executes LIME (Local Interpretable Model-agnostic Explanations) to identify important image regions. "
+        "Returns a visualization with superpixel-level importance. "
         "The Actor Agent will analyze the visualization to identify important regions."
     )
 
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize LIME tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -368,27 +408,39 @@ class LIMETool(BaseTool):
         **kwargs
     ) -> str:
         """Execute LIME analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
-        if image_path is None or target_class is None:
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
             return json.dumps({
                 "success": False,
-                "error": "image_path and target_class are required"
+                "error": "target_class is required"
             })
 
         try:
-            image_path = str(image_path).strip().strip('"').strip("'")
             target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
             result = execute_lime(
                 image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
+                model=model,
+                model_type=model_type,
+                processor=processor,
                 target_class=target_class,
-                device=self.device,
+                device=device,
                 image_id=image_id,
                 num_samples=num_samples
             )
@@ -402,22 +454,19 @@ class SHAPTool(BaseTool):
 
     name = "shap"
     description = (
-        "Executes SHAP for game-theoretic feature importance. "
-        "Returns SHAP value visualization and statistics. "
+        "Executes SHAP (SHapley Additive exPlanations) to compute feature importance. "
+        "Returns an attribution map based on game-theoretic feature importance. "
         "The Actor Agent will analyze the visualization to identify important regions."
     )
 
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize SHAP tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -428,27 +477,40 @@ class SHAPTool(BaseTool):
         **kwargs
     ) -> str:
         """Execute SHAP analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
-        if image_path is None or target_class is None:
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
             return json.dumps({
                 "success": False,
-                "error": "image_path and target_class are required"
+                "error": "target_class is required"
             })
 
         try:
-            image_path = str(image_path).strip().strip('"').strip("'")
             target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
             result = execute_shap(
                 image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
+                model=model,
+                model_type=model_type,
+                processor=processor,
                 target_class=target_class,
-                device=self.device,
+                device=device,
                 image_id=image_id,
                 num_samples=num_samples
             )
@@ -467,9 +529,9 @@ class ObjectDetectionTool(BaseTool):
         "Useful for understanding what objects are present in the image."
     )
 
-    def __init__(self):
+    def __init__(self, data_model_loader: Optional[Any] = None):
         """Initialize Object Detection tool (no model context needed)."""
-        pass
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -479,135 +541,22 @@ class ObjectDetectionTool(BaseTool):
         **kwargs
     ) -> str:
         """Execute Object Detection."""
-        if image_path is None:
-            return json.dumps({"success": False, "error": "image_path is required"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
         try:
-            image_path = str(image_path).strip().strip('"').strip("'")
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
             result = execute_object_detection(
                 image=image,
                 image_id=image_id,
                 confidence_threshold=confidence_threshold
-            )
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return json.dumps({"success": False, "error": str(e)})
-
-
-class GuidedBackpropTool(BaseTool):
-    """Tool for executing Guided Backpropagation analysis."""
-
-    name = "guided_backprop"
-    description = (
-        "Executes Guided Backpropagation for fine-grained feature visualization. "
-        "Returns gradient-based visualization showing edges and textures. "
-        "The Actor Agent will analyze the visualization to identify important features."
-    )
-
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    def run(
-        self,
-        image_path: Optional[str] = None,
-        target_class: Optional[int] = None,
-        image_id: str = "temp",
-        **kwargs
-    ) -> str:
-        """Execute Guided Backpropagation analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
-
-        if image_path is None or target_class is None:
-            return json.dumps({
-                "success": False,
-                "error": "image_path and target_class are required"
-            })
-
-        try:
-            image_path = str(image_path).strip().strip('"').strip("'")
-            target_class = int(target_class)
-
-            image = Image.open(image_path).convert('RGB')
-            result = execute_guided_backprop(
-                image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
-                target_class=target_class,
-                device=self.device,
-                image_id=image_id
-            )
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return json.dumps({"success": False, "error": str(e)})
-
-
-class LayerCAMTool(BaseTool):
-    """Tool for executing Layer CAM analysis."""
-
-    name = "layer_cam"
-    description = (
-        "Executes Layer CAM for layer-specific activation visualization. "
-        "Returns activation map for a specific layer. "
-        "The Actor Agent will analyze the visualization to identify important regions."
-    )
-
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    def run(
-        self,
-        image_path: Optional[str] = None,
-        target_class: Optional[int] = None,
-        layer_name: Optional[str] = None,
-        image_id: str = "temp",
-        **kwargs
-    ) -> str:
-        """Execute Layer CAM analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
-
-        if image_path is None or target_class is None:
-            return json.dumps({
-                "success": False,
-                "error": "image_path and target_class are required"
-            })
-
-        try:
-            image_path = str(image_path).strip().strip('"').strip("'")
-            target_class = int(target_class)
-
-            image = Image.open(image_path).convert('RGB')
-            result = execute_layer_cam(
-                image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
-                target_class=target_class,
-                device=self.device,
-                image_id=image_id,
-                layer_name=layer_name
             )
             return json.dumps(result, indent=2)
         except Exception as e:
@@ -624,17 +573,14 @@ class SensitivityAnalysisTool(BaseTool):
         "Useful for understanding model stability and reliability."
     )
 
-    def __init__(
-        self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
-        device: Optional[torch.device] = None
-    ):
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize Sensitivity Analysis tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
 
     def run(
         self,
@@ -645,29 +591,192 @@ class SensitivityAnalysisTool(BaseTool):
         **kwargs
     ) -> str:
         """Execute Sensitivity Analysis."""
-        if self.model is None:
-            return json.dumps({"success": False, "error": "Model not initialized"})
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+        
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
 
-        if image_path is None or target_class is None:
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
             return json.dumps({
                 "success": False,
-                "error": "image_path and target_class are required"
+                "error": "target_class is required"
             })
 
         try:
-            image_path = str(image_path).strip().strip('"').strip("'")
             target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
 
-            image = Image.open(image_path).convert('RGB')
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
+            # Get pre-processed tensor if available
+            input_tensor = self.data_model_loader.get_current_tensor()
+
             result = execute_sensitivity_analysis(
                 image=image,
-                model=self.model,
-                model_type=self.model_type,
-                processor=self.processor,
+                model=model,
+                model_type=model_type,
+                processor=processor,
                 target_class=target_class,
-                device=self.device,
+                device=device,
                 image_id=image_id,
-                perturbation_type=perturbation_type
+                perturbation_type=perturbation_type,
+                input_tensor=input_tensor
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})
+
+
+class GuidedBackpropTool(BaseTool):
+    """Tool for executing Guided Backpropagation analysis."""
+
+    name = "guided_backprop"
+    description = (
+        "Executes Guided Backpropagation to visualize pixel-level importance. "
+        "Returns a saliency map highlighting pixels that contribute to the prediction. "
+        "The Actor Agent will analyze the visualization to identify important regions."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize Guided Backpropagation tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
+
+    def run(
+        self,
+        image_path: Optional[str] = None,
+        target_class: Optional[int] = None,
+        image_id: str = "temp",
+        **kwargs
+    ) -> str:
+        """Execute Guided Backpropagation analysis."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
+            return json.dumps({
+                "success": False,
+                "error": "target_class is required"
+            })
+
+        try:
+            target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
+
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
+            # Get pre-processed tensor if available
+            input_tensor = self.data_model_loader.get_current_tensor()
+
+            result = execute_guided_backprop(
+                image=image,
+                model=model,
+                model_type=model_type,
+                processor=processor,
+                target_class=target_class,
+                device=device,
+                image_id=image_id,
+                input_tensor=input_tensor
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})
+
+
+class LayerCAMTool(BaseTool):
+    """Tool for executing Layer CAM analysis."""
+
+    name = "layer_cam"
+    description = (
+        "Executes Layer CAM to visualize class-specific activation maps at different layers. "
+        "Returns a heatmap showing which regions activate for the target class. "
+        "The Actor Agent will analyze the visualization to identify important regions."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        """
+        Initialize Layer CAM tool.
+
+        Args:
+            data_model_loader: DataModelLoader instance for accessing the model and data.
+        """
+        self.data_model_loader = data_model_loader
+
+    def run(
+        self,
+        image_path: Optional[str] = None,
+        target_class: Optional[int] = None,
+        layer_name: Optional[str] = None,
+        image_id: str = "temp",
+        **kwargs
+    ) -> str:
+        """Execute Layer CAM analysis."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
+
+        if target_class is None:
+            return json.dumps({
+                "success": False,
+                "error": "target_class is required"
+            })
+
+        try:
+            target_class = int(target_class)
+            image = self.data_model_loader.get_current_image()
+
+            if image is None:
+                return json.dumps({
+                    "success": False,
+                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
+                })
+
+            # Get pre-processed tensor if available
+            input_tensor = self.data_model_loader.get_current_tensor()
+
+            result = execute_layer_cam(
+                image=image,
+                model=model,
+                model_type=model_type,
+                processor=processor,
+                target_class=target_class,
+                device=device,
+                image_id=image_id,
+                layer_name=layer_name,
+                input_tensor=input_tensor
             )
             return json.dumps(result, indent=2)
         except Exception as e:
@@ -688,11 +797,8 @@ class XAIToolRegistry:
 
     def __init__(
         self,
-        model: Optional[Any] = None,
-        model_type: Optional[str] = None,
-        processor: Optional[Any] = None,
         modality: Optional[str] = None,
-        device: Optional[torch.device] = None
+        data_model_loader: Optional[Any] = None
     ):
         """
         Initialize tool registry.
@@ -703,12 +809,11 @@ class XAIToolRegistry:
             processor: Image preprocessor
             modality: Data modality ('vision', 'text', 'tabular')
             device: Torch device
+            data_model_loader: DataModelLoader instance for accessing loaded images
         """
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
         self.modality = modality
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.data_model_loader = data_model_loader
+        self.device = self.data_model_loader.device if self.data_model_loader else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self._tools: Dict[str, BaseTool] = {}
         self._initialize_tools()
 
@@ -716,10 +821,7 @@ class XAIToolRegistry:
         """Initialize all available tools."""
         available_tools = get_available_tools()
         tool_context = {
-            "model": self.model,
-            "model_type": self.model_type,
-            "processor": self.processor,
-            "device": self.device
+            "data_model_loader": self.data_model_loader
         }
 
         # Vision-specific tools
@@ -727,7 +829,7 @@ class XAIToolRegistry:
             if 'gradcam' in available_tools:
                 self._tools['gradcam'] = GradCAMTool(**tool_context)
             if 'object_detection' in available_tools:
-                self._tools['object_detection'] = ObjectDetectionTool()
+                self._tools['object_detection'] = ObjectDetectionTool(**tool_context)
             if 'guided_backprop' in available_tools:
                 self._tools['guided_backprop'] = GuidedBackpropTool(**tool_context)
             if 'layer_cam' in available_tools:
@@ -743,32 +845,7 @@ class XAIToolRegistry:
         if 'shap' in available_tools:
             self._tools['shap'] = SHAPTool(**tool_context)
 
-    def set_model_context(
-        self,
-        model: Any,
-        model_type: str,
-        processor: Any,
-        modality: Optional[str] = None,
-        device: Optional[torch.device] = None
-    ):
-        """
-        Update the model context for all registered tools.
 
-        Args:
-            model: PyTorch model
-            model_type: Model type
-            processor: Image preprocessor
-            modality: Data modality
-            device: Torch device
-        """
-        self.model = model
-        self.model_type = model_type
-        self.processor = processor
-        self.modality = modality or self.modality
-        self.device = device or self.device
-
-        # Re-initialize tools with new context
-        self._initialize_tools()
 
     def get_tool(self, tool_name: str) -> Optional[BaseTool]:
         """
@@ -824,8 +901,8 @@ class XAIToolRegistry:
     def execute_tool(
         self,
         tool_name: str,
-        image_path: str,
-        target_class: int,
+        image_path: Optional[str] = None, # Make image_path optional here
+        target_class: Optional[int] = None,
         image_id: str = "temp",
         **kwargs
     ) -> Dict[str, Any]:
@@ -860,41 +937,26 @@ class XAIToolRegistry:
 
 
 def create_xai_tools(
-    model: Any,
-    model_type: str,
-    processor: Any,
-    modality: str = "vision",
+    data_model_loader: Any,
     output_dir: str = "./outputs"
 ) -> XAIToolRegistry:
     """
-    Create XAI tool registry with model context.
+    Create XAI tool registry with a data model loader.
 
     Args:
-        model: PyTorch model
-        model_type: Model type ('local_pth', 'timm', etc.)
-        processor: Image preprocessor
-        modality: Data modality
+        data_model_loader: An instance of DataModelLoader.
         output_dir: Output directory for visualizations
 
     Returns:
         XAIToolRegistry instance
     """
-    # Use model's device if available
-    try:
-        device = next(model.parameters()).device
-    except (AttributeError, StopIteration):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     # Set the output directory for XAI visualizations
     set_output_dir(output_dir)
 
-    # Create tool registry
+    # Create tool registry from the loader
     registry = XAIToolRegistry(
-        model=model,
-        model_type=model_type,
-        processor=processor,
-        modality=modality,
-        device=device
+        modality=data_model_loader.modality,
+        data_model_loader=data_model_loader
     )
 
     return registry
