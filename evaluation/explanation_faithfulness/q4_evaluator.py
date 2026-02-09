@@ -93,8 +93,22 @@ class Q4Evaluator(MultiInstanceEvaluator):
 
             # Mask both inputs (use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_a = masker.mask(input_a, region_a)
-            masked_b = masker.mask(input_b, region_b)
+            masked_a = masker.mask(
+                input_a, region_a,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                instance_suffix='_A',
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
+            masked_b = masker.mask(
+                input_b, region_b,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                instance_suffix='_B',
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             # Get predictions on masked inputs
             processor = kwargs.get('processor')
@@ -127,6 +141,11 @@ class Q4Evaluator(MultiInstanceEvaluator):
                 passed=passed,
                 metric_name=self.metric_name,
                 metric_formula=self.metric_formula,
+                # For Q4, p_original/p_modified represent the gap values
+                p_original=gap_original,
+                p_modified=gap_modified,
+                original_class=f"class_{class_a1}",
+                modified_class=f"class_{class_a1}",
                 details={
                     "region_a": region_a,
                     "region_b": region_b,
@@ -134,6 +153,10 @@ class Q4Evaluator(MultiInstanceEvaluator):
                     "gap_original": gap_original,
                     "gap_modified": gap_modified,
                     "gap_reduction": gap_reduction,
+                    "p_a_a1_orig": p_a_a1_orig,
+                    "p_b_a1_orig": p_b_a1_orig,
+                    "p_a_a1_mod": p_a_a1_mod,
+                    "p_b_a1_mod": p_b_a1_mod,
                     "interpretation": "1 = masking reduced the probability gap (good)"
                 }
             )

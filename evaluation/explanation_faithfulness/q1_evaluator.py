@@ -67,14 +67,25 @@ class Q1Evaluator(BaseEvaluator):
             # Get original probability for predicted class
             original_class = original_prediction.get('predicted_class_idx', 0)
             original_probs = original_prediction.get('probabilities')
-            if original_probs is not None:
-                p_original = float(original_probs[original_class])
-            else:
-                p_original = original_prediction.get('confidence', 1.0)
+            if original_probs is None:
+                return EvaluationResult(
+                    score=0.0,
+                    passed=False,
+                    metric_name=self.metric_name,
+                    metric_formula=self.metric_formula,
+                    errors=["Original probabilities not available"]
+                )
+            p_original = float(original_probs[original_class])
 
             # Create masker and mask the identified region (use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_input = masker.mask(original_input, region)
+            masked_input = masker.mask(
+                original_input, region,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             # Get prediction on masked input
             processor = kwargs.get('processor')
@@ -83,17 +94,27 @@ class Q1Evaluator(BaseEvaluator):
             modified_prediction = self.get_prediction(model, masked_input, processor, device)
             modified_probs = modified_prediction.get('probabilities')
 
-            if modified_probs is not None:
-                p_modified = float(modified_probs[original_class])
-            else:
-                p_modified = modified_prediction.get('confidence', 0.0)
+            if modified_probs is None:
+                return EvaluationResult(
+                    score=0.0,
+                    passed=False,
+                    metric_name=self.metric_name,
+                    metric_formula=self.metric_formula,
+                    errors=["Modified probabilities not available"]
+                )
+            p_modified = float(modified_probs[original_class])
 
             # Calculate metric: P_original - P_modified
             score = p_original - p_modified
 
-            # Determine if passed (significant drop indicates important region)
-            # Threshold: at least 0.1 probability drop
-            passed = score > 0.1
+            # Check if class changed after masking
+            modified_class = modified_prediction.get('predicted_class_idx')
+            class_changed = modified_class != original_class
+
+            # Determine if passed:
+            # 1. Significant probability drop (> 0.5), OR
+            # 2. Class changed (strong evidence that the masked region was important)
+            passed = (score > 0.5) or class_changed
 
             return EvaluationResult(
                 score=score,
@@ -103,11 +124,12 @@ class Q1Evaluator(BaseEvaluator):
                 p_original=p_original,
                 p_modified=p_modified,
                 original_class=str(original_class),
-                modified_class=str(modified_prediction.get('predicted_class_idx')),
+                modified_class=str(modified_class),
                 details={
                     "region": region,
-                    "threshold": 0.1,
-                    "interpretation": "Higher score = agent correctly identified important region"
+                    "threshold": 0.5,
+                    "class_changed": class_changed,
+                    "interpretation": "Higher score = agent correctly identified important region; class change also indicates success"
                 }
             )
 

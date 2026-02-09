@@ -63,7 +63,10 @@ class ProposerAgent(BaseAgent):
         question_template: Any,
         model_info: Optional[Dict[str, Any]] = None,
         input_path: Optional[str] = None,
-        prediction: Optional[Dict[str, Any]] = None
+        prediction: Optional[Dict[str, Any]] = None,
+        # Multi-instance parameters (for Q4, Q9, Q10)
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Main entry point - propose analysis strategy.
@@ -72,14 +75,17 @@ class ProposerAgent(BaseAgent):
             question: Question dictionary
             question_template: QuestionTemplate or PromptBuilder instance
             model_info: Model information
-            input_path: Path to input (image, text file, etc.)
-            prediction: Model prediction results
+            input_path: Path to input (single instance)
+            prediction: Model prediction results (single instance)
+            input_paths: List of paths for multi-instance questions
+            predictions: List of predictions for multi-instance questions
 
         Returns:
             Strategy dictionary
         """
         return self.propose_strategy(
-            question, question_template, model_info, input_path, prediction
+            question, question_template, model_info, input_path, prediction,
+            input_paths=input_paths, predictions=predictions
         )[0]
 
     def propose_strategy(
@@ -88,76 +94,112 @@ class ProposerAgent(BaseAgent):
         question_template: Any,
         model_info: Optional[Dict[str, Any]] = None,
         input_path: Optional[str] = None,
-        prediction: Optional[Dict[str, Any]] = None
+        prediction: Optional[Dict[str, Any]] = None,
+        # Multi-instance parameters
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Tuple[Dict[str, Any], Optional[str]]:
         """
         Propose analysis strategy using VLM.
+
+        Handles both single-instance and multi-instance questions.
+        For multi-instance (Q4, Q9, Q10), uses build_proposer_prompt_multi if available.
 
         Args:
             question: Question dictionary
             question_template: QuestionTemplate or PromptBuilder instance
             model_info: Model information
-            input_path: Path to input data
-            prediction: Model prediction results
+            input_path: Path to input data (single instance)
+            prediction: Model prediction results (single instance)
+            input_paths: List of paths for multi-instance questions
+            predictions: List of predictions for multi-instance questions
 
         Returns:
             Tuple of (strategy dict, saved model metadata path)
         """
+        is_multi_instance = question.get('is_multi_instance', False)
+        num_instances = question.get('num_instances', 1)
+        q_type = question.get('q_type')
+
         print("\n" + "=" * 70)
-        print("PROPOSER AGENT: Planning Strategy")
+        if is_multi_instance:
+            print(f"PROPOSER AGENT: Planning Strategy for Q{q_type} ({num_instances} instances)")
+        else:
+            print("PROPOSER AGENT: Planning Strategy")
         print("=" * 70)
 
         saved_model_metadata_path: Optional[str] = None
-        q_type = question.get('q_type')
         modality = question.get('modality', 'vision')
 
         # Get clean model info
         clean_model_info = self._get_clean_model_info_dict(model_info)
 
-        try:
-            # Get PromptBuilder
-            prompt_builder = self._get_prompt_builder(question_template, q_type, modality)
+        # Get PromptBuilder
+        prompt_builder = self._get_prompt_builder(question_template, q_type, modality)
+        if prompt_builder is None:
+            raise RuntimeError(f"No PromptBuilder found for Q{q_type} modality={modality}")
+        print(f"  Using PromptBuilder: {prompt_builder.__class__.__name__}")
 
-            if prompt_builder is not None:
-                print(f"  Using PromptBuilder: {prompt_builder.__class__.__name__}")
+        if is_multi_instance and input_paths and predictions:
+            # Multi-instance: build context with all instances
+            context = self._build_context_multi(
+                question=question,
+                model_info=clean_model_info,
+                predictions=predictions,
+                input_paths=input_paths
+            )
 
-                # Build context
-                context = self._build_context(
-                    question=question,
-                    model_info=clean_model_info,
-                    prediction=prediction or {},
-                    input_path=input_path
-                )
+            # Build instances list for multi-instance prompt
+            instances = [
+                {'prediction': pred, 'path': path}
+                for pred, path in zip(predictions, input_paths)
+            ]
 
-                # Generate strategy
-                strategy = self._generate_strategy_with_prompt_builder(
+            # Use multi-instance prompt if available
+            if hasattr(prompt_builder, 'build_proposer_prompt_multi'):
+                print(f"  Using build_proposer_prompt_multi for {num_instances} instances")
+                strategy = self._generate_strategy_multi(
                     prompt_builder=prompt_builder,
-                    context=context
+                    context=context,
+                    instances=instances
                 )
             else:
-                # Fallback to rule-based strategy
-                print("  Using fallback strategy generation")
-                question_type = self._get_question_type_string(q_type)
-                strategy = self._get_strategy_by_question_type(question_type, modality)
+                raise RuntimeError(
+                    f"PromptBuilder {prompt_builder.__class__.__name__} missing build_proposer_prompt_multi "
+                    f"for multi-instance Q{q_type}"
+                )
 
-            # Validate strategy
-            if not strategy.get('selected_tools'):
-                print("Warning: Strategy missing selected_tools, using default")
-                return self._get_default_strategy(modality), saved_model_metadata_path
+            # Mark as multi-instance strategy
+            strategy['is_multi_instance'] = True
+            strategy['num_instances'] = num_instances
+        else:
+            # Single instance: original logic
+            context = self._build_context(
+                question=question,
+                model_info=clean_model_info,
+                prediction=prediction or {},
+                input_path=input_path
+            )
 
-            # Save strategy
-            self._save_strategy(strategy, question.get('question_id', 'unknown'))
+            strategy = self._generate_strategy_with_prompt_builder(
+                prompt_builder=prompt_builder,
+                context=context
+            )
 
-            print(f"\nStrategy proposed: {strategy.get('strategy_type', 'unknown')}")
-            print(f"  Selected {len(strategy.get('selected_tools', []))} tools")
+        # Validate strategy
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                "Strategy generation produced no selected_tools. "
+                f"Strategy content: {strategy}"
+            )
 
-            return strategy, saved_model_metadata_path
+        # Save strategy
+        self._save_strategy(strategy, question)
 
-        except Exception as e:
-            print(f"Warning: Strategy generation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return self._get_default_strategy(modality), saved_model_metadata_path
+        print(f"\nStrategy proposed: {strategy.get('strategy_type', 'unknown')}")
+        print(f"  Selected {len(strategy.get('selected_tools', []))} tools")
+
+        return strategy, saved_model_metadata_path
 
     def _get_prompt_builder(
         self,
@@ -166,19 +208,29 @@ class ProposerAgent(BaseAgent):
         modality: str
     ) -> Any:
         """Get appropriate PromptBuilder"""
-        # If question_template is already a PromptBuilder
-        if hasattr(question_template, 'build_proposer_prompt'):
-            return question_template
-
-        # If question_template has a prompt_builder attribute
+        # If question_template has a prompt_builder attribute (QuestionTemplate dataclass)
         if hasattr(question_template, 'prompt_builder') and question_template.prompt_builder:
             return question_template.prompt_builder
+
+        # If question_template is already a PromptBuilder (has build_proposer_prompt method)
+        # but is NOT a QuestionTemplate dataclass
+        if hasattr(question_template, 'build_proposer_prompt') and not hasattr(question_template, 'prompt_builder'):
+            return question_template
 
         # Try to import from prompts module
         try:
             from prompts import get_prompt_builder
             return get_prompt_builder(q_type, modality)
         except ImportError:
+            pass
+
+        # Fallback: try to get prompt builder from question_templates module
+        try:
+            from question_templates import get_question_template
+            template = get_question_template(q_type, modality)
+            if template and template.prompt_builder:
+                return template.prompt_builder
+        except Exception:
             pass
 
         return None
@@ -220,39 +272,126 @@ class ProposerAgent(BaseAgent):
 
         return context
 
+    def _build_context_multi(
+        self,
+        question: Dict[str, Any],
+        model_info: Dict[str, Any],
+        predictions: List[Dict[str, Any]],
+        input_paths: List[str]
+    ) -> Dict[str, Any]:
+        """Build context dictionary for multi-instance questions (Q4, Q9, Q10)."""
+        modality = question.get("modality", "vision")
+        num_instances = len(predictions)
+
+        context = {
+            "user_question": question.get("question", ""),
+            "model_info": model_info,
+            "num_instances": num_instances,
+        }
+
+        # Add all predictions
+        context["predictions"] = predictions
+        if predictions:
+            context["prediction"] = predictions[0]  # For compatibility
+
+        # Add all input paths
+        context["input_paths"] = input_paths
+        if input_paths:
+            context["image_path"] = input_paths[0]  # For compatibility
+
+        # Add indexed access (prediction_0, prediction_1, etc.)
+        for i, pred in enumerate(predictions):
+            context[f"prediction_{i}"] = pred
+
+        for i, path in enumerate(input_paths):
+            if modality == "vision":
+                context[f"image_path_{i}"] = path
+                context[f"image_description_{i}"] = f"Image at index {question.get('image_indices', [])[i] if i < len(question.get('image_indices', [])) else 'unknown'}"
+
+        # Add targets from question
+        targets = question.get('targets', [])
+        context["targets"] = targets
+        for i, target in enumerate(targets):
+            context[f"target_{i}"] = target
+
+        # Add ground_truth for spurious feature questions (Q8-Q10)
+        if question.get("q_type") in [8, 9, 10]:
+            context["ground_truth"] = targets
+
+        return context
+
+    def _generate_strategy_multi(
+        self,
+        prompt_builder: Any,
+        context: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Generate strategy using multi-instance prompt builder."""
+        prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
+        print(f"\n  Generated multi-instance proposer prompt ({len(prompt)} chars)")
+
+        # Call VLM
+        response = self.invoke_vlm(prompt)
+        print(f"  VLM Response preview: {response[:300]}...")
+
+        # Parse response
+        strategy = self.parse_json_response(response)
+        if not strategy:
+            raise RuntimeError(
+                f"Failed to parse VLM response as JSON for multi-instance strategy. "
+                f"Response preview: {response[:500]}"
+            )
+
+        # Convert tool_selection format if needed
+        if not strategy.get('selected_tools') and strategy.get('tool_selection'):
+            strategy = self._convert_tool_selection(strategy)
+
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                f"Multi-instance strategy has no selected_tools after parsing. "
+                f"Strategy: {strategy}"
+            )
+
+        return strategy
+
     def _generate_strategy_with_prompt_builder(
         self,
         prompt_builder: Any,
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate strategy using PromptBuilder"""
-        try:
-            # Build prompt
-            import inspect
-            sig = inspect.signature(prompt_builder.build_proposer_prompt)
-            if 'for_react_agent' in sig.parameters:
-                prompt = prompt_builder.build_proposer_prompt(context, for_react_agent=False)
-            else:
-                prompt = prompt_builder.build_proposer_prompt(context)
+        # Build prompt
+        import inspect
+        sig = inspect.signature(prompt_builder.build_proposer_prompt)
+        if 'for_react_agent' in sig.parameters:
+            prompt = prompt_builder.build_proposer_prompt(context, for_react_agent=False)
+        else:
+            prompt = prompt_builder.build_proposer_prompt(context)
 
-            print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
+        print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
 
-            # Call VLM
-            response = self.invoke_vlm(prompt)
-            print(f"  VLM Response preview: {response[:300]}...")
+        # Call VLM - let exceptions propagate
+        response = self.invoke_vlm(prompt)
+        print(f"  VLM Response preview: {response[:300]}...")
 
-            # Parse response
-            strategy = self.parse_json_response(response)
+        # Parse response
+        strategy = self.parse_json_response(response)
+        if not strategy:
+            raise RuntimeError(
+                f"Failed to parse VLM response as JSON for strategy. "
+                f"Response preview: {response[:500]}"
+            )
 
-            # Convert tool_selection format if needed
-            if not strategy.get('selected_tools') and strategy.get('tool_selection'):
-                strategy = self._convert_tool_selection(strategy)
+        # Convert tool_selection format if needed
+        if not strategy.get('selected_tools') and strategy.get('tool_selection'):
+            strategy = self._convert_tool_selection(strategy)
 
-            return strategy if strategy.get('selected_tools') else self._get_default_strategy()
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                f"Strategy has no selected_tools after parsing. Strategy: {strategy}"
+            )
 
-        except Exception as e:
-            print(f"  Warning: VLM call failed: {e}")
-            return self._get_default_strategy()
+        return strategy
 
     def _convert_tool_selection(self, strategy: Dict[str, Any]) -> Dict[str, Any]:
         """Convert tool_selection format to selected_tools format"""
@@ -365,7 +504,298 @@ class ProposerAgent(BaseAgent):
             "device": str(model_info.get("device", "Unknown"))
         }
 
-    def _save_strategy(self, strategy: Dict[str, Any], question_id: str):
+    def _save_strategy(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        suffix: str = ""
+    ):
         """Save strategy to file"""
-        filepath = self.save_json(strategy, f"strategy_{question_id}", "strategies")
+        import re
+        # Extract naming components from question
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', question.get('question_id', 0))
+        modality = question.get('modality', 'vision')
+
+        # Extract dataset_name and q_type from dataset_base_name
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+
+        # Format: /strategies/{modality}/{dataset_name}/{q_type}/{question_id}/strategy.json
+        filename = f"strategy{suffix}" if suffix else "strategy"
+        subdir = f"strategies/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        filepath = self.save_json(strategy, filename, subdir)
         print(f"Strategy saved to: {filepath}")
+
+    def run_with_reflection(
+        self,
+        question: Dict[str, Any],
+        question_template: Any,
+        model_info: Optional[Dict[str, Any]],
+        input_path: Optional[str],
+        prediction: Optional[Dict[str, Any]],
+        proposer_reflection: str,
+        original_strategy: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate improved strategy based on Critic's reflection.
+
+        Args:
+            question: Question dictionary
+            question_template: QuestionTemplate or PromptBuilder instance
+            model_info: Model information
+            input_path: Path to input data
+            prediction: Model prediction results
+            proposer_reflection: JSON string with feedback from Critic
+            original_strategy: The original strategy that was evaluated
+
+        Returns:
+            Improved strategy dictionary
+        """
+        print("\n" + "=" * 70)
+        print("PROPOSER AGENT: Re-planning Strategy with Reflection")
+        print("=" * 70)
+
+        q_type = question.get('q_type')
+        modality = question.get('modality', 'vision')
+        clean_model_info = self._get_clean_model_info_dict(model_info)
+
+        # Get PromptBuilder
+        prompt_builder = self._get_prompt_builder(question_template, q_type, modality)
+        if prompt_builder is None:
+            raise RuntimeError(f"No PromptBuilder found for Q{q_type} modality={modality}")
+
+        # Build base context
+        context = self._build_context(
+            question=question,
+            model_info=clean_model_info,
+            prediction=prediction or {},
+            input_path=input_path
+        )
+
+        # Add reflection information to context
+        context['previous_strategy'] = original_strategy
+        context['critic_feedback'] = proposer_reflection
+
+        # Generate improved strategy with reflection
+        strategy = self._generate_strategy_with_reflection(
+            prompt_builder=prompt_builder,
+            context=context,
+            proposer_reflection=proposer_reflection,
+            original_strategy=original_strategy
+        )
+
+        # Validate strategy
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                f"Improved strategy missing selected_tools. Strategy: {strategy}"
+            )
+
+        # Save improved strategy
+        self._save_strategy(strategy, question, suffix="_improved")
+
+        print(f"\nImproved strategy proposed: {strategy.get('strategy_type', 'unknown')}")
+        print(f"  Selected {len(strategy.get('selected_tools', []))} tools")
+
+        return strategy
+
+    # =========================================================================
+    # Q4 Specific Methods (instance_A / instance_B format)
+    # =========================================================================
+
+    def run_q4(
+        self,
+        question: Dict[str, Any],
+        question_template: Any,
+        model_info: Optional[Dict[str, Any]] = None,
+        instances: List[Dict[str, Any]] = None  # [{'prediction': ..., 'path': ..., 'label': 'A/B'}]
+    ) -> Dict[str, Any]:
+        """
+        Run Proposer for Q4 contrastive instances.
+
+        Args:
+            question: Question dict with instance_A, instance_B
+            question_template: Q4ContrastiveInstancesPromptBuilder
+            model_info: Model information
+            instances: [{'prediction': pred_A, 'path': path_A, 'label': 'A'},
+                        {'prediction': pred_B, 'path': path_B, 'label': 'B'}]
+
+        Returns:
+            Strategy dict
+        """
+        print("\n" + "=" * 70)
+        print("PROPOSER AGENT: Planning Q4 Strategy (Instance A vs B)")
+        print("=" * 70)
+
+        clean_model_info = self._get_clean_model_info_dict(model_info)
+        modality = question.get('modality', 'vision')
+
+        # Get Q4 PromptBuilder
+        prompt_builder = self._get_prompt_builder(question_template, 4, modality)
+        if prompt_builder is None:
+            raise RuntimeError(f"No PromptBuilder found for Q4 modality={modality}")
+        print(f"  Using PromptBuilder: {prompt_builder.__class__.__name__}")
+
+        # Build Q4-specific context
+        context = self._build_context_q4(question, clean_model_info, instances)
+
+        # Use build_proposer_prompt_multi (base class provides default implementation)
+        prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
+        print(f"\n  Generated Q4 proposer prompt ({len(prompt)} chars)")
+
+        # Call VLM - let exceptions propagate
+        response = self.invoke_vlm(prompt)
+        print(f"  VLM Response preview: {response[:300]}...")
+
+        # Parse strategy
+        strategy = self.parse_json_response(response)
+        if not strategy:
+            raise RuntimeError(
+                f"Failed to parse VLM response for Q4 strategy. "
+                f"Response preview: {response[:500]}"
+            )
+
+        # Convert format if needed
+        if not strategy.get('selected_tools') and strategy.get('tool_selection'):
+            strategy = self._convert_tool_selection(strategy)
+
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                f"Q4 strategy has no selected_tools after parsing. Strategy: {strategy}"
+            )
+
+        # Mark as Q4 strategy
+        strategy['is_q4'] = True
+        strategy['num_instances'] = 2
+        strategy['instance_labels'] = ['A', 'B']
+
+        # Save strategy
+        self._save_strategy(strategy, question)
+
+        print(f"\nQ4 Strategy proposed: {strategy.get('strategy_type', 'unknown')}")
+        print(f"  Selected {len(strategy.get('selected_tools', []))} tools")
+
+        return strategy
+
+    def _build_context_q4(
+        self,
+        question: Dict[str, Any],
+        model_info: Dict[str, Any],
+        instances: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Build context for Q4 contrastive instances."""
+        instance_a = question.get('instance_A', {})
+        instance_b = question.get('instance_B', {})
+
+        context = {
+            "user_question": question.get("question", question.get("example", "")),
+            "model_info": model_info,
+            "num_instances": 2,
+        }
+
+        # Add predictions
+        if instances and len(instances) >= 2:
+            context["prediction_A"] = instances[0].get('prediction', {})
+            context["prediction_B"] = instances[1].get('prediction', {})
+            context["predictions"] = [
+                instances[0].get('prediction', {}),
+                instances[1].get('prediction', {})
+            ]
+            context["image_path_A"] = instances[0].get('path', '')
+            context["image_path_B"] = instances[1].get('path', '')
+
+        # Add original instance info
+        context["instance_A"] = instance_a
+        context["instance_B"] = instance_b
+
+        # Add image descriptions
+        context["image_description_A"] = f"Image at index {instance_a.get('features', {}).get('image_index', 'unknown')}"
+        context["image_description_B"] = f"Image at index {instance_b.get('features', {}).get('image_index', 'unknown')}"
+
+        return context
+
+    def _generate_strategy_with_reflection(
+        self,
+        prompt_builder: Any,
+        context: Dict[str, Any],
+        proposer_reflection: str,
+        original_strategy: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Generate improved strategy using reflection feedback.
+
+        Args:
+            prompt_builder: PromptBuilder instance
+            context: Context dictionary
+            proposer_reflection: Critic's feedback for Proposer
+            original_strategy: Original strategy
+
+        Returns:
+            Improved strategy dictionary
+        """
+        # Build reflection-aware prompt
+        original_tools = [t.get('tool_name') for t in original_strategy.get('selected_tools', [])]
+
+        reflection_prompt = f"""You are the Proposer Agent. Your previous strategy did not achieve satisfactory explanation faithfulness.
+
+## Previous Strategy
+- Tools Used: {original_tools}
+- Reasoning: {original_strategy.get('reasoning', 'N/A')}
+
+## Critic's Feedback on Your Strategy
+{proposer_reflection}
+
+## Your Task
+Based on the critic's feedback, generate an IMPROVED strategy. Consider:
+1. Which tools to keep based on their effectiveness
+2. Which tools to remove (low importance scores)
+3. Which tools to add for better coverage
+4. How to adjust tool priorities
+
+Generate a new strategy in the same JSON format as before.
+"""
+
+        # Build base proposer prompt
+        import inspect
+        sig = inspect.signature(prompt_builder.build_proposer_prompt)
+        if 'for_react_agent' in sig.parameters:
+            base_prompt = prompt_builder.build_proposer_prompt(context, for_react_agent=False)
+        else:
+            base_prompt = prompt_builder.build_proposer_prompt(context)
+
+        # Combine with reflection
+        full_prompt = f"{base_prompt}\n\n{reflection_prompt}"
+
+        print(f"\n  Generated reflection-aware prompt ({len(full_prompt)} chars)")
+
+        # Call VLM - let exceptions propagate
+        response = self.invoke_vlm(full_prompt)
+        print(f"  VLM Response preview: {response[:300]}...")
+
+        # Parse response
+        strategy = self.parse_json_response(response)
+        if not strategy:
+            raise RuntimeError(
+                f"Failed to parse VLM response for reflection strategy. "
+                f"Response preview: {response[:500]}"
+            )
+
+        # Convert format if needed
+        if not strategy.get('selected_tools') and strategy.get('tool_selection'):
+            strategy = self._convert_tool_selection(strategy)
+
+        if not strategy.get('selected_tools'):
+            raise RuntimeError(
+                f"Reflection strategy has no selected_tools. Strategy: {strategy}"
+            )
+
+        # Mark as improved
+        strategy['_improved'] = True
+        strategy['_original_strategy'] = original_strategy
+
+        return strategy

@@ -181,13 +181,20 @@ def _preprocess_image(
     Args:
         image: PIL Image
         model_type: Type of model ('timm', 'local_pth', 'huggingface')
-        processor: Image preprocessor
+        processor: Image preprocessor (can be torchvision.transforms.Compose or HuggingFace processor)
         device: Torch device
 
     Returns:
         Preprocessed tensor
     """
     import torchvision.transforms as transforms
+
+    # Check if processor is a torchvision Compose transform
+    if processor is not None and isinstance(processor, transforms.Compose):
+        input_tensor = processor(image)
+        if input_tensor.dim() == 3:
+            input_tensor = input_tensor.unsqueeze(0)
+        return input_tensor.to(device)
 
     if model_type in ["timm", "local_pth"]:
         # Standard ImageNet preprocessing
@@ -232,7 +239,8 @@ def execute_gradcam(
     processor: Any,
     target_class: int,
     device: torch.device,
-    image_id: str = "temp"
+    image_id: str = "temp",
+    input_tensor: Optional[torch.Tensor] = None
 ) -> Dict[str, Any]:
     """
     Execute GradCAM analysis with visualization.
@@ -247,6 +255,7 @@ def execute_gradcam(
         target_class: Target class index
         device: Torch device
         image_id: Identifier for output files
+        input_tensor: Optional pre-processed tensor. If provided, skips preprocessing.
 
     Returns:
         Dictionary with raw results:
@@ -260,8 +269,11 @@ def execute_gradcam(
         original_size = image.size  # (width, height)
         img_np = np.array(image)
 
-        # Preprocess
-        input_tensor = _preprocess_image(image, model_type, processor, device)
+        # Use provided tensor or preprocess
+        if input_tensor is None:
+            input_tensor = _preprocess_image(image, model_type, processor, device)
+        else:
+            input_tensor = input_tensor.to(device)
         target_layer = _get_target_layer(model)
 
         # Initialize LayerGradCam
@@ -356,7 +368,8 @@ def execute_integrated_gradients(
     target_class: int,
     device: torch.device,
     image_id: str = "temp",
-    n_steps: int = 50
+    n_steps: int = 50,
+    input_tensor: Optional[torch.Tensor] = None
 ) -> Dict[str, Any]:
     """
     Execute Integrated Gradients analysis with visualization.
@@ -367,8 +380,11 @@ def execute_integrated_gradients(
         original_size = image.size
         img_np = np.array(image)
 
-        # Preprocess
-        input_tensor = _preprocess_image(image, model_type, processor, device)
+        # Use provided tensor or preprocess
+        if input_tensor is None:
+            input_tensor = _preprocess_image(image, model_type, processor, device)
+        else:
+            input_tensor = input_tensor.to(device)
 
         # Create baseline (black image)
         baseline = torch.zeros_like(input_tensor)
@@ -508,7 +524,7 @@ def execute_lime(
         )
 
         # Get mask for target class
-        label_to_explain = target_class if target_class in explanation.top_labels else explanation.top_labels[0]
+        label_to_explain = int(target_class if target_class in explanation.top_labels else explanation.top_labels[0])
         temp, mask = explanation.get_image_and_mask(
             label_to_explain,
             positive_only=True,
@@ -569,6 +585,55 @@ def execute_lime(
         # Statistics
         important_regions = float(mask.sum() / mask.size)
 
+        # Compute bounding boxes for top positive segments
+        def get_segment_bbox(segments, seg_id):
+            """Get bounding box [x_min, y_min, x_max, y_max] for a segment"""
+            mask = (segments == seg_id)
+            if not mask.any():
+                return None
+            rows = np.any(mask, axis=1)
+            cols = np.any(mask, axis=0)
+            y_min, y_max = np.where(rows)[0][[0, -1]]
+            x_min, x_max = np.where(cols)[0][[0, -1]]
+            return [int(x_min), int(y_min), int(x_max), int(y_max)]
+
+        # Add bounding box info to top segments
+        top_positive_with_bbox = []
+        for seg_id, weight in positive_segments[:5]:
+            bbox = get_segment_bbox(segments, seg_id)
+            top_positive_with_bbox.append({
+                "segment_id": int(seg_id),
+                "weight": round(float(weight), 4),
+                "bbox": bbox
+            })
+
+        top_negative_with_bbox = []
+        for seg_id, weight in negative_segments[:5]:
+            bbox = get_segment_bbox(segments, seg_id)
+            top_negative_with_bbox.append({
+                "segment_id": int(seg_id),
+                "weight": round(float(weight), 4),
+                "bbox": bbox
+            })
+
+        # Compute overall important region bounding box from top positive segments
+        all_important_pixels_x = []
+        all_important_pixels_y = []
+        for seg_id, weight in positive_segments[:3]:  # Top 3 positive segments
+            seg_mask = (segments == seg_id)
+            ys, xs = np.where(seg_mask)
+            all_important_pixels_x.extend(xs.tolist())
+            all_important_pixels_y.extend(ys.tolist())
+
+        suggested_bbox = None
+        if all_important_pixels_x and all_important_pixels_y:
+            suggested_bbox = [
+                int(min(all_important_pixels_x)),
+                int(min(all_important_pixels_y)),
+                int(max(all_important_pixels_x)),
+                int(max(all_important_pixels_y))
+            ]
+
         result = {
             "success": True,
             "method": "LIME",
@@ -576,18 +641,19 @@ def execute_lime(
             "explained_class": label_to_explain,
             "num_samples": num_samples,
             "original_image_size": {"width": original_size[0], "height": original_size[1]},
-            "top_labels": list(explanation.top_labels),
+            "top_labels": [int(x) for x in explanation.top_labels],
             "image_id": image_id,
             "visualization_path": viz_path,
-            "num_segments": int(segments.max() + 1),
+            "num_segments": int(segments.max()) + 1,
+            "suggested_bounding_box": suggested_bbox,
             "statistics": {
                 "num_positive_segments": len(positive_segments),
                 "num_negative_segments": len(negative_segments),
                 "important_region_ratio": round(important_regions, 4),
                 "max_positive_weight": round(float(max([w for _, w in positive_segments], default=0)), 4),
                 "max_negative_weight": round(float(min([w for _, w in negative_segments], default=0)), 4),
-                "top_positive_segments": top_positive,
-                "top_negative_segments": top_negative
+                "top_positive_segments": top_positive_with_bbox,
+                "top_negative_segments": top_negative_with_bbox
             },
             "description": (
                 f"LIME analysis ({num_samples} samples) for class {label_to_explain}: "
@@ -842,7 +908,8 @@ def execute_guided_backprop(
     processor: Any,
     target_class: int,
     device: torch.device,
-    image_id: str = "temp"
+    image_id: str = "temp",
+    input_tensor: Optional[torch.Tensor] = None
 ) -> Dict[str, Any]:
     """
     Execute Guided Backpropagation analysis.
@@ -853,8 +920,11 @@ def execute_guided_backprop(
         original_size = image.size
         img_np = np.array(image)
 
-        # Preprocess
-        input_tensor = _preprocess_image(image, model_type, processor, device)
+        # Use provided tensor or preprocess
+        if input_tensor is None:
+            input_tensor = _preprocess_image(image, model_type, processor, device)
+        else:
+            input_tensor = input_tensor.to(device)
 
         # Initialize GuidedBackprop
         guided_bp = GuidedBackprop(model)
@@ -939,7 +1009,8 @@ def execute_layer_cam(
     target_class: int,
     device: torch.device,
     image_id: str = "temp",
-    layer_name: Optional[str] = None
+    layer_name: Optional[str] = None,
+    input_tensor: Optional[torch.Tensor] = None
 ) -> Dict[str, Any]:
     """
     Execute Layer CAM analysis.
@@ -950,8 +1021,11 @@ def execute_layer_cam(
         original_size = image.size
         img_np = np.array(image)
 
-        # Preprocess
-        input_tensor = _preprocess_image(image, model_type, processor, device)
+        # Use provided tensor or preprocess
+        if input_tensor is None:
+            input_tensor = _preprocess_image(image, model_type, processor, device)
+        else:
+            input_tensor = input_tensor.to(device)
 
         # Use specified layer or get target layer
         if layer_name:
@@ -982,23 +1056,43 @@ def execute_layer_cam(
 
         heatmap_path = _save_raw_heatmap(heatmap, viz_path)
 
+        # Compute statistics (same as GradCAM)
+        high_attention_ratio = float((heatmap > 0.7).sum() / heatmap.size)
+        mean_attention = float(heatmap.mean())
+        max_attention = float(heatmap.max())
+
+        # Find top attention coordinates (same as GradCAM)
+        top_k = 10
+        flat_idx = np.argsort(heatmap.flatten())[-top_k:]
+        top_coords = [
+            {"y": int(np.unravel_index(idx, heatmap.shape)[0]),
+             "x": int(np.unravel_index(idx, heatmap.shape)[1]),
+             "value": float(heatmap.flatten()[idx])}
+            for idx in flat_idx
+        ]
+
         result = {
             "success": True,
             "method": "LayerCAM",
             "target_class": target_class,
             "original_image_size": {"width": original_size[0], "height": original_size[1]},
+            "heatmap_shape": list(heatmap.shape),
             "image_id": image_id,
             "visualization_path": viz_path,
             "heatmap_path": heatmap_path,
             "statistics": {
-                "mean_activation": round(float(heatmap.mean()), 4),
-                "max_activation": round(float(heatmap.max()), 4),
-                "std_activation": round(float(np.std(heatmap)), 4),
-                "layer_name": layer_name or "auto-detected"
+                "high_attention_ratio": round(high_attention_ratio, 4),
+                "mean_attention": round(mean_attention, 4),
+                "max_attention": round(max_attention, 4),
+                "std_attention": round(float(np.std(heatmap)), 4),
+                "layer_name": layer_name or "auto-detected",
+                "top_attention_coords": top_coords
             },
             "description": (
-                f"Layer CAM analysis on {layer_name or 'target layer'} shows "
-                f"activation patterns with mean {heatmap.mean():.3f}."
+                f"Layer CAM analysis for class {target_class}: "
+                f"{high_attention_ratio*100:.1f}% of regions show high attention (>0.7 threshold). "
+                f"Mean attention: {mean_attention:.3f}, Max: {max_attention:.3f}. "
+                f"The model focuses on specific regions - see visualization for details."
             )
         }
 
@@ -1026,7 +1120,8 @@ def execute_sensitivity_analysis(
     target_class: int,
     device: torch.device,
     image_id: str = "temp",
-    perturbation_type: str = "noise"
+    perturbation_type: str = "noise",
+    input_tensor: Optional[torch.Tensor] = None
 ) -> Dict[str, Any]:
     """
     Execute sensitivity analysis to test model robustness.
@@ -1037,8 +1132,11 @@ def execute_sensitivity_analysis(
         original_size = image.size
         img_np = np.array(image)
 
-        # Get original prediction
-        input_tensor = _preprocess_image(image, model_type, processor, device)
+        # Get original prediction - use provided tensor or preprocess
+        if input_tensor is None:
+            input_tensor = _preprocess_image(image, model_type, processor, device)
+        else:
+            input_tensor = input_tensor.to(device)
         with torch.no_grad():
             original_output = model(input_tensor)
             original_prob = torch.nn.functional.softmax(original_output, dim=1)[0, target_class].item()

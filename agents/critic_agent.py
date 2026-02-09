@@ -65,6 +65,8 @@ class CriticAgent(BaseAgent):
         original_input: Any = None,
         original_prediction: Optional[Dict[str, Any]] = None,
         ground_truth: Optional[Any] = None,
+        tool_name: Optional[str] = None,  # For strategy faithfulness file naming
+        suffix: str = "",  # For _improved file naming
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -76,6 +78,8 @@ class CriticAgent(BaseAgent):
             original_input: Original input data (image tensor, text, tabular)
             original_prediction: Original model prediction
             ground_truth: Ground truth label (if available)
+            tool_name: Name of tool config being evaluated (for file naming)
+            suffix: Suffix for output filenames (e.g., "_improved")
             **kwargs: Additional arguments (processor, tokenizer, etc.)
 
         Returns:
@@ -83,7 +87,7 @@ class CriticAgent(BaseAgent):
         """
         return self.evaluate(
             results, question, original_input,
-            original_prediction, ground_truth, **kwargs
+            original_prediction, ground_truth, tool_name=tool_name, suffix=suffix, **kwargs
         )
 
     def evaluate(
@@ -93,6 +97,8 @@ class CriticAgent(BaseAgent):
         original_input: Any = None,
         original_prediction: Optional[Dict[str, Any]] = None,
         ground_truth: Optional[Any] = None,
+        tool_name: Optional[str] = None,
+        suffix: str = "",
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -104,6 +110,8 @@ class CriticAgent(BaseAgent):
             original_input: Original input data
             original_prediction: Original prediction results
             ground_truth: Ground truth labels
+            tool_name: Name of tool config being evaluated (for file naming)
+            suffix: Suffix for output filenames (e.g., "_improved")
             **kwargs: Additional arguments
 
         Returns:
@@ -128,6 +136,10 @@ class CriticAgent(BaseAgent):
 
         # Evaluate explanation faithfulness if model and input are available
         if self.model is not None and original_input is not None:
+            # Pass question info for masked input naming
+            dataset_base_name = question.get('dataset_base_name', 'unknown')
+            row_no = question.get('row_no', results.get('question_id', 0))
+
             faithfulness_result = self.evaluate_faithfulness(
                 q_type=q_type,
                 agent_output=results,
@@ -135,6 +147,10 @@ class CriticAgent(BaseAgent):
                 original_prediction=original_prediction or {},
                 modality=modality,
                 ground_truth=ground_truth,
+                dataset_base_name=dataset_base_name,
+                row_no=row_no,
+                tool_name=tool_name,
+                mask_suffix=suffix,
                 **kwargs
             )
             evaluation["faithfulness"] = faithfulness_result
@@ -144,8 +160,27 @@ class CriticAgent(BaseAgent):
                 "error": "Model or input not provided for faithfulness evaluation"
             }
 
-        # Save evaluation
-        filepath = self.save_json(evaluation, f"eval_{results.get('question_id', 'unknown')}", "evaluations")
+        # Save evaluation with nested directory structure
+        # Format: /evaluations/{modality}/{dataset_name}/{q_type}/{question_id}/evaluation.json
+        import re
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', results.get('question_id', 0))
+
+        # Extract dataset_name and q_type from dataset_base_name
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+
+        filename = f"evaluation{suffix}"
+        if tool_name:
+            filename = f"evaluation_{tool_name}{suffix}"
+
+        subdir = f"evaluations/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        filepath = self.save_json(evaluation, filename, subdir)
         print(f"Evaluation saved to: {filepath}")
         print(f"  Quality Score: {evaluation.get('quality_score', 'N/A')}")
         print(f"  Faithfulness Score: {evaluation.get('faithfulness', {}).get('score', 'N/A')}")
@@ -160,6 +195,7 @@ class CriticAgent(BaseAgent):
         original_prediction: Dict[str, Any],
         modality: str = "vision",
         ground_truth: Optional[Any] = None,
+        tool_name: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -172,44 +208,38 @@ class CriticAgent(BaseAgent):
             original_prediction: Original prediction
             modality: Data modality
             ground_truth: Ground truth (for Q8-Q10)
+            tool_name: Name of tool config being evaluated (for file naming)
             **kwargs: Additional arguments
 
         Returns:
             Faithfulness evaluation result
         """
-        try:
-            evaluator = self._get_evaluator(q_type, modality)
-            if evaluator is None:
-                return {"score": None, "error": f"No evaluator for Q{q_type}"}
+        evaluator = self._get_evaluator(q_type, modality)
+        if evaluator is None:
+            raise RuntimeError(f"No evaluator found for Q{q_type} modality={modality}")
 
-            result = evaluator.evaluate(
-                agent_output=agent_output,
-                original_input=original_input,
-                model=self.model,
-                original_prediction=original_prediction,
-                ground_truth=ground_truth,
-                **kwargs
-            )
+        # Pass tool_name through kwargs
+        kwargs['tool_name'] = tool_name
 
-            return result.to_dict() if hasattr(result, 'to_dict') else result
+        result = evaluator.evaluate(
+            agent_output=agent_output,
+            original_input=original_input,
+            model=self.model,
+            original_prediction=original_prediction,
+            ground_truth=ground_truth,
+            q_type=q_type,
+            **kwargs
+        )
 
-        except Exception as e:
-            print(f"  Warning: Faithfulness evaluation failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return {"score": None, "error": str(e)}
+        return result.to_dict() if hasattr(result, 'to_dict') else result
 
     def _get_evaluator(self, q_type: int, modality: str) -> Any:
         """Get or create evaluator for question type"""
         key = (q_type, modality)
 
         if key not in self._evaluators:
-            try:
-                from evaluation import get_evaluator
-                self._evaluators[key] = get_evaluator(q_type, modality)
-            except ImportError as e:
-                print(f"  Warning: Could not import evaluator: {e}")
-                return None
+            from evaluation import get_evaluator
+            self._evaluators[key] = get_evaluator(q_type, modality)
 
         return self._evaluators.get(key)
 
@@ -219,11 +249,27 @@ class CriticAgent(BaseAgent):
         output = results.get('output', {})
 
         # Tool execution quality
-        successful_tools = sum(
-            1 for r in tool_results.values()
-            if isinstance(r, dict) and r.get('success')
-        )
-        total_tools = len(tool_results)
+        # Handle both regular tools and nested autonomous_tasks
+        successful_tools = 0
+        total_tools = 0
+
+        for tool_name, r in tool_results.items():
+            if not isinstance(r, dict):
+                continue
+
+            if tool_name == 'autonomous_tasks':
+                # autonomous_tasks is a nested structure with sub-tools like 'grounding', 'comparison'
+                for sub_tool_name, sub_result in r.items():
+                    if isinstance(sub_result, dict):
+                        total_tools += 1
+                        if sub_result.get('success'):
+                            successful_tools += 1
+            else:
+                # Regular tool
+                total_tools += 1
+                if r.get('success'):
+                    successful_tools += 1
+
         quality_score = successful_tools / total_tools if total_tools > 0 else 0.0
 
         # Output completeness
@@ -258,30 +304,236 @@ class CriticAgent(BaseAgent):
             }
         }
 
-    def evaluate_strategy_faithfulness(
+    # =========================================================================
+    # Q4 Specific Methods (instance_A / instance_B format)
+    # =========================================================================
+
+    def run_q4(
         self,
-        strategy: Dict[str, Any],
-        expected_behavior: Dict[str, Any]
+        results: Dict[str, Any],
+        question: Dict[str, Any],
+        inputs: Dict[str, Any],        # {'A': image_A, 'B': image_B}
+        predictions: Dict[str, Any],   # {'A': pred_A, 'B': pred_B}
+        **kwargs
     ) -> Dict[str, Any]:
         """
-        Evaluate strategy faithfulness.
+        Evaluate Q4 explanation faithfulness.
 
-        TODO: This is a placeholder for future implementation.
+        Uses Q4Evaluator.evaluate_multi() which expects:
+        - inputs: [input_A, input_B]
+        - predictions: [pred_A, pred_B]
+        - agent_output with output.input_A and output.input_B
+
+        Args:
+            results: Results from Actor with output.input_A, output.input_B
+            question: Question dict
+            inputs: {'A': PIL.Image, 'B': PIL.Image}
+            predictions: {'A': pred_dict, 'B': pred_dict}
+            **kwargs: processor, device, etc.
+
+        Returns:
+            Evaluation dict with gap reduction score
+        """
+        print("\n" + "=" * 70)
+        print("CRITIC AGENT: Evaluating Q4 Results")
+        print("=" * 70)
+
+        modality = question.get('modality', 'vision')
+
+        evaluation = {
+            "question_id": results.get('question_id', 'unknown'),
+            "question_type": 4,
+            "modality": modality,
+        }
+
+        # Calculate basic quality metrics
+        quality_metrics = self._calculate_quality_metrics(results)
+        evaluation.update(quality_metrics)
+
+        # Evaluate Q4 faithfulness
+        if self.model is not None and inputs.get('A') is not None and inputs.get('B') is not None:
+            # Get Q4 evaluator
+            evaluator = self._get_evaluator(4, modality)
+
+            if evaluator is None:
+                raise RuntimeError(f"Q4 evaluator not found for modality={modality}")
+
+            # Convert to lists for evaluate_multi
+            inputs_list = [inputs['A'], inputs['B']]
+            predictions_list = [predictions['A'], predictions['B']]
+
+            # Get question naming info
+            dataset_base_name = question.get('dataset_base_name', 'unknown')
+            row_no = question.get('pair_id', question.get('row_no', question.get('question_id', 0)))
+
+            # Call Q4Evaluator.evaluate_multi
+            result = evaluator.evaluate_multi(
+                agent_output=results,
+                inputs=inputs_list,
+                model=self.model,
+                predictions=predictions_list,
+                processor=kwargs.get('processor'),
+                device=kwargs.get('device', 'cuda'),
+                dataset_base_name=dataset_base_name,
+                row_no=row_no,
+                tool_name=kwargs.get('tool_name')
+            )
+
+            evaluation["faithfulness"] = result.to_dict() if hasattr(result, 'to_dict') else result
+
+            # Print summary
+            faith_score = evaluation["faithfulness"].get("score")
+            details = evaluation["faithfulness"].get("details", {})
+            gap_orig = details.get('gap_original', 'N/A')
+            gap_mod = details.get('gap_modified', 'N/A')
+            gap_red = details.get('gap_reduction', 'N/A')
+
+            if isinstance(gap_orig, (int, float)):
+                print(f"  Gap Original: {gap_orig:.4f}")
+            if isinstance(gap_mod, (int, float)):
+                print(f"  Gap Modified: {gap_mod:.4f}")
+            if isinstance(gap_red, (int, float)):
+                print(f"  Gap Reduction: {gap_red:.4f}")
+            print(f"  Score: {faith_score} (1 = gap reduced, 0 = gap increased/same)")
+        else:
+            evaluation["faithfulness"] = {
+                "score": None,
+                "error": "Model or inputs not provided"
+            }
+
+        # Save evaluation
+        import re
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('pair_id', question.get('row_no', question.get('question_id', 0)))
+
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = "q4"
+
+        subdir = f"evaluations/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        filepath = self.save_json(evaluation, "evaluation", subdir)
+        print(f"Q4 Evaluation saved to: {filepath}")
+
+        return evaluation
+
+    def generate_reflections(
+        self,
+        strategy: Dict[str, Any],
+        results: Dict[str, Any],
+        question: Dict[str, Any],
+        faithfulness_result: Dict[str, Any],
+        tool_importance_scores: Dict[str, float],
+        threshold: float = 0.1
+    ) -> Tuple[str, str]:
+        """
+        Generate two separate reflections for Proposer and Actor agents.
+
+        Uses VLM to analyze the strategy and explanation, then produces
+        targeted feedback for each agent to improve their outputs.
 
         Args:
             strategy: Strategy from Proposer Agent
-            expected_behavior: Expected behavior specification
+            results: Results from Actor Agent
+            question: Original question dictionary
+            faithfulness_result: Faithfulness evaluation result
+            tool_importance_scores: Dict of {tool_name: importance_score}
+            threshold: Faithfulness threshold
 
         Returns:
-            Strategy faithfulness evaluation
+            Tuple of (proposer_reflection_json_str, actor_reflection_json_str)
+            These are JSON strings that can be directly passed to the agents.
         """
-        # TODO: Implement strategy faithfulness evaluation
-        # This should evaluate whether the selected tools and approach
-        # are appropriate for the question type
-        raise NotImplementedError(
-            "Strategy faithfulness evaluation not yet implemented. "
-            "This is a TODO placeholder for future development."
+        from prompts.critic_reflection_prompt import (
+            build_critic_reflection_prompt,
+            parse_dual_reflection,
+            format_tool_importance_details
         )
+
+        print("\n  Generating reflections for Proposer and Actor...")
+
+        # Format tool importance details
+        tool_importance_details = format_tool_importance_details(tool_importance_scores)
+
+        # Build prompt
+        prompt = build_critic_reflection_prompt(
+            question=question,
+            strategy=strategy,
+            explanation=results,
+            faithfulness_result=faithfulness_result,
+            tool_importance_details=tool_importance_details,
+            threshold=threshold
+        )
+
+        # Call VLM
+        response = self.invoke_vlm(prompt)
+
+        # Parse response to extract both reflections
+        proposer_reflection, actor_reflection = parse_dual_reflection(response)
+
+        print(f"    Proposer reflection generated ({len(proposer_reflection)} chars)")
+        print(f"    Actor reflection generated ({len(actor_reflection)} chars)")
+
+        return proposer_reflection, actor_reflection
+
+    def save_reflections(
+        self,
+        proposer_reflection: str,
+        actor_reflection: str,
+        question: Dict[str, Any]
+    ) -> str:
+        """
+        Save reflections to file.
+
+        Args:
+            proposer_reflection: JSON string for Proposer
+            actor_reflection: JSON string for Actor
+            question: Question dict for naming
+
+        Returns:
+            Path to saved file
+        """
+        import json
+        import re
+
+        modality = question.get('modality', 'vision')
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', question.get('question_id', 0))
+
+        # Extract dataset_name and q_type from dataset_base_name
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+
+        # Try to parse JSON strings for cleaner storage
+        try:
+            proposer_dict = json.loads(proposer_reflection)
+        except json.JSONDecodeError:
+            proposer_dict = {"raw": proposer_reflection}
+
+        try:
+            actor_dict = json.loads(actor_reflection)
+        except json.JSONDecodeError:
+            actor_dict = {"raw": actor_reflection}
+
+        reflections = {
+            "proposer_reflection": proposer_dict,
+            "actor_reflection": actor_dict
+        }
+
+        filename = "reflections"
+        subdir = f"reflections/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        filepath = self.save_json(reflections, filename, subdir)
+
+        print(f"  Reflections saved to: {filepath}")
+        return filepath
 
     def batch_evaluate(
         self,

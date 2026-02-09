@@ -71,7 +71,13 @@ class Q5Evaluator(BaseEvaluator):
 
             # Actually mask and check (use GRAY for neutral masking)
             masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_input = masker.mask(original_input, queried_region)
+            masked_input = masker.mask(
+                original_input, queried_region,
+                dataset_base_name=kwargs.get('dataset_base_name'),
+                row_no=kwargs.get('row_no'),
+                tool_name=kwargs.get('tool_name'),
+                mask_suffix=kwargs.get('mask_suffix', '')
+            )
 
             processor = kwargs.get('processor')
             device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')

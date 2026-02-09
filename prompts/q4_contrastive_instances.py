@@ -178,6 +178,67 @@ Provide your strategy as a JSON object:
         """Build actor prompt"""
         return self.build_actor_prompt_multi(context, strategy, results, [])
 
+    def _format_multi_instance_results(self, results: Dict[str, Any]) -> str:
+        """Format tool results for multiple instances (Q4 specific)"""
+        tool_results = results.get('tool_results', {})
+        extracted = results.get('extracted_features', {})
+
+        sections = []
+
+        # Format Instance A results
+        instance_a_results = tool_results.get('instance_A', {})
+        if instance_a_results:
+            sections.append("### Instance A Tool Results")
+            for tool_name, result in instance_a_results.items():
+                if isinstance(result, dict):
+                    success = result.get('success', False)
+                    summary = result.get('summary', result.get('description', 'N/A'))
+                    sections.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
+
+                    # Include key statistics
+                    if success:
+                        if 'suggested_bounding_box' in result:
+                            sections.append(f"  - Suggested bbox: {result['suggested_bounding_box']}")
+                        if 'detections' in result:
+                            for det in result['detections'][:3]:
+                                bbox = det.get('bbox', {})
+                                bbox_list = [bbox.get('x1'), bbox.get('y1'), bbox.get('x2'), bbox.get('y2')]
+                                sections.append(f"  - Detected {det.get('class_name', 'object')}: {bbox_list}")
+
+        # Format Instance B results
+        instance_b_results = tool_results.get('instance_B', {})
+        if instance_b_results:
+            sections.append("\n### Instance B Tool Results")
+            for tool_name, result in instance_b_results.items():
+                if isinstance(result, dict):
+                    success = result.get('success', False)
+                    summary = result.get('summary', result.get('description', 'N/A'))
+                    sections.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
+
+                    # Include key statistics
+                    if success:
+                        if 'suggested_bounding_box' in result:
+                            sections.append(f"  - Suggested bbox: {result['suggested_bounding_box']}")
+                        if 'detections' in result:
+                            for det in result['detections'][:3]:
+                                bbox = det.get('bbox', {})
+                                bbox_list = [bbox.get('x1'), bbox.get('y1'), bbox.get('x2'), bbox.get('y2')]
+                                sections.append(f"  - Detected {det.get('class_name', 'object')}: {bbox_list}")
+
+        return "\n".join(sections) if sections else "No tool results available."
+
+    def _get_image_size_from_multi_results(self, tool_results: Dict[str, Any]) -> tuple:
+        """Extract image size from multi-instance tool results"""
+        # Try instance_A first, then instance_B
+        for instance_key in ['instance_A', 'instance_B']:
+            instance_results = tool_results.get(instance_key, {})
+            for tool_name, result in instance_results.items():
+                if isinstance(result, dict) and result.get('success'):
+                    img_size = result.get('original_image_size', {})
+                    if img_size:
+                        return img_size.get('width', 224), img_size.get('height', 224)
+        return 224, 224
+
     def build_actor_prompt_multi(
         self,
         context: Dict[str, Any],
@@ -189,9 +250,20 @@ Provide your strategy as a JSON object:
         output_format = self._get_modality_specific_output_format()
         tool_results = results.get('tool_results', {})
 
-        # Get image size constraint for vision modality
-        image_width, image_height = self._get_image_size_from_results(tool_results)
-        size_constraint = self._build_image_size_constraint(tool_results)
+        # Get image size from multi-instance results
+        image_width, image_height = self._get_image_size_from_multi_results(tool_results)
+
+        # Build size constraint manually for multi-instance
+        size_constraint = ""
+        if self.modality == "vision":
+            min_width = max(int(image_width * 0.1), 10)
+            min_height = max(int(image_height * 0.1), 10)
+            size_constraint = f"""
+## CRITICAL IMAGE SIZE AND BOUNDING BOX CONSTRAINTS
+- Image dimensions: {image_width} x {image_height} pixels
+- ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- **MINIMUM bounding box size: {min_width}x{min_height} pixels**
+"""
 
         prompt = f"""You are an XAI expert. Explain why instances A and B have DIFFERENT predictions.
 
@@ -199,7 +271,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 {size_constraint}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_multi_instance_results(results)}
 
 ## Your Task
 Identify the DECISIVE parts in BOTH instances:

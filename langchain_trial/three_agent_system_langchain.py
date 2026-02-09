@@ -875,7 +875,11 @@ Thought:"""
 
             # Save tool outputs
             if parsed_result.get('tool_results'):
-                self._save_tool_outputs(parsed_result['tool_results'], question.get('question_id', 'unknown'))
+                self._save_tool_outputs(
+                    parsed_result['tool_results'],
+                    question.get('question_id', 'unknown'),
+                    question_template.modality.value
+                )
 
             # Get prompt builder for enhanced explanation generation
             prompt_builder = self._get_prompt_builder(question_template, question)
@@ -1115,15 +1119,16 @@ Thought:"""
 
         return tool_outputs
 
-    def _save_tool_outputs(self, tool_outputs: Dict[str, Any], question_id: str):
+    def _save_tool_outputs(self, tool_outputs: Dict[str, Any], question_id: str, modality: str):
         """
         Save raw tool outputs to a separate file for debugging and reference.
 
         Args:
             tool_outputs: Dictionary of tool outputs
             question_id: Question identifier
+            modality: The modality of the question
         """
-        tool_outputs_dir = self.output_dir / "tool_outputs"
+        tool_outputs_dir = self.output_dir / "tool_outputs" / modality
         tool_outputs_dir.mkdir(parents=True, exist_ok=True)
 
         output_file = tool_outputs_dir / f"tool_outputs_{question_id}.json"
