@@ -250,6 +250,7 @@ def run_single_job(
     no_eval: bool,
     no_improvement: bool,
     no_sf: bool,
+    sf_max_samples: Optional[int],
     log_dir: Path,
 ) -> JobResult:
     """Execute a single pipeline job."""
@@ -275,6 +276,8 @@ def run_single_job(
         cmd.append("--no-improvement")
     if no_sf:
         cmd.append("--no-sf")
+    if sf_max_samples is not None:
+        cmd.extend(["--sf_max_samples", str(sf_max_samples)])
 
     # Create log file
     log_file = log_dir / f"{job.job_id}.log"
@@ -359,6 +362,7 @@ def run_jobs_sequential(
             no_eval=config.get("no_eval", False),
             no_improvement=config.get("no_improvement", False),
             no_sf=config.get("no_sf", False),
+            sf_max_samples=config.get("sf_max_samples"),
             log_dir=log_dir,
         )
 
@@ -505,6 +509,8 @@ Available Datasets:
                         help="Skip improvement phase")
     parser.add_argument("--no_sf", action="store_true",
                         help="Skip strategy faithfulness evaluation")
+    parser.add_argument("--sf_max_samples", type=int, default=None,
+                        help="Max tool configs to sample for strategy faithfulness (default: None = full 2^N)")
     parser.add_argument("--faithfulness_threshold", type=float, default=0.1,
                         help="Threshold for faithfulness (default: 0.1)")
 
@@ -540,6 +546,7 @@ Available Datasets:
     config["no_eval"] = args.no_eval
     config["no_improvement"] = args.no_improvement
     config["no_sf"] = args.no_sf
+    config["sf_max_samples"] = args.sf_max_samples
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

@@ -586,7 +586,8 @@ class XAIPipelineV2:
         evaluate_faithfulness: bool = True,
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
-        enable_sf: bool = True
+        enable_sf: bool = True,
+        sf_max_samples: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Run complete XAI pipeline for a single question.
@@ -769,7 +770,8 @@ class XAIPipelineV2:
                         input_tensor=input_tensor,
                         faithfulness_threshold=faithfulness_threshold,
                         processor=model_info.get('processor'),
-                        device=model_info.get('device', 'cuda')
+                        device=model_info.get('device', 'cuda'),
+                        max_samples=sf_max_samples
                     )
 
                     # Save strategy faithfulness result
@@ -1659,6 +1661,12 @@ def main():
         action="store_true",
         help="Skip strategy faithfulness evaluation"
     )
+    parser.add_argument(
+        "--sf_max_samples",
+        type=int,
+        default=None,
+        help="Max number of tool configs to sample for strategy faithfulness (default: None = full 2^N enumeration)"
+    )
 
     args = parser.parse_args()
 
@@ -1679,7 +1687,8 @@ def main():
         evaluate_faithfulness=not args.no_eval,
         faithfulness_threshold=args.faithfulness_threshold,
         enable_improvement=not args.no_improvement,
-        enable_sf=not args.no_sf
+        enable_sf=not args.no_sf,
+        sf_max_samples=args.sf_max_samples
     )
 
     print("\n" + "=" * 70)
