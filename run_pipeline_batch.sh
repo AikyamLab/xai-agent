@@ -40,6 +40,7 @@ DRY_RUN=false
 NO_EVAL=false
 NO_IMPROVEMENT=false
 NO_SF=false
+SF_MAX_SAMPLES=""
 FAITHFULNESS_THRESHOLD=0.1
 VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
 PARALLEL=false
@@ -305,6 +306,10 @@ while [[ $# -gt 0 ]]; do
             NO_SF=true
             shift
             ;;
+        --sf_max_samples)
+            SF_MAX_SAMPLES="$2"
+            shift 2
+            ;;
         --faithfulness_threshold)
             FAITHFULNESS_THRESHOLD="$2"
             shift 2
@@ -428,6 +433,10 @@ for dataset in $DATASETS_TO_RUN; do
 
             if [[ "$NO_SF" == "true" ]]; then
                 CMD="$CMD --no-sf"
+            fi
+
+            if [[ -n "$SF_MAX_SAMPLES" ]]; then
+                CMD="$CMD --sf_max_samples $SF_MAX_SAMPLES"
             fi
 
             JOBS+=("$CMD")

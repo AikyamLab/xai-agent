@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import json
+import random
 import time
 
 from .cache_manager import CacheManager
@@ -124,7 +125,8 @@ class ToolAttributionEvaluator:
         input_tensor: Any,
         faithfulness_threshold: float = 0.1,
         processor: Any = None,
-        device: str = "cuda"
+        device: str = "cuda",
+        max_samples: Optional[int] = None
     ) -> StrategyFaithfulnessResult:
         """
         Compute importance scores for each tool in the strategy.
@@ -194,8 +196,9 @@ class ToolAttributionEvaluator:
         question_cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_manager = CacheManager(str(question_cache_dir))
 
+        total_possible = 2 ** n_tools
         print(f"\n  Computing tool importance for {n_tools} tools...")
-        print(f"  Total configurations to evaluate: 2^{n_tools} = {2**n_tools}")
+        print(f"  Total possible configurations: 2^{n_tools} = {total_possible}")
         print(f"  (Reusing existing tool results - only re-running feature extraction)")
 
         if n_tools == 0:
@@ -204,9 +207,13 @@ class ToolAttributionEvaluator:
                 faithfulness_threshold, time.time() - start_time
             )
 
-        # Generate all 2^n configurations
-        all_configs = self._generate_all_configs(n_tools)
-        print(f"  Generated {len(all_configs)} configurations")
+        # Generate configurations: full enumeration or random sampling
+        if max_samples is not None and max_samples < total_possible:
+            all_configs = self._sample_configs(n_tools, max_samples)
+            print(f"  Sampled {len(all_configs)} configs from {total_possible} possible")
+        else:
+            all_configs = self._generate_all_configs(n_tools)
+            print(f"  Generated {len(all_configs)} configurations (full enumeration)")
 
         # Track all evaluated configs and their faithfulness scores
         all_evaluated_configs: Dict[str, Dict] = {}
@@ -325,7 +332,10 @@ class ToolAttributionEvaluator:
         )
 
         print(f"\n  Strategy faithfulness evaluation complete:")
-        print(f"    Total configs evaluated: {result.total_configs_evaluated} (2^{n_tools})")
+        if max_samples is not None and max_samples < total_possible:
+            print(f"    Sampled configs: {result.total_configs_evaluated}/{total_possible}")
+        else:
+            print(f"    Total configs evaluated: {result.total_configs_evaluated} (2^{n_tools})")
         print(f"    From cache: {configs_from_cache}")
         print(f"    Time: {elapsed_time:.2f}s")
 
@@ -351,6 +361,41 @@ class ToolAttributionEvaluator:
             for j in range(n_tools):
                 # Extract bit j from i
                 config.append((i >> j) & 1)
+            configs.append(config)
+
+        return configs
+
+    def _sample_configs(self, n_tools: int, max_samples: int) -> List[List[int]]:
+        """
+        Randomly sample tool configurations instead of full 2^n enumeration.
+
+        Always includes all-zeros (no tools baseline) and all-ones (all tools)
+        as anchors, then randomly samples the rest.
+
+        Args:
+            n_tools: Number of tools
+            max_samples: Total number of configs to return (including anchors)
+
+        Returns:
+            List of sampled config masks
+        """
+        if n_tools == 0:
+            return [[]]
+
+        all_zeros = [0] * n_tools
+        all_ones = [1] * n_tools
+        configs = [all_zeros, all_ones]
+
+        if max_samples <= 2:
+            return configs
+
+        # Sample from remaining configs (exclude index 0=all-zeros and 2^n-1=all-ones)
+        remaining_indices = list(range(1, 2 ** n_tools - 1))
+        sample_count = min(max_samples - 2, len(remaining_indices))
+        sampled_indices = random.sample(remaining_indices, sample_count)
+
+        for idx in sampled_indices:
+            config = [(idx >> j) & 1 for j in range(n_tools)]
             configs.append(config)
 
         return configs
