@@ -48,6 +48,8 @@ model = timm.create_model(
     num_classes=10
 )
 
+# Note: "/content/densenet121_stl10_head.pth" - please change the .pth path accordingly inside torch.load()
+
 model.load_state_dict(
     torch.load("/content/densenet121_stl10_head.pth", map_location=device)
 )
