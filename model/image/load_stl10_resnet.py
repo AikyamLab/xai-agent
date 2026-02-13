@@ -1,3 +1,6 @@
+# this has been deprecated, please refer to /benchmark/image/stl-10/resnet-50 for the updated file
+
+
 import torch
 import torch.nn as nn
 from torchvision import models
