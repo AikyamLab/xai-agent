@@ -9,13 +9,14 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.metrics import accuracy_score
 
-def use_benchmark_breast_cancer(row_idx: int, random_seed: int = 42, device: str = "cpu"):
+def use_benchmark_breast_cancer(row_idx: int, is_spurious = False, random_seed: int = 42, device: str = "cpu"):
   """
   Prepares a specific instance from the Breast Cancer dataset for model inference,
   mimicking the preprocessing pipeline.
 
   Args:
     row_idx (int): The index of the row to retrieve from the test set (after splitting).
+    is_spurious (bool): Set this to True when accessing the rows of Q8,9, and 10.
     random_seed (int): The random seed used for the train-test split.
     device (str): The torch device ('cpu' or 'cuda') for the output tensor.
 
@@ -49,6 +50,9 @@ def use_benchmark_breast_cancer(row_idx: int, random_seed: int = 42, device: str
   # 6. Retrieve the specific raw instance from the test set
   # We use .iloc[row_idx] as the JSON row_idx corresponds to this index
   raw_instance = X_test_raw.iloc[[row_idx]] # Keep it as a DataFrame for preprocessor
+  if is_spurious:
+    raw_instance = df_raw.iloc[[row_idx]]
+  
   
   # 7. Preprocess the selected instance
   processed_instance = preprocessor.transform(raw_instance)
@@ -56,17 +60,4 @@ def use_benchmark_breast_cancer(row_idx: int, random_seed: int = 42, device: str
   # 8. Convert to PyTorch tensor and return
   input_tensor = torch.tensor(processed_instance, dtype=torch.float32).to(device)
   
-  return input_tensor
-
-# --- Example Usage (assuming 'model', 'RANDOM_SEED', 'DEVICE' are defined) ---
-# from the q1_breast_cancer.json, let's pick row_idx 0
-# example_json_row_idx = 0 
-# preprocessed_data = use_benchmark_breast_cancer(example_json_row_idx, random_seed=RANDOM_SEED, device=DEVICE)
-# print(f"Preprocessed data for row_idx {example_json_row_idx}:\n{preprocessed_data}")
-# print(f"Shape: {preprocessed_data.shape}")
-
-# # You can then pass this to your model for prediction:
-# with torch.no_grad():
-#     model_output = model(preprocessed_data)
-#     print(f"Model prediction: {model_output.item()}")
-
+  return raw_instance, input_tensor
