@@ -19,7 +19,8 @@ def use_benchmark_adult(row_idx: int, random_seed: int = RANDOM_SEED, device: st
   mimicking the preprocessing pipeline.
 
   Args:
-    row_idx (int): The index of the row to retrieve from the test set (after splitting).
+    row_idx (int): The original index of the row to retrieve from the full dataset `df_raw`.
+                          This instance must also be part of the test set split.
     random_seed (int): The random seed used for the train-test split.
     device (str): The torch device ('cpu' or 'cuda') for the output tensor.
 
@@ -46,23 +47,25 @@ def use_benchmark_adult(row_idx: int, random_seed: int = RANDOM_SEED, device: st
       ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols)
   ])
 
-  # 5. Perform train-test split on raw data to get correct indices
-  _, X_test_raw, _, _ = train_test_split(
+  # 5. Perform train-test split on raw data, retaining original indices
+  X_train_raw, X_test_raw, _, _ = train_test_split(
       X_full, y_full, test_size=0.2, random_state=random_seed
   )
 
-  # Reset index for consistent .iloc indexing with row_idx
-  X_test_raw = X_test_raw.reset_index(drop=True)
+  # 6. Find the instance corresponding to row_idx within the test set
+  # Check if the row_idx actually made it into the test set
+  if row_idx not in X_test_raw.index:
+      raise ValueError(
+          f"Original index {row_idx} was not found in the test set "
+          f"(after train_test_split and cleaning). It might be in the training set or was dropped during cleaning."
+      )
 
-  # 6. Fit preprocessor on training data (simulating fitting on the actual training set)
-  # Note: A full X_train_raw would ideally be used for fitting, but for this example,
-  # we're just setting up the preprocessor's scale and categories based on the full dataset or a hypothetical train set.
-  # To ensure a robust fit, you might want to perform the full train_test_split and fit on X_train_raw.
-  # For demonstration, we'll fit on X_full (cleaned) for simplicity, assuming a similar distribution.
-  preprocessor.fit(X_full.drop('class', axis=1).replace('?', pd.NA).dropna())
+  # Retrieve the specific raw instance from the test set using its original index
+  raw_instance = X_test_raw.loc[[row_idx]] # Keep it as a DataFrame for preprocessor
 
-  # 7. Retrieve the specific raw instance from the test set
-  raw_instance = X_test_raw.iloc[[row_idx]] # Keep it as a DataFrame for preprocessor
+  # 7. Fit preprocessor on training data (simulating fitting on the actual training set)
+  # We fit on X_train_raw for a more realistic scenario.
+  preprocessor.fit(X_train_raw.replace('?', pd.NA).dropna())
 
   # 8. Preprocess the selected instance
   processed_instance = preprocessor.transform(raw_instance)
@@ -70,17 +73,6 @@ def use_benchmark_adult(row_idx: int, random_seed: int = RANDOM_SEED, device: st
   # 9. Convert to PyTorch tensor and return (handle sparse output from OneHotEncoder)
   input_tensor = torch.tensor(processed_instance.toarray(), dtype=torch.float32).to(device)
 
-  return input_tensor
+  return raw_instance, input_tensor
 
-# --- Example Usage ---
-# Let's say you want to get the tensor for the 5th instance in the Adult test set (index 4)
-# example_row_idx = 4
-# preprocessed_adult_tensor = use_benchmark_adult(example_row_idx)
-# print(f"Preprocessed Adult tensor for row_idx {example_row_idx}:\n{preprocessed_adult_tensor}")
-# print(f"Shape: {preprocessed_adult_tensor.shape}")
-
-# You can then pass this to your model:
-# with torch.no_grad():
-#     # Assuming 'model' is your trained PyTorch model
-#     adult_prediction = model(preprocessed_adult_tensor)
-#     print(f"Model prediction for Adult row_idx {example_row_idx}: {adult_prediction.item()}")
+# --- Example Usage (will be handled by the original call, now that the function is fixed) ---
