@@ -49,9 +49,10 @@ def use_benchmark_breast_cancer(row_idx: int, is_spurious = False, random_seed: 
 
   # 6. Retrieve the specific raw instance from the test set
   # We use .iloc[row_idx] as the JSON row_idx corresponds to this index
-  raw_instance = X_test_raw.iloc[[row_idx]] # Keep it as a DataFrame for preprocessor
-  if is_spurious:
-    raw_instance = df_raw.iloc[[row_idx]]
+  if not is_spurious:
+    raw_instance = X_test_raw.iloc[[row_idx]] # Keep it as a DataFrame for preprocessor
+
+  raw_instance = df_raw.iloc[[row_idx]]
   
   
   # 7. Preprocess the selected instance
