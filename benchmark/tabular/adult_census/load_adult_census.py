@@ -52,16 +52,9 @@ def use_benchmark_adult(row_idx: int, random_seed: int = RANDOM_SEED, device: st
       X_full, y_full, test_size=0.2, random_state=random_seed
   )
 
-  # 6. Find the instance corresponding to row_idx within the test set
-  # Check if the row_idx actually made it into the test set
-  if row_idx not in X_test_raw.index:
-      raise ValueError(
-          f"Original index {row_idx} was not found in the test set "
-          f"(after train_test_split and cleaning). It might be in the training set or was dropped during cleaning."
-      )
 
   # Retrieve the specific raw instance from the test set using its original index
-  raw_instance = X_test_raw.loc[[row_idx]] # Keep it as a DataFrame for preprocessor
+  raw_instance = df_raw.loc[[row_idx]] # Keep it as a DataFrame for preprocessor
 
   # 7. Fit preprocessor on training data (simulating fitting on the actual training set)
   # We fit on X_train_raw for a more realistic scenario.
