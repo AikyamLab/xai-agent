@@ -47,9 +47,9 @@ if __name__ == "__main__":
     # List of models to download and test
     models_to_process = [
         {
-            "url": "https://drive.google.com/file/d/1fMxHfRSDW5kaDqcZVjOx-VJn0JvyKUHO/view?usp=drive_link", # !!! REPLACE THIS WITH THE ACTUAL RESNET GOOGLE DRIVE LINK !!!
-            "output": "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/stl10_resnet.pth",
-            "name": "stl10_densenet.pth"
+            "url": "https://drive.google.com/file/d/1mAypR_7TAcAYQFoJKIGkJ_IZCXMlt6_q/view?usp=drive_link", # !!! REPLACE THIS WITH THE ACTUAL RESNET GOOGLE DRIVE LINK !!!
+            "output": "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/text/snli_2layernn.pth",
+            "name": "snli_2layernn.pth"
         }
     ]
 

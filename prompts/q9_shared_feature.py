@@ -191,6 +191,9 @@ Provide your strategy as a JSON object:
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
 
+        # Include text/tabular instance data if available
+        instance_data_section = self._format_instance_data_section(context)
+
         prompt = f"""You are an XAI expert. Find the SHARED feature causing all misclassifications.
 
 ## Question
@@ -199,7 +202,8 @@ Provide your strategy as a JSON object:
 ## Context
 Multiple instances ({num_instances}) are all misclassified.
 Find what COMMON feature they share that confuses the model.
-{size_constraint}
+{size_constraint}{instance_data_section}
+
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 
@@ -218,7 +222,7 @@ Identify the SHARED spurious feature and its location in EACH instance.
     }},
     "shared_feature_description": "Description of the common feature across all inputs",
     "explanation": "2-3 sentences explaining how this shared feature confuses the model",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**

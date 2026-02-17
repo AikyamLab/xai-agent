@@ -126,7 +126,12 @@ class ToolAttributionEvaluator:
         faithfulness_threshold: float = 0.1,
         processor: Any = None,
         device: str = "cuda",
-        max_samples: Optional[int] = None
+        max_samples: Optional[int] = None,
+        # Multi-instance parameters (for Q4, Q9, Q10)
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None,
+        input_tensors: Optional[List[Any]] = None,
+        ground_truths: Optional[List[Any]] = None
     ) -> StrategyFaithfulnessResult:
         """
         Compute importance scores for each tool in the strategy.
@@ -247,7 +252,11 @@ class ToolAttributionEvaluator:
                     prediction=prediction,
                     input_tensor=input_tensor,
                     processor=processor,
-                    device=device
+                    device=device,
+                    input_paths=input_paths,
+                    predictions=predictions,
+                    input_tensors=input_tensors,
+                    ground_truths=ground_truths
                 )
 
                 faithfulness_score = result.get('faithfulness_score', 0.0)
@@ -432,7 +441,12 @@ class ToolAttributionEvaluator:
         prediction: Dict[str, Any],
         input_tensor: Any,
         processor: Any = None,
-        device: str = "cuda"
+        device: str = "cuda",
+        # Multi-instance parameters
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None,
+        input_tensors: Optional[List[Any]] = None,
+        ground_truths: Optional[List[Any]] = None
     ) -> Dict[str, Any]:
         """
         Evaluate a specific tool configuration by filtering existing tool results.
@@ -441,24 +455,32 @@ class ToolAttributionEvaluator:
         existing tool_results based on config mask, then only re-runs
         feature extraction and explanation generation via Actor's internal methods.
 
+        Supports both single-instance and multi-instance (Q4, Q9, Q10) questions.
+
         Args:
             config: Tool mask (1=include tool result, 0=exclude)
             original_strategy: Original strategy
             original_tool_results: Already executed tool results
             question: Question dict
             question_template: QuestionTemplate instance
-            input_path: Path to input
+            input_path: Path to input (first instance for multi-instance)
             model_info: Model info
-            prediction: Model prediction
-            input_tensor: Input tensor for evaluation
+            prediction: Model prediction (first instance for multi-instance)
+            input_tensor: Input tensor for evaluation (first instance for multi-instance)
             processor: Data processor
             device: Device for computation
+            input_paths: List of paths for multi-instance
+            predictions: List of predictions for multi-instance
+            input_tensors: List of input tensors for multi-instance
+            ground_truths: List of ground truths for multi-instance
 
         Returns:
             Dict with filtered_tool_results, explanation, and faithfulness_score
         """
         if self.actor is None or self.critic is None:
             raise RuntimeError("Actor and Critic must be set before evaluation")
+
+        is_multi = question.get('is_multi_instance', False) and input_paths and predictions
 
         # Get XAI tools from strategy
         xai_tools = original_strategy.get('selected_tools', [])
@@ -478,7 +500,20 @@ class ToolAttributionEvaluator:
         included_tools = []
 
         tool_results_dict = original_tool_results.get('tool_results', {})
-        autonomous_results_dict = tool_results_dict.get('autonomous_tasks', {})
+
+        # For multi-instance, tool_results are nested: {instance_0: {gradcam: ...}, ...}
+        # Flatten by merging from the first instance for tool name lookup
+        if is_multi:
+            flat_tool_results = {}
+            for inst_key, inst_results in tool_results_dict.items():
+                if isinstance(inst_results, dict):
+                    for tool_name, tool_result in inst_results.items():
+                        if tool_name not in flat_tool_results:
+                            flat_tool_results[tool_name] = tool_result
+            autonomous_results_dict = flat_tool_results.get('autonomous_tasks', {})
+        else:
+            flat_tool_results = tool_results_dict
+            autonomous_results_dict = tool_results_dict.get('autonomous_tasks', {})
 
         for i, tool_name in enumerate(tool_names):
             if i < len(config) and config[i] == 1:
@@ -490,8 +525,8 @@ class ToolAttributionEvaluator:
                         included_tools.append(tool_name)
                 else:
                     # Regular XAI tool
-                    if tool_name in tool_results_dict:
-                        filtered_tool_results[tool_name] = tool_results_dict[tool_name]
+                    if tool_name in flat_tool_results:
+                        filtered_tool_results[tool_name] = flat_tool_results[tool_name]
                         included_tools.append(tool_name)
 
         # Add autonomous_tasks to filtered_tool_results if any are included
@@ -512,12 +547,29 @@ class ToolAttributionEvaluator:
                 prediction=prediction,
                 input_tensor=input_tensor,
                 processor=processor,
-                device=device
+                device=device,
+                input_paths=input_paths,
+                predictions=predictions,
+                input_tensors=input_tensors,
+                ground_truths=ground_truths
             )
+
+        # For multi-instance, also build per-instance filtered tool results
+        if is_multi:
+            filtered_multi_tool_results = {}
+            for inst_key, inst_results in tool_results_dict.items():
+                if isinstance(inst_results, dict):
+                    filtered_inst = {}
+                    for tool_name in included_tools:
+                        if not tool_name.startswith('autonomous_') and tool_name in inst_results:
+                            filtered_inst[tool_name] = inst_results[tool_name]
+                    if filtered_autonomous_results:
+                        filtered_inst['autonomous_tasks'] = filtered_autonomous_results
+                    filtered_multi_tool_results[inst_key] = filtered_inst
 
         # Build filtered tool_results structure (same format as _execute_tools output)
         filtered_results_structure = {
-            'tool_results': filtered_tool_results,
+            'tool_results': filtered_multi_tool_results if is_multi else filtered_tool_results,
             'visualization_paths': [
                 v for v in original_tool_results.get('visualization_paths', [])
                 if isinstance(v, dict) and v.get('tool') in included_tools
@@ -525,32 +577,68 @@ class ToolAttributionEvaluator:
             'tool_results_summary': "; ".join([f"{t}: success" for t in included_tools])
         }
 
-        # Step 1: Extract features via VLM using filtered tool results
-        extracted_features = self.actor._extract_features_via_vlm(
-            tool_results=filtered_results_structure,
-            input_path=input_path,
-            question=question,
-            question_template=question_template,
-            prediction=prediction or {}
-        )
+        if is_multi:
+            # Multi-instance path: use actor's multi-instance methods
+            extracted_features = self.actor._extract_features_multi(
+                tool_results=filtered_results_structure,
+                input_paths=input_paths,
+                question=question,
+                question_template=question_template,
+                predictions=predictions
+            )
 
-        # Step 2: Generate explanation using filtered results
-        prompt_builder = self.actor._get_prompt_builder(question_template, question)
-        context = self.actor._build_context(question, model_info, prediction, input_path)
+            prompt_builder = self.actor._get_prompt_builder(question_template, question)
+            context = self.actor._build_context_multi(question, model_info, predictions, input_paths)
 
-        results_for_prompt = {
-            "tool_results": filtered_tool_results,
-            "extracted_features": extracted_features,
-            "autonomous_results": filtered_autonomous_results
-        }
+            results_for_prompt = {
+                "tool_results": filtered_results_structure['tool_results'],
+                "extracted_features": extracted_features,
+                "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
+            }
 
-        parsed_result = self.actor._generate_explanation_with_prompt_builder(
-            prompt_builder=prompt_builder,
-            context=context,
-            strategy=original_strategy,
-            results=results_for_prompt,
-            tool_results=filtered_results_structure
-        )
+            if hasattr(prompt_builder, 'build_actor_prompt_multi'):
+                parsed_result = self.actor._generate_explanation_multi(
+                    prompt_builder=prompt_builder,
+                    context=context,
+                    strategy=original_strategy,
+                    results=results_for_prompt,
+                    tool_results=filtered_results_structure,
+                    instances=results_for_prompt['instances']
+                )
+            else:
+                parsed_result = self.actor._generate_explanation_with_prompt_builder(
+                    prompt_builder=prompt_builder,
+                    context=context,
+                    strategy=original_strategy,
+                    results=results_for_prompt,
+                    tool_results=filtered_results_structure
+                )
+        else:
+            # Single-instance path (original logic)
+            extracted_features = self.actor._extract_features_via_vlm(
+                tool_results=filtered_results_structure,
+                input_path=input_path,
+                question=question,
+                question_template=question_template,
+                prediction=prediction or {}
+            )
+
+            prompt_builder = self.actor._get_prompt_builder(question_template, question)
+            context = self.actor._build_context(question, model_info, prediction, input_path)
+
+            results_for_prompt = {
+                "tool_results": filtered_tool_results,
+                "extracted_features": extracted_features,
+                "autonomous_results": filtered_autonomous_results
+            }
+
+            parsed_result = self.actor._generate_explanation_with_prompt_builder(
+                prompt_builder=prompt_builder,
+                context=context,
+                strategy=original_strategy,
+                results=results_for_prompt,
+                tool_results=filtered_results_structure
+            )
 
         # Add metadata
         parsed_result['question_id'] = question.get('question_id', 'unknown')
@@ -559,15 +647,21 @@ class ToolAttributionEvaluator:
         parsed_result['visualization_paths'] = filtered_results_structure.get('visualization_paths', [])
 
         # Run Critic to evaluate faithfulness
-        evaluation = self.critic.run(
-            results=parsed_result,
-            question=question,
-            original_input=input_tensor,
-            original_prediction=prediction,
-            processor=processor,
-            device=device,
-            tool_name=tool_config_name  # Pass tool config name for correct file naming
-        )
+        critic_kwargs = {
+            'results': parsed_result,
+            'question': question,
+            'original_input': input_tensor,
+            'original_prediction': prediction,
+            'processor': processor,
+            'device': device,
+            'tool_name': tool_config_name
+        }
+        if is_multi:
+            critic_kwargs['inputs'] = input_tensors
+            critic_kwargs['predictions'] = predictions
+            critic_kwargs['ground_truths'] = ground_truths
+
+        evaluation = self.critic.run(**critic_kwargs)
 
         faithfulness_score = evaluation.get('faithfulness', {}).get('score', 0.0)
         if faithfulness_score is None:
@@ -591,7 +685,12 @@ class ToolAttributionEvaluator:
         prediction: Dict[str, Any],
         input_tensor: Any,
         processor: Any = None,
-        device: str = "cuda"
+        device: str = "cuda",
+        # Multi-instance parameters
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None,
+        input_tensors: Optional[List[Any]] = None,
+        ground_truths: Optional[List[Any]] = None
     ) -> Dict[str, Any]:
         """
         Evaluate the all-zeros config by having VLM analyze images directly
@@ -607,6 +706,10 @@ class ToolAttributionEvaluator:
             input_tensor: Input tensor/image for evaluation
             processor: Data processor
             device: Device for computation
+            input_paths: List of paths for multi-instance
+            predictions: List of predictions for multi-instance
+            input_tensors: List of input tensors for multi-instance
+            ground_truths: List of ground truths for multi-instance
 
         Returns:
             Dict with explanation and faithfulness_score from VLM direct analysis
@@ -679,15 +782,22 @@ class ToolAttributionEvaluator:
         parsed_result['no_tools_baseline'] = True
 
         # Run Critic to evaluate faithfulness
-        evaluation = self.critic.run(
-            results=parsed_result,
-            question=question,
-            original_input=input_tensor,
-            original_prediction=prediction,
-            processor=processor,
-            device=device,
-            tool_name="no_tools"
-        )
+        is_multi = question.get('is_multi_instance', False) and input_paths and predictions
+        critic_kwargs = {
+            'results': parsed_result,
+            'question': question,
+            'original_input': input_tensor,
+            'original_prediction': prediction,
+            'processor': processor,
+            'device': device,
+            'tool_name': "no_tools"
+        }
+        if is_multi:
+            critic_kwargs['inputs'] = input_tensors
+            critic_kwargs['predictions'] = predictions
+            critic_kwargs['ground_truths'] = ground_truths
+
+        evaluation = self.critic.run(**critic_kwargs)
 
         faithfulness_score = evaluation.get('faithfulness', {}).get('score', 0.0)
         if faithfulness_score is None:

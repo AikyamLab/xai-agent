@@ -172,6 +172,7 @@ Provide your strategy as a JSON object:
 
         # Build size constraint using parent class method
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
         prompt = f"""You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
 
@@ -181,7 +182,7 @@ Provide your strategy as a JSON object:
 ## Model Prediction
 Class: {prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))}
 Confidence: {prediction.get('confidence', 0.0):.4f}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis Results
 {tool_summary}
 
@@ -197,7 +198,7 @@ Identify the SINGLE MOST RESPONSIBLE part that caused this prediction.
         {output_format}
     }},
     "explanation": "2-3 sentences explaining why this part is most responsible",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**

@@ -162,13 +162,14 @@ Provide your strategy as a JSON object:
         # Get image size constraint for vision modality
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
         # Build modality-specific output format
         if self.modality == "vision":
             output_format = '''"change_plan": {
             "bounding_box": [x_min, y_min, x_max, y_max],
             "action": "change",
-            "new_value": "description of what to change to"
+            "new_value": "Stable Diffusion inpainting prompt describing ONLY the desired appearance of the modified region (e.g. 'a deer head with elongated snout, large pointed ears, brown fur, side-facing eyes'). Do NOT mention the original class or use phrases like 'replace X with Y'. Just describe what should appear in this region as if painting it from scratch."
         }'''
         elif self.modality == "text":
             output_format = '''"change_plan": {
@@ -192,7 +193,7 @@ Provide your strategy as a JSON object:
 ## Current State
 - Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Target Prediction: {target_class}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 
@@ -205,12 +206,13 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
         {output_format}
     }},
     "explanation": "2-3 sentences explaining why this change would flip the prediction",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**
 - action must be one of: "change", "delete", "swap", "add"
-- For vision: identify region to modify and describe the change
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: identify span to replace and provide new text
 - For tabular: identify feature and new value

@@ -165,6 +165,7 @@ Provide your strategy as a JSON object:
         # Get image size constraint for vision modality
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
         prompt = f"""You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
 
@@ -174,7 +175,7 @@ Provide your strategy as a JSON object:
 ## Misclassification
 - Model Predicted: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Ground Truth: {ground_truth}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 
@@ -191,7 +192,7 @@ This is a part that:
         {output_format}
     }},
     "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**

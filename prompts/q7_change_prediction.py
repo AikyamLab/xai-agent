@@ -155,15 +155,77 @@ Provide your strategy as a JSON object:
         results: Dict[str, Any]
     ) -> str:
         """Build prompt for Actor"""
+        if self.modality == "vision":
+            return self._build_actor_prompt_vision(context, strategy, results)
+        return self._build_actor_prompt_default(context, strategy, results)
+
+    def _build_actor_prompt_vision(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any]
+    ) -> str:
+        """Build vision-specific actor prompt that also identifies the region to mask."""
+        prediction = context.get('prediction', {})
+        top5 = prediction.get('top5_predictions', [])
+        tool_results = results.get('tool_results', {})
+        size_constraint = self._build_image_size_constraint(tool_results)
+
+        prompt = f"""You are an XAI expert. Identify one specific region in the image and predict how the model's prediction would change after masking it.
+
+## Question
+{context.get('user_question', self.question_template)}
+
+## Current State
+- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Top-5 Predictions: {top5}
+{size_constraint}
+## XAI Analysis
+{self._format_results_comprehensive(results)}
+
+## Your Task
+1. Based on the XAI tool results (e.g. GradCAM heatmaps, attribution maps), identify one specific region in the image as a bounding box [x_min, y_min, x_max, y_max].
+   - The bounding box must be within the image dimensions.
+2. Predict what the NEW prediction class would be after masking/removing that region.
+   - Consider the remaining visual features and the top-5 predictions.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{{
+    "output": {{
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.75,
+        "masked_region": {{
+            "bounding_box": [x_min, y_min, x_max, y_max]
+        }}
+    }},
+    "explanation": "2-3 sentences: which region you chose, why, and what the new prediction would be",
+    "confidence": 0.85
+}}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER masking the region
+- masked_region.bounding_box: [x_min, y_min, x_max, y_max] integers within image bounds
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:"""
+        return prompt
+
+    def _build_actor_prompt_default(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any]
+    ) -> str:
+        """Build actor prompt for text/tabular where the region is already specified."""
         prediction = context.get('prediction', {})
         part_to_change = context.get('part_to_change', 'the most important part')
         top5 = prediction.get('top5_predictions', [])
         tool_results = results.get('tool_results', {})
-
-        # Get image size constraint for vision modality
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
-        prompt = f"""You are an XAI expert. Predict the new class after modifying an important part.
+        prompt = f"""You are an XAI expert. Predict the new class after modifying the specified part in the question.
 
 ## Question
 {context.get('user_question', self.question_template)}
@@ -172,7 +234,7 @@ Provide your strategy as a JSON object:
 - Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
 - Part to Change: {part_to_change}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 

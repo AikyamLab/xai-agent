@@ -1,5 +1,5 @@
 import torch
-import torchvision.models as models
+import timm # Added
 import torchvision.transforms as transforms
 from torchvision.datasets import STL10
 from PIL import Image
@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Union
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl10"
+DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
 NUM_CLASSES = 10
 
 LABEL_MAP = {
@@ -47,10 +47,10 @@ def load_model(model_path: str):
     Returns:
         tuple: A tuple containing the loaded model and the image transform.
     """
-    model = models.densenet201(pretrained=False)
-    # Modify the classifier for STL-10 (10 classes)
-    num_ftrs = model.classifier.in_features
-    model.classifier = torch.nn.Linear(num_ftrs, NUM_CLASSES)
+    model = timm.create_model("densenet121", pretrained=True, num_classes=NUM_CLASSES) # Changed from densenet201
+    
+    # The timm.create_model with num_classes handles the classifier modification directly.
+    # No need for manual modification of model.classifier here.
 
     model.load_state_dict(torch.load(model_path, map_location=DEVICE))
     model = model.to(DEVICE)

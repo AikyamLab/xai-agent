@@ -1314,6 +1314,429 @@ class ClaudeVLM:
 
 
 # ============================================================================
+# Tinker API VLM
+# ============================================================================
+
+# Tinker API imports (lazy)
+try:
+    import tinker
+    from tinker import types as tinker_types
+    TINKER_AVAILABLE = True
+except ImportError:
+    TINKER_AVAILABLE = False
+
+
+class TinkerVisionLanguageModel:
+    """
+    Tinker API wrapper for Vision-Language Models.
+
+    Default model: Qwen/Qwen3-VL-30B-A3B-Instruct
+
+    Supports models like:
+    - Qwen/Qwen3-VL-30B-A3B-Instruct (default)
+    - Qwen/Qwen3-VL-235B-A22B-Instruct
+    - Other Tinker-supported VLMs
+    """
+
+    def __init__(
+        self,
+        model_id: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
+        temperature: float = 0.1,
+        max_new_tokens: int = 1024,
+        top_p: float = 0.9,
+        tinker_api_key: Optional[str] = None,
+        **kwargs,
+    ):
+        if not TINKER_AVAILABLE:
+            raise ImportError(
+                "tinker package not available. Install with: pip install tinker"
+            )
+
+        self.model_id = model_id
+        self.temperature = temperature
+        self.max_tokens = max_new_tokens
+        self.top_p = top_p
+
+        # API configuration
+        if tinker_api_key:
+            os.environ["TINKER_API_KEY"] = tinker_api_key
+
+        # Detect model type
+        self.is_qwen_vl = "qwen" in model_id.lower() and "vl" in model_id.lower()
+
+        # Initialize tokenizer and Tinker client
+        self.tokenizer = None
+        self.sampling_client = None
+        self._initialize_client()
+
+        print(f"TinkerVLM initialized with model: {model_id}")
+
+    def _initialize_client(self):
+        """Initialize the Tinker SamplingClient and tokenizer."""
+        print("Creating Tinker ServiceClient...")
+        service_client = tinker.ServiceClient()
+
+        print(f"Creating SamplingClient for {self.model_id}...")
+        self.sampling_client = service_client.create_sampling_client(
+            base_model=self.model_id
+        )
+        print(f"Tinker SamplingClient initialized for {self.model_id}")
+
+        # Get tokenizer from the sampling client (server-provided, no HF download needed)
+        try:
+            self.tokenizer = self.sampling_client.get_tokenizer()
+            print("Tokenizer loaded from Tinker client")
+        except Exception as e:
+            print(f"Warning: Could not get tokenizer from Tinker client: {e}")
+            # Fallback: try loading from HuggingFace transformers
+            try:
+                from transformers import AutoTokenizer
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    self.model_id, trust_remote_code=True
+                )
+                print(f"Tokenizer loaded from HuggingFace for {self.model_id}")
+            except Exception as e2:
+                raise RuntimeError(
+                    f"Failed to load tokenizer from both Tinker client ({e}) "
+                    f"and HuggingFace ({e2}). Tokenizer is required for Tinker API."
+                )
+
+    def _image_to_bytes(self, image: Union[str, Image.Image]) -> bytes:
+        """Convert image path or PIL Image to bytes."""
+        if isinstance(image, str):
+            with open(image, "rb") as f:
+                return f.read()
+        elif isinstance(image, Image.Image):
+            import io
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            return buffer.getvalue()
+        else:
+            raise ValueError(f"Unsupported image type: {type(image)}")
+
+    def _get_image_format(self, image: Union[str, Image.Image]) -> str:
+        """Get image format string."""
+        if isinstance(image, str):
+            ext = os.path.splitext(image)[1].lower()
+            format_map = {
+                ".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg",
+                ".gif": "gif", ".webp": "webp",
+            }
+            return format_map.get(ext, "png")
+        return "png"
+
+    def _encode_text(self, text: str) -> List[int]:
+        """Encode text to token IDs using the tokenizer."""
+        return self.tokenizer.encode(text, add_special_tokens=False)
+
+    def _build_text_only_input(self, prompt: str):
+        """Build ModelInput for text-only prompts."""
+        system_message = (
+            "You are an AI assistant that follows instructions precisely. "
+            "When given a task with a specific format to follow, "
+            "you MUST follow that exact format. Never respond with greetings or small talk. "
+            "Always focus on the task at hand and provide structured responses as requested."
+        )
+
+        if self.is_qwen_vl:
+            full_text = (
+                f"<|im_start|>system\n{system_message}<|im_end|>\n"
+                f"<|im_start|>user\n{prompt}<|im_end|>\n"
+                f"<|im_start|>assistant\n"
+            )
+        else:
+            full_text = f"{system_message}\n\nUser: {prompt}\n\nAssistant:"
+
+        tokens = self._encode_text(full_text)
+
+        # Try ModelInput.from_ints first, fall back to chunks
+        if hasattr(tinker_types, 'ModelInput') and hasattr(tinker_types.ModelInput, 'from_ints'):
+            return tinker_types.ModelInput.from_ints(tokens)
+        elif hasattr(tinker, 'ModelInput') and hasattr(tinker.ModelInput, 'from_ints'):
+            return tinker.ModelInput.from_ints(tokens)
+        else:
+            return tinker.ModelInput(
+                chunks=[tinker_types.EncodedTextChunk(tokens=tokens)]
+            )
+
+    def _build_model_input(
+        self,
+        prompt: str,
+        images: Optional[List[Union[str, Image.Image]]] = None,
+        image_labels: Optional[List[str]] = None,
+    ):
+        """Build Tinker ModelInput for multimodal input with images."""
+        if not images:
+            return self._build_text_only_input(prompt)
+
+        # For multimodal, we need to build chunks with ImageChunk
+        chunks = []
+
+        system_message = (
+            "You are an AI assistant that follows instructions precisely. "
+            "When given a task with a specific format to follow, "
+            "you MUST follow that exact format. Never respond with greetings or small talk. "
+            "Always focus on the task at hand and provide structured responses as requested."
+        )
+
+        if self.is_qwen_vl:
+            header = f"<|im_start|>system\n{system_message}<|im_end|>\n<|im_start|>user\n"
+            header_tokens = self._encode_text(header)
+            if header_tokens:
+                chunks.append(tinker_types.EncodedTextChunk(tokens=header_tokens))
+
+            for i, img in enumerate(images):
+                if image_labels and i < len(image_labels):
+                    label_tokens = self._encode_text(f"[{image_labels[i]}]:\n")
+                    if label_tokens:
+                        chunks.append(tinker_types.EncodedTextChunk(tokens=label_tokens))
+
+                vision_start_tokens = self._encode_text("<|vision_start|>")
+                if vision_start_tokens:
+                    chunks.append(tinker_types.EncodedTextChunk(tokens=vision_start_tokens))
+
+                img_bytes = self._image_to_bytes(img)
+                img_format = self._get_image_format(img)
+                chunks.append(tinker_types.ImageChunk(data=img_bytes, format=img_format))
+
+                vision_end_tokens = self._encode_text("<|vision_end|>\n")
+                if vision_end_tokens:
+                    chunks.append(tinker_types.EncodedTextChunk(tokens=vision_end_tokens))
+
+            footer = f"{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            footer_tokens = self._encode_text(footer)
+            if footer_tokens:
+                chunks.append(tinker_types.EncodedTextChunk(tokens=footer_tokens))
+        else:
+            text = f"{system_message}\n\nUser: {prompt}\n\nAssistant:"
+            tokens = self._encode_text(text)
+            chunks.append(tinker_types.EncodedTextChunk(tokens=tokens))
+
+        return tinker.ModelInput(chunks=chunks)
+
+    def _sample(self, prompt_or_input) -> str:
+        """Run inference using Tinker sampling.
+
+        Args:
+            prompt_or_input: Either a raw text string (text-only) or
+                             a tinker.ModelInput (multimodal with images).
+        """
+        sampling_params = tinker.SamplingParams(
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            stop=["<|im_end|>", "<|endoftext|>"],
+        )
+
+        result_future = self.sampling_client.sample(
+            prompt=prompt_or_input,
+            sampling_params=sampling_params,
+            num_samples=1,
+        )
+
+        # Handle async result
+        if hasattr(result_future, 'result') and callable(result_future.result):
+            result = result_future.result()
+        else:
+            result = result_future
+
+        text = self._extract_text_from_response(result)
+
+        if text:
+            return self._extract_assistant_response(text)
+
+        print("Warning: Failed to extract text from Tinker response")
+        return ""
+
+    def _extract_text_from_sample(self, sample: Any) -> str:
+        """Extract text from a single sample object."""
+        # Primary: tokens + tokenizer.decode (standard Tinker pattern)
+        if hasattr(sample, 'tokens') and sample.tokens and self.tokenizer:
+            try:
+                tokens = sample.tokens
+                if hasattr(tokens, 'tolist'):
+                    tokens = tokens.tolist()
+                elif hasattr(tokens, '__iter__') and not isinstance(tokens, (str, bytes)):
+                    tokens = list(tokens)
+                return self.tokenizer.decode(tokens, skip_special_tokens=True)
+            except Exception as e:
+                print(f"Warning: Token decode error: {e}")
+
+        # Fallback: direct text attribute
+        if hasattr(sample, 'text') and sample.text:
+            return str(sample.text)
+        if hasattr(sample, 'completion') and sample.completion:
+            return str(sample.completion)
+        if isinstance(sample, str):
+            return sample
+        return ""
+
+    def _extract_text_from_response(self, result: Any) -> str:
+        """Extract text from Tinker SampleResponse."""
+        try:
+            # Strategy 1: sequences attribute (PRIMARY for Tinker API)
+            if hasattr(result, 'sequences') and result.sequences:
+                try:
+                    first_seq = result.sequences[0] if hasattr(result.sequences, '__getitem__') else next(iter(result.sequences))
+
+                    # Check for tokens on sequence object
+                    tokens = None
+                    if hasattr(first_seq, 'tokens'):
+                        tokens = first_seq.tokens
+                    elif hasattr(first_seq, 'token_ids'):
+                        tokens = first_seq.token_ids
+                    elif isinstance(first_seq, (list, tuple)):
+                        tokens = list(first_seq)
+
+                    if tokens is not None and self.tokenizer:
+                        if hasattr(tokens, 'tolist'):
+                            tokens = tokens.tolist()
+                        decoded = self.tokenizer.decode(tokens, skip_special_tokens=True)
+                        if decoded:
+                            return decoded
+
+                except (IndexError, StopIteration, TypeError):
+                    pass
+
+            # Strategy 2: Direct text attribute
+            if hasattr(result, 'text') and result.text:
+                return str(result.text)
+
+            # Strategy 3: Completion attribute
+            if hasattr(result, 'completion') and result.completion:
+                return str(result.completion)
+
+            # Strategy 4: Samples list
+            if hasattr(result, 'samples') and result.samples:
+                try:
+                    sample = result.samples[0] if hasattr(result.samples, '__getitem__') else next(iter(result.samples))
+                    text = self._extract_text_from_sample(sample)
+                    if text:
+                        return text
+                except (IndexError, StopIteration, TypeError):
+                    pass
+
+            # Strategy 5: Completions list
+            if hasattr(result, 'completions') and result.completions:
+                try:
+                    completion = result.completions[0] if hasattr(result.completions, '__getitem__') else next(iter(result.completions))
+                    if hasattr(completion, 'text'):
+                        return str(completion.text)
+                    elif isinstance(completion, str):
+                        return completion
+                except (IndexError, StopIteration):
+                    pass
+
+            # Strategy 6: Tokens attribute directly on result
+            if hasattr(result, 'tokens') and result.tokens and self.tokenizer:
+                return self.tokenizer.decode(result.tokens, skip_special_tokens=True)
+
+            # Strategy 7: Result is string
+            if isinstance(result, str):
+                return result
+
+            # Debug output if nothing worked
+            print(f"Warning: Could not extract text from Tinker response")
+            print(f"  Type: {type(result)}")
+            print(f"  Attributes: {[a for a in dir(result) if not a.startswith('_')]}")
+
+        except Exception as e:
+            print(f"Warning: Error extracting text from Tinker response: {e}")
+
+        return ""
+
+    def _extract_assistant_response(self, output_text: str) -> str:
+        """Extract assistant's response from full output."""
+        output_text = output_text.strip()
+
+        if "assistant\n" in output_text:
+            output_text = output_text.split("assistant\n")[-1].strip()
+        elif "assistant:" in output_text:
+            output_text = output_text.split("assistant:")[-1].strip()
+        elif "Assistant:" in output_text:
+            output_text = output_text.split("Assistant:")[-1].strip()
+
+        for marker in ["<|im_end|>", "<|endoftext|>", "system\n", "user\n"]:
+            output_text = output_text.replace(marker, "").strip()
+
+        if "Thought:" in output_text:
+            thought_index = output_text.find("Thought:")
+            output_text = output_text[thought_index:]
+
+        return output_text
+
+    def invoke(
+        self,
+        prompt: str,
+        images: Optional[Union[Image.Image, List[Image.Image], str, List[str]]] = None,
+        **kwargs
+    ) -> str:
+        """Invoke the VLM with text and optional images."""
+        if images:
+            if not isinstance(images, list):
+                images = [images]
+            model_input = self._build_model_input(prompt, images)
+        else:
+            model_input = self._build_text_only_input(prompt)
+
+        return self._sample(model_input)
+
+    def invoke_with_images(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """Invoke VLM with multiple images."""
+        return self.generate_with_images(prompt, image_paths, **kwargs)
+
+    def invoke_multimodal(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """Alias for invoke_with_images."""
+        return self.generate_with_images(prompt, image_paths, **kwargs)
+
+    def generate_with_image(
+        self,
+        prompt: str,
+        image: Union[str, Image.Image],
+        **kwargs
+    ) -> str:
+        """Generate response with single image input."""
+        model_input = self._build_model_input(prompt, [image])
+        return self._sample(model_input)
+
+    def generate_with_images(
+        self,
+        prompt: str,
+        images: List[Union[str, Image.Image]],
+        image_labels: Optional[List[str]] = None,
+        **kwargs
+    ) -> str:
+        """Generate response with multiple image inputs."""
+        if not images:
+            return self.invoke(prompt)
+
+        model_input = self._build_model_input(prompt, images, image_labels)
+        return self._sample(model_input)
+
+    def get_info(self) -> Dict[str, Any]:
+        """Get model information."""
+        return {
+            "model_id": self.model_id,
+            "backend": "tinker",
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "top_p": self.top_p,
+            "is_qwen_vl": self.is_qwen_vl,
+            "client_initialized": self.sampling_client is not None,
+        }
+
+
+# ============================================================================
 # Factory Function
 # ============================================================================
 
@@ -1323,15 +1746,25 @@ def create_vlm(model_id: str, **kwargs):
 
     Args:
         model_id: Model identifier.
-                  Use 'gemini-*' for Gemini API models,
+                  Use 'tinker/*' for Tinker API models (e.g. 'tinker/Qwen3-VL-30B-A3B-Instruct'),
+                  use 'gemini-*' for Gemini API models,
                   use 'claude-*' for Claude API models,
                   or HuggingFace model IDs for local models.
         **kwargs: Additional arguments passed to the VLM constructor.
 
     Returns:
-        ClaudeVLM, GeminiVLM, or VisionLanguageModel instance.
+        TinkerVisionLanguageModel, ClaudeVLM, GeminiVLM, or VisionLanguageModel instance.
     """
-    if model_id.startswith("gemini-"):
+    if model_id.startswith("tinker/"):
+        # Convert "tinker/Qwen3-VL-30B-A3B-Instruct" -> "Qwen/Qwen3-VL-30B-A3B-Instruct"
+        tinker_model_name = model_id[len("tinker/"):]
+        # If user provided just the model name (no org prefix), add Qwen/ prefix
+        if "/" not in tinker_model_name:
+            tinker_model_id = f"Qwen/{tinker_model_name}"
+        else:
+            tinker_model_id = tinker_model_name
+        return TinkerVisionLanguageModel(model_id=tinker_model_id, **kwargs)
+    elif model_id.startswith("gemini-"):
         return GeminiVLM(model_id=model_id, **kwargs)
     elif model_id.startswith("claude-"):
         return ClaudeVLM(model_id=model_id, **kwargs)

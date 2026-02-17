@@ -247,29 +247,45 @@ Provide your strategy as a JSON object:
         instances: List[Dict[str, Any]]
     ) -> str:
         """Build prompt for Actor with multiple instances"""
-        output_format = self._get_modality_specific_output_format()
         tool_results = results.get('tool_results', {})
 
-        # Get image size from multi-instance results
-        image_width, image_height = self._get_image_size_from_multi_results(tool_results)
-
-        # Build size constraint manually for multi-instance
-        size_constraint = ""
+        # Different output format for vision vs other modalities
         if self.modality == "vision":
-            min_width = max(int(image_width * 0.1), 10)
-            min_height = max(int(image_height * 0.1), 10)
-            size_constraint = f"""
-## CRITICAL IMAGE SIZE AND BOUNDING BOX CONSTRAINTS
-- Image dimensions: {image_width} x {image_height} pixels
-- ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- **MINIMUM bounding box size: {min_width}x{min_height} pixels**
-"""
+            output_format_block = '''"input_A": "concise feature phrase for prediction A (e.g. 'fur texture and primate facial features')",
+        "input_B": "concise feature phrase for prediction B (e.g. 'wings and fuselage body')"'''
+            critical_reqs = """- For vision: Output a SHORT feature phrase — only name the concrete visual features/objects/patterns
+- Do NOT write full sentences
+- The two feature phrases should use DISTINCT words"""
+        elif self.modality == "text":
+            output_format_block = '''"input_A": {
+            "start_index": int,
+            "end_index": int
+        },
+        "input_B": {
+            "start_index": int,
+            "end_index": int
+        }'''
+            critical_reqs = """- For text: Identify the specific word span in each instance that drives its prediction
+- start_index and end_index as character positions in the original text"""
+        else:
+            output_format_block = '''"input_A": {
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+        },
+        "input_B": {
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+        }'''
+            critical_reqs = """- For tabular: Rank the top 3 most decisive features (columns) for each instance's prediction
+- List them in order of importance (most decisive first), using exact column names
+- The two top_features lists should use DIFFERENT features"""
+
+        # Include text/tabular instance data if available
+        instance_data_section = self._format_instance_data_section(context)
 
         prompt = f"""You are an XAI expert. Explain why instances A and B have DIFFERENT predictions.
 
 ## Question
 {context.get('user_question', self.question_template)}
-{size_constraint}
+{instance_data_section}
 ## XAI Analysis
 {self._format_multi_instance_results(results)}
 
@@ -281,12 +297,7 @@ Identify the DECISIVE parts in BOTH instances:
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
     "output": {{
-        "input_A": {{
-            {output_format}
-        }},
-        "input_B": {{
-            {output_format}
-        }}
+        {output_format_block}
     }},
     "explanation": "2-3 sentences explaining the key differences",
     "confidence": 0.85
@@ -295,8 +306,7 @@ Identify the DECISIVE parts in BOTH instances:
 **Critical Requirements:**
 - Identify ONE decisive part for EACH instance
 - These parts should explain why predictions differ
-- Masking both should reduce the prediction gap
-- For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
+{critical_reqs}
 
 Respond with ONLY JSON:"""
         return prompt

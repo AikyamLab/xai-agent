@@ -88,12 +88,8 @@ Q3_SCHEMA_TABULAR = Q1_SCHEMA_TABULAR.copy()
 
 Q4_SCHEMA_VISION = {
     "output": {
-        "input_A": {
-            "bounding_box": [0, 0, 100, 100]
-        },
-        "input_B": {
-            "bounding_box": [0, 0, 100, 100]
-        }
+        "input_A": "concise feature phrase, e.g. 'fur texture and primate facial features'",
+        "input_B": "concise feature phrase, e.g. 'wings and fuselage body'"
     },
     "explanation": "string",
     "confidence": 0.85
@@ -117,10 +113,10 @@ Q4_SCHEMA_TEXT = {
 Q4_SCHEMA_TABULAR = {
     "output": {
         "input_A": {
-            "feature_key": "string"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "input_B": {
-            "feature_key": "string"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
     "explanation": "string",
@@ -133,14 +129,23 @@ Q4_SCHEMA_TABULAR = {
 
 Q5_SCHEMA_VISION = {
     "output": {
-        "prediction_changes": 1  # 1 = Yes, 0 = No
+        "prediction_changes": 1,  # 1 = Yes, 0 = No
+        "masked_region": {
+            "bounding_box": [0, 0, 100, 100]  # [x_min, y_min, x_max, y_max]
+        }
     },
     "explanation": "string",
     "confidence": 0.85
 }
 
-Q5_SCHEMA_TEXT = Q5_SCHEMA_VISION.copy()
-Q5_SCHEMA_TABULAR = Q5_SCHEMA_VISION.copy()
+Q5_SCHEMA_TEXT = {
+    "output": {
+        "prediction_changes": 1  # 1 = Yes, 0 = No
+    },
+    "explanation": "string",
+    "confidence": 0.85
+}
+Q5_SCHEMA_TABULAR = Q5_SCHEMA_TEXT.copy()
 
 # =============================================================================
 # Q6: How should the instance change to flip prediction to [expected_class]?
@@ -187,18 +192,27 @@ Q6_SCHEMA_TABULAR = {
 # Q7: If we remove/change one important part, how would prediction change?
 # =============================================================================
 
-Q7_SCHEMA_ALL = {
+Q7_SCHEMA_VISION = {
     "output": {
         "changed_class": "string",  # Predicted class after change
-        "changed_confidence": 0.85  # Optional: predicted confidence
+        "changed_confidence": 0.75,
+        "masked_region": {
+            "bounding_box": [0, 0, 100, 100]  # [x_min, y_min, x_max, y_max]
+        }
     },
     "explanation": "string",
     "confidence": 0.85
 }
 
-Q7_SCHEMA_VISION = Q7_SCHEMA_ALL.copy()
-Q7_SCHEMA_TEXT = Q7_SCHEMA_ALL.copy()
-Q7_SCHEMA_TABULAR = Q7_SCHEMA_ALL.copy()
+Q7_SCHEMA_TEXT = {
+    "output": {
+        "changed_class": "string",
+        "changed_confidence": 0.75
+    },
+    "explanation": "string",
+    "confidence": 0.85
+}
+Q7_SCHEMA_TABULAR = Q7_SCHEMA_TEXT.copy()
 
 # =============================================================================
 # Q8: Is there any irrelevant part causing the model's wrong prediction?
@@ -263,8 +277,8 @@ Q9_SCHEMA_TABULAR = {
 
 Q10_SCHEMA_VISION = {
     "output": {
-        "correct_instance_features": "natural language description of features leading to correct prediction",
-        "wrong_instance_features": "natural language description of features leading to wrong prediction"
+        "correct_instance_features": "concise feature phrase, e.g. 'clear object outline and distinct color pattern'",
+        "wrong_instance_features": "concise feature phrase, e.g. 'blurred edges and noisy background'"
     },
     "explanation": "string",
     "confidence": 0.85
@@ -288,10 +302,10 @@ Q10_SCHEMA_TEXT = {
 Q10_SCHEMA_TABULAR = {
     "output": {
         "correct_instance_features": {
-            "feature_key": "string"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "wrong_instance_features": {
-            "feature_key": "string"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
     "explanation": "string",

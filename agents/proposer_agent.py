@@ -255,11 +255,28 @@ class ProposerAgent(BaseAgent):
             context["image_path"] = input_path
             context["image_description"] = ""
         elif modality == "text":
-            context["text_input"] = question.get("text_input", "")
-            context["text_length"] = len(context["text_input"])
+            features = question.get("features", {})
+            if isinstance(features, dict):
+                text_content = features.get("text", features.get("premise", ""))
+                if "premise" in features:
+                    preview = f"Premise: {features['premise'][:200]}\nHypothesis: {features.get('hypothesis', '')[:200]}"
+                else:
+                    preview = text_content[:400] + ("..." if len(text_content) > 400 else "")
+            else:
+                text_content = str(features)
+                preview = text_content[:400]
+            context["text_input"] = text_content
+            context["text_length"] = len(text_content)
+            context["text_description"] = preview
         elif modality == "tabular":
-            context["input_data"] = question.get("features", {})
-            context["feature_names"] = list(question.get("features", {}).keys())
+            features = question.get("features", {})
+            context["input_data"] = features
+            context["feature_names"] = list(features.keys()) if isinstance(features, dict) else []
+            if isinstance(features, dict):
+                feat_str = ", ".join(f"{k}={v}" for k, v in list(features.items())[:10])
+                context["data_description"] = f"Features: {feat_str}"
+            else:
+                context["data_description"] = str(features)[:400]
 
         # Add target_class for counterfactual questions (Q5-Q7)
         if question.get("q_type") in [5, 6, 7]:
@@ -268,7 +285,16 @@ class ProposerAgent(BaseAgent):
         # Add ground_truth for spurious feature questions (Q8-Q10)
         if question.get("q_type") in [8, 9, 10]:
             target_info = question.get("target", {})
-            context["ground_truth"] = target_info.get("label", target_info.get("value", "Unknown"))
+            if isinstance(target_info, list):
+                # Multi-instance: extract labels from list of target dicts
+                context["ground_truth"] = [
+                    t.get("label", t.get("value", "Unknown")) if isinstance(t, dict) else t
+                    for t in target_info
+                ]
+            elif isinstance(target_info, dict):
+                context["ground_truth"] = target_info.get("label", target_info.get("value", "Unknown"))
+            else:
+                context["ground_truth"] = target_info
 
         return context
 
@@ -317,6 +343,24 @@ class ProposerAgent(BaseAgent):
         # Add ground_truth for spurious feature questions (Q8-Q10)
         if question.get("q_type") in [8, 9, 10]:
             context["ground_truth"] = targets
+
+        # Add text/tabular content descriptions for proposer prompts
+        if modality in ('text', 'tabular'):
+            features_list = question.get('features', [])
+            image_indices = question.get('image_indices', question.get('row_no', []))
+            if isinstance(features_list, list):
+                descriptions = []
+                for i, feat in enumerate(features_list):
+                    idx = image_indices[i] if i < len(image_indices) else i
+                    if modality == 'text':
+                        text = feat.get('text', feat.get('premise', ''))
+                        preview = text[:150] + "..." if len(text) > 150 else text
+                        descriptions.append(f"Instance {chr(65+i)} (index {idx}): \"{preview}\"")
+                    elif modality == 'tabular':
+                        feat_str = ", ".join(f"{k}={v}" for k, v in list(feat.items())[:8])
+                        descriptions.append(f"Instance {chr(65+i)} (index {idx}): {feat_str}")
+                desc_key = 'text_description' if modality == 'text' else 'data_description'
+                context[desc_key] = "\n".join(descriptions)
 
         return context
 
@@ -540,7 +584,10 @@ class ProposerAgent(BaseAgent):
         input_path: Optional[str],
         prediction: Optional[Dict[str, Any]],
         proposer_reflection: str,
-        original_strategy: Dict[str, Any]
+        original_strategy: Dict[str, Any],
+        # Multi-instance parameters (for Q9, Q10)
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Generate improved strategy based on Critic's reflection.
@@ -549,10 +596,12 @@ class ProposerAgent(BaseAgent):
             question: Question dictionary
             question_template: QuestionTemplate or PromptBuilder instance
             model_info: Model information
-            input_path: Path to input data
-            prediction: Model prediction results
+            input_path: Path to input data (single instance)
+            prediction: Model prediction results (single instance)
             proposer_reflection: JSON string with feedback from Critic
             original_strategy: The original strategy that was evaluated
+            input_paths: List of paths for multi-instance questions
+            predictions: List of predictions for multi-instance questions
 
         Returns:
             Improved strategy dictionary
@@ -570,13 +619,22 @@ class ProposerAgent(BaseAgent):
         if prompt_builder is None:
             raise RuntimeError(f"No PromptBuilder found for Q{q_type} modality={modality}")
 
-        # Build base context
-        context = self._build_context(
-            question=question,
-            model_info=clean_model_info,
-            prediction=prediction or {},
-            input_path=input_path
-        )
+        # Build base context (multi-instance or single-instance)
+        is_multi = question.get('is_multi_instance', False) and input_paths and predictions
+        if is_multi:
+            context = self._build_context_multi(
+                question=question,
+                model_info=clean_model_info,
+                predictions=predictions,
+                input_paths=input_paths
+            )
+        else:
+            context = self._build_context(
+                question=question,
+                model_info=clean_model_info,
+                prediction=prediction or {},
+                input_path=input_path
+            )
 
         # Add reflection information to context
         context['previous_strategy'] = original_strategy

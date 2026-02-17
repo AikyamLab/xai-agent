@@ -1,17 +1,19 @@
 """
 Q4 Evaluator: Contrastive Instances (Why A != B)
 
-Metric: 1 if (P_A_a1_orig - P_B_a1_orig) - (P_A_a1_mod - P_B_a1_mod) > 0, else 0
-Success if masking reduces the probability gap between instances
+Metric: 1 - Sim(F_A, F_B)
+Higher score = better (features should be distinct between instances)
+
+Similarity measures:
+- Vision: Jaccard word similarity on concise feature phrases
+- Text: Word overlap between extracted spans
+- Tabular: Jaccard overlap weighted by rank agreement on top_features lists
 """
 
-from typing import Any, Dict, List
-
-import torch
-import torch.nn as nn
+from typing import Any, Dict, List, Set
+import re
 
 from ..base_evaluator import MultiInstanceEvaluator, EvaluationResult
-from ..masking_utils import get_masker, MaskingStrategy
 
 
 class Q4Evaluator(MultiInstanceEvaluator):
@@ -23,141 +25,84 @@ class Q4Evaluator(MultiInstanceEvaluator):
 
     @property
     def metric_name(self) -> str:
-        return "Gap Reduction"
+        return "Feature Distinctness"
 
     @property
     def metric_formula(self) -> str:
-        return "1 if (gap_original - gap_modified) > 0 else 0"
+        return "1 - Sim(F_A, F_B)"
 
     def evaluate_multi(
         self,
         agent_output: Dict[str, Any],
         inputs: List[Any],
-        model: nn.Module,
+        model: Any,
         predictions: List[Dict[str, Any]],
         **kwargs
     ) -> EvaluationResult:
         """
-        Evaluate Q4: Mask identified parts in both inputs and check if gap reduces.
+        Evaluate Q4: Compare feature similarity between instance A and B.
+
+        Lower similarity = better explanation (features are distinct).
 
         Args:
             agent_output: Agent output with regions for input_A and input_B
             inputs: [input_A, input_B]
             model: Target model
             predictions: [prediction_A, prediction_B]
-            **kwargs: processor, device, etc.
+            **kwargs: Additional arguments
 
         Returns:
-            EvaluationResult with gap reduction score
+            EvaluationResult with 1-similarity score
         """
         try:
-            if len(inputs) < 2 or len(predictions) < 2:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Need at least 2 inputs and predictions"]
-                )
-
-            # Extract regions for both inputs
             output_data = agent_output.get('output', {})
-            region_a = self._extract_instance_region(output_data.get('input_A', {}))
-            region_b = self._extract_instance_region(output_data.get('input_B', {}))
 
-            if region_a is None or region_b is None:
+            # Get features for both instances
+            features_a = output_data.get('input_A')
+            features_b = output_data.get('input_B')
+
+            if features_a is None or features_b is None:
                 return EvaluationResult(
                     score=0.0,
                     passed=False,
-                    errors=["Could not extract regions for both instances"]
+                    errors=["Features not provided for both instances"]
                 )
 
-            input_a, input_b = inputs[0], inputs[1]
-            pred_a, pred_b = predictions[0], predictions[1]
-
-            # Get A's original class (the reference class for comparison)
-            class_a1 = pred_a.get('predicted_class_idx', 0)
-
-            # Get original probabilities for class A1 in both instances
-            probs_a = pred_a.get('probabilities')
-            probs_b = pred_b.get('probabilities')
-
-            if probs_a is None or probs_b is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Probabilities not available for both instances"]
+            # Calculate similarity based on modality
+            if self.modality == "vision":
+                similarity = self._compute_text_similarity(
+                    str(features_a),
+                    str(features_b)
+                )
+            elif self.modality == "text":
+                similarity = self._compute_span_overlap(
+                    features_a,
+                    features_b,
+                    inputs
+                )
+            else:  # tabular
+                similarity = self._compute_feature_similarity(
+                    features_a,
+                    features_b
                 )
 
-            p_a_a1_orig = float(probs_a[class_a1])
-            p_b_a1_orig = float(probs_b[class_a1])
-            gap_original = p_a_a1_orig - p_b_a1_orig
+            # Score = 1 - similarity: higher = more distinct = better
+            score = 1.0 - similarity
 
-            # Mask both inputs (use GRAY for neutral masking)
-            masker = get_masker(self.modality, MaskingStrategy.GRAY)
-            masked_a = masker.mask(
-                input_a, region_a,
-                dataset_base_name=kwargs.get('dataset_base_name'),
-                row_no=kwargs.get('row_no'),
-                tool_name=kwargs.get('tool_name'),
-                instance_suffix='_A',
-                mask_suffix=kwargs.get('mask_suffix', '')
-            )
-            masked_b = masker.mask(
-                input_b, region_b,
-                dataset_base_name=kwargs.get('dataset_base_name'),
-                row_no=kwargs.get('row_no'),
-                tool_name=kwargs.get('tool_name'),
-                instance_suffix='_B',
-                mask_suffix=kwargs.get('mask_suffix', '')
-            )
-
-            # Get predictions on masked inputs
-            processor = kwargs.get('processor')
-            device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
-
-            mod_pred_a = self.get_prediction(model, masked_a, processor, device)
-            mod_pred_b = self.get_prediction(model, masked_b, processor, device)
-
-            mod_probs_a = mod_pred_a.get('probabilities')
-            mod_probs_b = mod_pred_b.get('probabilities')
-
-            if mod_probs_a is None or mod_probs_b is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Modified probabilities not available"]
-                )
-
-            p_a_a1_mod = float(mod_probs_a[class_a1])
-            p_b_a1_mod = float(mod_probs_b[class_a1])
-            gap_modified = p_a_a1_mod - p_b_a1_mod
-
-            # Calculate metric: gap reduced?
-            gap_reduction = gap_original - gap_modified
-            passed = gap_reduction > 0
-            score = 1.0 if passed else 0.0
+            # Passed if features are distinct enough
+            passed = score > 0.5
 
             return EvaluationResult(
                 score=score,
                 passed=passed,
                 metric_name=self.metric_name,
                 metric_formula=self.metric_formula,
-                # For Q4, p_original/p_modified represent the gap values
-                p_original=gap_original,
-                p_modified=gap_modified,
-                original_class=f"class_{class_a1}",
-                modified_class=f"class_{class_a1}",
                 details={
-                    "region_a": region_a,
-                    "region_b": region_b,
-                    "class_a1": class_a1,
-                    "gap_original": gap_original,
-                    "gap_modified": gap_modified,
-                    "gap_reduction": gap_reduction,
-                    "p_a_a1_orig": p_a_a1_orig,
-                    "p_b_a1_orig": p_b_a1_orig,
-                    "p_a_a1_mod": p_a_a1_mod,
-                    "p_b_a1_mod": p_b_a1_mod,
-                    "interpretation": "1 = masking reduced the probability gap (good)"
+                    "features_a": features_a,
+                    "features_b": features_b,
+                    "similarity": similarity,
+                    "threshold": 0.5,
+                    "interpretation": "Higher score = more distinct features (better)"
                 }
             )
 
@@ -170,15 +115,108 @@ class Q4Evaluator(MultiInstanceEvaluator):
                 errors=[str(e)]
             )
 
-    def _extract_instance_region(self, instance_data: Dict) -> Dict:
-        """Extract region from instance-specific data"""
-        if self.modality == "vision":
-            bbox = instance_data.get('bounding_box')
-            return {"bounding_box": bbox} if bbox else None
-        elif self.modality == "text":
-            start = instance_data.get('start_index')
-            end = instance_data.get('end_index')
-            return {"start_index": start, "end_index": end} if start is not None else None
-        else:
-            key = instance_data.get('feature_key')
-            return {"feature_key": key} if key else None
+    def _compute_text_similarity(self, text1: str, text2: str) -> float:
+        """
+        Compute word-level similarity between two text descriptions.
+
+        Uses Jaccard similarity on word sets.
+        """
+        words1 = self._tokenize(text1)
+        words2 = self._tokenize(text2)
+
+        if not words1 or not words2:
+            return 0.0
+
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+
+        return intersection / union if union > 0 else 0.0
+
+    def _tokenize(self, text: str) -> Set[str]:
+        """Tokenize text into word set, filtering stop words."""
+        text = text.lower()
+        words = re.findall(r'\b[a-z]+\b', text)
+        stop_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+                      'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+                      'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+                      'can', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by',
+                      'from', 'as', 'into', 'through', 'during', 'before', 'after',
+                      'above', 'below', 'between', 'under', 'and', 'but', 'or',
+                      'that', 'this', 'these', 'those', 'it', 'its'}
+        return set(w for w in words if w not in stop_words)
+
+    def _compute_span_overlap(
+        self,
+        span1: Dict,
+        span2: Dict,
+        inputs: List
+    ) -> float:
+        """
+        Compute overlap between text spans from different instances.
+
+        Extracts the actual text from each instance and computes word similarity.
+        """
+        try:
+            start1, end1 = span1.get('start_index', 0), span1.get('end_index', 0)
+            start2, end2 = span2.get('start_index', 0), span2.get('end_index', 0)
+
+            if len(inputs) >= 2:
+                text1 = inputs[0][start1:end1] if isinstance(inputs[0], str) else ""
+                text2 = inputs[1][start2:end2] if isinstance(inputs[1], str) else ""
+                return self._compute_text_similarity(text1, text2)
+
+            # Same text fallback: character-level IoU
+            intersection = max(0, min(end1, end2) - max(start1, start2))
+            union = max(end1, end2) - min(start1, start2)
+            return intersection / union if union > 0 else 0.0
+
+        except Exception:
+            return 0.0
+
+    def _compute_feature_similarity(
+        self,
+        features1: Dict,
+        features2: Dict
+    ) -> float:
+        """
+        Compute similarity between tabular feature rankings.
+
+        Uses Jaccard overlap weighted by rank agreement on shared features.
+        - Jaccard measures how many features overlap between two top-k lists
+        - Rank agreement measures whether shared features have similar ranks
+        - Final similarity = Jaccard * rank_agreement (0 if no overlap)
+        """
+        try:
+            list1 = features1.get('top_features', []) if isinstance(features1, dict) else []
+            list2 = features2.get('top_features', []) if isinstance(features2, dict) else []
+
+            # Fallback for single feature_key format
+            if not list1 and isinstance(features1, dict) and 'feature_key' in features1:
+                list1 = [features1['feature_key']]
+            if not list2 and isinstance(features2, dict) and 'feature_key' in features2:
+                list2 = [features2['feature_key']]
+
+            if not list1 or not list2:
+                return 0.0
+
+            set1, set2 = set(list1), set(list2)
+            intersection = set1 & set2
+            union = set1 | set2
+
+            jaccard = len(intersection) / len(union) if union else 0.0
+
+            if not intersection:
+                return 0.0
+
+            # Rank agreement: average of 1/(1+|rank_diff|) for shared features
+            rank_scores = []
+            for feat in intersection:
+                r1 = list1.index(feat) + 1
+                r2 = list2.index(feat) + 1
+                rank_scores.append(1.0 / (1.0 + abs(r1 - r2)))
+            rank_agreement = sum(rank_scores) / len(rank_scores)
+
+            return jaccard * rank_agreement
+
+        except Exception:
+            return 0.0

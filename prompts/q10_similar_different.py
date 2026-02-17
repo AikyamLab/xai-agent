@@ -197,8 +197,8 @@ Provide your strategy as a JSON object:
 
         # Different output format for vision vs other modalities
         if self.modality == "vision":
-            output_format = '''"correct_instance_features": "natural language description of features leading to correct prediction",
-        "wrong_instance_features": "natural language description of features leading to wrong prediction"'''
+            output_format = '''"correct_instance_features": "concise feature phrase for correct prediction (e.g. 'clear object outline and distinct color pattern')",
+        "wrong_instance_features": "concise feature phrase for wrong prediction (e.g. 'blurred edges and noisy background')"'''
         elif self.modality == "text":
             output_format = '''"correct_instance_features": {
             "start_index": int,
@@ -210,11 +210,14 @@ Provide your strategy as a JSON object:
         }'''
         else:
             output_format = '''"correct_instance_features": {
-            "feature_key": "feature name"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "wrong_instance_features": {
-            "feature_key": "feature name"
+            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }'''
+
+        # Include text/tabular instance data if available
+        instance_data_section = self._format_instance_data_section(context)
 
         prompt = f"""You are an XAI expert. Explain why similar instances have different prediction outcomes.
 
@@ -224,7 +227,8 @@ Provide your strategy as a JSON object:
 ## Context
 - Instance A: Correctly classified
 - Instance B: Incorrectly classified (similar to A but wrong prediction)
-{size_constraint}
+{size_constraint}{instance_data_section}
+
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 
@@ -233,7 +237,7 @@ Identify and CONTRAST the features:
 1. Features in the CORRECT instance that led to correct prediction
 2. Features in the WRONG instance that led to wrong prediction
 
-The goal is to find DISTINCT features - less overlap = better explanation.
+The goal is to find DISTINCT features.
 
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
@@ -241,16 +245,16 @@ The goal is to find DISTINCT features - less overlap = better explanation.
         {output_format}
     }},
     "explanation": "2-3 sentences explaining the key difference between correct and wrong prediction",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**
-- For vision: Provide DISTINCT natural language descriptions (minimize word overlap)
+- For vision: Output a SHORT feature phrase (e.g. "dog's fur and face", "blurred edges and noisy background")
+  - Do NOT write full sentences — only name the concrete visual features/objects/patterns
+  - The two feature phrases should use DISTINCT words — minimize overlap
 - For text: Identify DIFFERENT spans in each instance
-- For tabular: Identify DIFFERENT features
-- The two feature sets should be as DISTINCT as possible
+- For tabular: Rank the top 3 most decisive features for each instance, using exact column names; the two lists should be DIFFERENT
 - Explain what makes one succeed and the other fail
-- For vision with bounding boxes: MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 
 Respond with ONLY JSON:"""
         return prompt

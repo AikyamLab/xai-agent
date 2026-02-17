@@ -90,9 +90,23 @@ class Q5Evaluator(BaseEvaluator):
 
             actually_changed = int(original_class != modified_class)
 
-            # Score: did agent correctly predict?
+            # Passed logic unchanged: binary correct/wrong
             correct = (agent_says_changes == actually_changed)
-            score = 1.0 if correct else 0.0
+
+            # Soft score: measure how well the direction matches
+            original_probs = original_prediction.get('probabilities')
+            modified_probs = modified_prediction.get('probabilities')
+            if original_probs is not None and modified_probs is not None:
+                p_orig = float(original_probs[original_class])
+                p_mod = float(modified_probs[original_class])
+                prob_drop = p_orig - p_mod  # positive = class weakened
+
+                if agent_says_changes == 1:
+                    # Agent said "changes": reward by how much the original class dropped
+                    score = max(0.0, prob_drop)
+                else:
+                    # Agent said "doesn't change": reward by how stable the prediction was
+                    score = max(0.0, 1.0 - abs(prob_drop))
 
             return EvaluationResult(
                 score=score,
@@ -105,7 +119,11 @@ class Q5Evaluator(BaseEvaluator):
                     "queried_region": queried_region,
                     "agent_says_changes": agent_says_changes,
                     "actually_changed": actually_changed,
-                    "interpretation": "1 = agent correctly predicted, 0 = wrong prediction"
+                    "p_original_class_before_mask": p_orig,
+                    "p_original_class_after_mask": p_mod,
+                    "prob_drop": prob_drop,
+                    "binary_correct": correct,
+                    "interpretation": "Soft score: agent says changes -> prob drop; agent says stable -> 1-|drop|"
                 }
             )
 
