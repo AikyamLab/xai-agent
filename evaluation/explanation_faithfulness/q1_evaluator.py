@@ -75,6 +75,9 @@ class Q1Evaluator(BaseEvaluator):
                     metric_formula=self.metric_formula,
                     errors=["Original probabilities not available"]
                 )
+            # Handle dict probabilities (e.g. {"negative": 0.9, "positive": 0.1})
+            if isinstance(original_probs, dict):
+                original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
             p_original = float(original_probs[original_class])
 
             # Create masker and mask the identified region (use GRAY for neutral masking)
@@ -104,8 +107,15 @@ class Q1Evaluator(BaseEvaluator):
                 )
             p_modified = float(modified_probs[original_class])
 
-            # Calculate metric: P_original - P_modified
-            score = p_original - p_modified
+            # Calculate metric: max(0, P_original - P_modified)
+            # Clamp negative values (masking increased prob = bad explanation = 0)
+            raw_drop = p_original - p_modified
+            soft_score = max(0.0, raw_drop)
+
+            # Size penalty: penalize large masked regions
+            region_ratio = self.compute_region_ratio(region, original_input)
+            size_penalty = 1.0 - region_ratio
+            score = soft_score * size_penalty
 
             # Check if class changed after masking
             modified_class = modified_prediction.get('predicted_class_idx')
@@ -114,7 +124,7 @@ class Q1Evaluator(BaseEvaluator):
             # Determine if passed:
             # 1. Significant probability drop (> 0.5), OR
             # 2. Class changed (strong evidence that the masked region was important)
-            passed = (score > 0.5) or class_changed
+            passed = (raw_drop > 0.5) or class_changed
 
             return EvaluationResult(
                 score=score,
@@ -127,9 +137,13 @@ class Q1Evaluator(BaseEvaluator):
                 modified_class=str(modified_class),
                 details={
                     "region": region,
+                    "raw_drop": raw_drop,
+                    "soft_score": soft_score,
+                    "region_ratio": region_ratio,
+                    "size_penalty": size_penalty,
                     "threshold": 0.5,
                     "class_changed": class_changed,
-                    "interpretation": "Higher score = agent correctly identified important region; class change also indicates success"
+                    "interpretation": "score = max(0, P_orig - P_mod) * (1 - region_ratio)"
                 }
             )
 

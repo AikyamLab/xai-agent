@@ -73,6 +73,7 @@ class Q3Evaluator(BaseEvaluator):
                 )
 
             # Get top-2 classes
+            original_probs = self._normalize_probs(original_probs)
             if hasattr(original_probs, 'argsort'):
                 sorted_indices = original_probs.argsort()[::-1]
             else:
@@ -81,7 +82,6 @@ class Q3Evaluator(BaseEvaluator):
 
             top1_class = int(sorted_indices[0])
             top2_class = int(sorted_indices[1]) if len(sorted_indices) > 1 else top1_class
-
             p_top1_original = float(original_probs[top1_class])
             p_top2_original = float(original_probs[top2_class])
 
@@ -126,11 +126,29 @@ class Q3Evaluator(BaseEvaluator):
 
             # Check if rank flipped: top-2 now has higher probability than top-1
             rank_flipped = p_top2_modified > p_top1_modified
-            score = 1.0 if rank_flipped else 0.0
+
+            # Soft score: how much of the original gap was closed/reversed
+            # gap_orig > 0 (top1 > top2), gap_mod can be negative (flipped)
+            gap_orig = p_top1_original - p_top2_original
+            gap_mod = p_top1_modified - p_top2_modified
+            if gap_orig > 1e-8:
+                # 0 = no change, 0.5 = tied, 1.0 = fully flipped to same magnitude
+                soft_score = max(0.0, min(1.0, (gap_orig - gap_mod) / (2.0 * gap_orig)))
+            else:
+                # Original classes already tied; any flip is perfect
+                soft_score = 1.0 if rank_flipped else 0.0
+
+            # Size penalty: penalize large masked regions
+            region_ratio = self.compute_region_ratio(region, original_input)
+            size_penalty = 1.0 - region_ratio
+            score = soft_score * size_penalty
+
+            # Passed logic unchanged: binary rank flip
+            passed = rank_flipped
 
             return EvaluationResult(
                 score=score,
-                passed=rank_flipped,
+                passed=passed,
                 metric_name=self.metric_name,
                 metric_formula=self.metric_formula,
                 p_original=p_top1_original,
@@ -153,10 +171,15 @@ class Q3Evaluator(BaseEvaluator):
                     "modified_top1_prob": modified_top1_prob,
                     "modified_top2_prob": modified_top2_prob,
                     # Analysis
+                    "gap_original": gap_orig,
+                    "gap_modified": gap_mod,
+                    "soft_score": soft_score,
+                    "region_ratio": region_ratio,
+                    "size_penalty": size_penalty,
                     "top1_class_changed": modified_top1_class != top1_class,
                     "top2_class_changed": modified_top2_class != top2_class,
                     "rank_flipped": rank_flipped,
-                    "interpretation": "1 = masking caused rank flip (good), 0 = no flip (bad)"
+                    "interpretation": "score = gap_reduction_ratio * (1 - region_ratio)"
                 }
             )
 

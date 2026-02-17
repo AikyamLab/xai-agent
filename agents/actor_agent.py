@@ -271,8 +271,39 @@ class ActorAgent(BaseAgent):
         all_tool_results = []
         all_viz_paths = []
 
+        # Get image indices and split for reloading samples per instance
+        image_indices = question.get('image_indices', [])
+        split = question.get('split', 'test')
+
         for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
             print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")
+
+            # Reload this instance's sample in data_model_loader so XAI tools
+            # operate on the correct data (tools use data_model_loader.get_current_*())
+            if self.data_model_loader and i < len(image_indices):
+                try:
+                    if modality == 'text':
+                        # Text loaders expect text content, not integer indices.
+                        # Reload from the question's features array.
+                        features_list = question.get('features', [])
+                        if isinstance(features_list, list) and i < len(features_list):
+                            feat = features_list[i]
+                            if 'premise' in feat and 'hypothesis' in feat:
+                                text_input = feat
+                            elif 'text' in feat:
+                                text_input = feat.get('text', '')
+                            elif 'review_text' in feat:
+                                text_input = feat.get('review_text', '')
+                            else:
+                                text_input = feat
+                            data = self.data_model_loader.loader_module.load_data(text_input)
+                            self.data_model_loader.current_sample_data = data
+                        else:
+                            print(f"  Warning: No features entry for text instance {i}")
+                    else:
+                        self.data_model_loader.load_sample(index=image_indices[i], split=split)
+                except Exception as e:
+                    print(f"  Warning: Failed to reload sample {image_indices[i]} for instance {i}: {e}")
 
             # Modify question for this instance (for output naming)
             instance_question = question.copy()
@@ -301,6 +332,20 @@ class ActorAgent(BaseAgent):
             ])
         }
 
+        # Step 1.5: Execute autonomous tasks (if any)
+        print("  Step 1.5: Executing autonomous tasks...")
+        autonomous_results = self._execute_autonomous_tasks(
+            strategy=strategy,
+            input_path=input_paths[0] if input_paths else "",
+            prediction=predictions[0] if predictions else {},
+            question=question,
+            tool_results=combined_tool_results
+        )
+
+        if autonomous_results:
+            combined_tool_results['autonomous_results'] = autonomous_results
+            combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+
         # Step 2: Extract comparative features via VLM
         print("  Step 2: Extracting comparative features via VLM...")
         extracted_features = self._extract_features_multi(
@@ -319,31 +364,22 @@ class ActorAgent(BaseAgent):
         results_for_prompt = {
             "tool_results": combined_tool_results['tool_results'],
             "extracted_features": extracted_features,
+            "autonomous_results": autonomous_results,
             "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
         }
 
-        # Use multi-instance prompt if available
-        if hasattr(prompt_builder, 'build_actor_prompt_multi'):
-            parsed_result = self._generate_explanation_multi(
-                prompt_builder=prompt_builder,
-                context=context,
-                strategy=strategy,
-                results=results_for_prompt,
-                tool_results=combined_tool_results,
-                instances=results_for_prompt['instances']
-            )
-        else:
-            # Fallback to single-instance prompt
-            parsed_result = self._generate_explanation_with_prompt_builder(
-                prompt_builder=prompt_builder,
-                context=context,
-                strategy=strategy,
-                results=results_for_prompt,
-                tool_results=combined_tool_results
-            )
+        # Use multi-instance prompt
+        parsed_result = self._generate_explanation_multi(
+            prompt_builder=prompt_builder,
+            context=context,
+            strategy=strategy,
+            results=results_for_prompt,
+            tool_results=combined_tool_results,
+            instances=results_for_prompt['instances']
+        )
 
         # Ensure multi-instance output format
-        if 'output' not in parsed_result:
+        if not parsed_result.get('output') or not isinstance(parsed_result.get('output'), dict):
             parsed_result['output'] = {}
 
         # Add per-instance outputs if not present
@@ -358,6 +394,7 @@ class ActorAgent(BaseAgent):
         parsed_result['is_multi_instance'] = True
         parsed_result['num_instances'] = num_instances
         parsed_result['tool_results'] = combined_tool_results['tool_results']
+        parsed_result['autonomous_results'] = autonomous_results
         parsed_result['visualization_paths'] = all_viz_paths
 
         # Save results
@@ -500,6 +537,7 @@ Respond with ONLY valid JSON:"""
             "num_instances": len(predictions),
             "predictions": predictions,
             "input_paths": input_paths,
+            "modality": modality,
         }
 
         # Add indexed access
@@ -517,6 +555,33 @@ Respond with ONLY valid JSON:"""
             context["image_path"] = input_paths[0]
             context["image_path_A"] = input_paths[0] if len(input_paths) > 0 else ""
             context["image_path_B"] = input_paths[1] if len(input_paths) > 1 else ""
+
+        # Add text/tabular instance data for VLM prompt
+        if modality in ('text', 'tabular'):
+            features_list = question.get('features', [])
+            image_indices = question.get('image_indices', question.get('row_no', []))
+            targets = question.get('targets', question.get('target', []))
+            preds = question.get('predictions', question.get('predicted', []))
+
+            instance_data = []
+            for i in range(len(features_list) if isinstance(features_list, list) else 0):
+                feat = features_list[i]
+                inst = {"index": image_indices[i] if i < len(image_indices) else i}
+                if modality == 'text':
+                    if 'text' in feat:
+                        inst["text"] = feat["text"]
+                    elif 'premise' in feat:
+                        inst["premise"] = feat["premise"]
+                        inst["hypothesis"] = feat.get("hypothesis", "")
+                elif modality == 'tabular':
+                    inst["features"] = feat
+                if isinstance(targets, list) and i < len(targets):
+                    inst["target"] = targets[i]
+                if isinstance(preds, list) and i < len(preds):
+                    inst["predicted"] = preds[i]
+                instance_data.append(inst)
+
+            context["instance_data"] = instance_data
 
         return context
 
@@ -547,6 +612,32 @@ Respond with ONLY valid JSON:"""
     # =========================================================================
     # Q4 Specific Methods (instance_A / instance_B format)
     # =========================================================================
+
+    def _reload_q4_instance(self, inst: Dict[str, Any], modality: str):
+        """Reload a Q4 instance into data_model_loader before tool execution."""
+        if not self.data_model_loader:
+            return
+        split = inst.get('split', 'test')
+        try:
+            if modality == 'text':
+                feat = inst.get('features', {})
+                if 'premise' in feat and 'hypothesis' in feat:
+                    text_input = feat
+                elif 'text' in feat:
+                    text_input = feat['text']
+                else:
+                    text_input = feat
+                data = self.data_model_loader.loader_module.load_data(text_input)
+                self.data_model_loader.current_sample_data = data
+                print(f"    Reloaded text instance: row_no={inst.get('image_index')}")
+            elif modality == 'tabular' and inst.get('image_index') is not None:
+                self.data_model_loader.load_sample(index=inst['image_index'], split=split)
+                print(f"    Reloaded tabular instance: row_no={inst['image_index']}")
+            elif modality == 'vision' and inst.get('image_index') is not None:
+                self.data_model_loader.load_sample(index=inst['image_index'], split=split)
+                print(f"    Reloaded vision instance: image_index={inst['image_index']}")
+        except Exception as e:
+            print(f"    Warning: Failed to reload Q4 instance: {e}")
 
     def run_q4(
         self,
@@ -587,11 +678,8 @@ Respond with ONLY valid JSON:"""
         print(f"  Step 1: Executing XAI tools on Instance A...")
 
         # CRITICAL: Reload the correct sample for Instance A before tool execution
-        # This ensures XAI tools use get_current_image() returns A's image, not B's
-        if self.data_model_loader and 'image_index' in inst_a:
-            split = inst_a.get('split', 'test')
-            print(f"    Reloading sample: image_index={inst_a['image_index']}, split={split}")
-            self.data_model_loader.load_sample(index=inst_a['image_index'], split=split)
+        # This ensures XAI tools operate on A's data, not B's
+        self._reload_q4_instance(inst_a, modality)
 
         question_a = question.copy()
         question_a['instance_suffix'] = '_A'
@@ -612,11 +700,7 @@ Respond with ONLY valid JSON:"""
         print(f"  Step 2: Executing XAI tools on Instance B...")
 
         # CRITICAL: Reload the correct sample for Instance B before tool execution
-        # This ensures XAI tools use get_current_image() returns B's image
-        if self.data_model_loader and 'image_index' in inst_b:
-            split = inst_b.get('split', 'test')
-            print(f"    Reloading sample: image_index={inst_b['image_index']}, split={split}")
-            self.data_model_loader.load_sample(index=inst_b['image_index'], split=split)
+        self._reload_q4_instance(inst_b, modality)
 
         question_b = question.copy()
         question_b['instance_suffix'] = '_B'
@@ -651,6 +735,22 @@ Respond with ONLY valid JSON:"""
         }
 
         # ═══════════════════════════════════════════════════════
+        # Step 3.5: Execute autonomous tasks (if any)
+        # ═══════════════════════════════════════════════════════
+        print("  Step 3.5: Executing autonomous tasks...")
+        autonomous_results = self._execute_autonomous_tasks(
+            strategy=strategy,
+            input_path=inst_a['path'],
+            prediction=inst_a['prediction'],
+            question=question,
+            tool_results=combined_tool_results
+        )
+
+        if autonomous_results:
+            combined_tool_results['autonomous_results'] = autonomous_results
+            combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+
+        # ═══════════════════════════════════════════════════════
         # Step 4: Extract comparative features via VLM
         # ═══════════════════════════════════════════════════════
         print("  Step 3: Extracting comparative features...")
@@ -671,7 +771,8 @@ Respond with ONLY valid JSON:"""
 
         results_for_prompt = {
             "tool_results": combined_tool_results['tool_results'],
-            "extracted_features": extracted_features
+            "extracted_features": extracted_features,
+            "autonomous_results": autonomous_results
         }
 
         # Use Q4-specific actor prompt
@@ -698,6 +799,7 @@ Respond with ONLY valid JSON:"""
         parsed_result['question_type'] = 4
         parsed_result['is_q4'] = True
         parsed_result['tool_results'] = combined_tool_results['tool_results']
+        parsed_result['autonomous_results'] = autonomous_results
         parsed_result['visualization_paths'] = combined_tool_results['visualization_paths']
 
         # Save results
@@ -856,11 +958,6 @@ Respond with ONLY valid JSON:"""
             y_max = min(height, max(all_ys) + padding)
             return [int(x_min), int(y_min), int(x_max), int(y_max)]
 
-        # Fallback: center region
-        margin_x = width // 4
-        margin_y = height // 4
-        return [margin_x, margin_y, width - margin_x, height - margin_y]
-
     def _build_context_q4(
         self,
         question: Dict[str, Any],
@@ -868,6 +965,7 @@ Respond with ONLY valid JSON:"""
         instances: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Build context for Q4."""
+        modality = question.get('modality', 'vision')
         clean_model_info = {}
         if model_info:
             clean_model_info = {
@@ -880,6 +978,7 @@ Respond with ONLY valid JSON:"""
             "user_question": question.get("question", question.get("example", "")),
             "model_info": clean_model_info,
             "num_instances": 2,
+            "modality": modality,
         }
 
         if instances and len(instances) >= 2:
@@ -887,6 +986,27 @@ Respond with ONLY valid JSON:"""
             context["prediction_B"] = instances[1].get('prediction', {})
             context["image_path_A"] = instances[0].get('path', '')
             context["image_path_B"] = instances[1].get('path', '')
+
+        # Add text/tabular instance data for VLM prompt
+        if modality in ('text', 'tabular'):
+            instance_a = question.get('instance_A', {})
+            instance_b = question.get('instance_B', {})
+            instance_data = []
+            for label, inst in [('A', instance_a), ('B', instance_b)]:
+                feat = inst.get('features', {})
+                entry = {"label": label, "row_no": inst.get('row_no')}
+                if modality == 'text':
+                    if 'text' in feat:
+                        entry["text"] = feat["text"]
+                    elif 'premise' in feat:
+                        entry["premise"] = feat["premise"]
+                        entry["hypothesis"] = feat.get("hypothesis", "")
+                elif modality == 'tabular':
+                    entry["features"] = feat
+                entry["target"] = inst.get('target', {})
+                entry["predicted"] = inst.get('prediction', {})
+                instance_data.append(entry)
+            context["instance_data"] = instance_data
 
         return context
 
@@ -1218,10 +1338,66 @@ JSON Response:"""
 - Ensure x_max > x_min and y_max > y_min"""
 
         elif modality == "text":
-            text_input = question.get('text_input', '')
+            features = question.get('features', {})
+            # Handle multi-instance (Q9/Q10): features is a list of dicts
+            if isinstance(features, list):
+                labels = "ABCDEFGHIJ"
+                image_indices = question.get('image_indices', question.get('row_no', []))
+                targets = question.get('targets', question.get('target', []))
+                preds_list = question.get('predictions', question.get('predicted', []))
+                lines = []
+                all_texts = []
+                for i, feat in enumerate(features):
+                    label = labels[i] if i < len(labels) else str(i)
+                    idx = image_indices[i] if i < len(image_indices) else i
+                    target_info = targets[i] if isinstance(targets, list) and i < len(targets) else {}
+                    pred_info = preds_list[i] if isinstance(preds_list, list) and i < len(preds_list) else {}
+                    target_lbl = target_info.get('label', target_info.get('value', '?')) if isinstance(target_info, dict) else target_info
+                    pred_lbl = pred_info.get('label', pred_info.get('value', '?')) if isinstance(pred_info, dict) else pred_info
+                    lines.append(f"\n### Instance {label} (index {idx}) — true: {target_lbl}, predicted: {pred_lbl}")
+                    if isinstance(feat, dict):
+                        text = feat.get('text', feat.get('premise', ''))
+                        if 'premise' in feat:
+                            lines.append(f"Premise: {feat['premise']}")
+                            lines.append(f"Hypothesis: {feat.get('hypothesis', '')}")
+                        elif text:
+                            lines.append(f"```\n{text}\n```")
+                        all_texts.append(text)
+                    elif isinstance(feat, str):
+                        lines.append(f"```\n{feat}\n```")
+                        all_texts.append(feat)
+                text_content_section = "\n## INPUT TEXTS (ALL INSTANCES)\n" + "\n".join(lines)
+                max_text_length = max((len(t) for t in all_texts), default=100)
+                return f"""{text_content_section}
+
+## CRITICAL TEXT CONSTRAINTS
+- ALL indices MUST be within the bounds of each instance's text
+- Format text spans as {{"start_index": int, "end_index": int}}
+- Ensure end_index > start_index"""
+
+            # Extract actual text content for NLI (premise+hypothesis) or single-text tasks
+            if isinstance(features, dict) and 'premise' in features and 'hypothesis' in features:
+                premise = features.get('premise', '')
+                hypothesis = features.get('hypothesis', '')
+                text_input = f"Premise: {premise} Hypothesis: {hypothesis}"
+                text_content_section = f"""
+## INPUT TEXT
+- Premise: {premise}
+- Hypothesis: {hypothesis}"""
+            else:
+                text_input = question.get('text_input', '')
+                if not text_input and isinstance(features, dict):
+                    text_input = features.get('review_text', features.get('text', ''))
+                if not text_input and isinstance(features, str):
+                    text_input = features
+                text_content_section = f"""
+## INPUT TEXT
+{text_input}""" if text_input else ""
+
             text_length = len(text_input) if text_input else 100
 
-            return f"""
+            return f"""{text_content_section}
+
 ## CRITICAL TEXT CONSTRAINTS
 - Text length: {text_length} characters
 - ALL indices MUST be within: [0, {text_length}]
@@ -1230,9 +1406,36 @@ JSON Response:"""
 
         elif modality == "tabular":
             features = question.get('features', {})
-            feature_names = list(features.keys()) if features else []
+            # Handle multi-instance (Q9/Q10): features is a list of dicts
+            if isinstance(features, list) and features:
+                # Use first instance's keys as representative feature names
+                first_feat = features[0] if isinstance(features[0], dict) else {}
+                feature_names = list(first_feat.keys())
+                labels = "ABCDEFGHIJ"
+                image_indices = question.get('image_indices', question.get('row_no', []))
+                targets = question.get('targets', question.get('target', []))
+                preds_list = question.get('predictions', question.get('predicted', []))
+                lines = []
+                for i, feat in enumerate(features):
+                    label = labels[i] if i < len(labels) else str(i)
+                    idx = image_indices[i] if i < len(image_indices) else i
+                    target_info = targets[i] if isinstance(targets, list) and i < len(targets) else {}
+                    pred_info = preds_list[i] if isinstance(preds_list, list) and i < len(preds_list) else {}
+                    target_lbl = target_info.get('label', target_info.get('value', '?')) if isinstance(target_info, dict) else target_info
+                    pred_lbl = pred_info.get('label', pred_info.get('value', '?')) if isinstance(pred_info, dict) else pred_info
+                    feat_str = ", ".join(f"{k}={v}" for k, v in list(feat.items())[:10]) if isinstance(feat, dict) else str(feat)
+                    lines.append(f"- Instance {label} (index {idx}) — true: {target_lbl}, predicted: {pred_lbl}: {feat_str}")
+                instance_section = "\n## INSTANCE DATA\n" + "\n".join(lines)
+                return f"""{instance_section}
 
-            return f"""
+## CRITICAL TABULAR CONSTRAINTS
+- Available features: {feature_names[:20]}{'...' if len(feature_names) > 20 else ''}
+- Use exact feature names as they appear above
+- Format as {{"feature_key": "feature_name"}}"""
+            else:
+                feature_names = list(features.keys()) if isinstance(features, dict) and features else []
+
+                return f"""
 ## CRITICAL TABULAR CONSTRAINTS
 - Available features: {feature_names[:20]}{'...' if len(feature_names) > 20 else ''}
 - Use exact feature names as they appear above
@@ -1304,14 +1507,17 @@ JSON Response:"""
             q_type=q_type
         )
 
-        # Collect images for VLM
+        # Collect images for VLM (only actual image files, not HTML/text artifacts)
+        IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
         images = []
         if modality == "vision" and input_path and os.path.exists(input_path):
             images.append(input_path)
         for viz_info in tool_results.get('visualization_paths', []):
             viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
             if viz_path and os.path.exists(viz_path):
-                images.append(viz_path)
+                ext = os.path.splitext(viz_path)[1].lower()
+                if ext in IMAGE_EXTENSIONS:
+                    images.append(viz_path)
 
         # Call VLM - let exceptions propagate
         response = self.invoke_vlm(prompt, images if images else None)
@@ -1766,12 +1972,7 @@ JSON Response:"""
 
             print(f"[ActorAgent] Computed expanded bbox from attention coords: [{x_min}, {y_min}, {x_max}, {y_max}]")
             return {"bounding_box": [int(x_min), int(y_min), int(x_max), int(y_max)]}
-
-        # Fallback to center region (50% of image)
-        margin_x = width // 4
-        margin_y = height // 4
-        print(f"[ActorAgent] Using fallback center region bbox")
-        return {"bounding_box": [margin_x, margin_y, width - margin_x, height - margin_y]}
+            
 
     def _extract_output_from_parsed(self, parsed: Dict, modality: str) -> Dict:
         """Try to extract output from various parsed formats"""
@@ -1850,9 +2051,37 @@ JSON Response:"""
         if modality == "vision":
             context["image_path"] = input_path
         elif modality == "text":
-            context["text_input"] = question.get("text_input", "")
+            features = question.get("features", {})
+            if isinstance(features, dict):
+                text_content = features.get("text", features.get("premise", ""))
+                if "premise" in features:
+                    preview = f"Premise: {features['premise'][:200]}\nHypothesis: {features.get('hypothesis', '')[:200]}"
+                else:
+                    preview = text_content[:400] + ("..." if len(text_content) > 400 else "")
+            else:
+                text_content = str(features)
+                preview = text_content[:400]
+            context["text_input"] = text_content
+            context["text_description"] = preview
+            # Build single-instance data for prompt inclusion
+            context["modality"] = modality
+            context["instance_data_single"] = {
+                "text": features.get("text", "") if isinstance(features, dict) else str(features),
+                "premise": features.get("premise", "") if isinstance(features, dict) else "",
+                "hypothesis": features.get("hypothesis", "") if isinstance(features, dict) else "",
+                "features": features,
+            }
         elif modality == "tabular":
-            context["input_data"] = question.get("features", {})
+            features = question.get("features", {})
+            context["input_data"] = features
+            context["modality"] = modality
+            if isinstance(features, dict):
+                feat_str = ", ".join(f"{k}={v}" for k, v in list(features.items())[:10])
+                context["data_description"] = f"Features: {feat_str}"
+                context["instance_data_single"] = {"features": features}
+            else:
+                context["data_description"] = str(features)[:400]
+                context["instance_data_single"] = {"features": {}}
 
         return context
 
@@ -1930,7 +2159,10 @@ JSON Response:"""
         model_info: Optional[Dict[str, Any]],
         prediction: Optional[Dict[str, Any]],
         actor_reflection: str,
-        original_results: Dict[str, Any]
+        original_results: Dict[str, Any],
+        # Multi-instance parameters (for Q9, Q10)
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Generate improved explanation based on Critic's reflection.
@@ -1939,20 +2171,41 @@ JSON Response:"""
             strategy: Strategy (may be improved) from Proposer
             question: Question dictionary
             question_template: QuestionTemplate instance
-            input_path: Path to input data
+            input_path: Path to input data (single instance)
             model_info: Model information
-            prediction: Model prediction results
+            prediction: Model prediction results (single instance)
             actor_reflection: JSON string with feedback from Critic
             original_results: The original results that were evaluated
+            input_paths: List of paths for multi-instance questions
+            predictions: List of predictions for multi-instance questions
 
         Returns:
             Improved results dictionary
         """
+        is_multi = question.get('is_multi_instance', False) and input_paths and predictions
+
         print("\n" + "=" * 70)
-        print("ACTOR AGENT: Re-executing with Reflection")
+        if is_multi:
+            print(f"ACTOR AGENT: Re-executing with Reflection (Multi-Instance, {len(input_paths)} instances)")
+        else:
+            print("ACTOR AGENT: Re-executing with Reflection")
         print("=" * 70)
 
         modality = question.get('modality', 'vision')
+
+        if is_multi:
+            return self._run_with_reflection_multi(
+                strategy=strategy,
+                question=question,
+                question_template=question_template,
+                input_paths=input_paths,
+                model_info=model_info,
+                predictions=predictions,
+                actor_reflection=actor_reflection,
+                original_results=original_results
+            )
+
+        # --- Single-instance reflection path (original logic) ---
 
         # Step 1: Execute XAI tools (with potentially new strategy)
         print("  Step 1: Executing XAI tools...")
@@ -2024,6 +2277,142 @@ JSON Response:"""
         print(f"\nImproved explanation generated")
         return parsed_result
 
+    def _run_with_reflection_multi(
+        self,
+        strategy: Dict[str, Any],
+        question: Dict[str, Any],
+        question_template: Any,
+        input_paths: List[str],
+        model_info: Optional[Dict[str, Any]],
+        predictions: List[Dict[str, Any]],
+        actor_reflection: str,
+        original_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Multi-instance reflection path for Q9/Q10.
+
+        Same structure as _execute_multi_instance but with reflection-aware
+        feature extraction and explanation generation.
+        """
+        modality = question.get('modality', 'vision')
+        num_instances = len(input_paths)
+        q_type = question.get('q_type')
+
+        # Step 1: Execute XAI tools on each instance (same as _execute_multi_instance)
+        all_tool_results = []
+        all_viz_paths = []
+
+        image_indices = question.get('image_indices', [])
+        split = question.get('split', 'test')
+
+        for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
+            print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")
+
+            # Reload this instance's sample in data_model_loader
+            if self.data_model_loader and i < len(image_indices):
+                try:
+                    self.data_model_loader.load_sample(index=image_indices[i], split=split)
+                except Exception as e:
+                    print(f"  Warning: Failed to reload sample {image_indices[i]} for instance {i}: {e}")
+
+            instance_question = question.copy()
+            instance_question['instance_index'] = i
+            instance_question['instance_suffix'] = f"_inst{i}"
+
+            tool_results = self._execute_tools(
+                strategy=strategy,
+                input_path=input_path,
+                prediction=prediction,
+                modality=modality,
+                question=instance_question
+            )
+
+            all_tool_results.append(tool_results)
+            all_viz_paths.extend(tool_results.get('visualization_paths', []))
+
+        # Combine tool results
+        combined_tool_results = {
+            'instances': all_tool_results,
+            'tool_results': {f'instance_{i}': tr.get('tool_results', {}) for i, tr in enumerate(all_tool_results)},
+            'visualization_paths': all_viz_paths,
+            'tool_results_summary': "; ".join([
+                f"Instance {i}: {tr.get('tool_results_summary', 'no results')}"
+                for i, tr in enumerate(all_tool_results)
+            ])
+        }
+
+        # Step 1.5: Execute autonomous tasks (if any)
+        print("  Step 1.5: Executing autonomous tasks...")
+        autonomous_results = self._execute_autonomous_tasks(
+            strategy=strategy,
+            input_path=input_paths[0] if input_paths else "",
+            prediction=predictions[0] if predictions else {},
+            question=question,
+            tool_results=combined_tool_results
+        )
+
+        if autonomous_results:
+            combined_tool_results['autonomous_results'] = autonomous_results
+            combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+
+        # Step 2: Extract features with reflection guidance
+        # Use _extract_features_multi but inject reflection context
+        print("  Step 2: Extracting comparative features with reflection...")
+        extracted_features = self._extract_features_multi(
+            tool_results=combined_tool_results,
+            input_paths=input_paths,
+            question=question,
+            question_template=question_template,
+            predictions=predictions
+        )
+
+        # Step 3: Generate improved explanation with reflection
+        print("  Step 3: Generating improved comparative explanation with reflection...")
+        prompt_builder = self._get_prompt_builder(question_template, question)
+
+        context = self._build_context_multi(question, model_info, predictions, input_paths)
+        results_for_prompt = {
+            "tool_results": combined_tool_results['tool_results'],
+            "extracted_features": extracted_features,
+            "autonomous_results": autonomous_results,
+            "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
+        }
+
+        parsed_result = self._generate_explanation_with_reflection(
+            prompt_builder=prompt_builder,
+            context=context,
+            strategy=strategy,
+            results=results_for_prompt,
+            tool_results=combined_tool_results,
+            actor_reflection=actor_reflection,
+            original_results=original_results
+        )
+
+        # Ensure multi-instance output format
+        if 'output' not in parsed_result:
+            parsed_result['output'] = {}
+
+        for i in range(num_instances):
+            key = f'input_{i}' if num_instances > 2 else ('input_A' if i == 0 else 'input_B')
+            if key not in parsed_result['output']:
+                parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
+
+        # Add metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = q_type
+        parsed_result['is_multi_instance'] = True
+        parsed_result['num_instances'] = num_instances
+        parsed_result['tool_results'] = combined_tool_results['tool_results']
+        parsed_result['autonomous_results'] = autonomous_results
+        parsed_result['visualization_paths'] = all_viz_paths
+        parsed_result['_improved'] = True
+
+        # Save improved results
+        self._save_results(parsed_result, question, suffix="_improved")
+
+        print(f"\nImproved multi-instance explanation generated for {num_instances} instances")
+        return parsed_result
+
     def _extract_features_with_reflection(
         self,
         tool_results: Dict[str, Any],
@@ -2073,14 +2462,17 @@ JSON Response:"""
             original_results=original_results
         )
 
-        # Collect images for VLM
+        # Collect images for VLM (only actual image files, not HTML/text artifacts)
+        IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
         images = []
         if modality == "vision" and input_path and os.path.exists(input_path):
             images.append(input_path)
         for viz_info in tool_results.get('visualization_paths', []):
             viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
             if viz_path and os.path.exists(viz_path):
-                images.append(viz_path)
+                ext = os.path.splitext(viz_path)[1].lower()
+                if ext in IMAGE_EXTENSIONS:
+                    images.append(viz_path)
 
         # Call VLM - let exceptions propagate
         response = self.invoke_vlm(prompt, images if images else None)
@@ -2217,15 +2609,22 @@ JSON Response:"""
         Returns:
             Parsed result dict
         """
+        from prompts.output_schemas import get_output_schema, schema_to_prompt_string
+
         prediction = context.get('prediction', {})
         pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
         confidence = prediction.get('confidence', 0.0)
         modality = prompt_builder.modality if hasattr(prompt_builder, 'modality') else 'vision'
         q_type = prompt_builder.q_type if hasattr(prompt_builder, 'q_type') else 1
 
-        # Get image dimensions for vision
-        image_width, image_height = 224, 224
+        # Get Q-type-specific output schema
+        output_schema = get_output_schema(q_type, modality)
+        output_schema_str = schema_to_prompt_string(output_schema)
+
+        # Build size constraint for coordinate validation
+        size_constraint = ""
         if modality == "vision":
+            image_width, image_height = 224, 224
             for tool_name, tool_result in tool_results.get('tool_results', {}).items():
                 if isinstance(tool_result, dict) and tool_result.get('success'):
                     img_size = tool_result.get('original_image_size', {})
@@ -2233,20 +2632,13 @@ JSON Response:"""
                         image_width = img_size.get('width', image_width)
                         image_height = img_size.get('height', image_height)
                         break
-
-        # Build modality-specific output format and size constraint
-        if modality == "vision":
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
             size_constraint = f"""
 **IMAGE BOUNDS:** {image_width} x {image_height} pixels
-All coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""
+All bounding_box coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""
         elif modality == "text":
-            output_format = '"start_index": int, "end_index": int'
             text_input = context.get('text_input', '')
-            size_constraint = f"**TEXT LENGTH:** {len(text_input)} characters"
-        else:
-            output_format = '"feature_key": "string"'
-            size_constraint = ""
+            if text_input:
+                size_constraint = f"**TEXT LENGTH:** {len(text_input)} characters. Indices must be within [0, {len(text_input)}]."
 
         # Get previous output and explanation
         original_output = original_results.get('output', {})
@@ -2292,14 +2684,8 @@ Pay special attention to:
 3. Ensure region accuracy matches tool statistics
 4. Provide clear reasoning for why this region/feature matters
 
-**Output valid JSON:**
-{{
-    "output": {{
-        {output_format}
-    }},
-    "explanation": "2-3 sentences explaining why, addressing critic's feedback",
-    "confidence": 0.0-1.0
-}}
+**CRITICAL: Your output MUST follow this EXACT JSON schema for Q{q_type} ({modality}):**
+{output_schema_str}
 
 JSON Response:"""
 

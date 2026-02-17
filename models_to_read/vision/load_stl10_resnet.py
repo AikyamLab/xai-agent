@@ -194,7 +194,7 @@ def get_model_info(model: torch.nn.Module) -> Dict[str, Any]:
 
 # Main function for testing
 if __name__ == "__main__":
-    model_path = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/stl10_resnet_head.pth"
+    model_path = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/stl10_resnet.pth"
 
     # Load model
     model, transform = load_model(model_path)

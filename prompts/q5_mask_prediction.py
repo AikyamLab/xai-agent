@@ -155,14 +155,72 @@ Provide your strategy as a JSON object:
         results: Dict[str, Any]
     ) -> str:
         """Build prompt for Actor"""
+        if self.modality == "vision":
+            return self._build_actor_prompt_vision(context, strategy, results)
+        return self._build_actor_prompt_default(context, strategy, results)
+
+    def _build_actor_prompt_vision(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any]
+    ) -> str:
+        """Build vision-specific actor prompt that also identifies the region to mask."""
+        prediction = context.get('prediction', {})
+        tool_results = results.get('tool_results', {})
+        size_constraint = self._build_image_size_constraint(tool_results)
+
+        prompt = f"""You are an XAI expert. Identify a specific region in the image and predict if masking it would change the model's prediction.
+
+## Question
+{context.get('user_question', self.question_template)}
+
+## Current Prediction
+Class: {prediction.get('predicted_class', 'Unknown')}
+Confidence: {prediction.get('confidence', 0.0):.4f}
+{size_constraint}
+## XAI Analysis
+{self._format_results_comprehensive(results)}
+
+## Your Task
+1. Based on the XAI tool results (e.g. GradCAM heatmaps, attribution maps), identify one specific region in the image as a bounding box [x_min, y_min, x_max, y_max].
+   - The bounding box must be within the image dimensions.
+2. Predict whether masking that region would change the model's prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{{
+    "output": {{
+        "prediction_changes": 1,
+        "masked_region": {{
+            "bounding_box": [x_min, y_min, x_max, y_max]
+        }}
+    }},
+    "explanation": "2-3 sentences: which region you chose, why, and whether masking it changes the prediction",
+    "confidence": 0.85
+}}
+
+**Critical Requirements:**
+- prediction_changes: ONLY 1 (Yes) or 0 (No)
+- masked_region.bounding_box: [x_min, y_min, x_max, y_max] integers within image bounds
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:"""
+        return prompt
+
+    def _build_actor_prompt_default(
+        self,
+        context: Dict[str, Any],
+        strategy: Dict[str, Any],
+        results: Dict[str, Any]
+    ) -> str:
+        """Build actor prompt for text/tabular where the region is already specified."""
         prediction = context.get('prediction', {})
         queried_part = context.get('queried_part', 'the specified region')
         tool_results = results.get('tool_results', {})
-
-        # Get image size constraint for vision modality
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
-        prompt = f"""You are an XAI expert. Predict if masking a part would change the prediction.
+        prompt = f"""You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
 
 ## Question
 {context.get('user_question', self.question_template)}
@@ -173,7 +231,7 @@ Confidence: {prediction.get('confidence', 0.0):.4f}
 
 ## Part to be Masked
 {queried_part}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 

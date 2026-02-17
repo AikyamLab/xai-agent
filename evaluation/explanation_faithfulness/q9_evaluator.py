@@ -110,6 +110,7 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     details_per_input.append({"error": "Probabilities not available"})
                     continue
 
+                original_probs = self._normalize_probs(original_probs)
                 p_correct_original = float(original_probs[correct_class_idx])
 
                 # Mask and get new prediction (use GRAY for neutral masking)
@@ -136,17 +137,42 @@ class Q9Evaluator(MultiInstanceEvaluator):
 
                 improved = p_correct_modified > p_correct_original
                 improvements.append(improved)
+
+                # Per-input normalized improvement
+                improvement_amount = p_correct_modified - p_correct_original
+                room = 1.0 - p_correct_original
+                if room > 1e-8:
+                    norm_improvement = max(0.0, min(1.0, improvement_amount / room))
+                else:
+                    norm_improvement = 1.0 if improved else 0.0
+
+                # Per-input region ratio
+                input_region_ratio = self.compute_region_ratio(region, input_data)
+
                 details_per_input.append({
                     "input_key": input_key,
                     "correct_class": ground_truths[i],
                     "p_correct_original": p_correct_original,
                     "p_correct_modified": p_correct_modified,
+                    "improvement": improvement_amount,
+                    "room_for_improvement": room,
+                    "normalized_improvement": norm_improvement,
+                    "region_ratio": input_region_ratio,
                     "improved": improved
                 })
 
-            # All must improve
+            # Passed logic unchanged: all must improve
             all_improved = all(improvements)
-            score = 1.0 if all_improved else 0.0
+
+            # Soft score: mean normalized improvement across all instances
+            norm_scores = [d["normalized_improvement"] for d in details_per_input if "normalized_improvement" in d]
+            soft_score = sum(norm_scores) / len(norm_scores) if norm_scores else 0.0
+
+            # Size penalty: average region ratio across all instances
+            region_ratios = [d["region_ratio"] for d in details_per_input if "region_ratio" in d]
+            region_ratio = sum(region_ratios) / len(region_ratios) if region_ratios else 0.0
+            size_penalty = 1.0 - region_ratio
+            score = soft_score * size_penalty
 
             return EvaluationResult(
                 score=score,
@@ -157,9 +183,12 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     "num_inputs": len(inputs),
                     "num_improved": sum(improvements),
                     "all_improved": all_improved,
+                    "soft_score": soft_score,
+                    "region_ratio": region_ratio,
+                    "size_penalty": size_penalty,
                     "shared_feature_description": agent_output.get('shared_feature_description', ''),
                     "per_input_details": details_per_input,
-                    "interpretation": "1 = removing shared feature improved ALL inputs"
+                    "interpretation": "score = mean_normalized_improvement * (1 - avg_region_ratio)"
                 }
             )
 

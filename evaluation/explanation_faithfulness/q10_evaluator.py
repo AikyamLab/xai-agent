@@ -6,8 +6,8 @@ Lower similarity = better (features should be distinct)
 
 Similarity measures:
 - Vision: Word similarity on natural language descriptions
-- Text: Word overlap between spans
-- Tabular: Rank correlation of features
+- Text: Word overlap between spans extracted from input texts
+- Tabular: Feature key overlap
 """
 
 from typing import Any, Dict, List, Set
@@ -46,9 +46,9 @@ class Q10Evaluator(MultiInstanceEvaluator):
 
         Args:
             agent_output: Agent output with correct/wrong instance features
-            inputs: [correct_input, wrong_input]
+            inputs: List of input data (strings, dicts, or tensors)
             model: Target model
-            predictions: [correct_prediction, wrong_prediction]
+            predictions: List of prediction dicts
             **kwargs: Additional arguments
 
         Returns:
@@ -86,10 +86,10 @@ class Q10Evaluator(MultiInstanceEvaluator):
                     wrong_features
                 )
 
-            # Score is negative similarity (lower similarity = higher score)
-            score = -similarity
+            # Soft score: 1 - similarity, range [0, 1], higher = more distinct
+            score = 1.0 - similarity
 
-            # Passed if similarity is below threshold (features are distinct)
+            # Passed logic unchanged: similarity below threshold
             passed = similarity < 0.5
 
             return EvaluationResult(
@@ -102,7 +102,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
                     "wrong_features": wrong_features,
                     "similarity": similarity,
                     "threshold": 0.5,
-                    "interpretation": "More negative = more distinct features (better)"
+                    "interpretation": "Soft score: 1 - similarity, range [0,1], higher = more distinct"
                 }
             )
 
@@ -149,32 +149,64 @@ class Q10Evaluator(MultiInstanceEvaluator):
                       'that', 'this', 'these', 'those', 'it', 'its'}
         return set(w for w in words if w not in stop_words)
 
+    def _extract_text(self, inp: Any) -> str:
+        """Extract plain text from an input that may be a string, dict, or other type."""
+        if isinstance(inp, str):
+            return inp
+        if isinstance(inp, dict):
+            # NLI format: combine premise + hypothesis
+            if 'premise' in inp:
+                return f"{inp.get('premise', '')} {inp.get('hypothesis', '')}"
+            if 'text' in inp:
+                return inp['text']
+            if 'review_text' in inp:
+                return inp['review_text']
+        return str(inp) if inp else ""
+
     def _compute_span_overlap(
         self,
-        span1: Dict,
-        span2: Dict,
+        feat1: Dict,
+        feat2: Dict,
         inputs: List
     ) -> float:
         """
-        Compute overlap between text spans.
+        Compute overlap between text features from correct/wrong instances.
 
-        Uses character-level IoU or word overlap.
+        Strategy:
+        1. If both features have valid start_index/end_index AND we can extract
+           text from inputs, slice the spans and compare word overlap.
+        2. Otherwise, fall back to comparing description/span text fields
+           using word-level Jaccard similarity.
         """
         try:
-            start1, end1 = span1.get('start_index', 0), span1.get('end_index', 0)
-            start2, end2 = span2.get('start_index', 0), span2.get('end_index', 0)
+            start1 = feat1.get('start_index')
+            end1 = feat1.get('end_index')
+            start2 = feat2.get('start_index')
+            end2 = feat2.get('end_index')
 
-            # If spans are in different texts (different instances), compare words
-            if len(inputs) >= 2:
-                text1 = inputs[0][start1:end1] if isinstance(inputs[0], str) else ""
-                text2 = inputs[1][start2:end2] if isinstance(inputs[1], str) else ""
-                return self._compute_text_similarity(text1, text2)
+            has_spans = (
+                start1 is not None and end1 is not None and end1 > start1 and
+                start2 is not None and end2 is not None and end2 > start2
+            )
 
-            # Same text: compute IoU
-            intersection = max(0, min(end1, end2) - max(start1, start2))
-            union = max(end1, end2) - min(start1, start2)
+            if has_spans and len(inputs) >= 2:
+                # Extract text from inputs (handles str, NLI dict, etc.)
+                full_text1 = self._extract_text(inputs[0])
+                full_text2 = self._extract_text(inputs[1])
 
-            return intersection / union if union > 0 else 0.0
+                if full_text1 and full_text2:
+                    span_text1 = full_text1[start1:end1]
+                    span_text2 = full_text2[start2:end2]
+                    if span_text1 and span_text2:
+                        return self._compute_text_similarity(span_text1, span_text2)
+
+            # Fallback: compare description or span text fields directly
+            desc1 = feat1.get('description', feat1.get('span', ''))
+            desc2 = feat2.get('description', feat2.get('span', ''))
+            if desc1 and desc2:
+                return self._compute_text_similarity(str(desc1), str(desc2))
+
+            return 0.0
 
         except Exception:
             return 0.0
@@ -185,20 +217,44 @@ class Q10Evaluator(MultiInstanceEvaluator):
         features2: Dict
     ) -> float:
         """
-        Compute similarity between tabular feature specifications.
+        Compute similarity between tabular feature rankings.
 
-        Uses exact match or rank correlation.
+        Uses Jaccard overlap weighted by rank agreement on shared features.
+        - Jaccard measures how many features overlap between two top-k lists
+        - Rank agreement measures whether shared features have similar ranks
+        - Final similarity = Jaccard * rank_agreement (0 if no overlap)
         """
         try:
-            key1 = features1.get('feature_key', '')
-            key2 = features2.get('feature_key', '')
+            list1 = features1.get('top_features', []) if isinstance(features1, dict) else []
+            list2 = features2.get('top_features', []) if isinstance(features2, dict) else []
 
-            # Exact match: 1.0 similarity
-            if key1 == key2:
-                return 1.0
+            # Fallback for single feature_key format
+            if not list1 and isinstance(features1, dict) and 'feature_key' in features1:
+                list1 = [features1['feature_key']]
+            if not list2 and isinstance(features2, dict) and 'feature_key' in features2:
+                list2 = [features2['feature_key']]
 
-            # No match: 0.0 similarity
-            return 0.0
+            if not list1 or not list2:
+                return 0.0
+
+            set1, set2 = set(list1), set(list2)
+            intersection = set1 & set2
+            union = set1 | set2
+
+            jaccard = len(intersection) / len(union) if union else 0.0
+
+            if not intersection:
+                return 0.0
+
+            # Rank agreement: average of 1/(1+|rank_diff|) for shared features
+            rank_scores = []
+            for feat in intersection:
+                r1 = list1.index(feat) + 1
+                r2 = list2.index(feat) + 1
+                rank_scores.append(1.0 / (1.0 + abs(r1 - r2)))
+            rank_agreement = sum(rank_scores) / len(rank_scores)
+
+            return jaccard * rank_agreement
 
         except Exception:
             return 0.0

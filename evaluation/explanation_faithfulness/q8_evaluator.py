@@ -89,6 +89,7 @@ class Q8Evaluator(BaseEvaluator):
                     errors=["Original probabilities not available"]
                 )
 
+            original_probs = self._normalize_probs(original_probs)
             p_correct_original = float(original_probs[correct_class_idx])
 
             # Mask spurious region (use GRAY for neutral masking)
@@ -117,9 +118,22 @@ class Q8Evaluator(BaseEvaluator):
 
             p_correct_modified = float(modified_probs[correct_class_idx])
 
-            # Check if correct class probability improved
-            improved = p_correct_modified > p_correct_original
-            score = 1.0 if improved else 0.0
+            # Passed logic unchanged: binary improved or not
+            improvement = p_correct_modified - p_correct_original
+            improved = improvement > 0
+
+            # Soft score: normalized improvement (proportion of improvable space used)
+            room = 1.0 - p_correct_original
+            if room > 1e-8:
+                soft_score = max(0.0, min(1.0, improvement / room))
+            else:
+                # Already near-perfect probability; any improvement is full score
+                soft_score = 1.0 if improved else 0.0
+
+            # Size penalty: penalize large masked regions
+            region_ratio = self.compute_region_ratio(region, original_input)
+            size_penalty = 1.0 - region_ratio
+            score = soft_score * size_penalty
 
             return EvaluationResult(
                 score=score,
@@ -134,8 +148,12 @@ class Q8Evaluator(BaseEvaluator):
                     "correct_class_idx": correct_class_idx,
                     "p_correct_original": p_correct_original,
                     "p_correct_modified": p_correct_modified,
-                    "improvement": p_correct_modified - p_correct_original,
-                    "interpretation": "1 = masking spurious part improved correct class probability"
+                    "improvement": improvement,
+                    "room_for_improvement": room,
+                    "soft_score": soft_score,
+                    "region_ratio": region_ratio,
+                    "size_penalty": size_penalty,
+                    "interpretation": "score = normalized_improvement * (1 - region_ratio)"
                 }
             )
 

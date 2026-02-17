@@ -45,6 +45,30 @@ class MaskingStrategy(Enum):
     RANDOM = "random"       # Replace with random values
 
 
+# ============================================================================
+# Module-level output directory configuration
+# ============================================================================
+
+_masking_output_dir: Optional[Path] = None
+
+
+def set_masking_output_dir(output_dir: str):
+    """Set the root output directory for masking utilities (feature_mean_cache, masked_inputs)."""
+    global _masking_output_dir, _feature_mean_cache
+    _masking_output_dir = Path(output_dir)
+    # Reset the cache so it picks up the new directory
+    _feature_mean_cache = None
+    print(f"Masking output directory set to: {_masking_output_dir}")
+
+
+def get_masking_output_dir() -> Path:
+    """Get the root output directory. Falls back to ./outputs if not explicitly set."""
+    global _masking_output_dir
+    if _masking_output_dir is None:
+        _masking_output_dir = Path(os.getcwd()) / "outputs"
+    return _masking_output_dir
+
+
 class FeatureMeanCache:
     """
     Cache for storing computed feature means from datasets.
@@ -53,7 +77,7 @@ class FeatureMeanCache:
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir is None:
-            cache_dir = Path("/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/outputs/feature_mean_cache")
+            cache_dir = get_masking_output_dir() / "feature_mean_cache"
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.cache_dir / "feature_means.json"
@@ -149,7 +173,8 @@ def get_feature_mean_cache() -> FeatureMeanCache:
     """Get or create the global feature mean cache"""
     global _feature_mean_cache
     if _feature_mean_cache is None:
-        _feature_mean_cache = FeatureMeanCache()
+        cache_dir = get_masking_output_dir() / "feature_mean_cache"
+        _feature_mean_cache = FeatureMeanCache(cache_dir=cache_dir)
     return _feature_mean_cache
 
 
@@ -164,7 +189,7 @@ class BaseMasker(ABC):
             strategy: Masking strategy to use
         """
         self.strategy = strategy
-        self.output_root = Path("/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/outputs/masked_inputs")
+        self.output_root = get_masking_output_dir() / "masked_inputs"
 
     def mask(
         self,
@@ -263,6 +288,55 @@ class BaseMasker(ABC):
     def validate_region(self, region: Dict[str, Any]) -> bool:
         """Validate that region specification is valid"""
         pass
+
+    def save_from_kwargs(self, data: Any, **kwargs):
+        """Save pre-modified data using the same naming/path logic as mask().
+
+        Use this when the input modification is done outside of mask() (e.g., SD
+        inpainting, text replacement, tabular direct-set) so the result still gets
+        persisted to the masked_inputs directory.
+
+        Args:
+            data: Already-modified data to save.
+            **kwargs: Same kwargs accepted by mask():
+                - dataset_base_name, row_no, tool_name, instance_suffix, mask_suffix
+        """
+        import re
+
+        dataset_base_name = kwargs.get('dataset_base_name')
+        row_no = kwargs.get('row_no')
+        tool_name = kwargs.get('tool_name')
+        instance_suffix = kwargs.get('instance_suffix', '')
+        mask_suffix = kwargs.get('mask_suffix', '')
+
+        dataset_name = None
+        q_type_str = None
+        if dataset_base_name:
+            match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+            if match:
+                dataset_name = match.group(1)
+                q_type_str = match.group(2)
+
+        instance_str = instance_suffix.strip('_') if instance_suffix else ''
+        if dataset_name and row_no is not None:
+            if tool_name:
+                auto_filename = (f"{tool_name}_mask_{dataset_name}_{row_no}_{instance_str}"
+                                 if instance_str else f"{tool_name}_mask_{dataset_name}_{row_no}")
+            else:
+                auto_filename = (f"mask_{dataset_name}_{row_no}_{instance_str}"
+                                 if instance_str else f"mask_{dataset_name}_{row_no}")
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            auto_filename = f"mask_{timestamp}_{instance_str}" if instance_str else f"mask_{timestamp}"
+
+        if mask_suffix:
+            auto_filename = f"{auto_filename}{mask_suffix}"
+
+        self._current_dataset_name = dataset_name
+        self._current_q_type = q_type_str
+        self._current_question_id = f"{row_no}/{instance_str}" if instance_str else row_no
+
+        self.save(data, auto_filename)
 
     def _get_target_path(self, modality: str, extension: str, filename: str,
                          dataset_name: str = None, q_type: str = None, question_id: str = None) -> Path:
@@ -495,13 +569,26 @@ class TextMasker(BaseMasker):
         super().__init__(strategy)
         self.mask_token = mask_token
 
-    def _apply_mask(self, input_data: str, region: Dict[str, Any], **kwargs) -> str:
+    def _apply_mask(self, input_data: Any, region: Dict[str, Any], **kwargs) -> Any:
         if not self.validate_region(region):
             raise ValueError(f"Invalid region specification: {region}")
 
+        # Handle NLI dict input: {'premise': '...', 'hypothesis': '...'}
+        # Region indices refer to the premise text; hypothesis stays unchanged
+        if isinstance(input_data, dict) and 'premise' in input_data:
+            text = input_data['premise']
+            masked_premise = self._mask_text(text, region, **kwargs)
+            result = input_data.copy()
+            result['premise'] = masked_premise
+            return result
+
+        return self._mask_text(input_data, region, **kwargs)
+
+    def _mask_text(self, text: str, region: Dict[str, Any], **kwargs) -> str:
+        """Apply masking strategy to a text string."""
         start, end = region["start_index"], region["end_index"]
-        start = max(0, min(start, len(input_data)))
-        end = max(0, min(end, len(input_data)))
+        start = max(0, min(start, len(text)))
+        end = max(0, min(end, len(text)))
 
         if self.strategy == MaskingStrategy.DELETE:
             # Simply remove the text span
@@ -518,18 +605,29 @@ class TextMasker(BaseMasker):
         else:
             replacement = kwargs.get("replacement", "")
 
-        return input_data[:start] + replacement + input_data[end:]
+        return text[:start] + replacement + text[end:]
 
-    def save(self, masked_data: str, filename: str):
-        """Save text as .txt"""
-        save_path = self._get_target_path(
-            "text", "txt", filename,
-            dataset_name=getattr(self, '_current_dataset_name', None),
-            q_type=getattr(self, '_current_q_type', None),
-            question_id=getattr(self, '_current_question_id', None)
-        )
-        with open(save_path, "w", encoding="utf-8") as f:
-            f.write(masked_data)
+    def save(self, masked_data: Any, filename: str):
+        """Save text as .txt (or .json for NLI dict)"""
+        if isinstance(masked_data, dict):
+            save_path = self._get_target_path(
+                "text", "json", filename,
+                dataset_name=getattr(self, '_current_dataset_name', None),
+                q_type=getattr(self, '_current_q_type', None),
+                question_id=getattr(self, '_current_question_id', None)
+            )
+            import json as _json
+            with open(save_path, "w", encoding="utf-8") as f:
+                _json.dump(masked_data, f, indent=2, ensure_ascii=False)
+        else:
+            save_path = self._get_target_path(
+                "text", "txt", filename,
+                dataset_name=getattr(self, '_current_dataset_name', None),
+                q_type=getattr(self, '_current_q_type', None),
+                question_id=getattr(self, '_current_question_id', None)
+            )
+            with open(save_path, "w", encoding="utf-8") as f:
+                f.write(masked_data)
         print(f"[Auto-Save] Text output: {save_path}")
 
     def validate_region(self, region: Dict[str, Any]) -> bool:
@@ -572,23 +670,28 @@ class TabularMasker(BaseMasker):
         # Get dataset path from kwargs or instance
         dataset_path = kwargs.get("dataset_path", self.dataset_path)
 
+        # For tabular, GRAY is not meaningful — treat as MEAN (dataset feature mean)
+        effective_strategy = self.strategy
+        if effective_strategy == MaskingStrategy.GRAY:
+            effective_strategy = MaskingStrategy.MEAN
+
         if isinstance(input_data, dict):
             data = input_data.copy()
             if feature_key not in data:
                 raise ValueError(f"Feature '{feature_key}' not found in input data")
 
-            if self.strategy == MaskingStrategy.ZERO:
+            if effective_strategy == MaskingStrategy.ZERO:
                 data[feature_key] = 0
 
-            elif self.strategy == MaskingStrategy.MEAN:
+            elif effective_strategy == MaskingStrategy.MEAN:
                 # Try to get mean from cache or compute from dataset
                 mean_value = self._get_feature_mean(feature_key, dataset_path, kwargs)
                 data[feature_key] = mean_value
 
-            elif self.strategy == MaskingStrategy.DELETE:
+            elif effective_strategy == MaskingStrategy.DELETE:
                 del data[feature_key]
 
-            elif self.strategy == MaskingStrategy.RANDOM:
+            elif effective_strategy == MaskingStrategy.RANDOM:
                 original = data[feature_key]
                 if isinstance(original, (int, float)):
                     data[feature_key] = np.random.uniform(original * 0.5, original * 1.5)
@@ -605,25 +708,39 @@ class TabularMasker(BaseMasker):
             try:
                 col_idx = int(feature_key)
             except ValueError:
-                raise ValueError(f"For array/tensor input, feature_key must be column index, got: {feature_key}")
+                # feature_key is a string name — look up in feature_names if provided
+                feature_names = kwargs.get('feature_names', [])
+                if feature_names and feature_key in feature_names:
+                    col_idx = feature_names.index(feature_key)
+                else:
+                    raise ValueError(
+                        f"For array/tensor input, feature_key must be a column index or a name "
+                        f"in feature_names. Got: '{feature_key}'. "
+                        f"feature_names provided: {bool(feature_names)}"
+                    )
 
-            if self.strategy == MaskingStrategy.ZERO:
+            if effective_strategy == MaskingStrategy.ZERO:
                 if data.ndim == 2:
                     data[:, col_idx] = 0
                 else:
                     data[col_idx] = 0
 
-            elif self.strategy == MaskingStrategy.MEAN:
-                # Compute mean from the column itself if no dataset provided
+            elif effective_strategy == MaskingStrategy.MEAN:
+                dataset_path = kwargs.get("dataset_path", self.dataset_path)
                 if data.ndim == 2:
+                    # 2D: compute mean of column across batch
                     col_data = data[:, col_idx]
                     mean_val = col_data.mean().item() if is_tensor else col_data.mean()
                     data[:, col_idx] = mean_val
                 else:
-                    mean_val = data.mean().item() if is_tensor else data.mean()
-                    data[col_idx] = mean_val
+                    # 1D (single sample): use dataset feature mean (0.0 for StandardScaler)
+                    mean_val = self._get_feature_mean(feature_key, dataset_path, kwargs)
+                    if is_tensor:
+                        data[col_idx] = torch.tensor(mean_val, dtype=data.dtype)
+                    else:
+                        data[col_idx] = mean_val
 
-            elif self.strategy == MaskingStrategy.DELETE:
+            elif effective_strategy == MaskingStrategy.DELETE:
                 if data.ndim == 2:
                     if is_tensor:
                         indices = [i for i in range(data.shape[1]) if i != col_idx]

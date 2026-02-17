@@ -359,6 +359,18 @@ class PromptBuilder(ABC):
 
     def _get_image_size_from_results(self, tool_results: Dict[str, Any]) -> tuple:
         """Extract image size from tool results"""
+        # Handle multi-instance format: check inside instance dicts
+        is_multi = any(k.startswith('instance_') for k in tool_results.keys())
+        if is_multi:
+            for inst_key in tool_results:
+                if inst_key.startswith('instance_') and isinstance(tool_results[inst_key], dict):
+                    for tool_name, result in tool_results[inst_key].items():
+                        if isinstance(result, dict) and result.get('success'):
+                            img_size = result.get('original_image_size', {})
+                            if img_size:
+                                return img_size.get('width', 224), img_size.get('height', 224)
+            return 224, 224
+
         for tool_name, result in tool_results.items():
             # Skip autonomous_tasks
             if tool_name == 'autonomous_tasks':
@@ -374,19 +386,87 @@ class PromptBuilder(ABC):
         if not tool_results:
             return "No tool results available."
 
+        # Detect multi-instance format: {"instance_0": {tools...}, "instance_1": {tools...}}
+        is_multi = any(k.startswith('instance_') for k in tool_results.keys())
+
         lines = []
-        for tool_name, result in tool_results.items():
-            # Skip autonomous_tasks - they are formatted separately
-            if tool_name == 'autonomous_tasks':
-                continue
-            if isinstance(result, dict):
-                success = result.get('success', False)
-                summary = result.get('summary', result.get('description', 'N/A'))
-                lines.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
+        if is_multi:
+            for inst_key in sorted(k for k in tool_results if k.startswith('instance_')):
+                inst_results = tool_results[inst_key]
+                lines.append(f"\n**{inst_key}:**")
+                for tool_name, result in inst_results.items():
+                    if tool_name == 'autonomous_tasks':
+                        continue
+                    if isinstance(result, dict):
+                        success = result.get('success', False)
+                        summary = result.get('summary', result.get('description', 'N/A'))
+                        lines.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
+        else:
+            for tool_name, result in tool_results.items():
+                if tool_name == 'autonomous_tasks':
+                    continue
+                if isinstance(result, dict):
+                    success = result.get('success', False)
+                    summary = result.get('summary', result.get('description', 'N/A'))
+                    lines.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
         return "\n".join(lines) if lines else "No tool results available."
 
     def _format_detailed_statistics(self, tool_results: Dict[str, Any]) -> str:
         """Format detailed statistics from tool results including coordinates"""
+        if not tool_results:
+            return "No detailed statistics available."
+
+        # Detect multi-instance format: {"instance_0": {tools...}, "instance_1": {tools...}}
+        is_multi = any(k.startswith('instance_') for k in tool_results.keys())
+
+        if is_multi:
+            all_lines = []
+            for inst_key in sorted(k for k in tool_results if k.startswith('instance_')):
+                inst_results = tool_results[inst_key]
+                all_lines.append(f"\n## {inst_key}")
+                inst_text = self._format_detailed_statistics_single(inst_results)
+                if inst_text and inst_text != "No detailed statistics available.":
+                    all_lines.append(inst_text)
+                else:
+                    all_lines.append("No detailed statistics for this instance.")
+            # Also handle autonomous_tasks at the top level
+            autonomous_tasks = tool_results.get('autonomous_tasks', {})
+            if autonomous_tasks:
+                all_lines.append(self._format_autonomous_tasks(autonomous_tasks))
+            return "\n".join(all_lines) if all_lines else "No detailed statistics available."
+
+        return self._format_detailed_statistics_single(tool_results)
+
+    def _format_autonomous_tasks(self, autonomous_tasks: Dict[str, Any]) -> str:
+        """Format autonomous task results."""
+        lines = ["\n## Autonomous Reasoning Results"]
+        for task_type, task_result in autonomous_tasks.items():
+            if not isinstance(task_result, dict):
+                continue
+            success = task_result.get('success', False)
+            query = task_result.get('query', '')
+            lines.append(f"\n### {task_type.upper()} Task")
+            lines.append(f"- Query: {query}")
+            lines.append(f"- Status: {'Success' if success else 'Failed'}")
+            if success and 'result' in task_result:
+                result_data = task_result['result']
+                if isinstance(result_data, dict):
+                    import json as _json
+                    for key, value in result_data.items():
+                        if key == 'explanation':
+                            lines.append(f"- Explanation: {value}")
+                        elif key == 'confidence':
+                            lines.append(f"- Confidence: {value}")
+                        else:
+                            lines.append(f"- {key}: {_json.dumps(value)}")
+                elif isinstance(result_data, str):
+                    lines.append(f"- Result: {result_data}")
+                elif 'text_response' in task_result:
+                    lines.append(f"- Result: {task_result['text_response']}")
+        return "\n".join(lines)
+
+    def _format_detailed_statistics_single(self, tool_results: Dict[str, Any]) -> str:
+        """Format detailed statistics from a single set of tool results."""
         if not tool_results:
             return "No detailed statistics available."
 
@@ -521,35 +601,7 @@ class PromptBuilder(ABC):
         # Format autonomous task results
         autonomous_tasks = tool_results.get('autonomous_tasks', {})
         if autonomous_tasks:
-            lines.append("\n## Autonomous Reasoning Results")
-            for task_type, task_result in autonomous_tasks.items():
-                if not isinstance(task_result, dict):
-                    continue
-
-                success = task_result.get('success', False)
-                query = task_result.get('query', '')
-
-                lines.append(f"\n### {task_type.upper()} Task")
-                lines.append(f"- Query: {query}")
-                lines.append(f"- Status: {'Success' if success else 'Failed'}")
-
-                if success and 'result' in task_result:
-                    result_data = task_result['result']
-                    if isinstance(result_data, dict):
-                        import json as _json
-                        # Include all structured data from the result
-                        for key, value in result_data.items():
-                            if key == 'explanation':
-                                lines.append(f"- Explanation: {value}")
-                            elif key == 'confidence':
-                                lines.append(f"- Confidence: {value}")
-                            else:
-                                # Serialize structured data (objects, discriminative_features, etc.)
-                                lines.append(f"- {key}: {_json.dumps(value)}")
-                    elif isinstance(result_data, str):
-                        lines.append(f"- Result: {result_data}")
-                    elif 'text_response' in task_result:
-                        lines.append(f"- Result: {task_result['text_response']}")
+            lines.append(self._format_autonomous_tasks(autonomous_tasks))
 
         return "\n".join(lines) if lines else "No detailed statistics available."
 
@@ -683,6 +735,81 @@ class PromptBuilder(ABC):
             sections.append(f"### Autonomous Reasoning Results\n{autonomous_str}")
 
         return "\n\n".join(sections) if sections else "Analysis completed."
+
+    def _format_instance_data_section(self, context: Dict[str, Any]) -> str:
+        """Format text/tabular instance data for inclusion in prompts.
+
+        Returns a '## Instance Data' section string, or empty string for vision.
+        """
+        instance_data = context.get('instance_data')
+        if not instance_data:
+            return ""
+
+        modality = context.get('modality', 'vision')
+        if modality == 'vision':
+            return ""
+
+        lines = ["\n## Instance Data"]
+        labels = "ABCDEFGHIJ"
+        for i, inst in enumerate(instance_data):
+            label = labels[i] if i < len(labels) else str(i)
+            idx = inst.get('index', inst.get('row_no', '?'))
+            target = inst.get('target', {})
+            predicted = inst.get('predicted', {})
+            target_lbl = target.get('label', target.get('value', '?')) if isinstance(target, dict) else target
+            pred_lbl = predicted.get('label', predicted.get('value', '?')) if isinstance(predicted, dict) else predicted
+
+            lines.append(f"\n### Instance {label} (index {idx}) — true: {target_lbl}, predicted: {pred_lbl}")
+
+            if modality == 'text':
+                if 'text' in inst:
+                    text = inst['text']
+                    # Truncate very long texts for prompt
+                    if len(text) > 800:
+                        text = text[:800] + "..."
+                    lines.append(f"```\n{text}\n```")
+                elif 'premise' in inst:
+                    lines.append(f"Premise: {inst['premise']}")
+                    lines.append(f"Hypothesis: {inst.get('hypothesis', '')}")
+            elif modality == 'tabular':
+                feat = inst.get('features', {})
+                feat_str = ", ".join(f"{k}={v}" for k, v in feat.items())
+                lines.append(f"Features: {feat_str}")
+
+        return "\n".join(lines)
+
+    def _format_single_instance_data_section(self, context: Dict[str, Any]) -> str:
+        """Format single-instance text/tabular data for inclusion in actor prompts.
+
+        Uses 'instance_data_single' from context (set by actor._build_context).
+        Returns '## Input Data' section string, or empty string for vision.
+        """
+        inst = context.get('instance_data_single')
+        if not inst:
+            return ""
+
+        modality = context.get('modality', 'vision')
+        if modality == 'vision':
+            return ""
+
+        lines = ["\n## Input Data"]
+        if modality == 'text':
+            text = inst.get('text', '')
+            premise = inst.get('premise', '')
+            if premise:
+                lines.append(f"Premise: {premise}")
+                lines.append(f"Hypothesis: {inst.get('hypothesis', '')}")
+            elif text:
+                if len(text) > 800:
+                    text = text[:800] + "..."
+                lines.append(f"```\n{text}\n```")
+        elif modality == 'tabular':
+            feat = inst.get('features', {})
+            if isinstance(feat, dict) and feat:
+                feat_str = ", ".join(f"{k}={v}" for k, v in feat.items())
+                lines.append(f"Features: {feat_str}")
+
+        return "\n".join(lines)
 
 
 class MultiInstancePromptBuilder(PromptBuilder):

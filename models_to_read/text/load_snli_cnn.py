@@ -3,15 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Any, Optional, Union, List
 import re
+from datasets import load_dataset
+from collections import Counter
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-VOCAB_SIZE = 30000
+VOCAB_SIZE = 20002
 EMBED_DIM = 300
 NUM_FILTERS = 100
 KERNEL_SIZES = (3, 4, 5)
 MAX_LENGTH = 128
 NUM_CLASSES = 3
+
+# Global vocabulary variable, will be populated by load_model
+global_vocab = None
 
 LABEL_MAP = {
     0: "entailment",
@@ -72,39 +77,44 @@ class CNN_SNLI(nn.Module):
         return self.fc(x)
 
 
-def simple_tokenize(text: str, max_length: int = MAX_LENGTH, vocab_size: int = VOCAB_SIZE) -> List[int]:
+def tokenize(text):
+    """Tokenize text for vocabulary building."""
+    return re.findall(r"\b\w+\b", text.lower())
+
+
+def simple_tokenize(text: str, max_length: int = MAX_LENGTH) -> List[int]:
     """
-    Simple tokenization for text: convert words to hash-based token IDs.
+    Simple tokenization for text: convert words to token IDs using the global vocabulary.
 
     Args:
         text: Input text string
         max_length: Maximum sequence length
-        vocab_size: Size of vocabulary (for hash modulo)
 
     Returns:
         List of token IDs
     """
-    # Clean and lowercase
+    global global_vocab
+    if global_vocab is None:
+        raise ValueError("Vocabulary not initialized. Call load_model first.")
+
     text = text.lower()
     text = re.sub(r'[^a-z0-9\s]', ' ', text)
     words = text.split()
 
-    # Convert to token IDs using hash
     token_ids = []
     for word in words[:max_length]:
-        token_id = (hash(word) % (vocab_size - 2)) + 2
+        token_id = global_vocab.get(word, global_vocab["<unk>"])
         token_ids.append(token_id)
 
-    # Pad or truncate to max_length
     if len(token_ids) < max_length:
-        token_ids = token_ids + [0] * (max_length - len(token_ids))
+        token_ids = token_ids + [global_vocab["<pad>"]] * (max_length - len(token_ids))
     else:
         token_ids = token_ids[:max_length]
 
     return token_ids
 
 
-def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = EMBED_DIM,
+def load_model(model_path: str, embed_dim: int = EMBED_DIM,
                num_filters: int = NUM_FILTERS, kernel_sizes: tuple = KERNEL_SIZES,
                num_classes: int = NUM_CLASSES):
     """
@@ -112,7 +122,6 @@ def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = E
 
     Args:
         model_path (str): The path to the .pth model file.
-        vocab_size (int): Vocabulary size.
         embed_dim (int): Embedding dimension.
         num_filters (int): Number of filters per kernel size.
         kernel_sizes (tuple): Tuple of kernel sizes.
@@ -121,9 +130,27 @@ def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = E
     Returns:
         tuple: A tuple containing the loaded model and a processor (tokenizer function).
     """
-    model = CNN_SNLI(vocab_size, embed_dim, num_classes, num_filters, kernel_sizes)
+    global global_vocab
 
-    state_dict = torch.load(model_path, map_location=DEVICE)
+    print("Building vocabulary from SNLI training data...")
+    dataset_snli = load_dataset("snli")
+    dataset_snli = dataset_snli.filter(lambda x: x["label"] != -1)
+
+    counter = Counter()
+    for ex in dataset_snli["train"]:
+        counter.update(tokenize(ex["premise"]))
+        counter.update(tokenize(ex["hypothesis"]))
+
+    global_vocab = {"<pad>": 0, "<unk>": 1}
+    for word, _ in counter.most_common(VOCAB_SIZE - 2):
+        global_vocab[word] = len(global_vocab)
+
+    actual_vocab_size = len(global_vocab)
+    print(f"Vocabulary built with size: {actual_vocab_size}")
+
+    model = CNN_SNLI(actual_vocab_size, embed_dim, num_classes, num_filters, kernel_sizes)
+
+    state_dict = torch.load(model_path, map_location=DEVICE, weights_only=False)
     model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
@@ -131,38 +158,51 @@ def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = E
     return model, simple_tokenize
 
 
-def load_data(data_input: Dict[str, Any], index: Optional[int] = None) -> Dict[str, Any]:
+def load_data(data_input: Union[str, Dict[str, Any]], index: Optional[int] = None) -> Dict[str, Any]:
     """
     Load and preprocess text data for SNLI NLI classification.
 
     Args:
-        data_input: Dict containing 'premise' and 'hypothesis'
+        data_input: Dict containing 'premise' and 'hypothesis', or a string
         index: Optional index (for compatibility)
 
     Returns:
         Dict containing:
+            - text: Combined premise + hypothesis for display/tools
             - premise: Original premise text
             - hypothesis: Original hypothesis text
+            - token_ids: Tokenized premise (for compatibility with text tools)
             - premise_ids: Tokenized premise
             - hypothesis_ids: Tokenized hypothesis
+            - input_tensor: Premise tensor (for compatibility)
             - premise_tensor: Tensor ready for model
             - hypothesis_tensor: Tensor ready for model
     """
-    premise = data_input.get('premise', '')
-    hypothesis = data_input.get('hypothesis', '')
+    if isinstance(data_input, dict):
+        premise = data_input.get('premise', '')
+        hypothesis = data_input.get('hypothesis', '')
+    else:
+        # Fallback: treat as premise with empty hypothesis
+        premise = str(data_input)
+        hypothesis = ''
 
-    # Tokenize
     premise_ids = simple_tokenize(premise)
     hypothesis_ids = simple_tokenize(hypothesis)
 
     premise_tensor = torch.tensor([premise_ids], dtype=torch.long)
     hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long)
 
+    # Combined text for display and text-based XAI tools
+    combined_text = f"Premise: {premise} Hypothesis: {hypothesis}"
+
     return {
+        "text": combined_text,
         "premise": premise,
         "hypothesis": hypothesis,
+        "token_ids": premise_ids,
         "premise_ids": premise_ids,
         "hypothesis_ids": hypothesis_ids,
+        "input_tensor": premise_tensor,
         "premise_tensor": premise_tensor,
         "hypothesis_tensor": hypothesis_tensor,
         "index": index
@@ -171,7 +211,7 @@ def load_data(data_input: Dict[str, Any], index: Optional[int] = None) -> Dict[s
 
 def predict(
     model: nn.Module,
-    data_input: Union[Dict[str, Any], tuple],
+    text_input: Union[Dict[str, Any], tuple],
     tokenizer: Optional[callable] = None
 ) -> Dict[str, Any]:
     """
@@ -179,7 +219,7 @@ def predict(
 
     Args:
         model: Loaded PyTorch model
-        data_input: Either a dict with 'premise'/'hypothesis' or preprocessed tensors
+        text_input: Either a dict with 'premise'/'hypothesis' or preprocessed tensors
         tokenizer: Tokenizer function (optional, uses simple_tokenize if None)
 
     Returns:
@@ -187,30 +227,27 @@ def predict(
     """
     model.eval()
 
-    # Prepare input tensors
-    if isinstance(data_input, dict):
-        if 'premise_tensor' in data_input and 'hypothesis_tensor' in data_input:
-            premise_tensor = data_input['premise_tensor'].to(DEVICE)
-            hypothesis_tensor = data_input['hypothesis_tensor'].to(DEVICE)
-        elif 'premise_ids' in data_input and 'hypothesis_ids' in data_input:
-            premise_tensor = torch.tensor([data_input['premise_ids']], dtype=torch.long).to(DEVICE)
-            hypothesis_tensor = torch.tensor([data_input['hypothesis_ids']], dtype=torch.long).to(DEVICE)
+    if isinstance(text_input, dict):
+        if 'premise_tensor' in text_input and 'hypothesis_tensor' in text_input:
+            premise_tensor = text_input['premise_tensor'].to(DEVICE)
+            hypothesis_tensor = text_input['hypothesis_tensor'].to(DEVICE)
+        elif 'premise_ids' in text_input and 'hypothesis_ids' in text_input:
+            premise_tensor = torch.tensor([text_input['premise_ids']], dtype=torch.long).to(DEVICE)
+            hypothesis_tensor = torch.tensor([text_input['hypothesis_ids']], dtype=torch.long).to(DEVICE)
         else:
-            # Raw text
             if tokenizer is None:
                 tokenizer = simple_tokenize
-            premise_ids = tokenizer(data_input.get('premise', ''))
-            hypothesis_ids = tokenizer(data_input.get('hypothesis', ''))
+            premise_ids = tokenizer(text_input.get('premise', ''))
+            hypothesis_ids = tokenizer(text_input.get('hypothesis', ''))
             premise_tensor = torch.tensor([premise_ids], dtype=torch.long).to(DEVICE)
             hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(DEVICE)
-    elif isinstance(data_input, tuple) and len(data_input) == 2:
-        premise_tensor, hypothesis_tensor = data_input
+    elif isinstance(text_input, tuple) and len(text_input) == 2:
+        premise_tensor, hypothesis_tensor = text_input
         premise_tensor = premise_tensor.to(DEVICE)
         hypothesis_tensor = hypothesis_tensor.to(DEVICE)
     else:
-        raise TypeError(f"Unsupported data_input type: {type(data_input)}")
+        raise TypeError(f"Unsupported text_input type: {type(text_input)}")
 
-    # Make prediction
     with torch.no_grad():
         logits = model(premise_tensor, hypothesis_tensor)
         probabilities = torch.nn.functional.softmax(logits[0], dim=0)
@@ -222,7 +259,7 @@ def predict(
         "success": True,
         "predicted_class_idx": predicted_class,
         "predicted_class_name": LABEL_MAP[predicted_class],
-        "confidence": confidence,
+        "confidence": float(confidence),
         "probabilities": {
             "entailment": float(probabilities[0].item()),
             "neutral": float(probabilities[1].item()),
@@ -243,10 +280,11 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
     Returns:
         Dict containing model information
     """
+    global global_vocab
     return {
         "architecture": model.__class__.__name__,
         "num_classes": NUM_CLASSES,
-        "vocab_size": VOCAB_SIZE,
+        "vocab_size": len(global_vocab) if global_vocab else "Not Initialized",
         "embed_dim": EMBED_DIM,
         "num_filters": NUM_FILTERS,
         "kernel_sizes": KERNEL_SIZES,

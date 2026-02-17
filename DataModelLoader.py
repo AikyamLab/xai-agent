@@ -106,6 +106,73 @@ class DataModelLoader:
             return self.current_sample_data["image"]
         return None
 
+    def get_current_text(self) -> Optional[str]:
+        """
+        Returns the raw text from the currently loaded sample.
+
+        Returns:
+            str or None if no text sample is loaded.
+        """
+        if self.current_sample_data and "text" in self.current_sample_data:
+            return self.current_sample_data["text"]
+        if hasattr(self, 'current_text_data') and self.current_text_data is not None:
+            if isinstance(self.current_text_data, str):
+                return self.current_text_data
+            if isinstance(self.current_text_data, dict):
+                return self.current_text_data.get('text', str(self.current_text_data))
+        return None
+
+    def get_current_token_ids(self) -> Optional[list]:
+        """
+        Returns the token IDs from the currently loaded sample.
+        """
+        if self.current_sample_data and "token_ids" in self.current_sample_data:
+            return self.current_sample_data["token_ids"]
+        return None
+
+    def get_current_input(self) -> Any:
+        """
+        Returns the current input data based on modality.
+        """
+        if self.modality == 'vision':
+            return self.get_current_image()
+        elif self.modality == 'text':
+            return self.get_current_text()
+        elif self.modality == 'tabular':
+            if hasattr(self, 'current_tabular_data'):
+                return self.current_tabular_data
+            if self.current_sample_data:
+                return self.current_sample_data.get('features')
+        return None
+
+    def get_current_features(self) -> Optional[torch.Tensor]:
+        """Returns the preprocessed feature tensor for tabular data."""
+        if self.current_sample_data and "features" in self.current_sample_data:
+            return self.current_sample_data["features"]
+        return None
+
+    def get_current_features_dict(self) -> Optional[Dict[str, float]]:
+        """Returns the feature name->value dict for tabular data."""
+        if self.current_sample_data and "features_dict" in self.current_sample_data:
+            return self.current_sample_data["features_dict"]
+        return None
+
+    def get_feature_names(self) -> Optional[list]:
+        """Returns feature names for tabular data."""
+        if self.current_sample_data and "feature_names" in self.current_sample_data:
+            return self.current_sample_data["feature_names"]
+        if hasattr(self.loader_module, '_cache') and self.loader_module._cache.get("feature_names"):
+            return self.loader_module._cache["feature_names"]
+        return None
+
+    def get_training_data(self) -> Optional[torch.Tensor]:
+        """Returns training data tensor (for SHAP/LIME background data)."""
+        if hasattr(self.loader_module, '_cache'):
+            cache = self.loader_module._cache
+            if cache.get("X_train") is not None:
+                return cache["X_train"]
+        return None
+
     def get_current_tensor(self) -> Optional[torch.Tensor]:
         """
         Returns the preprocessed image tensor from the currently loaded sample.

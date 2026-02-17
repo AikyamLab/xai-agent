@@ -17,6 +17,8 @@ from .masking_utils import (
     TextMasker,
     TabularMasker,
     get_masker,
+    set_masking_output_dir,
+    get_masking_output_dir,
 )
 
 # Import explanation faithfulness evaluators
@@ -51,6 +53,8 @@ __all__ = [
     "TextMasker",
     "TabularMasker",
     "get_masker",
+    "set_masking_output_dir",
+    "get_masking_output_dir",
     # Explanation faithfulness evaluators
     "Q1Evaluator",
     "Q2Evaluator",

@@ -3,15 +3,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Any, Optional, Union, List
 import re
+from datasets import load_dataset # Added
+from collections import Counter # Added
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-VOCAB_SIZE = 20002
+# VOCAB_SIZE will be determined dynamically
 EMBED_DIM = 300
 NUM_FILTERS = 100
 KERNEL_SIZES = (3, 4, 5)
 MAX_LENGTH = 256
 NUM_CLASSES = 2
+
+# Global vocabulary variable, will be populated by load_model
+global_vocab = None
 
 LABEL_MAP = {
     0: "negative",
@@ -65,47 +70,49 @@ class CNN_IMDB(nn.Module):
         return self.fc(x)
 
 
-def simple_tokenize(text: str, max_length: int = MAX_LENGTH, vocab_size: int = VOCAB_SIZE) -> List[int]:
+def simple_tokenize(text: str, max_length: int = MAX_LENGTH) -> List[int]: # Removed vocab_size parameter
     """
-    Simple tokenization for text: convert words to hash-based token IDs.
+    Simple tokenization for text: convert words to token IDs using the global vocabulary.
 
     Args:
         text: Input text string
         max_length: Maximum sequence length
-        vocab_size: Size of vocabulary (for hash modulo)
 
     Returns:
         List of token IDs
     """
+    global global_vocab
+    if global_vocab is None:
+        raise ValueError("Vocabulary not initialized. Call load_model first.")
+
     # Clean and lowercase
     text = text.lower()
     text = re.sub(r'<br\s*/?>', ' ', text)  # Remove HTML breaks
     text = re.sub(r'[^a-z0-9\s]', ' ', text)  # Keep only alphanumeric
     words = text.split()
 
-    # Convert to token IDs using hash (reserve 0 for padding, 1 for unknown)
+    # Convert to token IDs using the global vocabulary
     token_ids = []
     for word in words[:max_length]:
-        token_id = (hash(word) % (vocab_size - 2)) + 2
+        token_id = global_vocab.get(word, global_vocab["<unk>"]) # Use <unk> for unknown words
         token_ids.append(token_id)
 
     # Pad or truncate to max_length
     if len(token_ids) < max_length:
-        token_ids = token_ids + [0] * (max_length - len(token_ids))
+        token_ids = token_ids + [global_vocab["<pad>"]] * (max_length - len(token_ids))
     else:
         token_ids = token_ids[:max_length]
 
     return token_ids
 
 
-def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = EMBED_DIM,
-               num_filters: int = NUM_FILTERS, kernel_sizes: tuple = KERNEL_SIZES):
+def load_model(model_path: str, embed_dim: int = EMBED_DIM,
+               num_filters: int = NUM_FILTERS, kernel_sizes: tuple = KERNEL_SIZES): # Removed vocab_size parameter
     """
     Loads the IMDB CNN model.
 
     Args:
         model_path (str): The path to the .pth model file.
-        vocab_size (int): Vocabulary size.
         embed_dim (int): Embedding dimension.
         num_filters (int): Number of filters per kernel size.
         kernel_sizes (tuple): Tuple of kernel sizes.
@@ -113,14 +120,35 @@ def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = E
     Returns:
         tuple: A tuple containing the loaded model and a processor (tokenizer function).
     """
-    model = CNN_IMDB(vocab_size, embed_dim, num_filters, kernel_sizes)
+    global global_vocab # Access the global vocabulary
 
-    state_dict = torch.load(model_path, map_location=DEVICE)
+    # Build Vocabulary — must use re.findall(r"\b\w+\b") to match training tokenizer
+    print("Building vocabulary...")
+    dataset_imdb = load_dataset("imdb")
+
+    def _tokenize(text):
+        return re.findall(r"\b\w+\b", text.lower())
+
+    counter = Counter()
+    for ex in dataset_imdb["train"]:
+        counter.update(_tokenize(ex["text"]))
+
+    global_vocab = {"<pad>": 0, "<unk>": 1} # Initialize global vocab
+    for word, _ in counter.most_common(20000): # Reference `load_imdb_cnn.py` uses 20000 here
+        global_vocab[word] = len(global_vocab)
+    
+    actual_vocab_size = len(global_vocab)
+    print(f"Vocabulary built with size: {actual_vocab_size}")
+
+    model = CNN_IMDB(actual_vocab_size, embed_dim, num_filters, kernel_sizes)
+
+    # Load Weights with weights_only=False (already present)
+    state_dict = torch.load(model_path, map_location=DEVICE, weights_only=False)
     model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
 
-    return model, simple_tokenize
+    return model, simple_tokenize # Return the now-adapted simple_tokenize
 
 
 def load_data(text_input: Union[str, Dict[str, Any]], index: Optional[int] = None) -> Dict[str, Any]:
@@ -231,10 +259,11 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
     Returns:
         Dict containing model information
     """
+    global global_vocab # Access the global vocabulary
     return {
         "architecture": model.__class__.__name__,
         "num_classes": NUM_CLASSES,
-        "vocab_size": VOCAB_SIZE,
+        "vocab_size": len(global_vocab) if global_vocab else "Not Initialized", # Use actual vocab size
         "embed_dim": EMBED_DIM,
         "num_filters": NUM_FILTERS,
         "kernel_sizes": KERNEL_SIZES,

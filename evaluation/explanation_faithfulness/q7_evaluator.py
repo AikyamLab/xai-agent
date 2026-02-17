@@ -96,9 +96,17 @@ class Q7Evaluator(BaseEvaluator):
             class_names = kwargs.get('class_names')
             agent_predicted_idx = self._get_class_index(agent_predicted_class, class_names)
 
-            # Check if agent correctly predicted
+            # Passed logic unchanged: binary correct/wrong
             correct = (actual_modified_class == agent_predicted_idx)
-            score = 1.0 if correct else 0.0
+
+            # Soft score: probability of agent's predicted class in modified output
+            modified_probs = modified_prediction.get('probabilities')
+            if modified_probs is not None and agent_predicted_idx >= 0:
+                p_agent_predicted = float(modified_probs[agent_predicted_idx])
+                score = max(0.0, min(1.0, p_agent_predicted))
+            else:
+                p_agent_predicted = None
+                score = 1.0 if correct else 0.0
 
             return EvaluationResult(
                 score=score,
@@ -112,7 +120,9 @@ class Q7Evaluator(BaseEvaluator):
                     "agent_predicted_class": agent_predicted_class,
                     "agent_predicted_idx": agent_predicted_idx,
                     "actual_modified_class": actual_modified_class,
-                    "interpretation": "1 = agent correctly predicted the new class"
+                    "p_agent_predicted_in_modified": p_agent_predicted,
+                    "binary_correct": correct,
+                    "interpretation": "Soft score: P(agent_predicted_class) in modified output, range [0,1]"
                 }
             )
 
@@ -140,18 +150,40 @@ class Q7Evaluator(BaseEvaluator):
 
         return None
 
-    def _get_class_index(self, class_ref: Any, class_names: list = None) -> int:
-        """Convert class reference to index"""
+    def _get_class_index(self, class_ref: Any, class_names=None) -> int:
+        """Convert class reference to index.
+
+        Handles both list and dict label_map formats.
+        dict format: {0: 'entailment', 1: 'neutral', 2: 'contradiction'}
+        list format: ['negative', 'positive']
+        Falls back to symbol-normalized comparison so "greater than 50K" matches ">50K".
+        """
         if isinstance(class_ref, int):
             return class_ref
         if isinstance(class_ref, str):
             if class_names:
-                try:
-                    return class_names.index(class_ref)
-                except ValueError:
-                    pass
+                items = class_names.items() if isinstance(class_names, dict) else enumerate(class_names)
+                # Pass 1: exact case-insensitive match
+                for idx, name in items:
+                    if str(name).lower() == class_ref.lower():
+                        return int(idx)
+                # Pass 2: symbol-normalized match (">50K" == "greater than 50K")
+                norm_ref = self._normalize_label(class_ref)
+                items = class_names.items() if isinstance(class_names, dict) else enumerate(class_names)
+                for idx, name in items:
+                    if self._normalize_label(str(name)) == norm_ref:
+                        return int(idx)
             try:
                 return int(class_ref)
             except ValueError:
                 pass
         return -1
+
+    @staticmethod
+    def _normalize_label(s: str) -> str:
+        """Expand comparison symbols to words for fuzzy label matching."""
+        s = s.lower().strip()
+        for sym, word in [('<=', 'less than or equal to '), ('>=', 'greater than or equal to '),
+                           ('<', 'less than '), ('>', 'greater than ')]:
+            s = s.replace(sym, word)
+        return ' '.join(s.split())

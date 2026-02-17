@@ -173,6 +173,7 @@ Provide your strategy as a JSON object:
         # Get image size constraint for vision modality
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
+        instance_data_section = self._format_single_instance_data_section(context)
 
         prompt = f"""You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
 
@@ -182,7 +183,7 @@ Provide your strategy as a JSON object:
 ## Predictions
 - Top-1: {top1} ({prediction.get('confidence', 0):.2%})
 - Top-2: {top2}
-{size_constraint}
+{size_constraint}{instance_data_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 
@@ -196,7 +197,7 @@ If this part were masked, the prediction should flip from top-1 to top-2.
         {output_format}
     }},
     "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**

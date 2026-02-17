@@ -11,6 +11,7 @@ This agent implements the evaluation pipeline for all 10 question types.
 
 from __future__ import annotations
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -139,6 +140,12 @@ class CriticAgent(BaseAgent):
             # Pass question info for masked input naming
             dataset_base_name = question.get('dataset_base_name', 'unknown')
             row_no = question.get('row_no', results.get('question_id', 0))
+
+            # Extract Q5/Q6/Q7-specific kwargs from the question's example field
+            q_specific = self._extract_q_specific_kwargs(q_type, question, modality, original_input)
+            # Merge into kwargs without overwriting already-provided values
+            for k, v in q_specific.items():
+                kwargs.setdefault(k, v)
 
             faithfulness_result = self.evaluate_faithfulness(
                 q_type=q_type,
@@ -587,3 +594,121 @@ class CriticAgent(BaseAgent):
                 "num_faithfulness_evaluated": len(faithfulness_scores)
             }
         }
+
+    # =========================================================================
+    # Q5/Q6/Q7 Specific Parsing Helpers
+    # =========================================================================
+
+    def _extract_q_specific_kwargs(
+        self, q_type: int, question: Dict, modality: str, original_input: Any
+    ) -> Dict:
+        """
+        Extract Q5/Q6/Q7-specific kwargs by parsing the question's example field.
+
+        Q5 needs 'queried_region', Q6 needs 'expected_class', Q7 needs 'part_to_change'.
+        These are embedded in the natural language 'example' field of each benchmark entry.
+        """
+        kwargs: Dict = {}
+        example = question.get('example', '')
+        if not example:
+            return kwargs
+
+        if q_type == 5:
+            region = self._parse_queried_region(example, modality, original_input, question)
+            if region is not None:
+                kwargs['queried_region'] = region
+        elif q_type == 6:
+            expected_class = self._parse_expected_class(example, modality)
+            if expected_class is not None:
+                kwargs['expected_class'] = expected_class
+        elif q_type == 7:
+            region = self._parse_queried_region(example, modality, original_input, question)
+            if region is not None:
+                kwargs['part_to_change'] = region
+
+        return kwargs
+
+    def _parse_queried_region(
+        self, example: str, modality: str, original_input: Any, question: Dict
+    ) -> Optional[Dict]:
+        """
+        Parse the queried region from the example sentence.
+
+        Text: extracts word from 'mask the word X' / 'remove/change the word X',
+              finds its character position in source text.
+        Tabular: extracts feature name from 'mask the X feature' / 'remove/change X, how'.
+        Vision: returns None (evaluator resolves region from context).
+        """
+        if modality == 'text':
+            m = re.search(
+                r"(?:mask|remove/change|remove|change)\s+the\s+word\s+'([^']+)'",
+                example, re.IGNORECASE
+            )
+            if not m:
+                return None
+            word = m.group(1)
+            source_text = self._get_text_from_input(original_input, question)
+            if source_text:
+                idx = source_text.find(word)
+                if idx >= 0:
+                    return {"start_index": idx, "end_index": idx + len(word)}
+            return None
+
+        elif modality == 'tabular':
+            # Q5: "mask the <feature> feature"
+            m = re.search(r"mask\s+the\s+(.+?)\s+feature", example, re.IGNORECASE)
+            if m:
+                return {"feature_key": m.group(1).strip()}
+            # Q7: "remove/change <feature>, how" or "remove/change <feature>?"
+            m = re.search(
+                r"remove/change\s+(.+?)(?:\s*,|\s*\?|$)", example, re.IGNORECASE
+            )
+            if m:
+                return {"feature_key": m.group(1).strip()}
+            return None
+
+        # Vision: don't attempt to parse from text
+        return None
+
+    def _parse_expected_class(self, example: str, modality: str) -> Optional[str]:
+        """
+        Parse the target/expected class from a Q6 example sentence.
+
+        Text: "flip the model's prediction to <class>"
+        Tabular: "flip the model into <class>"
+        """
+        # Text pattern (handles apostrophe variants)
+        m = re.search(
+            r"flip the model['\u2019]?s prediction to\s+([^?.\n]+)",
+            example, re.IGNORECASE
+        )
+        if m:
+            return m.group(1).strip()
+        # Tabular pattern
+        m = re.search(r"flip the model into\s+([^?.\n]+)", example, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+        return None
+
+    def _get_text_from_input(self, original_input: Any, question: Dict) -> Optional[str]:
+        """
+        Extract the source text string used for word-position search (Q5/Q7 text).
+
+        For NLI inputs the TextMasker operates on the premise, so we return premise.
+        """
+        # Prefer structured features from the benchmark question dict
+        features = question.get('features', {})
+        if isinstance(features, dict):
+            if 'premise' in features:
+                return features['premise']
+            if 'text' in features:
+                return features['text']
+        # Fall back to original_input
+        if isinstance(original_input, str):
+            return original_input
+        if isinstance(original_input, dict):
+            if 'premise' in original_input:
+                return original_input['premise']
+            if 'text' in original_input:
+                return original_input['text']
+        return None

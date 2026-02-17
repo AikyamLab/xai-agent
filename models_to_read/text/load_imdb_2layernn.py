@@ -2,14 +2,19 @@ import torch
 import torch.nn as nn
 from typing import Dict, Any, Optional, Union, List
 import re
+from datasets import load_dataset # Added
+from collections import Counter # Added
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-VOCAB_SIZE = 20002
+# VOCAB_SIZE will be determined dynamically
 EMBED_DIM = 300
 HIDDEN_DIM = 256
 MAX_LENGTH = 256
 NUM_CLASSES = 2
+
+# Global vocabulary variable, will be populated by load_model
+global_vocab = None
 
 LABEL_MAP = {
     0: "negative",
@@ -33,61 +38,83 @@ class TwoLayerNN_IMDB(nn.Module):
         return logits
 
 
-def simple_tokenize(text: str, max_length: int = MAX_LENGTH, vocab_size: int = VOCAB_SIZE) -> List[int]:
+def simple_tokenize(text: str, max_length: int = MAX_LENGTH) -> List[int]: # Removed vocab_size parameter
     """
-    Simple tokenization for text: convert words to hash-based token IDs.
+    Simple tokenization for text: convert words to token IDs using the global vocabulary.
 
     Args:
         text: Input text string
         max_length: Maximum sequence length
-        vocab_size: Size of vocabulary (for hash modulo)
 
     Returns:
         List of token IDs
     """
+    global global_vocab
+    if global_vocab is None:
+        raise ValueError("Vocabulary not initialized. Call load_model first.")
+
     # Clean and lowercase
     text = text.lower()
     text = re.sub(r'<br\s*/?>', ' ', text)  # Remove HTML breaks
     text = re.sub(r'[^a-z0-9\s]', ' ', text)  # Keep only alphanumeric
     words = text.split()
 
-    # Convert to token IDs using hash (reserve 0 for padding, 1 for unknown)
+    # Convert to token IDs using the global vocabulary
     token_ids = []
     for word in words[:max_length]:
-        # Use hash to get consistent token ID within vocab range
-        token_id = (hash(word) % (vocab_size - 2)) + 2  # Reserve 0=pad, 1=unk
+        token_id = global_vocab.get(word, global_vocab["<unk>"]) # Use <unk> for unknown words
         token_ids.append(token_id)
 
     # Pad or truncate to max_length
     if len(token_ids) < max_length:
-        token_ids = token_ids + [0] * (max_length - len(token_ids))
+        token_ids = token_ids + [global_vocab["<pad>"]] * (max_length - len(token_ids))
     else:
         token_ids = token_ids[:max_length]
 
     return token_ids
 
 
-def load_model(model_path: str, vocab_size: int = VOCAB_SIZE, embed_dim: int = EMBED_DIM, hidden_dim: int = HIDDEN_DIM):
+def load_model(model_path: str, embed_dim: int = EMBED_DIM, hidden_dim: int = HIDDEN_DIM):
     """
     Loads the IMDB 2-layer NN model.
 
     Args:
         model_path (str): The path to the .pth model file.
-        vocab_size (int): Vocabulary size.
         embed_dim (int): Embedding dimension.
         hidden_dim (int): Hidden layer dimension.
 
     Returns:
         tuple: A tuple containing the loaded model and a processor (tokenizer function).
     """
-    model = TwoLayerNN_IMDB(vocab_size, embed_dim, hidden_dim)
+    global global_vocab # Access the global vocabulary
 
-    state_dict = torch.load(model_path, map_location=DEVICE)
+    # Build Vocabulary — must use re.findall(r"\b\w+\b") to match training tokenizer
+    print("Building vocabulary...")
+    dataset_imdb = load_dataset("imdb")
+
+    def _tokenize(text):
+        return re.findall(r"\b\w+\b", text.lower())
+
+    counter = Counter()
+    for ex in dataset_imdb["train"]:
+        counter.update(_tokenize(ex["text"]))
+
+    global_vocab = {"<pad>": 0, "<unk>": 1}
+    for word, _ in counter.most_common(20000): # 20000 most common words + 2 special tokens
+        global_vocab[word] = len(global_vocab)
+    
+    actual_vocab_size = len(global_vocab)
+    print(f"Vocabulary built with size: {actual_vocab_size}")
+
+    model = TwoLayerNN_IMDB(actual_vocab_size, embed_dim, hidden_dim)
+
+    # Load Weights with weights_only=False
+    state_dict = torch.load(model_path, map_location=DEVICE, weights_only=False)
     model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
 
-    return model, simple_tokenize
+    return model, simple_tokenize # Return the now-adapted simple_tokenize
 
 
 def load_data(text_input: Union[str, Dict[str, Any]], index: Optional[int] = None) -> Dict[str, Any]:
@@ -198,10 +225,11 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
     Returns:
         Dict containing model information
     """
+    global global_vocab # Access the global vocabulary
     return {
         "architecture": model.__class__.__name__,
         "num_classes": NUM_CLASSES,
-        "vocab_size": VOCAB_SIZE,
+        "vocab_size": len(global_vocab) if global_vocab else "Not Initialized", # Use actual vocab size
         "embed_dim": EMBED_DIM,
         "hidden_dim": HIDDEN_DIM,
         "max_length": MAX_LENGTH,

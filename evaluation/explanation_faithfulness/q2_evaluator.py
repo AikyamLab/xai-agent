@@ -75,6 +75,7 @@ class Q2Evaluator(BaseEvaluator):
                     metric_formula=self.metric_formula,
                     errors=["Original probabilities not available"]
                 )
+            original_probs = self._normalize_probs(original_probs)
             p_original = float(original_probs[original_class])
 
             # Mask and get new prediction (use GRAY for neutral masking)
@@ -106,11 +107,16 @@ class Q2Evaluator(BaseEvaluator):
             # For least responsible, we want minimal change (positive or negative)
             # Higher score (closer to 1) = better
             probability_drop = p_original - p_modified
-            score = 1.0 - abs(probability_drop)
+            soft_score = 1.0 - abs(probability_drop)
 
-            # Passed if score >= 0.95 (i.e., |probability_drop| < 0.05)
+            # Size penalty: penalize small regions (reward finding large unimportant areas)
+            region_ratio = self.compute_region_ratio(region, original_input)
+            size_penalty = region_ratio
+            score = soft_score * size_penalty
+
+            # Passed if soft_score >= 0.95 (i.e., |probability_drop| < 0.05)
             threshold = 0.95
-            passed = score >= threshold
+            passed = soft_score >= threshold
 
             return EvaluationResult(
                 score=score,
@@ -123,8 +129,11 @@ class Q2Evaluator(BaseEvaluator):
                 details={
                     "region": region,
                     "probability_drop": probability_drop,
+                    "soft_score": soft_score,
+                    "region_ratio": region_ratio,
+                    "size_penalty": size_penalty,
                     "threshold": threshold,
-                    "interpretation": "Score closer to 1 = agent correctly identified unimportant region"
+                    "interpretation": "score = (1 - |P_orig - P_mod|) * region_ratio"
                 }
             )
 
