@@ -646,6 +646,9 @@ class ToolAttributionEvaluator:
         parsed_result['tool_results'] = filtered_tool_results
         parsed_result['visualization_paths'] = filtered_results_structure.get('visualization_paths', [])
 
+        # Save result to results/ directory (parallel to actor.run() behaviour)
+        self.actor._save_results(parsed_result, question, suffix=f"_{tool_config_name}")
+
         # Run Critic to evaluate faithfulness
         critic_kwargs = {
             'results': parsed_result,
@@ -654,7 +657,10 @@ class ToolAttributionEvaluator:
             'original_prediction': prediction,
             'processor': processor,
             'device': device,
-            'tool_name': tool_config_name
+            'tool_name': tool_config_name,
+            # Required for tabular masking (feature_key lookup) and class resolution
+            'feature_names': model_info.get('feature_names', []) if model_info else [],
+            'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors
@@ -722,7 +728,11 @@ class ToolAttributionEvaluator:
 
         print(f"      Evaluating no-tools config: VLM direct {modality} analysis...")
 
-        # Get actual image size
+        # Determine whether this is a multi-instance question (Q4, Q9, Q10)
+        is_multi = (question.get('is_multi_instance', False)
+                    and input_tensors and len(input_tensors) > 1)
+
+        # Get actual image size (use first instance as reference)
         image_size = self._get_image_size(input_tensor, input_path, modality)
 
         # Build prompt for VLM to analyze input directly (no tool results)
@@ -732,11 +742,18 @@ class ToolAttributionEvaluator:
             modality=modality,
             q_type=q_type,
             image_size=image_size,
-            input_data=input_tensor  # Pass input data for text/tabular
+            input_data=input_tensor,
+            # Multi-instance: expose ALL instances so VLM can reason about all of them
+            all_input_datas=input_tensors if is_multi else None,
+            all_predictions=predictions if is_multi else None
         )
 
-        # Prepare images for VLM (only for vision modality)
-        images = self._prepare_images_for_vlm(input_tensor, input_path, modality)
+        # Prepare images for VLM (vision only); include all instances for multi-instance Q types
+        images = self._prepare_images_for_vlm(
+            input_tensor, input_path, modality,
+            input_tensors=input_tensors if is_multi else None,
+            input_paths=input_paths if is_multi else None
+        )
 
         # Invoke VLM directly
         response = self.actor.invoke_vlm(prompt, images)
@@ -746,14 +763,26 @@ class ToolAttributionEvaluator:
         available_features = None
 
         if modality == "text":
-            text_input = question.get('text_input', '')
-            if not text_input and isinstance(input_tensor, str):
-                text_input = input_tensor
-            elif not text_input and isinstance(input_tensor, dict):
-                premise = input_tensor.get('premise', '')
-                hypothesis = input_tensor.get('hypothesis', '')
-                text_input = f"{premise} {hypothesis}"
-            text_length = len(text_input) if text_input else 100
+            def _get_text_len(t) -> int:
+                if isinstance(t, str):
+                    return len(t)
+                if isinstance(t, dict):
+                    p = t.get('premise', '')
+                    h = t.get('hypothesis', '')
+                    return len(p) + len(h) + 1
+                return 0
+            if is_multi and input_tensors:
+                # Use max length across all instances for conservative clipping
+                text_length = max((_get_text_len(t) for t in input_tensors), default=100) or 100
+            else:
+                text_input = question.get('text_input', '')
+                if not text_input and isinstance(input_tensor, str):
+                    text_input = input_tensor
+                elif not text_input and isinstance(input_tensor, dict):
+                    premise = input_tensor.get('premise', '')
+                    hypothesis = input_tensor.get('hypothesis', '')
+                    text_input = f"{premise} {hypothesis}"
+                text_length = len(text_input) if text_input else 100
 
         elif modality == "tabular":
             features = question.get('features', {})
@@ -781,6 +810,9 @@ class ToolAttributionEvaluator:
         parsed_result['visualization_paths'] = []
         parsed_result['no_tools_baseline'] = True
 
+        # Save result to results/ directory (same as actor.run() does)
+        self.actor._save_results(parsed_result, question, suffix="_no_tools")
+
         # Run Critic to evaluate faithfulness
         is_multi = question.get('is_multi_instance', False) and input_paths and predictions
         critic_kwargs = {
@@ -790,7 +822,10 @@ class ToolAttributionEvaluator:
             'original_prediction': prediction,
             'processor': processor,
             'device': device,
-            'tool_name': "no_tools"
+            'tool_name': "no_tools",
+            # Required for tabular masking (feature_key lookup) and class resolution
+            'feature_names': model_info.get('feature_names', []) if model_info else [],
+            'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors
@@ -854,115 +889,165 @@ class ToolAttributionEvaluator:
         modality: str,
         q_type: int,
         image_size: Tuple[int, int] = (224, 224),
-        input_data: Any = None
+        input_data: Any = None,
+        all_input_datas: Optional[List] = None,
+        all_predictions: Optional[List[Dict]] = None
     ) -> str:
         """
         Build prompt for VLM to analyze input directly without any XAI tool results.
         Supports vision, text, and tabular modalities.
+
+        Output format is driven by QUESTION_OUTPUT_SCHEMAS so it automatically
+        covers all Q-type × modality combinations without per-case hardcoding.
+
+        For multi-instance Q types (Q4, Q9, Q10), pass all_input_datas and
+        all_predictions so the VLM can reason about every instance.
         """
+        from prompts.output_schemas import get_output_schema
+
+        # Determine if we're in multi-instance mode
+        is_multi = bool(all_input_datas and len(all_input_datas) > 1)
+        instance_labels = [chr(ord('A') + i) for i in range(len(all_input_datas))] if is_multi else []
+
         pred_class = prediction.get('predicted_class_name',
                                     prediction.get('predicted_class_idx', 'Unknown'))
         confidence = prediction.get('confidence', 0.0)
 
-        # Build modality-specific sections
+        # Canonical output schema for this Q-type × modality
+        schema = get_output_schema(q_type, modality)
+        schema_str = json.dumps(schema, indent=4)
+
+        # Build modality-specific context sections
         if modality == "vision":
             image_width, image_height = image_size
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
             size_constraint = f"""
 **CRITICAL IMAGE SIZE CONSTRAINT:**
 - Image dimensions: {image_width} x {image_height} pixels
-- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- ALL bounding_box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
 - Example valid bounding box: [10, 20, 80, 70]"""
-            input_section = ""  # Image is passed separately
-            guidelines = """- For vision: Focus on the most distinctive visual features (e.g., face for animals, shape for objects)
-- Provide bounding box that covers the key discriminative region"""
+            # Images are passed separately; note labels if multi-instance
+            if is_multi:
+                pred_lines = []
+                for lbl, pred in zip(instance_labels, all_predictions or []):
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    conf = pred.get('confidence', 0.0)
+                    pred_lines.append(f"  - Instance {lbl}: {cls} (confidence: {conf:.2%})")
+                input_section = (
+                    "\n## Instances (images provided in order)\n"
+                    + "\n".join(pred_lines) + "\n"
+                )
+            else:
+                input_section = ""  # Single image passed separately
+            guidelines = (
+                "- Replace every placeholder value with your actual analysis result\n"
+                "- Bounding box must stay within image bounds"
+            )
 
         elif modality == "text":
-            # Get text content
-            text_input = question.get('text_input', '')
-            if not text_input and input_data:
-                if isinstance(input_data, str):
-                    text_input = input_data
-                elif isinstance(input_data, dict):
-                    # Handle premise/hypothesis format
-                    premise = input_data.get('premise', '')
-                    hypothesis = input_data.get('hypothesis', '')
-                    text_input = f"Premise: {premise}\nHypothesis: {hypothesis}" if premise else str(input_data)
+            def _extract_text(data) -> str:
+                if isinstance(data, str):
+                    return data
+                if isinstance(data, dict):
+                    premise = data.get('premise', '')
+                    hypothesis = data.get('hypothesis', '')
+                    return f"Premise: {premise}\nHypothesis: {hypothesis}" if premise else str(data)
+                return ''
 
-            text_length = len(text_input) if text_input else 100
-            output_format = '"start_index": int, "end_index": int'
-            size_constraint = f"""
+            if is_multi:
+                parts = []
+                max_len = 0
+                for lbl, data, pred in zip(instance_labels,
+                                           all_input_datas,
+                                           all_predictions or [{}] * len(all_input_datas)):
+                    txt = _extract_text(data)
+                    max_len = max(max_len, len(txt))
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    display = txt[:500] + "..." if len(txt) > 500 else txt
+                    parts.append(f"### Instance {lbl} (prediction: {cls})\n```\n{display}\n```")
+                text_length = max_len if max_len > 0 else 100
+                size_constraint = f"""
+**CRITICAL TEXT LENGTH CONSTRAINT (longest instance: {text_length} chars):**
+- start_index MUST be >= 0, end_index MUST be <= length of that instance's text, end_index > start_index"""
+                input_section = "\n## Input Instances\n" + "\n\n".join(parts) + "\n"
+            else:
+                text_input = question.get('text_input', '')
+                if not text_input and input_data:
+                    text_input = _extract_text(input_data)
+                text_length = len(text_input) if text_input else 100
+                size_constraint = f"""
 **CRITICAL TEXT LENGTH CONSTRAINT:**
 - Text length: {text_length} characters
-- start_index MUST be >= 0
-- end_index MUST be <= {text_length}
-- end_index MUST be > start_index"""
+- start_index MUST be >= 0, end_index MUST be <= {text_length}, end_index > start_index"""
+                display_text = text_input[:1000] + "..." if len(text_input) > 1000 else text_input
+                input_section = f"\n## Input Text\n```\n{display_text}\n```\n"
 
-            # Truncate very long text for prompt
-            display_text = text_input[:1000] + "..." if len(text_input) > 1000 else text_input
-            input_section = f"""
-## Input Text
-```
-{display_text}
-```
-"""
-            guidelines = """- For text: Identify the most important span of text (words/phrases) that influences the prediction
-- Provide character indices [start_index, end_index) for the important span
-- Focus on key words, phrases, or sentences that are most discriminative"""
+            guidelines = (
+                "- Replace every placeholder value with your actual analysis result\n"
+                "- start_index / end_index must be valid character positions in each instance's text"
+            )
 
         else:  # tabular
-            output_format = '"feature_key": "feature_name_string"'
             size_constraint = ""
 
-            # Get feature data
-            features = question.get('features', {})
-            if not features and input_data:
-                if isinstance(input_data, dict):
-                    features = input_data
+            def _extract_features(data) -> dict:
+                return data if isinstance(data, dict) else {}
 
-            # Format features for display
-            if features:
-                feature_lines = [f"  - {k}: {v}" for k, v in features.items()]
-                feature_display = "\n".join(feature_lines)
-                available_features = list(features.keys())
-                input_section = f"""
-## Input Features
-{feature_display}
-
-**Available feature names:** {available_features}
-"""
+            if is_multi:
+                parts = []
+                all_features = {}
+                for lbl, data, pred in zip(instance_labels,
+                                           all_input_datas,
+                                           all_predictions or [{}] * len(all_input_datas)):
+                    feats = _extract_features(data) or question.get('features', {})
+                    all_features = feats  # same schema across instances
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    feat_lines = "\n".join(f"  - {k}: {v}" for k, v in feats.items())
+                    parts.append(f"### Instance {lbl} (prediction: {cls})\n{feat_lines}")
+                input_section = (
+                    "\n## Input Instances\n"
+                    + "\n\n".join(parts)
+                    + f"\n\n**Available feature names:** {list(all_features.keys())}\n"
+                )
             else:
-                input_section = ""
+                features = question.get('features', {})
+                if not features and isinstance(input_data, dict):
+                    features = input_data
+                if features:
+                    feat_lines = "\n".join(f"  - {k}: {v}" for k, v in features.items())
+                    input_section = (
+                        f"\n## Input Features\n{feat_lines}\n"
+                        f"\n**Available feature names:** {list(features.keys())}\n"
+                    )
+                else:
+                    input_section = ""
 
-            guidelines = """- For tabular: Identify the single most important feature/column that influences the prediction
-- feature_key must be the exact name of one of the available features
-- Focus on features with unusual or distinctive values"""
+            guidelines = (
+                "- feature_key must be the EXACT name of one of the available features listed above\n"
+                "- Replace every placeholder value with your actual analysis result"
+            )
 
-        prompt = f"""You are an expert XAI analyst. Analyze the input DIRECTLY and identify the key feature responsible for the model's prediction.
+        # Prediction summary line (single-instance or first instance)
+        pred_summary = f"- Model Prediction: {pred_class} (confidence: {confidence:.2%})"
+        if is_multi and modality != "vision":
+            # Per-instance predictions already shown in input_section
+            pred_summary = f"- Instances: {len(all_input_datas)} (predictions shown per instance below)"
+
+        prompt = f"""You are an expert XAI analyst. Analyze the input DIRECTLY and answer the question about the model's prediction.
 
 ## Context
 - Question: {question.get('question', question.get('q', 'What is most responsible for the prediction?'))}
 - Question Type: Q{q_type}
 - Modality: {modality}
-- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+{pred_summary}
 {size_constraint}
 {input_section}
 ## IMPORTANT NOTE
-**NO XAI tool results are available.** You must analyze the input DIRECTLY to identify:
-- What features make this input lead to the prediction "{pred_class}"?
-- Which region/feature is most discriminative?
+**NO XAI tool results are available.** Analyze the input DIRECTLY.
 
-## Your Task
-Identify THE SINGLE MOST IMPORTANT region/feature based on your analysis.
+## Required Output Format
+Your response MUST be valid JSON matching this EXACT structure (replace placeholder values with your analysis):
 
-**CRITICAL: Your response MUST be valid JSON with this exact structure:**
-{{
-    "output": {{
-        {output_format}
-    }},
-    "explanation": "2-3 sentences explaining what features you observe that justify this region/feature being important",
-    "confidence": 0.0-1.0
-}}
+{schema_str}
 
 **Guidelines:**
 {guidelines}
@@ -975,43 +1060,57 @@ Respond with ONLY valid JSON:"""
         self,
         input_tensor: Any,
         input_path: str,
-        modality: str
+        modality: str,
+        input_tensors: Optional[List] = None,
+        input_paths: Optional[List[str]] = None
     ) -> Optional[List]:
-        """Prepare images for VLM invocation."""
+        """Prepare images for VLM invocation.
+
+        For multi-instance Q types (Q4, Q9, Q10), pass input_tensors / input_paths
+        to include all instances.  Falls back to the single-instance parameters
+        when the lists are not provided.
+        """
         if modality != "vision":
             return None
 
         from PIL import Image
         import os
 
-        images = []
+        def _tensor_to_pil(t) -> Optional["Image.Image"]:
+            """Convert a single tensor to PIL, or return None."""
+            try:
+                import torch, numpy as np
+                if isinstance(t, torch.Tensor):
+                    t = t.detach().cpu()
+                    if t.dim() == 4:
+                        t = t[0]
+                    if t.dim() == 3:
+                        arr = t.permute(1, 2, 0).numpy()
+                        mean = np.array([0.485, 0.456, 0.406])
+                        std  = np.array([0.229, 0.224, 0.225])
+                        arr = (arr * std + mean) * 255
+                        return Image.fromarray(arr.clip(0, 255).astype('uint8'))
+            except Exception:
+                pass
+            return None
 
-        # Handle different input types
-        if isinstance(input_tensor, Image.Image):
-            # Resize to consistent size
-            images.append(input_tensor.resize((224, 224)))
-        elif input_path and os.path.exists(input_path):
-            img = Image.open(input_path).convert('RGB')
-            images.append(img.resize((224, 224)))
-        elif hasattr(input_tensor, 'cpu'):
-            # It's a torch tensor, try to convert
-            import torch
-            import numpy as np
-            if isinstance(input_tensor, torch.Tensor):
-                # Denormalize if needed (assuming ImageNet normalization)
-                tensor = input_tensor.cpu()
-                if tensor.dim() == 4:
-                    tensor = tensor[0]  # Remove batch dim
-                if tensor.dim() == 3:
-                    # CHW to HWC
-                    arr = tensor.permute(1, 2, 0).numpy()
-                    # Denormalize
-                    mean = np.array([0.485, 0.456, 0.406])
-                    std = np.array([0.229, 0.224, 0.225])
-                    arr = arr * std + mean
-                    arr = (arr * 255).clip(0, 255).astype(np.uint8)
-                    img = Image.fromarray(arr)
-                    images.append(img.resize((224, 224)))
+        def _load_single(tensor, path) -> Optional["Image.Image"]:
+            if isinstance(tensor, Image.Image):
+                return tensor.convert("RGB")
+            if path and os.path.exists(path):
+                return Image.open(path).convert("RGB")
+            img = _tensor_to_pil(tensor)
+            return img
+
+        # Collect source list: prefer multi-instance lists
+        tensors = input_tensors if input_tensors else [input_tensor]
+        paths   = input_paths   if input_paths   else [input_path]
+
+        images = []
+        for t, p in zip(tensors, paths):
+            img = _load_single(t, p)
+            if img is not None:
+                images.append(img.resize((224, 224)))
 
         return images if images else None
 
@@ -1046,33 +1145,53 @@ Respond with ONLY valid JSON:"""
             end = max(start + 1, min(int(end), length))
             return start, end
 
+        # width/height defined here so both clip_region_dict and validate_and_fix_output
+        # can access them as a closure variable
+        width, height = image_size
+
+        def clip_region_dict(d: Dict) -> Dict:
+            """Clip/validate a single region dict in-place based on modality."""
+            if not isinstance(d, dict):
+                return d
+            if modality == "vision" and 'bounding_box' in d:
+                d['bounding_box'] = clip_bounding_box(d['bounding_box'], width, height)
+            elif modality == "text":
+                if 'start_index' in d and 'end_index' in d:
+                    s, e = clip_text_indices(d['start_index'], d['end_index'], text_length)
+                    d['start_index'], d['end_index'] = s, e
+            elif modality == "tabular" and available_features:
+                if 'feature_key' in d and d['feature_key'] not in available_features:
+                    d['feature_key'] = available_features[0] if available_features else "unknown"
+            return d
+
         def validate_and_fix_output(parsed: Dict, modality: str) -> Dict:
-            """Validate and fix output based on modality."""
+            """Validate and fix output based on modality.
+
+            Handles all region-containing structures across Q types:
+            - Q1-Q3, Q8: direct bounding_box / start+end / feature_key
+            - Q5, Q7: direct fields + nested masked_region
+            - Q6: nested change_plan
+            - Q4, Q9: nested input_A / input_B / input_C ...
+            - Q10: nested correct_instance_features / wrong_instance_features
+            """
             if 'output' not in parsed:
                 return parsed
 
             output = parsed['output']
 
-            if modality == "vision" and 'bounding_box' in output:
-                width, height = image_size
-                output['bounding_box'] = clip_bounding_box(output['bounding_box'], width, height)
+            # Direct region fields (Q1-Q3, Q8)
+            clip_region_dict(output)
 
-            elif modality == "text":
-                if 'start_index' in output and 'end_index' in output:
-                    start, end = clip_text_indices(
-                        output['start_index'],
-                        output['end_index'],
-                        text_length
-                    )
-                    output['start_index'] = start
-                    output['end_index'] = end
+            # Nested single-dict structures
+            for nested_key in ('change_plan', 'masked_region',
+                               'correct_instance_features', 'wrong_instance_features'):
+                if nested_key in output and isinstance(output[nested_key], dict):
+                    clip_region_dict(output[nested_key])
 
-            elif modality == "tabular" and available_features:
-                # Validate feature_key exists
-                if 'feature_key' in output:
-                    if output['feature_key'] not in available_features:
-                        # Try to find a close match or use first feature
-                        output['feature_key'] = available_features[0] if available_features else "unknown"
+            # Multi-instance: all input_* keys (Q4, Q9)
+            for key, val in output.items():
+                if key.startswith('input_') and isinstance(val, dict):
+                    clip_region_dict(val)
 
             parsed['output'] = output
             return parsed
@@ -1088,7 +1207,14 @@ Respond with ONLY valid JSON:"""
                     return validate_and_fix_output(parsed, modality)
 
                 # Try to restructure if output fields are at top level
-                if modality == "vision" and 'bounding_box' in parsed:
+                if 'change_plan' in parsed:
+                    # Q6-style: change_plan surfaced at top level
+                    return validate_and_fix_output({
+                        "output": {"change_plan": parsed['change_plan']},
+                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                        "confidence": parsed.get('confidence', 0.5)
+                    }, modality)
+                elif modality == "vision" and 'bounding_box' in parsed:
                     width, height = image_size
                     clipped_bbox = clip_bounding_box(parsed['bounding_box'], width, height)
                     return {

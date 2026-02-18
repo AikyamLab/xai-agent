@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from ..base_evaluator import BaseEvaluator, EvaluationResult
-from ..masking_utils import get_masker, MaskingStrategy
+from ..masking_utils import get_masker
 
 
 class Q8Evaluator(BaseEvaluator):
@@ -92,14 +92,15 @@ class Q8Evaluator(BaseEvaluator):
             original_probs = self._normalize_probs(original_probs)
             p_correct_original = float(original_probs[correct_class_idx])
 
-            # Mask spurious region (use GRAY for neutral masking)
-            masker = get_masker(self.modality, MaskingStrategy.GRAY)
+            # Mask using modality-appropriate default strategy
+            masker = get_masker(self.modality)
             masked_input = masker.mask(
                 original_input, region,
                 dataset_base_name=kwargs.get('dataset_base_name'),
                 row_no=kwargs.get('row_no'),
                 tool_name=kwargs.get('tool_name'),
-                mask_suffix=kwargs.get('mask_suffix', '')
+                mask_suffix=kwargs.get('mask_suffix', ''),
+                feature_names=kwargs.get('feature_names', [])
             )
 
             # Get prediction on masked input

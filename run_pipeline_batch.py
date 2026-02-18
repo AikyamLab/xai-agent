@@ -152,25 +152,29 @@ def get_dataset_path(
     q_type: int,
     dataset_dir: str,
     modality: str,
+    mode: str = "test",
     use_test_variant: bool = False
 ) -> Optional[str]:
-    """Get the path to a dataset file."""
+    """Get the path to a dataset file.
+
+    Benchmark JSONs live under ``dataset_dir/{mode}/{modality}/``.
+    """
     base_name = f"{dataset}_q{q_type}"
-    dataset_subdir = modality
+    mode_dir = Path(dataset_dir) / mode / modality
 
     # Try _test variant first if requested
     if use_test_variant:
-        test_path = Path(dataset_dir) / dataset_subdir / f"{base_name}_test.json"
+        test_path = mode_dir / f"{base_name}_test.json"
         if test_path.exists():
             return str(test_path)
 
     # Try standard path
-    standard_path = Path(dataset_dir) / dataset_subdir / f"{base_name}.json"
+    standard_path = mode_dir / f"{base_name}.json"
     if standard_path.exists():
         return str(standard_path)
 
     # Try special cases (e.g., adult_census_q4_pairs.json)
-    pairs_path = Path(dataset_dir) / dataset_subdir / f"{base_name}_pairs.json"
+    pairs_path = mode_dir / f"{base_name}_pairs.json"
     if pairs_path.exists():
         return str(pairs_path)
 
@@ -197,6 +201,7 @@ def build_jobs(
     question_ids: List[int],
     dataset_dir: str,
     models_dir: str,
+    mode: str = "test",
     use_test_variant: bool = False,
     logger: Optional[logging.Logger] = None
 ) -> List[Job]:
@@ -218,7 +223,7 @@ def build_jobs(
 
         for q_type in q_types:
             dataset_path = get_dataset_path(
-                dataset, q_type, dataset_dir, modality, use_test_variant
+                dataset, q_type, dataset_dir, modality, mode, use_test_variant
             )
 
             if not dataset_path:
@@ -252,6 +257,7 @@ def run_single_job(
     no_sf: bool,
     sf_max_samples: Optional[int],
     log_dir: Path,
+    mode: str = "test",
 ) -> JobResult:
     """Execute a single pipeline job."""
     start_time = datetime.now()
@@ -267,6 +273,7 @@ def run_single_job(
         "--models_dir", models_dir,
         "--output_dir", output_dir,
         "--vlm", vlm_model,
+        "--mode", mode,
         "--faithfulness_threshold", str(faithfulness_threshold),
     ]
 
@@ -364,6 +371,7 @@ def run_jobs_sequential(
             no_sf=config.get("no_sf", False),
             sf_max_samples=config.get("sf_max_samples"),
             log_dir=log_dir,
+            mode=config.get("mode", "test"),
         )
 
         results.append(result)
@@ -397,7 +405,9 @@ def run_jobs_parallel(
                 no_eval=config.get("no_eval", False),
                 no_improvement=config.get("no_improvement", False),
                 no_sf=config.get("no_sf", False),
+                sf_max_samples=config.get("sf_max_samples"),
                 log_dir=log_dir,
+                mode=config.get("mode", "test"),
             ): job
             for job in jobs
         }
@@ -499,6 +509,8 @@ Available Datasets:
     # Configuration options
     parser.add_argument("--config", type=str,
                         help="Path to JSON config file")
+    parser.add_argument("--mode", type=str, choices=["train", "test"], default="test",
+                        help="Dataset split to use: 'train' loads from dataset/train/, 'test' from dataset/test/ (default: test)")
     parser.add_argument("--use_test_variant", action="store_true",
                         help="Use _test variant dataset files if available")
 
@@ -547,6 +559,7 @@ Available Datasets:
     config["no_improvement"] = args.no_improvement
     config["no_sf"] = args.no_sf
     config["sf_max_samples"] = args.sf_max_samples
+    config["mode"] = args.mode
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -577,6 +590,7 @@ Available Datasets:
 
     logger.info(f"Configuration:")
     logger.info(f"  Datasets: {datasets}")
+    logger.info(f"  Mode: {config['mode']}")
     logger.info(f"  Q Types: {args.q_types}")
     logger.info(f"  Question IDs: {question_ids}")
     logger.info(f"  Use test variant: {args.use_test_variant}")
@@ -590,6 +604,7 @@ Available Datasets:
         question_ids=question_ids,
         dataset_dir=config["dataset_dir"],
         models_dir=config["models_dir"],
+        mode=config["mode"],
         use_test_variant=args.use_test_variant,
         logger=logger,
     )
@@ -610,7 +625,8 @@ Available Datasets:
                 f"--question_id {job.question_id} "
                 f"--model_url {job.model_path} "
                 f"--dataset_dir {config['dataset_dir']} "
-                f"--models_dir {config['models_dir']}"
+                f"--models_dir {config['models_dir']} "
+                f"--mode {config['mode']}"
             )
             logger.info(f"\n{job.job_id}:")
             logger.info(f"  {cmd}")
