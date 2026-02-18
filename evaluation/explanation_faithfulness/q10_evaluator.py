@@ -1,13 +1,13 @@
 """
-Q10 Evaluator: Similar Instances, Different Predictions
+Q4 Evaluator: Contrastive Instances (Why A != B)
 
-Metric: -Sim(F_correct, F_wrong)
-Lower similarity = better (features should be distinct)
+Metric: 1 - Sim(F_A, F_B)
+Higher score = better (features should be distinct between instances)
 
 Similarity measures:
-- Vision: Word similarity on natural language descriptions
-- Text: Word overlap between spans extracted from input texts
-- Tabular: Feature key overlap
+- Vision: Jaccard word similarity on concise feature phrases
+- Text: Word overlap between extracted spans
+- Tabular: Jaccard overlap weighted by rank agreement on top_features lists
 """
 
 from typing import Any, Dict, List, Set
@@ -15,6 +15,7 @@ import re
 
 from ..base_evaluator import MultiInstanceEvaluator, EvaluationResult
 
+threshold = 0.5
 
 class Q10Evaluator(MultiInstanceEvaluator):
     """Evaluator for Q10: Similar instances with different predictions"""
@@ -29,7 +30,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
 
     @property
     def metric_formula(self) -> str:
-        return "-Sim(F_correct, F_wrong)"
+        return "1-Sim(F_correct, F_wrong)"
 
     def evaluate_multi(
         self,
@@ -90,7 +91,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
             score = 1.0 - similarity
 
             # Passed logic unchanged: similarity below threshold
-            passed = similarity < 0.5
+            passed = similarity < threshold
 
             return EvaluationResult(
                 score=score,
@@ -101,7 +102,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
                     "correct_features": correct_features,
                     "wrong_features": wrong_features,
                     "similarity": similarity,
-                    "threshold": 0.5,
+                    "threshold": threshold,
                     "interpretation": "Soft score: 1 - similarity, range [0,1], higher = more distinct"
                 }
             )
@@ -211,6 +212,14 @@ class Q10Evaluator(MultiInstanceEvaluator):
         except Exception:
             return 0.0
 
+    @staticmethod
+    def _strip_value_annotation(feat: str) -> str:
+        """Strip parenthesized value annotations from feature strings.
+
+        e.g. 'mean_compactness (0.03834-0.08468)' -> 'mean_compactness'
+        """
+        return re.sub(r'\s*\(.*?\)\s*$', '', str(feat)).strip()
+
     def _compute_feature_similarity(
         self,
         features1: Dict,
@@ -223,6 +232,9 @@ class Q10Evaluator(MultiInstanceEvaluator):
         - Jaccard measures how many features overlap between two top-k lists
         - Rank agreement measures whether shared features have similar ranks
         - Final similarity = Jaccard * rank_agreement (0 if no overlap)
+
+        Feature strings may include value annotations like 'mean_compactness (0.123)'
+        which are stripped before comparison so the same feature name matches.
         """
         try:
             list1 = features1.get('top_features', []) if isinstance(features1, dict) else []
@@ -237,7 +249,11 @@ class Q10Evaluator(MultiInstanceEvaluator):
             if not list1 or not list2:
                 return 0.0
 
-            set1, set2 = set(list1), set(list2)
+            # Normalize: strip value annotations before comparison
+            norm1 = [self._strip_value_annotation(f) for f in list1]
+            norm2 = [self._strip_value_annotation(f) for f in list2]
+
+            set1, set2 = set(norm1), set(norm2)
             intersection = set1 & set2
             union = set1 | set2
 
@@ -249,8 +265,8 @@ class Q10Evaluator(MultiInstanceEvaluator):
             # Rank agreement: average of 1/(1+|rank_diff|) for shared features
             rank_scores = []
             for feat in intersection:
-                r1 = list1.index(feat) + 1
-                r2 = list2.index(feat) + 1
+                r1 = norm1.index(feat) + 1
+                r2 = norm2.index(feat) + 1
                 rank_scores.append(1.0 / (1.0 + abs(r1 - r2)))
             rank_agreement = sum(rank_scores) / len(rank_scores)
 

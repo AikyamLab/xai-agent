@@ -707,11 +707,34 @@ class TabularMasker(BaseMasker):
 
             try:
                 col_idx = int(feature_key)
+                col_indices = [col_idx]  # single column
             except ValueError:
                 # feature_key is a string name — look up in feature_names if provided
                 feature_names = kwargs.get('feature_names', [])
                 if feature_names and feature_key in feature_names:
                     col_idx = feature_names.index(feature_key)
+                    col_indices = [col_idx]
+                elif feature_names:
+                    # Normalise the key: agents may use underscores where feature_names
+                    # use spaces (e.g. 'mean_compactness' vs 'mean compactness'), or
+                    # vice-versa.  Try both directions before falling back to prefix search.
+                    alt_key = feature_key.replace('_', ' ') if '_' in feature_key else feature_key.replace(' ', '_')
+                    if alt_key in feature_names:
+                        col_idx = feature_names.index(alt_key)
+                        col_indices = [col_idx]
+                    else:
+                        # Categorical one-hot fallback: the agent used a pre-encoding column
+                        # name (e.g. 'relationship') whose post-encoding representation is a
+                        # set of '{feature_key}_*' one-hot columns.  Mask all siblings together.
+                        prefix = f"{feature_key}_"
+                        col_indices = [i for i, n in enumerate(feature_names) if n.startswith(prefix)]
+                        if not col_indices:
+                            raise ValueError(
+                                f"For array/tensor input, feature_key must be a column index or a name "
+                                f"in feature_names. Got: '{feature_key}'. "
+                                f"feature_names provided: {bool(feature_names)}"
+                            )
+                        col_idx = col_indices[0]  # used only for MEAN/single-col fallbacks
                 else:
                     raise ValueError(
                         f"For array/tensor input, feature_key must be a column index or a name "
@@ -720,39 +743,44 @@ class TabularMasker(BaseMasker):
                     )
 
             if effective_strategy == MaskingStrategy.ZERO:
-                if data.ndim == 2:
-                    data[:, col_idx] = 0
-                else:
-                    data[col_idx] = 0
+                for ci in col_indices:
+                    if data.ndim == 2:
+                        data[:, ci] = 0
+                    else:
+                        data[ci] = 0
 
             elif effective_strategy == MaskingStrategy.MEAN:
                 dataset_path = kwargs.get("dataset_path", self.dataset_path)
-                if data.ndim == 2:
-                    # 2D: compute mean of column across batch
-                    col_data = data[:, col_idx]
-                    mean_val = col_data.mean().item() if is_tensor else col_data.mean()
-                    data[:, col_idx] = mean_val
-                else:
-                    # 1D (single sample): use dataset feature mean (0.0 for StandardScaler)
-                    mean_val = self._get_feature_mean(feature_key, dataset_path, kwargs)
-                    if is_tensor:
-                        data[col_idx] = torch.tensor(mean_val, dtype=data.dtype)
+                for ci in col_indices:
+                    if data.ndim == 2:
+                        col_data = data[:, ci]
+                        mean_val = col_data.mean().item() if is_tensor else col_data.mean()
+                        data[:, ci] = mean_val
                     else:
-                        data[col_idx] = mean_val
+                        # For one-hot siblings use 0 as neutral; for numeric use dataset mean
+                        if len(col_indices) > 1:
+                            mean_val = 0.0
+                        else:
+                            mean_val = self._get_feature_mean(feature_key, dataset_path, kwargs)
+                        if is_tensor:
+                            data[ci] = torch.tensor(mean_val, dtype=data.dtype)
+                        else:
+                            data[ci] = mean_val
 
             elif effective_strategy == MaskingStrategy.DELETE:
+                col_set = set(col_indices)
                 if data.ndim == 2:
                     if is_tensor:
-                        indices = [i for i in range(data.shape[1]) if i != col_idx]
+                        indices = [i for i in range(data.shape[1]) if i not in col_set]
                         data = data[:, indices]
                     else:
-                        data = np.delete(data, col_idx, axis=1)
+                        data = np.delete(data, col_indices, axis=1)
                 else:
                     if is_tensor:
-                        indices = [i for i in range(data.shape[0]) if i != col_idx]
+                        indices = [i for i in range(data.shape[0]) if i not in col_set]
                         data = data[indices]
                     else:
-                        data = np.delete(data, col_idx)
+                        data = np.delete(data, col_indices)
 
             return data
 

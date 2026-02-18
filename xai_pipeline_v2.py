@@ -290,9 +290,17 @@ class XAIPipelineV2:
         question['is_q4_format'] = True  # Flag for Q4-specific handling
         question['num_instances'] = 2
 
-        # Extract image indices
-        image_index_a = instance_a['features']['image_index']
-        image_index_b = instance_b['features']['image_index']
+        # Set modality first so index extraction can use it
+        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular'}
+        question['modality'] = modality_map.get(question.get('modality', 'image'), 'vision')
+
+        # Extract instance indices: vision uses features.image_index; text/tabular use row_no
+        if question['modality'] == 'vision':
+            image_index_a = instance_a['features']['image_index']
+            image_index_b = instance_b['features']['image_index']
+        else:
+            image_index_a = instance_a.get('row_no', instance_a.get('features', {}).get('image_index'))
+            image_index_b = instance_b.get('row_no', instance_b.get('features', {}).get('image_index'))
         question['image_indices'] = [image_index_a, image_index_b]
 
         # Use pair_id as row_no for file naming
@@ -301,15 +309,12 @@ class XAIPipelineV2:
         # Normalize question text
         question['question'] = question.get('example', question.get('q', ''))
 
-        # Set modality
-        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular'}
-        question['modality'] = modality_map.get(question.get('modality', 'image'), 'vision')
-
         question['question_id'] = f"q4_{question.get('pair_id', question_id)}"
 
         print(f"Q4 Question loaded:")
-        print(f"  Instance A: image_index={image_index_a}, pred={instance_a['prediction']['name']}")
-        print(f"  Instance B: image_index={image_index_b}, pred={instance_b['prediction']['name']}")
+        _pred_key = 'name' if 'name' in instance_a['prediction'] else 'label'
+        print(f"  Instance A: index={image_index_a}, pred={instance_a['prediction'].get(_pred_key)}")
+        print(f"  Instance B: index={image_index_b}, pred={instance_b['prediction'].get(_pred_key)}")
 
         # Get Q4 template
         q_type = question.get('q_type', 4)
@@ -507,6 +512,7 @@ class XAIPipelineV2:
                     input_tensors[label] = data.get('features')
                     if model_info and data.get('feature_names'):
                         model_info['feature_names'] = data['feature_names']
+                        question['feature_names'] = data['feature_names']
 
                     # Make prediction
                     loader_module = self.data_model_loader.loader_module
@@ -763,12 +769,22 @@ class XAIPipelineV2:
                 else:
                     ground_truths.append(t)
 
+            _pred0 = predictions_list[0] if predictions_list else None
+            _gt0 = question.get('ground_truth')
+            if _gt0 is None and _pred0:
+                _gt0 = _pred0.get('ground_truth_idx')
+            if _gt0 is None:
+                _target0 = question.get('target')
+                if isinstance(_target0, list):
+                    _target0 = _target0[0] if _target0 else {}
+                if isinstance(_target0, dict):
+                    _gt0 = _target0.get('value')
             evaluation = self.critic.run(
                 results=results,
                 question=question,
                 original_input=input_tensors[0] if input_tensors else None,
-                original_prediction=predictions_list[0] if predictions_list else None,
-                ground_truth=question.get('ground_truth'),
+                original_prediction=_pred0,
+                ground_truth=_gt0,
                 processor=model_info.get('processor'),
                 device=model_info.get('device', 'cuda'),
                 class_names=model_info.get('label_map', {}),
@@ -918,8 +934,8 @@ class XAIPipelineV2:
                         results=improved_results,
                         question=question,
                         original_input=input_tensors[0] if input_tensors else None,
-                        original_prediction=predictions_list[0] if predictions_list else None,
-                        ground_truth=question.get('ground_truth'),
+                        original_prediction=_pred0,
+                        ground_truth=_gt0,
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
                         class_names=model_info.get('label_map', {}),
@@ -1090,12 +1106,21 @@ class XAIPipelineV2:
         print("\n=== Step 6: Critic Agent (Explanation Faithfulness) ===")
         evaluation = None
         if evaluate_faithfulness and model_info and model_info.get('model'):
+            # Derive ground_truth: benchmark uses "target" dict, not "ground_truth" key.
+            # Prefer integer ground_truth_idx (handles class 0 correctly) set during data loading.
+            _gt = question.get('ground_truth')
+            if _gt is None and prediction:
+                _gt = prediction.get('ground_truth_idx')  # integer class index (may be 0)
+            if _gt is None:
+                _target = question.get('target', {})
+                if isinstance(_target, dict):
+                    _gt = _target.get('value')  # integer value from benchmark JSON
             evaluation = self.critic.run(
                 results=results,
                 question=question,
                 original_input=input_tensor,
                 original_prediction=prediction,
-                ground_truth=question.get('ground_truth'),
+                ground_truth=_gt,
                 processor=model_info.get('processor'),
                 device=model_info.get('device', 'cuda'),
                 class_names=model_info.get('label_map', {}),
@@ -1252,7 +1277,7 @@ class XAIPipelineV2:
                         question=question,
                         original_input=input_tensor,
                         original_prediction=prediction,
-                        ground_truth=question.get('ground_truth'),
+                        ground_truth=_gt,
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
                         class_names=model_info.get('label_map', {}),
@@ -1641,6 +1666,7 @@ class XAIPipelineV2:
                 # Authoritative feature_names come from the loaded datapoint, not model_info cache
                 if model_info and data.get('feature_names'):
                     model_info['feature_names'] = data['feature_names']
+                    question['feature_names'] = data['feature_names']
                 print(f"Tabular data loaded: {len(data.get('feature_names', []))} features")
                 print(f"  Ground truth: {data.get('label_name')} (class {data.get('label')})")
 

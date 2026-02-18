@@ -215,15 +215,23 @@ class Q9Evaluator(MultiInstanceEvaluator):
             key = instance_data.get('feature_key')
             return {"feature_key": key} if key else None
 
-    def _get_class_index(self, class_ref: Any, class_names: list = None) -> int:
-        """Convert class reference to index"""
+    def _get_class_index(self, class_ref: Any, class_names=None) -> int:
+        """Convert class reference to index. class_names may be a list or dict."""
         if isinstance(class_ref, int):
             return class_ref
         if isinstance(class_ref, str):
             if class_names:
                 try:
-                    return class_names.index(class_ref)
-                except ValueError:
+                    if isinstance(class_names, dict):
+                        # label_map: {idx: name} or {name: idx}
+                        for k, v in class_names.items():
+                            if v == class_ref:
+                                return int(k)
+                            if k == class_ref:
+                                return int(v)
+                    else:
+                        return class_names.index(class_ref)
+                except (ValueError, TypeError):
                     pass
             try:
                 return int(class_ref)

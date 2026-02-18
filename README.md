@@ -151,8 +151,8 @@ Logs go to `outputs/logs/<timestamp>/`.
 | `cub_resnet` / `cub_densenet` | vision | `models_to_read/vision/cub_*.pth` |
 | `imdb_cnn` / `imdb_2layernn` | text | `models_to_read/text/imdb_*.pth` |
 | `snli_cnn` / `snli_2layernn` | text | `models_to_read/text/snli_*.pth` |
-| `adult_census` / `adult_tabnn` | tabular | `models_to_read/tabular/adult_*.pth` |
-| `cancer_2nn` / `cancer_tabnn` | tabular | `models_to_read/tabular/cancer_*.pth` |
+| `adult_census` / `adult_tabnn` / `adult_2layernn` | tabular | `models_to_read/tabular/adult_*.pth` |
+| `cancer_2nn` / `cancer_tabnn` / `cancer_2layernn` | tabular | `models_to_read/tabular/cancer_*.pth` |
 
 ---
 

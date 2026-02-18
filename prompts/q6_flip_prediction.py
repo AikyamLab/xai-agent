@@ -179,11 +179,28 @@ Provide your strategy as a JSON object:
             "new_value": "replacement text"
         }'''
         else:
-            output_format = '''"change_plan": {
-            "feature_key": "feature_name",
-            "action": "change",
-            "new_value": "new value"
-        }'''
+            # Show original pre-encoding feature names and values so the agent can reason
+            # naturally. The evaluator handles one-hot translation internally.
+            orig_features = context.get('instance_data_single', {}).get('features', {})
+            if isinstance(orig_features, dict) and orig_features:
+                feat_list = list(orig_features.keys())
+                feat_preview = ", ".join(
+                    f"{k}={repr(v)}" for k, v in list(orig_features.items())[:15]
+                )
+            else:
+                feat_list = []
+                feat_preview = "N/A"
+            output_format = f'''"change_plan": [
+            {{
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }}
+        ]
+        // Available features: {feat_list}
+        // Current values: {feat_preview}
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction'''
 
         prompt = f"""You are an XAI expert. Propose a change plan to FLIP the prediction.
 
@@ -215,7 +232,7 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
   - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: identify span to replace and provide new text
-- For tabular: identify feature and new value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
 - The change should be MINIMAL but sufficient to flip prediction
 
 Respond with ONLY JSON:"""

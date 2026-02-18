@@ -49,8 +49,10 @@ DATASET_MODEL_MAP = {
     # Tabular
     "adult_census": "tabular/adult_census.pth",
     "adult_tabnn": "tabular/adult_tabnn.pth",
+    "adult_2layernn": "tabular/adult_2layernn.pth",
     "cancer_2nn": "tabular/cancer_2nn.pth",
     "cancer_tabnn": "tabular/cancer_tabnn.pth",
+    "cancer_2layernn": "tabular/cancer_2layernn.pth",
 }
 
 # Dataset to modality mapping
@@ -65,14 +67,16 @@ DATASET_MODALITY_MAP = {
     "snli_2layernn": "text",
     "adult_census": "tabular",
     "adult_tabnn": "tabular",
+    "adult_2layernn": "tabular",
     "cancer_2nn": "tabular",
     "cancer_tabnn": "tabular",
+    "cancer_2layernn": "tabular",
 }
 
 MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
-    "tabular": ["adult_census", "adult_tabnn", "cancer_2nn", "cancer_tabnn"],
+    "tabular": ["adult_census", "adult_tabnn", "adult_2layernn", "cancer_2nn", "cancer_tabnn", "cancer_2layernn"],
 }
 
 
@@ -135,8 +139,17 @@ def setup_logging(log_dir: Path, verbose: bool = False) -> logging.Logger:
     return logger
 
 
-def parse_range(value: str) -> List[int]:
-    """Parse a range string like '0-4' into a list of integers."""
+def parse_range(value: str) -> Optional[List[int]]:
+    """Parse a range string into a list of integers.
+
+    Supports:
+      - Single IDs:  "0 1 2"
+      - Ranges:      "0-4"   ->  [0, 1, 2, 3, 4]
+      - Mixed:       "0 2-4" ->  [0, 2, 3, 4]
+      - Auto-detect: "all"   ->  None  (count inferred per JSON at build time)
+    """
+    if value.strip().lower() == "all":
+        return None  # sentinel: auto-detect question count from each dataset JSON
     result = []
     for part in value.split():
         if "-" in part and not part.startswith("-"):
@@ -145,6 +158,17 @@ def parse_range(value: str) -> List[int]:
         else:
             result.append(int(part))
     return result
+
+
+def get_question_count(dataset_path: str) -> int:
+    """Return the number of questions in a benchmark JSON file."""
+    with open(dataset_path) as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        return len(data)
+    if isinstance(data, dict) and "questions" in data:
+        return len(data["questions"])
+    return 1  # single-question dict
 
 
 def get_dataset_path(
@@ -198,14 +222,19 @@ def get_model_path(dataset: str, models_dir: str) -> Optional[str]:
 def build_jobs(
     datasets: List[str],
     q_types: List[int],
-    question_ids: List[int],
+    question_ids: Optional[List[int]],   # None = auto-detect from each JSON
     dataset_dir: str,
     models_dir: str,
     mode: str = "test",
     use_test_variant: bool = False,
     logger: Optional[logging.Logger] = None
 ) -> List[Job]:
-    """Build list of jobs to execute."""
+    """Build list of jobs to execute.
+
+    When *question_ids* is ``None`` (``--question_ids all``), the count is
+    read from each benchmark JSON individually, so different datasets/q_types
+    can have different lengths.
+    """
     jobs = []
 
     for dataset in datasets:
@@ -231,7 +260,16 @@ def build_jobs(
                     logger.warning(f"Dataset file not found: {dataset}_q{q_type}, skipping")
                 continue
 
-            for question_id in question_ids:
+            # Resolve question IDs: auto-detect when "all" was requested
+            if question_ids is None:
+                count = get_question_count(dataset_path)
+                resolved_ids = list(range(count))
+                if logger:
+                    logger.info(f"  {dataset}_q{q_type}: auto-detected {count} questions")
+            else:
+                resolved_ids = question_ids
+
+            for question_id in resolved_ids:
                 job = Job(
                     dataset=dataset,
                     q_type=q_type,
@@ -592,7 +630,7 @@ Available Datasets:
     logger.info(f"  Datasets: {datasets}")
     logger.info(f"  Mode: {config['mode']}")
     logger.info(f"  Q Types: {args.q_types}")
-    logger.info(f"  Question IDs: {question_ids}")
+    logger.info(f"  Question IDs: {'all (auto-detect per JSON)' if question_ids is None else question_ids}")
     logger.info(f"  Use test variant: {args.use_test_variant}")
     logger.info(f"  Parallel: {args.parallel}")
     logger.info(f"  Output dir: {config['output_dir']}")

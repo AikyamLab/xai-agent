@@ -514,21 +514,6 @@ class ProposerAgent(BaseAgent):
             "autonomous_tasks": []
         }
 
-    def _get_default_strategy(self, modality: str = "vision") -> Dict[str, Any]:
-        """Get default fallback strategy"""
-        default_tools = {
-            "vision": [{"tool_name": "gradcam", "priority": 1, "reasoning": "Default", "parameters": {}}],
-            "text": [{"tool_name": "lime", "priority": 1, "reasoning": "Default", "parameters": {}}],
-            "tabular": [{"tool_name": "shap", "priority": 1, "reasoning": "Default", "parameters": {}}]
-        }
-
-        return {
-            "strategy_type": "tools",
-            "reasoning": f"Default strategy for {modality}",
-            "selected_tools": default_tools.get(modality, default_tools["vision"]),
-            "autonomous_tasks": []
-        }
-
     def _get_clean_model_info_dict(self, model_info: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Create clean dict representation of model info"""
         if not model_info:

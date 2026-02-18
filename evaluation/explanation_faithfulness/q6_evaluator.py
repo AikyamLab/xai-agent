@@ -51,11 +51,20 @@ class Q6Evaluator(BaseEvaluator):
             EvaluationResult with flip success score (1 or 0)
         """
         try:
-            # Get change plan from agent output
+            # Get change plan from agent output.
+            # Vision always returns a single dict; text/tabular may return a list of dicts.
             output_data = agent_output.get('output', {})
-            change_plan = output_data.get('change_plan', {})
+            change_plan_raw = output_data.get('change_plan', {})
 
-            if not change_plan:
+            # Normalise to a uniform list of plan dicts for sequential application.
+            if isinstance(change_plan_raw, dict):
+                change_plans = [change_plan_raw] if change_plan_raw else []
+            elif isinstance(change_plan_raw, list):
+                change_plans = [p for p in change_plan_raw if isinstance(p, dict)]
+            else:
+                change_plans = []
+
+            if not change_plans:
                 return EvaluationResult(
                     score=0.0,
                     passed=False,
@@ -76,21 +85,21 @@ class Q6Evaluator(BaseEvaluator):
             # Convert expected_class to index if it's a string
             expected_class_idx = self._get_class_index(expected_class, kwargs.get('class_names'))
 
-            # Extract region from change plan
-            region = self._extract_region_from_change_plan(change_plan)
-            if region is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Could not extract region from change plan"]
+            # Apply each plan sequentially.  For text/tabular the agent may propose
+            # several feature/span changes; each is applied on top of the previous result.
+            modified_input = original_input
+            region_ratio = 0.0
+            for plan in change_plans:
+                region = self._extract_region_from_change_plan(plan)
+                if region is None:
+                    continue
+                action = plan.get('action', 'change')
+                new_value = plan.get('new_value')
+                modified_input = self._apply_change_plan(
+                    modified_input, region, action, new_value, kwargs
                 )
-
-            # Apply modification according to modality and action
-            action = change_plan.get('action', 'change')
-            new_value = change_plan.get('new_value')
-            modified_input = self._apply_change_plan(
-                original_input, region, action, new_value, kwargs
-            )
+                region_ratio += self.compute_region_ratio(region, original_input)
+            region_ratio = min(1.0, region_ratio)
 
             # Get prediction on modified input
             processor = kwargs.get('processor')
@@ -133,8 +142,7 @@ class Q6Evaluator(BaseEvaluator):
                 metric_formula = self.metric_formula
                 interpretation = "score = P(target_class) * (1 - region_ratio)"
 
-            # Size penalty: penalize large masked regions
-            region_ratio = self.compute_region_ratio(region, original_input)
+            # Size penalty: penalize larger modified regions
             size_penalty = 1.0 - region_ratio
             score = soft_score * size_penalty
 
@@ -148,7 +156,7 @@ class Q6Evaluator(BaseEvaluator):
                 p_original=p_original,
                 p_modified=p_modified,
                 details={
-                    "change_plan": change_plan,
+                    "change_plan": change_plan_raw,
                     "expected_class": expected_class,
                     "expected_class_idx": expected_class_idx,
                     "soft_score": soft_score,
@@ -245,14 +253,62 @@ class Q6Evaluator(BaseEvaluator):
         return original_input
 
     def _set_tabular_feature(self, original_input, feature_key: str, new_value, feature_names):
-        """Set a tabular feature to new_value (float). Returns None if conversion fails."""
+        """Set a tabular feature to new_value.
+
+        Supports two modes:
+        - Numeric: new_value is castable to float; feature_key is a column name/index.
+        - Categorical (one-hot fallback): new_value is a string category and feature_key is the
+          raw pre-encoding column name (e.g. feature_key='occupation', new_value='Exec-managerial').
+          Looks up '{feature_key}_{new_value}' in feature_names, sets it to 1, and resets all
+          other '{feature_key}_*' sibling columns to 0.
+        Returns None if the feature cannot be resolved.
+        """
         import torch
         import numpy as np
+
+        feature_names_list = list(feature_names) if feature_names else []
+
+        # --- Try numeric conversion ---
         try:
             val = float(str(new_value))
+            is_numeric = True
         except (ValueError, TypeError):
+            val = None
+            is_numeric = False
+
+        # --- Categorical one-hot fallback ---
+        # Triggered when new_value is a string (e.g. 'Exec-managerial') and the raw column
+        # name (e.g. 'occupation') is not directly in the post-encoding feature_names list.
+        if not is_numeric and feature_names_list:
+            # Try both underscore and space as separator (datasets vary)
+            target_col = f"{feature_key}_{new_value}"
+            alt_target = f"{feature_key.replace('_', ' ')}_{new_value}" if '_' in feature_key else target_col
+            target_col = target_col if target_col in feature_names_list else alt_target
+            if target_col in feature_names_list:
+                target_idx = feature_names_list.index(target_col)
+                prefix = f"{feature_key}_"
+                sibling_indices = [i for i, n in enumerate(feature_names_list) if n.startswith(prefix)]
+
+                if isinstance(original_input, torch.Tensor):
+                    result = original_input.clone()
+                    for idx in sibling_indices:
+                        result[idx] = 0.0
+                    result[target_idx] = 1.0
+                    return result
+
+                if isinstance(original_input, np.ndarray):
+                    result = original_input.copy()
+                    for idx in sibling_indices:
+                        result[idx] = 0.0
+                    result[target_idx] = 1.0
+                    return result
+            # String new_value but no matching one-hot column found
             return None
 
+        if not is_numeric:
+            return None
+
+        # --- Numeric path ---
         if isinstance(original_input, dict):
             result = original_input.copy()
             if feature_key in result:
@@ -264,9 +320,8 @@ class Q6Evaluator(BaseEvaluator):
             try:
                 col_idx = int(feature_key)
             except ValueError:
-                if feature_names and feature_key in feature_names:
-                    col_idx = list(feature_names).index(feature_key)
-                else:
+                col_idx = self._resolve_feature_col(feature_key, feature_names_list)
+                if col_idx is None:
                     return None
             result = original_input.clone()
             result[col_idx] = torch.tensor(val, dtype=result.dtype)
@@ -276,14 +331,27 @@ class Q6Evaluator(BaseEvaluator):
             try:
                 col_idx = int(feature_key)
             except ValueError:
-                if feature_names and feature_key in feature_names:
-                    col_idx = list(feature_names).index(feature_key)
-                else:
+                col_idx = self._resolve_feature_col(feature_key, feature_names_list)
+                if col_idx is None:
                     return None
             result = original_input.copy()
             result[col_idx] = val
             return result
 
+        return None
+
+    @staticmethod
+    def _resolve_feature_col(feature_key: str, feature_names_list: list):
+        """Return column index for feature_key, trying space↔underscore normalisation.
+
+        Returns None if no match is found.
+        """
+        if feature_key in feature_names_list:
+            return feature_names_list.index(feature_key)
+        # Try swapping underscores ↔ spaces (e.g. 'mean_compactness' vs 'mean compactness')
+        alt_key = feature_key.replace('_', ' ') if '_' in feature_key else feature_key.replace(' ', '_')
+        if alt_key in feature_names_list:
+            return feature_names_list.index(alt_key)
         return None
 
     def _extract_region_from_change_plan(self, change_plan: Dict) -> Dict:
