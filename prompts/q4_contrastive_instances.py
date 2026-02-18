@@ -300,7 +300,7 @@ Identify the DECISIVE parts in BOTH instances:
         {output_format_block}
     }},
     "explanation": "2-3 sentences explaining the key differences",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**

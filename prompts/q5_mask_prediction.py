@@ -196,7 +196,7 @@ Confidence: {prediction.get('confidence', 0.0):.4f}
         }}
     }},
     "explanation": "2-3 sentences: which region you chose, why, and whether masking it changes the prediction",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**
