@@ -496,6 +496,8 @@ For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes
   - Use the top_attention_coords from tool results to determine the region
 - For text: Provide character indices (start_index, end_index)
 - For tabular: Provide the exact feature name
+- **If quantitative XAI tool statistics are unavailable or incomplete, use the autonomous analysis results above to infer the answer. If no autonomous results exist either, perform your own direct reasoning based on the model prediction and context.**
+
 
 Respond with ONLY valid JSON:"""
 
@@ -1157,6 +1159,14 @@ Respond with ONLY valid JSON:"""
                 tool_outputs[tool_name] = {"success": False, "error": str(e)}
                 tool_summaries.append(f"{tool_name}: error - {str(e)}")
 
+            # Free intermediate activation tensors left by XAI tools after each run
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
         # Save tool outputs
         if question:
             self._save_tool_outputs(tool_outputs, question)
@@ -1632,6 +1642,7 @@ Based on the XAI analysis, identify THE SINGLE MOST IMPORTANT region/feature tha
 - For text: Provide character indices (start_index, end_index)
 - For tabular: Provide the feature/column name as feature_key
 - Focus on the SINGLE most important region/feature, not multiple
+- **If quantitative XAI tool statistics are unavailable or incomplete, use the autonomous analysis results above to infer the answer. If no autonomous results exist either, perform your own direct reasoning based on the model prediction and context.**
 
 JSON Response:"""
 

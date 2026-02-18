@@ -86,7 +86,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (counterfactual generation)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (counterfactual generation)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} to modify that would flip prediction to target class
 - Evaluation metric: 1 if modified input predicts target class, else 0

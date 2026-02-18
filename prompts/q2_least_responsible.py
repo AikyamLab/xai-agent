@@ -86,7 +86,7 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (negative/minimal attribution)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (negative/minimal attribution)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} with LOWEST attribution scores (near-zero importance)
 - Evaluation metric: -(P_original - P_modified) (smaller difference = better, part was indeed unimportant)

@@ -1380,9 +1380,21 @@ class XAIPipelineV2:
 
         # Normalize question fields
         question['question'] = question.get('example', question.get('q', ''))
-        # Infer modality from dataset
+        # Infer modality from question dict, then fall back to dataset path
         modality = question.get('modality')
-        
+        if not modality:
+            path_lower = dataset_path.lower()
+            if '/tabular/' in path_lower or 'tabular' in path_lower:
+                modality = 'tabular'
+            elif '/text/' in path_lower or 'text' in path_lower:
+                modality = 'text'
+            else:
+                modality = 'vision'
+            print(f"  Inferred modality from dataset path: {modality}")
+        # Normalize modality aliases (e.g. 'image' -> 'vision')
+        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular', 'vision': 'vision'}
+        modality = modality_map.get(modality, modality)
+
         question['question_id'] = f"q{question_id}"
 
         print(f"Question: {question.get('question', '')}")
@@ -1689,6 +1701,14 @@ class XAIPipelineV2:
                         print(f"Warning: Prediction failed: {prediction.get('error') if prediction else 'Unknown'}")
 
         except Exception as e:
+            # CUDA/GPU errors are fatal — pipeline cannot produce meaningful results
+            # without a working model.  Re-raise so the job fails clearly instead of
+            # continuing with model_info=None / prediction=None and crashing downstream.
+            error_str = str(type(e).__name__) + ": " + str(e)
+            cuda_keywords = ('CUDA error', 'CUDA out of memory', 'AcceleratorError',
+                             'OutOfMemoryError', 'CUBLAS_STATUS', 'device(s) is/are busy')
+            if any(kw in error_str for kw in cuda_keywords):
+                raise RuntimeError(f"Fatal GPU error during model loading: {e}") from e
             print(f"Warning: Failed to load model/data: {e}")
             import traceback
             traceback.print_exc()

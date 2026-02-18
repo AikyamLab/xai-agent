@@ -105,7 +105,7 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (instance comparison)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (instance comparison)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} in EACH instance that drive their respective predictions
 - Evaluation metric: Success if masking both parts reduces the prediction gap between instances

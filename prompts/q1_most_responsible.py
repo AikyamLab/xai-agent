@@ -88,7 +88,7 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (positive attribution)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (positive attribution)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} that drive the prediction with highest positive contribution
 - Evaluation metric: P_original - P_modified (higher = better, part was indeed important)
