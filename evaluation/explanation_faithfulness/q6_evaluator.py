@@ -99,24 +99,39 @@ class Q6Evaluator(BaseEvaluator):
             modified_prediction = self.get_prediction(model, modified_input, processor, device)
             modified_class = modified_prediction.get('predicted_class_idx', -1)
             modified_probs = modified_prediction.get('probabilities')
-
-            # Passed logic unchanged: binary flip to expected class
-            flipped_correctly = (modified_class == expected_class_idx)
-
-            # p_original: target class probability BEFORE modification
             original_probs = original_prediction.get('probabilities')
-            if original_probs is not None and expected_class_idx >= 0:
-                p_original = float(original_probs[expected_class_idx])
-            else:
-                p_original = None
+            original_class_idx = original_prediction.get('predicted_class_idx', 0)
 
-            # Soft score: probability of target class after modification
-            if modified_probs is not None and expected_class_idx >= 0:
-                p_target_modified = float(modified_probs[expected_class_idx])
-                soft_score = max(0.0, min(1.0, p_target_modified))
+            # expected_class_idx == -1 means "any different class" (e.g. vision Q6 has no
+            # specific target class — just "flip to a different class").
+            if expected_class_idx == -1:
+                # Pass if the predicted class changed at all
+                flipped_correctly = (modified_class != original_class_idx)
+                # p_original / p_modified track the *original* class probability so we can
+                # measure how much the model's confidence in the original class dropped.
+                p_original = float(original_probs[original_class_idx]) if original_probs is not None else None
+                p_modified = float(modified_probs[original_class_idx]) if modified_probs is not None else None
+                # Soft score: probability drop of original class (higher = more convincing flip)
+                if p_original is not None and p_modified is not None:
+                    soft_score = max(0.0, p_original - p_modified)
+                else:
+                    soft_score = 1.0 if flipped_correctly else 0.0
+                metric_formula = "1 if R1_modified != original_class else 0"
+                interpretation = "score = P_drop(original_class) * (1 - region_ratio)"
             else:
-                p_target_modified = None
-                soft_score = 1.0 if flipped_correctly else 0.0
+                # Specific target class requested
+                flipped_correctly = (modified_class == expected_class_idx)
+                # p_original: target class probability BEFORE modification
+                p_original = float(original_probs[expected_class_idx]) if original_probs is not None else None
+                # Soft score: probability of target class after modification
+                if modified_probs is not None:
+                    p_modified = float(modified_probs[expected_class_idx])
+                    soft_score = max(0.0, min(1.0, p_modified))
+                else:
+                    p_modified = None
+                    soft_score = 1.0 if flipped_correctly else 0.0
+                metric_formula = self.metric_formula
+                interpretation = "score = P(target_class) * (1 - region_ratio)"
 
             # Size penalty: penalize large masked regions
             region_ratio = self.compute_region_ratio(region, original_input)
@@ -127,11 +142,11 @@ class Q6Evaluator(BaseEvaluator):
                 score=score,
                 passed=flipped_correctly,
                 metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                original_class=str(original_prediction.get('predicted_class_idx')),
+                metric_formula=metric_formula,
+                original_class=str(original_class_idx),
                 modified_class=str(modified_class),
                 p_original=p_original,
-                p_modified=p_target_modified,
+                p_modified=p_modified,
                 details={
                     "change_plan": change_plan,
                     "expected_class": expected_class,
@@ -140,7 +155,7 @@ class Q6Evaluator(BaseEvaluator):
                     "region_ratio": region_ratio,
                     "size_penalty": size_penalty,
                     "flipped_correctly": flipped_correctly,
-                    "interpretation": "score = P(target_class) * (1 - region_ratio)"
+                    "interpretation": interpretation
                 }
             )
 

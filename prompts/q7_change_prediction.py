@@ -193,13 +193,13 @@ Provide your strategy as a JSON object:
 {{
     "output": {{
         "changed_class": "predicted class name after modification",
-        "changed_confidence": 0.75,
+        "changed_confidence": 0.0-1.0,
         "masked_region": {{
             "bounding_box": [x_min, y_min, x_max, y_max]
         }}
     }},
     "explanation": "2-3 sentences: which region you chose, why, and what the new prediction would be",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**
@@ -245,10 +245,10 @@ Predict what the NEW prediction would be after removing/changing the specified p
 {{
     "output": {{
         "changed_class": "predicted class name after modification",
-        "changed_confidence": 0.75
+        "changed_confidence": 0.0-1.0
     }},
     "explanation": "2-3 sentences explaining why the prediction would change to this class",
-    "confidence": 0.85
+    "confidence": 0.0-1.0
 }}
 
 **Critical Requirements:**
