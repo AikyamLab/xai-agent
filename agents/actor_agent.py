@@ -273,7 +273,14 @@ class ActorAgent(BaseAgent):
 
         # Get image indices and split for reloading samples per instance
         image_indices = question.get('image_indices', [])
-        split = question.get('split', 'test')
+        # Breast Cancer Q8/Q9/Q10 (spurious): row_idx is an index into the full dataset (569 samples),
+        # not the test-split (114 samples). Mirror is_spurious logic from load_breast_cancer.py.
+        _dataset = str(question.get('dataset', '')).lower().replace(' ', '_')
+        _is_breast_cancer_spurious = (
+            'breast_cancer' in _dataset
+            and question.get('q_type', 1) in (8, 9, 10)
+        )
+        split = ('full' if _is_breast_cancer_spurious else question.get('split', 'test'))
 
         for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
             print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")
@@ -670,6 +677,13 @@ Respond with ONLY valid JSON:"""
         print("=" * 70)
 
         modality = question.get('modality', 'vision')
+
+        # Breast Cancer Q4 uses full-dataset indices (is_spurious pattern from load_breast_cancer.py)
+        if modality == 'tabular':
+            _dataset = str(question.get('dataset', '')).lower().replace(' ', '_')
+            if 'breast_cancer' in _dataset:
+                for inst in instances:
+                    inst['split'] = 'full'
 
         # ═══════════════════════════════════════════════════════
         # Step 1: Execute XAI tools on Instance A
@@ -1429,17 +1443,23 @@ JSON Response:"""
                 return f"""{instance_section}
 
 ## CRITICAL TABULAR CONSTRAINTS
-- Available features: {feature_names[:20]}{'...' if len(feature_names) > 20 else ''}
+- Available features: {feature_names}{'...' if len(feature_names) > 20 else ''}
 - Use exact feature names as they appear above
 - Format as {{"feature_key": "feature_name"}}"""
             else:
                 feature_names = list(features.keys()) if isinstance(features, dict) and features else []
+                feat_preview = (
+                    ", ".join(f"{k}={repr(v)}" for k, v in list(features.items())[:15])
+                    if isinstance(features, dict) else ""
+                )
 
                 return f"""
 ## CRITICAL TABULAR CONSTRAINTS
-- Available features: {feature_names[:20]}{'...' if len(feature_names) > 20 else ''}
+- Available features: {feature_names}
+- Current values: {feat_preview}
 - Use exact feature names as they appear above
-- Format as {{"feature_key": "feature_name"}}"""
+- new_value can be numeric (e.g. 40) or a string category (e.g. "Exec-managerial")
+- Format as {{"feature_key": "feature_name", "action": "change", "new_value": <value>}}"""
 
         return ""
 
@@ -2303,7 +2323,14 @@ JSON Response:"""
         all_viz_paths = []
 
         image_indices = question.get('image_indices', [])
-        split = question.get('split', 'test')
+        # Breast Cancer Q8/Q9/Q10 (spurious): row_idx is an index into the full dataset (569 samples),
+        # not the test-split (114 samples). Mirror is_spurious logic from load_breast_cancer.py.
+        _dataset = str(question.get('dataset', '')).lower().replace(' ', '_')
+        _is_breast_cancer_spurious = (
+            'breast_cancer' in _dataset
+            and question.get('q_type', 1) in (8, 9, 10)
+        )
+        split = ('full' if _is_breast_cancer_spurious else question.get('split', 'test'))
 
         for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
             print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")

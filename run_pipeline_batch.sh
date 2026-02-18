@@ -65,8 +65,10 @@ TEXT_DATASETS["snli_2layernn"]="text/snli_2layernn.pth"
 declare -A TABULAR_DATASETS
 TABULAR_DATASETS["adult_census"]="tabular/adult_census.pth"
 TABULAR_DATASETS["adult_tabnn"]="tabular/adult_tabnn.pth"
+TABULAR_DATASETS["adult_2layernn"]="tabular/adult_2layernn.pth"
 TABULAR_DATASETS["cancer_2nn"]="tabular/cancer_2nn.pth"
 TABULAR_DATASETS["cancer_tabnn"]="tabular/cancer_tabnn.pth"
+TABULAR_DATASETS["cancer_2layernn"]="tabular/cancer_2layernn.pth"
 
 # ============================================================================
 # Helper Functions
@@ -110,6 +112,7 @@ Options:
                              Examples: "1 2 3 4" or "1" or "1 2 3 4 5 6 8 9 10"
     --question_ids IDS       Question IDs to run (default: 0)
                              Examples: "0 1 2 3 4" or "0" or range "0-9"
+                             Use "all" to auto-detect length from each JSON file
     --mode MODE              Dataset split to use: train or test (default: test)
                              Benchmark JSONs are loaded from dataset/{mode}/{modality}/
     --use_test_variant       Use _test variant dataset files if available
@@ -142,9 +145,25 @@ Examples:
 Available Datasets:
     Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet
     Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
-    Tabular: adult_census, adult_tabnn, cancer_2nn, cancer_tabnn
+    Tabular: adult_census, adult_tabnn, adult_2layernn, cancer_2nn, cancer_tabnn, cancer_2layernn
 EOF
     exit 0
+}
+
+# Count questions in a benchmark JSON file (works for list, dict-with-questions, or single dict)
+count_questions() {
+    local json_path="$1"
+    python3 -c "
+import json, sys
+with open('$json_path') as f:
+    d = json.load(f)
+if isinstance(d, list):
+    print(len(d))
+elif isinstance(d, dict) and 'questions' in d:
+    print(len(d['questions']))
+else:
+    print(1)
+"
 }
 
 # Parse range like "0-4" into "0 1 2 3 4"
@@ -179,7 +198,7 @@ get_datasets_for_modality() {
             echo "imdb_cnn imdb_2layernn snli_cnn snli_2layernn"
             ;;
         tabular)
-            echo "adult_census adult_tabnn cancer_2nn cancer_tabnn"
+            echo "adult_census adult_tabnn adult_2layernn cancer_2nn cancer_tabnn cancer_2layernn"
             ;;
         *)
             echo ""
@@ -349,8 +368,10 @@ if [[ "$MODALITIES" == "all" ]]; then
     MODALITIES="vision text tabular"
 fi
 
-# Expand question IDs (handle ranges)
-QUESTION_IDS=$(expand_range "$QUESTION_IDS")
+# Expand question IDs (handle ranges); leave "all" unchanged for per-JSON auto-detection
+if [[ "$QUESTION_IDS" != "all" ]]; then
+    QUESTION_IDS=$(expand_range "$QUESTION_IDS")
+fi
 
 log_info "Configuration:"
 log_info "  Modalities: $MODALITIES"
@@ -411,7 +432,16 @@ for dataset in $DATASETS_TO_RUN; do
             continue
         fi
 
-        for question_id in $QUESTION_IDS; do
+        # Resolve question IDs: auto-detect from JSON when "all" is requested
+        if [[ "$QUESTION_IDS" == "all" ]]; then
+            n=$(count_questions "$dataset_path")
+            RESOLVED_IDS=$(seq 0 $((n - 1)))
+            log_info "  ${dataset}_q${q_type}: auto-detected $n questions"
+        else
+            RESOLVED_IDS="$QUESTION_IDS"
+        fi
+
+        for question_id in $RESOLVED_IDS; do
             # Build command
             CMD="python ${BASE_DIR}/xai_pipeline_v2.py"
             CMD="$CMD --dataset $dataset_path"

@@ -1,7 +1,7 @@
 """
 Q8 Evaluator: Irrelevant Parts Causing Wrong Prediction
 
-Metric: 1 if P_correct_modified > P_correct_original, else 0
+Metric: 1 if P_correct_modified - P_correct_original > threshold, else 0
 Success if masking spurious part improves correct class probability
 """
 
@@ -13,6 +13,7 @@ import torch.nn as nn
 from ..base_evaluator import BaseEvaluator, EvaluationResult
 from ..masking_utils import get_masker
 
+threshold = 0.1
 
 class Q8Evaluator(BaseEvaluator):
     """Evaluator for Q8: Irrelevant parts causing wrong prediction"""
@@ -27,7 +28,7 @@ class Q8Evaluator(BaseEvaluator):
 
     @property
     def metric_formula(self) -> str:
-        return "1 if P_correct_modified > P_correct_original else 0"
+        return "1 if P_correct_modified - P_correct_original > threshold else 0"
 
     def evaluate(
         self,
@@ -119,9 +120,9 @@ class Q8Evaluator(BaseEvaluator):
 
             p_correct_modified = float(modified_probs[correct_class_idx])
 
-            # Passed logic unchanged: binary improved or not
+            # Passed logic unchanged: binary improved > threshold or not
             improvement = p_correct_modified - p_correct_original
-            improved = improvement > 0
+            improved = improvement > threshold
 
             # Soft score: normalized improvement (proportion of improvable space used)
             room = 1.0 - p_correct_original
@@ -150,6 +151,7 @@ class Q8Evaluator(BaseEvaluator):
                     "p_correct_original": p_correct_original,
                     "p_correct_modified": p_correct_modified,
                     "improvement": improvement,
+                    "threshold": threshold,
                     "room_for_improvement": room,
                     "soft_score": soft_score,
                     "region_ratio": region_ratio,
@@ -167,15 +169,23 @@ class Q8Evaluator(BaseEvaluator):
                 errors=[str(e)]
             )
 
-    def _get_class_index(self, class_ref: Any, class_names: list = None) -> int:
-        """Convert class reference to index"""
+    def _get_class_index(self, class_ref: Any, class_names=None) -> int:
+        """Convert class reference to index. class_names may be a list or dict."""
         if isinstance(class_ref, int):
             return class_ref
         if isinstance(class_ref, str):
             if class_names:
                 try:
-                    return class_names.index(class_ref)
-                except ValueError:
+                    if isinstance(class_names, dict):
+                        # label_map: {idx: name} or {name: idx}
+                        for k, v in class_names.items():
+                            if v == class_ref:
+                                return int(k)
+                            if k == class_ref:
+                                return int(v)
+                    else:
+                        return class_names.index(class_ref)
+                except (ValueError, TypeError):
                     pass
             try:
                 return int(class_ref)

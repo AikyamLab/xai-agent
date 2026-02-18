@@ -788,6 +788,9 @@ class ToolAttributionEvaluator:
             features = question.get('features', {})
             if not features and isinstance(input_tensor, dict):
                 features = input_tensor
+            # features may be a list of dicts (multi-instance Q9/Q10); use first element for schema
+            if isinstance(features, list):
+                features = features[0] if features and isinstance(features[0], dict) else {}
             available_features = list(features.keys()) if features else None
 
         # Parse response
@@ -995,10 +998,18 @@ class ToolAttributionEvaluator:
             if is_multi:
                 parts = []
                 all_features = {}
-                for lbl, data, pred in zip(instance_labels,
-                                           all_input_datas,
-                                           all_predictions or [{}] * len(all_input_datas)):
-                    feats = _extract_features(data) or question.get('features', {})
+                q_features = question.get('features', {})
+                for i, (lbl, data, pred) in enumerate(zip(
+                        instance_labels,
+                        all_input_datas,
+                        all_predictions or [{}] * len(all_input_datas))):
+                    feats = _extract_features(data)
+                    if not feats:
+                        # q_features may be a list (one dict per instance) or a single dict
+                        if isinstance(q_features, list) and i < len(q_features):
+                            feats = q_features[i] if isinstance(q_features[i], dict) else {}
+                        elif isinstance(q_features, dict):
+                            feats = q_features
                     all_features = feats  # same schema across instances
                     cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
                     feat_lines = "\n".join(f"  - {k}: {v}" for k, v in feats.items())

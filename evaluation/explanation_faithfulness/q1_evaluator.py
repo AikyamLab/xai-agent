@@ -13,6 +13,7 @@ import torch.nn as nn
 from ..base_evaluator import BaseEvaluator, EvaluationResult
 from ..masking_utils import get_masker
 
+threshold = 0.5
 
 class Q1Evaluator(BaseEvaluator):
     """Evaluator for Q1: Most responsible part identification"""
@@ -142,7 +143,7 @@ class Q1Evaluator(BaseEvaluator):
                     "soft_score": soft_score,
                     "region_ratio": region_ratio,
                     "size_penalty": size_penalty,
-                    "threshold": 0.5,
+                    "threshold": threshold,
                     "class_changed": class_changed,
                     "interpretation": "score = max(0, P_orig - P_mod) * (1 - region_ratio)"
                 }

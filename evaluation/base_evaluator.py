@@ -141,7 +141,7 @@ class BaseEvaluator(ABC):
                 # Determine image dimensions
                 if PIL_AVAILABLE and isinstance(original_input, Image.Image):
                     w, h = original_input.size
-                elif TORCH_AVAILABLE and isinstance(original_input, torch.Tensor):
+                elif isinstance(original_input, torch.Tensor):
                     if original_input.dim() == 4:
                         h, w = original_input.shape[2], original_input.shape[3]
                     elif original_input.dim() == 3:
@@ -174,7 +174,7 @@ class BaseEvaluator(ABC):
                 # One feature masked at a time
                 if isinstance(original_input, dict):
                     total = len(original_input)
-                elif TORCH_AVAILABLE and isinstance(original_input, torch.Tensor):
+                elif isinstance(original_input, torch.Tensor):
                     total = original_input.shape[-1]
                 elif isinstance(original_input, np.ndarray):
                     total = original_input.shape[-1]

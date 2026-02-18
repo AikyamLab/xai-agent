@@ -14,6 +14,7 @@ import torch.nn as nn
 from ..base_evaluator import BaseEvaluator, EvaluationResult
 from ..masking_utils import get_masker
 
+threshold = 0.95
 
 class Q2Evaluator(BaseEvaluator):
     """Evaluator for Q2: Least responsible part identification"""
@@ -116,7 +117,6 @@ class Q2Evaluator(BaseEvaluator):
             score = soft_score * size_penalty
 
             # Passed if soft_score >= 0.95 (i.e., |probability_drop| < 0.05)
-            threshold = 0.95
             passed = soft_score >= threshold
 
             return EvaluationResult(

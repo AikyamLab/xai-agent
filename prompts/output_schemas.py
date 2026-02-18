@@ -419,14 +419,19 @@ def validate_output(output: Dict[str, Any], q_type: int, modality: str) -> Tuple
         elif output_data["prediction_changes"] not in [0, 1]:
             errors.append("'prediction_changes' must be 0 or 1")
 
-    # Q6: Change plan
+    # Q6: Change plan (may be a single dict or a list of dicts for multi-feature tabular changes)
     elif q_type == 6:
         if "change_plan" not in output_data:
             errors.append("Missing required field: 'output.change_plan'")
         else:
             change_plan = output_data["change_plan"]
-            if "action" not in change_plan:
-                errors.append("Missing required field: 'output.change_plan.action'")
+            if isinstance(change_plan, list):
+                first = change_plan[0] if change_plan else {}
+                if "action" not in first:
+                    errors.append("Missing required field: 'output.change_plan[0].action'")
+            elif isinstance(change_plan, dict):
+                if "action" not in change_plan:
+                    errors.append("Missing required field: 'output.change_plan.action'")
 
     # Q7: Changed class prediction
     elif q_type == 7:
