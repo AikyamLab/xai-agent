@@ -303,6 +303,10 @@ class ToolAttributionEvaluator:
                 # Find corresponding config without tool (same except position i)
                 c_without = c_with.copy()
                 c_without[i] = 0
+                # When sampling, the counterpart may not have been evaluated; skip that pair
+                # (importance score is already computed via avg_with - avg_without above)
+                if tuple(c_without) not in config_faithfulness:
+                    continue
                 diff = config_faithfulness[tuple(c_with)] - config_faithfulness[tuple(c_without)]
                 config_diffs.append(diff)
                 evaluated_configs_for_tool.append(c_with)
@@ -615,13 +619,27 @@ class ToolAttributionEvaluator:
                 )
         else:
             # Single-instance path (original logic)
-            extracted_features = self.actor._extract_features_via_vlm(
-                tool_results=filtered_results_structure,
-                input_path=input_path,
-                question=question,
-                question_template=question_template,
-                prediction=prediction or {}
-            )
+            try:
+                extracted_features = self.actor._extract_features_via_vlm(
+                    tool_results=filtered_results_structure,
+                    input_path=input_path,
+                    question=question,
+                    question_template=question_template,
+                    prediction=prediction or {}
+                )
+            except RuntimeError as e:
+                # VLM still refused even after the fallback prompt instruction.
+                # Treat this config as faithfulness=0 and continue.
+                print(f"    Warning: feature extraction failed for config {config} "
+                      f"(tools={included_tools}): {e}")
+                return {
+                    "config": config,
+                    "included_tools": included_tools,
+                    "explanation": {},
+                    "evaluation": {"faithfulness": {"score": 0.0}},
+                    "faithfulness_score": 0.0,
+                    "feature_extraction_failed": True
+                }
 
             prompt_builder = self.actor._get_prompt_builder(question_template, question)
             context = self.actor._build_context(question, model_info, prediction, input_path)
@@ -672,6 +690,14 @@ class ToolAttributionEvaluator:
         faithfulness_score = evaluation.get('faithfulness', {}).get('score', 0.0)
         if faithfulness_score is None:
             faithfulness_score = 0.0
+
+        # Release cached GPU memory accumulated during this config evaluation
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
         return {
             "config": config,
@@ -843,6 +869,14 @@ class ToolAttributionEvaluator:
 
         print(f"      No-tools baseline faithfulness: {faithfulness_score:.4f}")
 
+        # Release cached GPU memory after no-tools baseline evaluation
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
+
         return {
             "config": config,
             "included_tools": [],
@@ -912,9 +946,9 @@ class ToolAttributionEvaluator:
         is_multi = bool(all_input_datas and len(all_input_datas) > 1)
         instance_labels = [chr(ord('A') + i) for i in range(len(all_input_datas))] if is_multi else []
 
-        pred_class = prediction.get('predicted_class_name',
-                                    prediction.get('predicted_class_idx', 'Unknown'))
-        confidence = prediction.get('confidence', 0.0)
+        _pred = prediction or {}
+        pred_class = _pred.get('predicted_class_name', _pred.get('predicted_class_idx', 'Unknown'))
+        confidence = _pred.get('confidence', 0.0)
 
         # Canonical output schema for this Q-type × modality
         schema = get_output_schema(q_type, modality)

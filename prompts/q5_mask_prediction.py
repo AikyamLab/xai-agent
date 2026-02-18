@@ -88,7 +88,7 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (counterfactual prediction)**:
+**Guidelines for {(self.modality or 'tabular').upper()} tasks (counterfactual prediction)**:
 - {modality_config['spatial_note']}
 - Target: Determine if the queried {modality_config['element_type']} has HIGH or LOW importance
 - Evaluation metric: 1 if agent's prediction matches actual outcome, else 0

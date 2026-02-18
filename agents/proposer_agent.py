@@ -374,16 +374,25 @@ class ProposerAgent(BaseAgent):
         prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
         print(f"\n  Generated multi-instance proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
+        # Call VLM with retry on JSON parse failure (response may be truncated)
+        strategy = {}
+        last_response = ""
+        for attempt in range(3):
+            response = self.invoke_vlm(prompt)
+            if attempt == 0:
+                print(f"  VLM Response preview: {response[:300]}...")
+            else:
+                print(f"  Retry {attempt}: VLM Response preview: {response[:300]}...")
+            last_response = response
+            strategy = self.parse_json_response(response)
+            if strategy:
+                break
+            print(f"  Warning: JSON parse failed on attempt {attempt + 1}, retrying...")
 
-        # Parse response
-        strategy = self.parse_json_response(response)
         if not strategy:
             raise RuntimeError(
-                f"Failed to parse VLM response as JSON for multi-instance strategy. "
-                f"Response preview: {response[:500]}"
+                f"Failed to parse VLM response as JSON for multi-instance strategy after 3 attempts. "
+                f"Response preview: {last_response[:500]}"
             )
 
         # Convert tool_selection format if needed
@@ -414,16 +423,25 @@ class ProposerAgent(BaseAgent):
 
         print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
+        # Call VLM with retry on JSON parse failure (response may be truncated)
+        strategy = {}
+        last_response = ""
+        for attempt in range(3):
+            response = self.invoke_vlm(prompt)
+            if attempt == 0:
+                print(f"  VLM Response preview: {response[:300]}...")
+            else:
+                print(f"  Retry {attempt}: VLM Response preview: {response[:300]}...")
+            last_response = response
+            strategy = self.parse_json_response(response)
+            if strategy:
+                break
+            print(f"  Warning: JSON parse failed on attempt {attempt + 1}, retrying...")
 
-        # Parse response
-        strategy = self.parse_json_response(response)
         if not strategy:
             raise RuntimeError(
-                f"Failed to parse VLM response as JSON for strategy. "
-                f"Response preview: {response[:500]}"
+                f"Failed to parse VLM response as JSON for strategy after 3 attempts. "
+                f"Response preview: {last_response[:500]}"
             )
 
         # Convert tool_selection format if needed
