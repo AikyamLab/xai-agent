@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from ..base_evaluator import BaseEvaluator, EvaluationResult
-from ..masking_utils import get_masker, MaskingStrategy
+from ..masking_utils import get_masker
 
 
 class Q7Evaluator(BaseEvaluator):
@@ -62,6 +62,16 @@ class Q7Evaluator(BaseEvaluator):
                     errors=["Agent did not provide changed_class prediction"]
                 )
 
+            # Extract original class probabilities
+            original_probs = original_prediction.get('probabilities')
+            original_class = original_prediction.get('predicted_class_idx', 0)
+            if original_probs is not None:
+                if isinstance(original_probs, dict):
+                    original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
+                p_original = float(original_probs[original_class])
+            else:
+                p_original = None
+
             # Get the part to change (should be specified in context)
             part_to_change = kwargs.get('part_to_change')
             if part_to_change is None:
@@ -75,14 +85,15 @@ class Q7Evaluator(BaseEvaluator):
                     errors=["Part to change not specified"]
                 )
 
-            # Apply modification (mask the important part, use GRAY for neutral masking)
-            masker = get_masker(self.modality, MaskingStrategy.GRAY)
+            # Mask using modality-appropriate default strategy
+            masker = get_masker(self.modality)
             modified_input = masker.mask(
                 original_input, part_to_change,
                 dataset_base_name=kwargs.get('dataset_base_name'),
                 row_no=kwargs.get('row_no'),
                 tool_name=kwargs.get('tool_name'),
-                mask_suffix=kwargs.get('mask_suffix', '')
+                mask_suffix=kwargs.get('mask_suffix', ''),
+                feature_names=kwargs.get('feature_names', [])
             )
 
             # Get actual prediction after modification
@@ -91,6 +102,8 @@ class Q7Evaluator(BaseEvaluator):
 
             modified_prediction = self.get_prediction(model, modified_input, processor, device)
             actual_modified_class = modified_prediction.get('predicted_class_idx', -1)
+            modified_probs = modified_prediction.get('probabilities')
+            p_modified = float(modified_probs[original_class]) if modified_probs is not None else None
 
             # Convert agent's prediction to index for comparison
             class_names = kwargs.get('class_names')
@@ -100,7 +113,6 @@ class Q7Evaluator(BaseEvaluator):
             correct = (actual_modified_class == agent_predicted_idx)
 
             # Soft score: probability of agent's predicted class in modified output
-            modified_probs = modified_prediction.get('probabilities')
             if modified_probs is not None and agent_predicted_idx >= 0:
                 p_agent_predicted = float(modified_probs[agent_predicted_idx])
                 score = max(0.0, min(1.0, p_agent_predicted))
@@ -115,6 +127,8 @@ class Q7Evaluator(BaseEvaluator):
                 metric_formula=self.metric_formula,
                 original_class=str(original_prediction.get('predicted_class_idx')),
                 modified_class=str(actual_modified_class),
+                p_original=p_original,
+                p_modified=p_modified,
                 details={
                     "part_to_change": part_to_change,
                     "agent_predicted_class": agent_predicted_class,

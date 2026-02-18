@@ -35,6 +35,7 @@ MODALITIES="vision"
 Q_TYPES="1"
 QUESTION_IDS="0"
 DATASETS=""  # Empty means auto-detect based on modality
+MODE="test"  # Dataset split: train or test (benchmark JSONs at dataset/{mode}/{modality}/)
 USE_TEST_VARIANT=false
 DRY_RUN=false
 NO_EVAL=false
@@ -109,6 +110,8 @@ Options:
                              Examples: "1 2 3 4" or "1" or "1 2 3 4 5 6 8 9 10"
     --question_ids IDS       Question IDs to run (default: 0)
                              Examples: "0 1 2 3 4" or "0" or range "0-9"
+    --mode MODE              Dataset split to use: train or test (default: test)
+                             Benchmark JSONs are loaded from dataset/{mode}/{modality}/
     --use_test_variant       Use _test variant dataset files if available
     --dry_run                Print commands without executing
     --no_eval                Skip faithfulness evaluation
@@ -117,6 +120,7 @@ Options:
     --faithfulness_threshold Threshold for faithfulness (default: 0.1)
     --vlm MODEL              VLM model ID (default: Qwen/Qwen3-VL-8B-Instruct)
                              API models: gemini-2.5-pro, gemini-3-pro
+                             Tinker: tinker/Qwen/Qwen3-VL-30B-A3B-Instruct
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
     --parallel               Run jobs in parallel
     --max_jobs N             Maximum parallel jobs (default: 4)
@@ -224,30 +228,21 @@ get_modality_for_dataset() {
 }
 
 # Build dataset file path
+# Benchmark JSONs live under dataset/{mode}/{modality}/
 get_dataset_path() {
     local dataset="$1"
     local q_type="$2"
     local use_test="$3"
     local modality="$4"
+    local mode="$5"
 
     local base_name="${dataset}_q${q_type}"
-    local dataset_subdir=""
-
-    case "$modality" in
-        vision)
-            dataset_subdir="vision"
-            ;;
-        text)
-            dataset_subdir="text"
-            ;;
-        tabular)
-            dataset_subdir="tabular"
-            ;;
-    esac
+    local dataset_subdir="${modality}"
+    local mode_dir="${DATASET_DIR}/${mode}/${dataset_subdir}"
 
     # Try _test variant first if requested
     if [[ "$use_test" == "true" ]]; then
-        local test_path="${DATASET_DIR}/${dataset_subdir}/${base_name}_test.json"
+        local test_path="${mode_dir}/${base_name}_test.json"
         if [[ -f "$test_path" ]]; then
             echo "$test_path"
             return
@@ -255,7 +250,7 @@ get_dataset_path() {
     fi
 
     # Try standard path
-    local standard_path="${DATASET_DIR}/${dataset_subdir}/${base_name}.json"
+    local standard_path="${mode_dir}/${base_name}.json"
     if [[ -f "$standard_path" ]]; then
         echo "$standard_path"
         return
@@ -284,6 +279,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --question_ids)
             QUESTION_IDS="$2"
+            shift 2
+            ;;
+        --mode)
+            MODE="$2"
             shift 2
             ;;
         --use_test_variant)
@@ -356,6 +355,7 @@ QUESTION_IDS=$(expand_range "$QUESTION_IDS")
 log_info "Configuration:"
 log_info "  Modalities: $MODALITIES"
 log_info "  Datasets: ${DATASETS:-auto-detect}"
+log_info "  Mode: $MODE"
 log_info "  Q Types: $Q_TYPES"
 log_info "  Question IDs: $QUESTION_IDS"
 log_info "  Use test variant: $USE_TEST_VARIANT"
@@ -404,7 +404,7 @@ for dataset in $DATASETS_TO_RUN; do
 
     for q_type in $Q_TYPES; do
         # Get dataset file path
-        dataset_path=$(get_dataset_path "$dataset" "$q_type" "$USE_TEST_VARIANT" "$modality")
+        dataset_path=$(get_dataset_path "$dataset" "$q_type" "$USE_TEST_VARIANT" "$modality" "$MODE")
 
         if [[ -z "$dataset_path" || ! -f "$dataset_path" ]]; then
             log_warn "Dataset file not found: ${dataset}_q${q_type}.json, skipping"
@@ -421,6 +421,7 @@ for dataset in $DATASETS_TO_RUN; do
             CMD="$CMD --models_dir $MODELS_DIR"
             CMD="$CMD --output_dir $OUTPUT_DIR"
             CMD="$CMD --vlm $VLM_MODEL"
+            CMD="$CMD --mode $MODE"
             CMD="$CMD --faithfulness_threshold $FAITHFULNESS_THRESHOLD"
 
             if [[ "$NO_EVAL" == "true" ]]; then

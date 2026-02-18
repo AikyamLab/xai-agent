@@ -99,7 +99,8 @@ class XAIPipelineV2:
         vlm_model_id: str = "Qwen/Qwen3-VL-8B-Instruct",
         output_dir: Optional[str] = None,
         dataset_dir: Optional[str] = None,
-        models_dir: Optional[str] = None
+        models_dir: Optional[str] = None,
+        mode: str = "test"
     ):
         """
         Initialize XAI Pipeline V2.
@@ -109,7 +110,11 @@ class XAIPipelineV2:
             output_dir: Output directory
             dataset_dir: Directory containing datasets
             models_dir: Directory containing models
+            mode: Dataset split to use ('train' or 'test'); benchmark JSONs are
+                  loaded from ``dataset_dir/{mode}/{modality}/``.
         """
+        self.mode = mode
+
         # Set default directories
         if output_dir is None:
             output_dir = os.path.join(os.getcwd(), "outputs")
@@ -129,6 +134,7 @@ class XAIPipelineV2:
         print("\n" + "=" * 70)
         print("INITIALIZING XAI PIPELINE V2")
         print("=" * 70)
+        print(f"Mode: {self.mode}")
         print(f"Dataset directory: {self.dataset_dir}")
         print(f"Models directory: {self.models_dir}")
         print(f"Output directory: {self.output_dir}")
@@ -367,8 +373,14 @@ class XAIPipelineV2:
                     "num_classes": extra_info.get('num_classes'),
                     "num_parameters": sum(p.numel() for p in model.parameters()),
                     "label_map": extra_info.get('label_map', {}),
-                    "feature_names": extra_info.get('feature_names', [])
+                    "feature_names": extra_info.get('feature_names') or []
                 }
+
+                # Tabular Q4: feature_names from instance_A's features dict
+                if modality == 'tabular':
+                    inst_a_feats = question.get('instance_A', {}).get('features', {})
+                    if inst_a_feats:
+                        model_info['feature_names'] = list(inst_a_feats.keys())
 
                 # Initialize DataModelLoader
                 self.data_model_loader = DataModelLoader(
@@ -493,6 +505,8 @@ class XAIPipelineV2:
                     data = self.data_model_loader.load_sample(index=row_no, split=split)
                     data_paths[label] = f"tabular_row_{row_no}"
                     input_tensors[label] = data.get('features')
+                    if model_info and data.get('feature_names'):
+                        model_info['feature_names'] = data['feature_names']
 
                     # Make prediction
                     loader_module = self.data_model_loader.loader_module
@@ -1489,8 +1503,16 @@ class XAIPipelineV2:
                     "num_classes": extra_info.get('num_classes'),
                     "num_parameters": sum(p.numel() for p in model.parameters()),
                     "label_map": extra_info.get('label_map', {}),
-                    "feature_names": extra_info.get('feature_names', [])
+                    "feature_names": extra_info.get('feature_names') or []
                 }
+
+                # Tabular: override feature_names from question's features dict (always available)
+                if modality == 'tabular':
+                    feats = question.get('features', {})
+                    if isinstance(feats, dict) and feats:
+                        model_info['feature_names'] = list(feats.keys())
+                    elif isinstance(feats, list) and feats and isinstance(feats[0], dict):
+                        model_info['feature_names'] = list(feats[0].keys())
 
                 print(f"Model loaded: {model_info['architecture']}")
 
@@ -1616,6 +1638,9 @@ class XAIPipelineV2:
                 data = self.data_model_loader.load_sample(index=row_no, split=split)
                 input_tensor = data.get('features')  # Preprocessed feature tensor
                 loaded_data_path = f"tabular_index_{row_no}"
+                # Authoritative feature_names come from the loaded datapoint, not model_info cache
+                if model_info and data.get('feature_names'):
+                    model_info['feature_names'] = data['feature_names']
                 print(f"Tabular data loaded: {len(data.get('feature_names', []))} features")
                 print(f"  Ground truth: {data.get('label_name')} (class {data.get('label')})")
 
@@ -1709,8 +1734,16 @@ class XAIPipelineV2:
                     "num_classes": extra_info.get('num_classes'),
                     "num_parameters": sum(p.numel() for p in model.parameters()),
                     "label_map": extra_info.get('label_map', {}),
-                    "feature_names": extra_info.get('feature_names', [])
+                    "feature_names": extra_info.get('feature_names') or []
                 }
+
+                # Tabular: override feature_names from question's features list (always available)
+                if modality == 'tabular':
+                    feats = question.get('features', [])
+                    if isinstance(feats, list) and feats and isinstance(feats[0], dict):
+                        model_info['feature_names'] = list(feats[0].keys())
+                    elif isinstance(feats, dict) and feats:
+                        model_info['feature_names'] = list(feats.keys())
 
                 print(f"Model loaded: {model_info['architecture']}")
 
@@ -2194,6 +2227,13 @@ def main():
         default=None,
         help="Max number of tool configs to sample for strategy faithfulness (default: None = full 2^N enumeration)"
     )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["train", "test"],
+        default="test",
+        help="Dataset split to use: 'train' loads from dataset/train/, 'test' loads from dataset/test/ (default: test)"
+    )
 
     args = parser.parse_args()
 
@@ -2202,7 +2242,8 @@ def main():
         vlm_model_id=args.vlm,
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
-        models_dir=args.models_dir
+        models_dir=args.models_dir,
+        mode=args.mode
     )
 
     # Run pipeline
