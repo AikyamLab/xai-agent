@@ -50,104 +50,94 @@ class Q7Evaluator(BaseEvaluator):
         Returns:
             EvaluationResult with accuracy score (1 or 0)
         """
-        try:
-            # Get agent's predicted class after change
-            output_data = agent_output.get('output', {})
-            agent_predicted_class = output_data.get('changed_class')
+        # Get agent's predicted class after change
+        output_data = agent_output.get('output', {})
+        agent_predicted_class = output_data.get('changed_class')
 
-            if agent_predicted_class is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Agent did not provide changed_class prediction"]
-                )
-
-            # Extract original class probabilities
-            original_probs = original_prediction.get('probabilities')
-            original_class = original_prediction.get('predicted_class_idx', 0)
-            if original_probs is not None:
-                if isinstance(original_probs, dict):
-                    original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
-                p_original = float(original_probs[original_class])
-            else:
-                p_original = None
-
-            # Get the part to change (should be specified in context)
-            part_to_change = kwargs.get('part_to_change')
-            if part_to_change is None:
-                # Use the most important region from original analysis
-                part_to_change = self._get_important_region(original_prediction, kwargs)
-
-            if part_to_change is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Part to change not specified"]
-                )
-
-            # Mask using modality-appropriate default strategy
-            masker = get_masker(self.modality)
-            modified_input = masker.mask(
-                original_input, part_to_change,
-                dataset_base_name=kwargs.get('dataset_base_name'),
-                row_no=kwargs.get('row_no'),
-                tool_name=kwargs.get('tool_name'),
-                mask_suffix=kwargs.get('mask_suffix', ''),
-                feature_names=kwargs.get('feature_names', [])
-            )
-
-            # Get actual prediction after modification
-            processor = kwargs.get('processor')
-            device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
-
-            modified_prediction = self.get_prediction(model, modified_input, processor, device)
-            actual_modified_class = modified_prediction.get('predicted_class_idx', -1)
-            modified_probs = modified_prediction.get('probabilities')
-            p_modified = float(modified_probs[original_class]) if modified_probs is not None else None
-
-            # Convert agent's prediction to index for comparison
-            class_names = kwargs.get('class_names')
-            agent_predicted_idx = self._get_class_index(agent_predicted_class, class_names)
-
-            # Passed logic unchanged: binary correct/wrong
-            correct = (actual_modified_class == agent_predicted_idx)
-
-            # Soft score: probability of agent's predicted class in modified output
-            if modified_probs is not None and agent_predicted_idx >= 0:
-                p_agent_predicted = float(modified_probs[agent_predicted_idx])
-                score = max(0.0, min(1.0, p_agent_predicted))
-            else:
-                p_agent_predicted = None
-                score = 1.0 if correct else 0.0
-
-            return EvaluationResult(
-                score=score,
-                passed=correct,
-                metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                original_class=str(original_prediction.get('predicted_class_idx')),
-                modified_class=str(actual_modified_class),
-                p_original=p_original,
-                p_modified=p_modified,
-                details={
-                    "part_to_change": part_to_change,
-                    "agent_predicted_class": agent_predicted_class,
-                    "agent_predicted_idx": agent_predicted_idx,
-                    "actual_modified_class": actual_modified_class,
-                    "p_agent_predicted_in_modified": p_agent_predicted,
-                    "binary_correct": correct,
-                    "interpretation": "Soft score: P(agent_predicted_class) in modified output, range [0,1]"
-                }
-            )
-
-        except Exception as e:
+        if agent_predicted_class is None:
             return EvaluationResult(
                 score=0.0,
                 passed=False,
-                metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                errors=[str(e)]
+                errors=["Agent did not provide changed_class prediction"]
             )
+
+        # Extract original class probabilities
+        original_probs = original_prediction.get('probabilities')
+        original_class = original_prediction.get('predicted_class_idx', 0)
+        if original_probs is not None:
+            if isinstance(original_probs, dict):
+                original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
+            p_original = float(original_probs[original_class])
+        else:
+            p_original = None
+
+        # Get the part to change (should be specified in context)
+        part_to_change = kwargs.get('part_to_change')
+        if part_to_change is None:
+            # Use the most important region from original analysis
+            part_to_change = self._get_important_region(original_prediction, kwargs)
+
+        if part_to_change is None:
+            return EvaluationResult(
+                score=0.0,
+                passed=False,
+                errors=["Part to change not specified"]
+            )
+
+        # Mask using modality-appropriate default strategy
+        masker = get_masker(self.modality)
+        modified_input = masker.mask(
+            original_input, part_to_change,
+            dataset_base_name=kwargs.get('dataset_base_name'),
+            row_no=kwargs.get('row_no'),
+            tool_name=kwargs.get('tool_name'),
+            mask_suffix=kwargs.get('mask_suffix', ''),
+            feature_names=kwargs.get('feature_names', [])
+        )
+
+        # Get actual prediction after modification
+        processor = kwargs.get('processor')
+        device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+
+        modified_prediction = self.get_prediction(model, modified_input, processor, device)
+        actual_modified_class = modified_prediction.get('predicted_class_idx', -1)
+        modified_probs = modified_prediction.get('probabilities')
+        p_modified = float(modified_probs[original_class]) if modified_probs is not None else None
+
+        # Convert agent's prediction to index for comparison
+        class_names = kwargs.get('class_names')
+        agent_predicted_idx = self._get_class_index(agent_predicted_class, class_names)
+
+        # Passed logic unchanged: binary correct/wrong
+        correct = (actual_modified_class == agent_predicted_idx)
+
+        # Soft score: probability of agent's predicted class in modified output
+        if modified_probs is not None and agent_predicted_idx >= 0:
+            p_agent_predicted = float(modified_probs[agent_predicted_idx])
+            score = max(0.0, min(1.0, p_agent_predicted))
+        else:
+            p_agent_predicted = None
+            score = 1.0 if correct else 0.0
+
+        return EvaluationResult(
+            score=score,
+            passed=correct,
+            metric_name=self.metric_name,
+            metric_formula=self.metric_formula,
+            original_class=str(original_prediction.get('predicted_class_idx')),
+            modified_class=str(actual_modified_class),
+            p_original=p_original,
+            p_modified=p_modified,
+            details={
+                "part_to_change": part_to_change,
+                "agent_predicted_class": agent_predicted_class,
+                "agent_predicted_idx": agent_predicted_idx,
+                "actual_modified_class": actual_modified_class,
+                "p_agent_predicted_in_modified": p_agent_predicted,
+                "binary_correct": correct,
+                "interpretation": "Soft score: P(agent_predicted_class) in modified output, range [0,1]"
+            }
+        )
 
     def _get_important_region(self, prediction: Dict, kwargs: Dict) -> Dict:
         """Get the important region to modify"""

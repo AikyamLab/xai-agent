@@ -178,6 +178,17 @@ class ActorAgent(BaseAgent):
         """Execute strategy for single instance (original logic)."""
         modality = question.get('modality', 'vision')
 
+        # Pure-reasoning mode: no tools and no autonomous tasks
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            return self._run_pure_reasoning(
+                question=question,
+                question_template=question_template,
+                strategy=strategy,
+                input_path=input_path,
+                model_info=model_info,
+                prediction=prediction
+            )
+
         # Step 1: Execute XAI tools
         print("  Step 1: Executing XAI tools...")
         tool_results = self._execute_tools(
@@ -266,6 +277,17 @@ class ActorAgent(BaseAgent):
         modality = question.get('modality', 'vision')
         num_instances = len(input_paths)
         q_type = question.get('q_type')
+
+        # Pure-reasoning mode: no tools and no autonomous tasks
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            return self._run_pure_reasoning(
+                question=question,
+                question_template=question_template,
+                strategy=strategy,
+                input_paths=input_paths,
+                model_info=model_info,
+                predictions=predictions
+            )
 
         # Step 1: Execute XAI tools on each instance
         all_tool_results = []
@@ -679,6 +701,16 @@ Respond with ONLY valid JSON:"""
         print("=" * 70)
 
         modality = question.get('modality', 'vision')
+
+        # Pure-reasoning mode: no tools and no autonomous tasks
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            return self._run_pure_reasoning(
+                question=question,
+                question_template=question_template,
+                strategy=strategy,
+                model_info=model_info,
+                instances=instances
+            )
 
         # Breast Cancer Q4 uses full-dataset indices (is_spurious pattern from load_breast_cancer.py)
         if modality == 'tabular':
@@ -2142,6 +2174,501 @@ JSON Response:"""
         parsed['visualization_paths'] = tool_results.get('visualization_paths', [])
         return parsed
 
+    # =========================================================================
+    # Pure-Reasoning (No-Tools) Methods
+    # =========================================================================
+
+    def _build_no_tools_prompt(
+        self,
+        question: Dict[str, Any],
+        prediction: Dict[str, Any],
+        modality: str,
+        q_type: int,
+        image_size: Tuple[int, int] = (224, 224),
+        input_data: Any = None,
+        all_input_datas: Optional[List] = None,
+        all_predictions: Optional[List[Dict]] = None
+    ) -> str:
+        """
+        Build prompt for VLM to analyze input directly without any XAI tool results.
+        Supports vision, text, and tabular modalities.
+
+        Output format is driven by QUESTION_OUTPUT_SCHEMAS so it automatically
+        covers all Q-type x modality combinations without per-case hardcoding.
+
+        For multi-instance Q types (Q4, Q9, Q10), pass all_input_datas and
+        all_predictions so the VLM can reason about every instance.
+        """
+        from prompts.output_schemas import get_output_schema
+
+        # Determine if we're in multi-instance mode
+        is_multi = bool(all_input_datas and len(all_input_datas) > 1)
+        instance_labels = [chr(ord('A') + i) for i in range(len(all_input_datas))] if is_multi else []
+
+        _pred = prediction or {}
+        pred_class = _pred.get('predicted_class_name', _pred.get('predicted_class_idx', 'Unknown'))
+        confidence = _pred.get('confidence', 0.0)
+
+        # Canonical output schema for this Q-type x modality
+        schema = get_output_schema(q_type, modality)
+        schema_str = json.dumps(schema, indent=4)
+
+        # Build modality-specific context sections
+        if modality == "vision":
+            image_width, image_height = image_size
+            size_constraint = f"""
+**CRITICAL IMAGE SIZE CONSTRAINT:**
+- Image dimensions: {image_width} x {image_height} pixels
+- ALL bounding_box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
+- Example valid bounding box: [10, 20, 80, 70]"""
+            if is_multi:
+                pred_lines = []
+                for lbl, pred in zip(instance_labels, all_predictions or []):
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    conf = pred.get('confidence', 0.0)
+                    pred_lines.append(f"  - Instance {lbl}: {cls} (confidence: {conf:.2%})")
+                input_section = (
+                    "\n## Instances (images provided in order)\n"
+                    + "\n".join(pred_lines) + "\n"
+                )
+            else:
+                input_section = ""  # Single image passed separately
+            guidelines = (
+                "- Replace every placeholder value with your actual analysis result\n"
+                "- Bounding box must stay within image bounds"
+            )
+
+        elif modality == "text":
+            def _extract_text(data) -> str:
+                if isinstance(data, str):
+                    return data
+                if isinstance(data, dict):
+                    premise = data.get('premise', '')
+                    hypothesis = data.get('hypothesis', '')
+                    return f"Premise: {premise}\nHypothesis: {hypothesis}" if premise else str(data)
+                return ''
+
+            if is_multi:
+                parts = []
+                max_len = 0
+                for lbl, data, pred in zip(instance_labels,
+                                           all_input_datas,
+                                           all_predictions or [{}] * len(all_input_datas)):
+                    txt = _extract_text(data)
+                    max_len = max(max_len, len(txt))
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    display = txt[:500] + "..." if len(txt) > 500 else txt
+                    parts.append(f"### Instance {lbl} (prediction: {cls})\n```\n{display}\n```")
+                text_length = max_len if max_len > 0 else 100
+                size_constraint = f"""
+**CRITICAL TEXT LENGTH CONSTRAINT (longest instance: {text_length} chars):**
+- start_index MUST be >= 0, end_index MUST be <= length of that instance's text, end_index > start_index"""
+                input_section = "\n## Input Instances\n" + "\n\n".join(parts) + "\n"
+            else:
+                text_input = question.get('text_input', '')
+                if not text_input and input_data:
+                    text_input = _extract_text(input_data)
+                text_length = len(text_input) if text_input else 100
+                size_constraint = f"""
+**CRITICAL TEXT LENGTH CONSTRAINT:**
+- Text length: {text_length} characters
+- start_index MUST be >= 0, end_index MUST be <= {text_length}, end_index > start_index"""
+                display_text = text_input[:1000] + "..." if len(text_input) > 1000 else text_input
+                input_section = f"\n## Input Text\n```\n{display_text}\n```\n"
+
+            guidelines = (
+                "- Replace every placeholder value with your actual analysis result\n"
+                "- start_index / end_index must be valid character positions in each instance's text"
+            )
+
+        else:  # tabular
+            size_constraint = ""
+
+            def _extract_features(data) -> dict:
+                return data if isinstance(data, dict) else {}
+
+            if is_multi:
+                parts = []
+                all_features = {}
+                q_features = question.get('features', {})
+                for i, (lbl, data, pred) in enumerate(zip(
+                        instance_labels,
+                        all_input_datas,
+                        all_predictions or [{}] * len(all_input_datas))):
+                    feats = _extract_features(data)
+                    if not feats:
+                        if isinstance(q_features, list) and i < len(q_features):
+                            feats = q_features[i] if isinstance(q_features[i], dict) else {}
+                        elif isinstance(q_features, dict):
+                            feats = q_features
+                    all_features = feats  # same schema across instances
+                    cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
+                    feat_lines = "\n".join(f"  - {k}: {v}" for k, v in feats.items())
+                    parts.append(f"### Instance {lbl} (prediction: {cls})\n{feat_lines}")
+                input_section = (
+                    "\n## Input Instances\n"
+                    + "\n\n".join(parts)
+                    + f"\n\n**Available feature names:** {list(all_features.keys())}\n"
+                )
+            else:
+                features = question.get('features', {})
+                if not features and isinstance(input_data, dict):
+                    features = input_data
+                if features:
+                    feat_lines = "\n".join(f"  - {k}: {v}" for k, v in features.items())
+                    input_section = (
+                        f"\n## Input Features\n{feat_lines}\n"
+                        f"\n**Available feature names:** {list(features.keys())}\n"
+                    )
+                else:
+                    input_section = ""
+
+            guidelines = (
+                "- feature_key must be the EXACT name of one of the available features listed above\n"
+                "- Replace every placeholder value with your actual analysis result"
+            )
+
+        # Prediction summary line (single-instance or first instance)
+        pred_summary = f"- Model Prediction: {pred_class} (confidence: {confidence:.2%})"
+        if is_multi and modality != "vision":
+            pred_summary = f"- Instances: {len(all_input_datas)} (predictions shown per instance below)"
+
+        prompt = f"""You are an expert XAI analyst. Analyze the input DIRECTLY and answer the question about the model's prediction.
+
+## Context
+- Question: {question.get('question', question.get('q', 'What is most responsible for the prediction?'))}
+- Question Type: Q{q_type}
+- Modality: {modality}
+{pred_summary}
+{size_constraint}
+{input_section}
+## IMPORTANT NOTE
+**NO XAI tool results are available.** Analyze the input DIRECTLY.
+
+## Required Output Format
+Your response MUST be valid JSON matching this EXACT structure (replace placeholder values with your analysis):
+
+{schema_str}
+
+**Guidelines:**
+{guidelines}
+
+Respond with ONLY valid JSON:"""
+
+        return prompt
+
+    def _prepare_images_for_vlm(
+        self,
+        input_tensor: Any,
+        input_path: str,
+        modality: str,
+        input_tensors: Optional[List] = None,
+        input_paths: Optional[List[str]] = None
+    ) -> Optional[List]:
+        """Prepare images for VLM invocation.
+
+        For multi-instance Q types (Q4, Q9, Q10), pass input_tensors / input_paths
+        to include all instances.  Falls back to the single-instance parameters
+        when the lists are not provided.
+        """
+        if modality != "vision":
+            return None
+
+        from PIL import Image
+        import os
+
+        def _tensor_to_pil(t) -> Optional[Any]:
+            """Convert a single tensor to PIL, or return None."""
+            try:
+                import torch, numpy as np
+                if isinstance(t, torch.Tensor):
+                    t = t.detach().cpu()
+                    if t.dim() == 4:
+                        t = t[0]
+                    if t.dim() == 3:
+                        arr = t.permute(1, 2, 0).numpy()
+                        mean = np.array([0.485, 0.456, 0.406])
+                        std  = np.array([0.229, 0.224, 0.225])
+                        arr = (arr * std + mean) * 255
+                        return Image.fromarray(arr.clip(0, 255).astype('uint8'))
+            except Exception:
+                pass
+            return None
+
+        def _load_single(tensor, path) -> Optional[Any]:
+            if isinstance(tensor, Image.Image):
+                return tensor.convert("RGB")
+            if path and os.path.exists(path):
+                return Image.open(path).convert("RGB")
+            img = _tensor_to_pil(tensor)
+            return img
+
+        # Collect source list: prefer multi-instance lists
+        tensors = input_tensors if input_tensors else [input_tensor]
+        paths   = input_paths   if input_paths   else [input_path]
+
+        images = []
+        for t, p in zip(tensors, paths):
+            img = _load_single(t, p)
+            if img is not None:
+                images.append(img.resize((224, 224)))
+
+        return images if images else None
+
+    def _parse_no_tools_response(
+        self,
+        response: str,
+        modality: str,
+        q_type: int,
+        image_size: Tuple[int, int] = (224, 224),
+        text_length: int = 100,
+        available_features: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Parse VLM response for no-tools analysis. Supports all modalities."""
+        import re
+
+        def clip_bounding_box(bbox: List, width: int, height: int) -> List:
+            """Clip bounding box coordinates to valid image bounds."""
+            if not bbox or len(bbox) != 4:
+                return [0, 0, width, height]
+            x_min, y_min, x_max, y_max = bbox
+            x_min = max(0, min(int(x_min), width - 1))
+            y_min = max(0, min(int(y_min), height - 1))
+            x_max = max(x_min + 1, min(int(x_max), width))
+            y_max = max(y_min + 1, min(int(y_max), height))
+            return [x_min, y_min, x_max, y_max]
+
+        def clip_text_indices(start: int, end: int, length: int) -> Tuple[int, int]:
+            """Clip text indices to valid range."""
+            start = max(0, min(int(start), length - 1))
+            end = max(start + 1, min(int(end), length))
+            return start, end
+
+        width, height = image_size
+
+        def clip_region_dict(d: Dict) -> Dict:
+            """Clip/validate a single region dict in-place based on modality."""
+            if not isinstance(d, dict):
+                return d
+            if modality == "vision" and 'bounding_box' in d:
+                d['bounding_box'] = clip_bounding_box(d['bounding_box'], width, height)
+            elif modality == "text":
+                if 'start_index' in d and 'end_index' in d:
+                    s, e = clip_text_indices(d['start_index'], d['end_index'], text_length)
+                    d['start_index'], d['end_index'] = s, e
+            elif modality == "tabular" and available_features:
+                if 'feature_key' in d and d['feature_key'] not in available_features:
+                    d['feature_key'] = available_features[0] if available_features else "unknown"
+            return d
+
+        def validate_and_fix_output(parsed: Dict, modality: str) -> Dict:
+            """Validate and fix output based on modality."""
+            if 'output' not in parsed:
+                return parsed
+
+            output = parsed['output']
+
+            # Direct region fields (Q1-Q3, Q8)
+            clip_region_dict(output)
+
+            # Nested single-dict structures
+            for nested_key in ('change_plan', 'masked_region',
+                               'correct_instance_features', 'wrong_instance_features'):
+                if nested_key in output and isinstance(output[nested_key], dict):
+                    clip_region_dict(output[nested_key])
+
+            # Multi-instance: all input_* keys (Q4, Q9)
+            for key, val in output.items():
+                if key.startswith('input_') and isinstance(val, dict):
+                    clip_region_dict(val)
+
+            parsed['output'] = output
+            return parsed
+
+        # Try to find JSON in the response
+        json_match = re.search(r'\{[\s\S]*\}', response)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+
+                if 'output' in parsed:
+                    return validate_and_fix_output(parsed, modality)
+
+                # Try to restructure if output fields are at top level
+                if 'change_plan' in parsed:
+                    return validate_and_fix_output({
+                        "output": {"change_plan": parsed['change_plan']},
+                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                        "confidence": parsed.get('confidence', 0.5)
+                    }, modality)
+                elif modality == "vision" and 'bounding_box' in parsed:
+                    clipped_bbox = clip_bounding_box(parsed['bounding_box'], width, height)
+                    return {
+                        "output": {"bounding_box": clipped_bbox},
+                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                        "confidence": parsed.get('confidence', 0.5)
+                    }
+                elif modality == "text" and 'start_index' in parsed and 'end_index' in parsed:
+                    start, end = clip_text_indices(parsed['start_index'], parsed['end_index'], text_length)
+                    return {
+                        "output": {"start_index": start, "end_index": end},
+                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                        "confidence": parsed.get('confidence', 0.5)
+                    }
+                elif modality == "tabular" and 'feature_key' in parsed:
+                    feature_key = parsed['feature_key']
+                    if available_features and feature_key not in available_features:
+                        feature_key = available_features[0] if available_features else "unknown"
+                    return {
+                        "output": {"feature_key": feature_key},
+                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                        "confidence": parsed.get('confidence', 0.5)
+                    }
+
+            except json.JSONDecodeError:
+                pass
+
+        # Try direct parse
+        try:
+            parsed = json.loads(response)
+            if 'output' in parsed:
+                return validate_and_fix_output(parsed, modality)
+        except json.JSONDecodeError:
+            pass
+
+        print(f"      Warning: Failed to parse no-tools response: {response[:200]}...")
+        return None
+
+    def _run_pure_reasoning(
+        self,
+        question: Dict[str, Any],
+        question_template: Any,
+        strategy: Dict[str, Any],
+        input_path: Optional[str] = None,
+        model_info: Optional[Dict[str, Any]] = None,
+        prediction: Optional[Dict[str, Any]] = None,
+        input_paths: Optional[List[str]] = None,
+        predictions: Optional[List[Dict[str, Any]]] = None,
+        instances: Optional[List[Dict[str, Any]]] = None,
+        suffix: str = ""
+    ) -> Dict[str, Any]:
+        """
+        Execute pure-reasoning mode: no XAI tools, direct VLM analysis.
+        Used when proposer selects no tools and no autonomous tasks.
+
+        Covers single instance, multi-instance (Q9/Q10), and Q4 (A vs B).
+        """
+        modality = question.get('modality', 'vision')
+        q_type = question.get('q_type', 1)
+
+        print("  [Actor] Pure-reasoning mode: direct VLM analysis (no tools)")
+
+        # Normalize to lists for unified handling
+        if instances:
+            # Q4: instances = [{'prediction': ..., 'path': ..., 'label': 'A'}, ...]
+            _paths = [inst['path'] for inst in instances]
+            _preds = [inst.get('prediction', {}) for inst in instances]
+        elif input_paths and predictions:
+            _paths = input_paths
+            _preds = predictions
+        else:
+            _paths = [input_path] if input_path else []
+            _preds = [prediction or {}]
+
+        is_multi = len(_paths) > 1
+        _pred = _preds[0] if _preds else {}
+
+        # Build prompt (pass placeholder list for multi so is_multi is detected)
+        all_input_datas = [None] * len(_paths) if is_multi else None
+        all_predictions = _preds if is_multi else None
+
+        prompt = self._build_no_tools_prompt(
+            question=question,
+            prediction=_pred,
+            modality=modality,
+            q_type=q_type,
+            image_size=(224, 224),
+            input_data=None,
+            all_input_datas=all_input_datas,
+            all_predictions=all_predictions
+        )
+
+        # Prepare images for vision
+        images = self._prepare_images_for_vlm(
+            input_tensor=None,
+            input_path=_paths[0] if _paths else "",
+            modality=modality,
+            input_tensors=None,
+            input_paths=_paths if is_multi else None
+        )
+
+        # Invoke VLM
+        response = self.invoke_vlm(prompt, images)
+
+        # Compute parsing parameters
+        text_length = 100
+        available_features = None
+
+        if modality == "text":
+            text_input = question.get('text_input', '')
+            if text_input:
+                text_length = len(text_input)
+            else:
+                features_list = question.get('features', [])
+                if isinstance(features_list, list):
+                    max_len = 0
+                    for feat in features_list:
+                        if isinstance(feat, dict):
+                            txt = feat.get('premise', '') + feat.get('hypothesis', '')
+                            max_len = max(max_len, len(txt))
+                        elif isinstance(feat, str):
+                            max_len = max(max_len, len(feat))
+                    text_length = max_len or 100
+                elif isinstance(features_list, dict):
+                    txt = features_list.get('premise', '') + features_list.get('hypothesis', '')
+                    text_length = len(txt) or 100
+        elif modality == "tabular":
+            features = question.get('features', {})
+            if isinstance(features, list) and features:
+                features = features[0] if isinstance(features[0], dict) else {}
+            if isinstance(features, dict):
+                available_features = list(features.keys()) if features else None
+
+        # Parse response
+        parsed_result = self._parse_no_tools_response(
+            response=response,
+            modality=modality,
+            q_type=q_type,
+            image_size=(224, 224),
+            text_length=text_length,
+            available_features=available_features
+        )
+
+        if not parsed_result:
+            raise RuntimeError(
+                f"[Actor] Pure-reasoning VLM response could not be parsed. "
+                f"Preview: {response[:500]}"
+            )
+
+        # Attach metadata
+        parsed_result['question_id'] = question.get('question_id', 'unknown')
+        parsed_result['question_type'] = q_type
+        parsed_result['tool_results'] = {}
+        parsed_result['autonomous_results'] = {}
+        parsed_result['visualization_paths'] = []
+        parsed_result['pure_reasoning'] = True
+        if is_multi:
+            parsed_result['is_multi_instance'] = True
+            parsed_result['num_instances'] = len(_paths)
+        if instances:
+            parsed_result['is_q4'] = True
+
+        # Save results
+        self._save_results(parsed_result, question, suffix=suffix)
+
+        print(f"  [Actor] Pure-reasoning complete.")
+        return parsed_result
+
     def _create_error_result(self, error: str, question: Dict) -> Dict[str, Any]:
         """Create error result"""
         modality = question.get('modality', 'vision')
@@ -2238,6 +2765,18 @@ JSON Response:"""
 
         # --- Single-instance reflection path (original logic) ---
 
+        # Pure-reasoning mode: no tools and no autonomous tasks
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            return self._run_pure_reasoning(
+                question=question,
+                question_template=question_template,
+                strategy=strategy,
+                input_path=input_path,
+                model_info=model_info,
+                prediction=prediction,
+                suffix="_improved"
+            )
+
         # Step 1: Execute XAI tools (with potentially new strategy)
         print("  Step 1: Executing XAI tools...")
         tool_results = self._execute_tools(
@@ -2328,6 +2867,18 @@ JSON Response:"""
         modality = question.get('modality', 'vision')
         num_instances = len(input_paths)
         q_type = question.get('q_type')
+
+        # Pure-reasoning mode: no tools and no autonomous tasks
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            return self._run_pure_reasoning(
+                question=question,
+                question_template=question_template,
+                strategy=strategy,
+                input_paths=input_paths,
+                model_info=model_info,
+                predictions=predictions,
+                suffix="_improved"
+            )
 
         # Step 1: Execute XAI tools on each instance (same as _execute_multi_instance)
         all_tool_results = []

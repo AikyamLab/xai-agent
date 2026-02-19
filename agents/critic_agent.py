@@ -408,7 +408,8 @@ class CriticAgent(BaseAgent):
                 "error": "Model or inputs not provided"
             }
 
-        # Save evaluation
+        # Save evaluation (suffix e.g. "_improved" for second-pass evaluations)
+        suffix = kwargs.get('suffix', '')
         import re
         dataset_base_name = question.get('dataset_base_name', 'unknown')
         row_no = question.get('pair_id', question.get('row_no', question.get('question_id', 0)))
@@ -422,7 +423,7 @@ class CriticAgent(BaseAgent):
             q_type_str = "q4"
 
         subdir = f"evaluations/{modality}/{dataset_name}/{q_type_str}/{row_no}"
-        filepath = self.save_json(evaluation, "evaluation", subdir)
+        filepath = self.save_json(evaluation, f"evaluation{suffix}", subdir)
         print(f"Q4 Evaluation saved to: {filepath}")
 
         return evaluation
