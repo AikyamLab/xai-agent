@@ -558,9 +558,7 @@ class XAIPipelineV2:
                         predictions[label] = pred
 
         except Exception as e:
-            print(f"Warning: Failed to load model/data for Q4: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load model/data for Q4: {e}") from e
 
         return model_info, predictions, data_paths, input_tensors
 
@@ -1878,17 +1876,7 @@ class XAIPipelineV2:
                         print(f"Warning: Prediction failed: {prediction.get('error') if prediction else 'Unknown'}")
 
         except Exception as e:
-            # CUDA/GPU errors are fatal — pipeline cannot produce meaningful results
-            # without a working model.  Re-raise so the job fails clearly instead of
-            # continuing with model_info=None / prediction=None and crashing downstream.
-            error_str = str(type(e).__name__) + ": " + str(e)
-            cuda_keywords = ('CUDA error', 'CUDA out of memory', 'AcceleratorError',
-                             'OutOfMemoryError', 'CUBLAS_STATUS', 'device(s) is/are busy')
-            if any(kw in error_str for kw in cuda_keywords):
-                raise RuntimeError(f"Fatal GPU error during model loading: {e}") from e
-            print(f"Warning: Failed to load model/data: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load model/data: {e}") from e
 
         return model_info, prediction, loaded_data_path, input_tensor
 
@@ -2131,9 +2119,7 @@ class XAIPipelineV2:
                         predictions.append({})
 
         except Exception as e:
-            print(f"Warning: Failed to load instance data for multi-instance: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load instance data for multi-instance: {e}") from e
 
         return model_info, predictions, data_paths, input_tensors
 
