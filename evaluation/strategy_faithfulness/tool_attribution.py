@@ -762,7 +762,7 @@ class ToolAttributionEvaluator:
         image_size = self._get_image_size(input_tensor, input_path, modality)
 
         # Build prompt for VLM to analyze input directly (no tool results)
-        prompt = self._build_no_tools_prompt(
+        prompt = self.actor._build_no_tools_prompt(
             question=question,
             prediction=prediction,
             modality=modality,
@@ -775,7 +775,7 @@ class ToolAttributionEvaluator:
         )
 
         # Prepare images for VLM (vision only); include all instances for multi-instance Q types
-        images = self._prepare_images_for_vlm(
+        images = self.actor._prepare_images_for_vlm(
             input_tensor, input_path, modality,
             input_tensors=input_tensors if is_multi else None,
             input_paths=input_paths if is_multi else None
@@ -820,7 +820,7 @@ class ToolAttributionEvaluator:
             available_features = list(features.keys()) if features else None
 
         # Parse response
-        parsed_result = self._parse_no_tools_response(
+        parsed_result = self.actor._parse_no_tools_response(
             response=response,
             modality=modality,
             q_type=q_type,
