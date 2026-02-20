@@ -10,6 +10,7 @@ Responsible for:
 from __future__ import annotations
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -56,15 +57,12 @@ class ActorAgent(BaseAgent):
         # Store data_model_loader for use in multi-instance methods (Q4, Q9, Q10)
         self.data_model_loader = data_model_loader
 
-        try:
-            from xai_tools_native import create_xai_tools
-            self.tool_registry = create_xai_tools(
-                data_model_loader=data_model_loader,
-                output_dir=str(self.output_dir / "xai_outputs")
-            )
-            print("XAI Tools initialized for Actor Agent")
-        except ImportError:
-            print("Warning: xai_tools_native not available")
+        from xai_tools_native import create_xai_tools
+        self.tool_registry = create_xai_tools(
+            data_model_loader=data_model_loader,
+            output_dir=str(self.output_dir / "xai_outputs")
+        )
+        print("XAI Tools initialized for Actor Agent")
 
     def run(
         self,
@@ -332,7 +330,7 @@ class ActorAgent(BaseAgent):
                     else:
                         self.data_model_loader.load_sample(index=image_indices[i], split=split)
                 except Exception as e:
-                    print(f"  Warning: Failed to reload sample {image_indices[i]} for instance {i}: {e}")
+                    raise RuntimeError(f"Failed to reload sample {image_indices[i]} for instance {i}: {e}") from e
 
             # Modify question for this instance (for output naming)
             instance_question = question.copy()
@@ -523,14 +521,7 @@ For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes
 
 Respond with ONLY valid JSON:"""
 
-        response = self.invoke_vlm(prompt)
-        features = self.parse_json_response(response)
-        if not features:
-            raise RuntimeError(
-                f"Failed to parse VLM response for multi-instance feature extraction. "
-                f"Response preview: {response[:500]}"
-            )
-        return features
+        return self.invoke_vlm_for_json(prompt)
 
     def _format_tool_summary(self, tool_results: Dict[str, Any]) -> str:
         """Format tool results as brief summary."""
@@ -629,16 +620,7 @@ Respond with ONLY valid JSON:"""
         prompt = prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
         print(f"  Generated multi-instance actor prompt ({len(prompt)} chars)")
 
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:200]}...")
-
-        parsed = self.parse_json_response(response)
-        if not parsed:
-            raise RuntimeError(
-                f"Failed to parse VLM response for multi-instance explanation. "
-                f"Response preview: {response[:500]}"
-            )
-        return parsed
+        return self.invoke_vlm_for_json(prompt)
 
     # =========================================================================
     # Q4 Specific Methods (instance_A / instance_B format)
@@ -668,7 +650,7 @@ Respond with ONLY valid JSON:"""
                 self.data_model_loader.load_sample(index=inst['image_index'], split=split)
                 print(f"    Reloaded vision instance: image_index={inst['image_index']}")
         except Exception as e:
-            print(f"    Warning: Failed to reload Q4 instance: {e}")
+            raise RuntimeError(f"Failed to reload Q4 instance: {e}") from e
 
     def run_q4(
         self,
@@ -957,14 +939,7 @@ Explain why these regions lead to DIFFERENT predictions.
 
 Respond with ONLY valid JSON:"""
 
-        response = self.invoke_vlm(prompt)
-        features = self.parse_json_response(response)
-        if not features:
-            raise RuntimeError(
-                f"Failed to parse VLM response for Q4 feature extraction. "
-                f"Response preview: {response[:500]}"
-            )
-        return features
+        return self.invoke_vlm_for_json(prompt)
 
     def _compute_bbox_from_tool_results(
         self,
@@ -1076,19 +1051,20 @@ Respond with ONLY valid JSON:"""
         print(f"\n DEBUG Q4 EXPLANATION PROMPT:\n{prompt}")
         print("=" * 70)
 
-        response = self.invoke_vlm(prompt)
-
-        print("=" * 70)
-        print(f"\n DEBUG Q4 EXPLANATION RESPONSE:\n{response}")
-        print("=" * 70)
-
-        parsed = self.parse_json_response(response)
-        if not parsed:
-            raise RuntimeError(
-                f"Failed to parse VLM response for Q4 explanation. "
-                f"Response preview: {response[:500]}"
-            )
-        return parsed
+        last_error = None
+        for attempt in range(1, 4):
+            response = self.invoke_vlm(prompt)
+            print("=" * 70)
+            print(f"\n DEBUG Q4 EXPLANATION RESPONSE (attempt {attempt}/3):\n{response}")
+            print("=" * 70)
+            try:
+                return self.parse_json_response(response)
+            except RuntimeError as e:
+                last_error = e
+                if attempt < 3:
+                    print(f"  JSON parse failed (attempt {attempt}/3), retrying in 2s...")
+                    time.sleep(2)
+        raise last_error
 
     def _execute_tools(
         self,
@@ -1146,50 +1122,44 @@ Respond with ONLY valid JSON:"""
             tool_name = tool_spec.get('tool_name', 'gradcam')
 
             if self.tool_registry is None:
-                tool_outputs[tool_name] = {"success": False, "error": "Tools not initialized"}
-                continue
+                raise RuntimeError(f"Tool registry not initialized. Cannot execute tool '{tool_name}'.")
 
             tool = self.tool_registry.get_tool(tool_name)
             if tool is None:
-                print(f"  Warning: Tool '{tool_name}' not found")
+                print(f"  Warning: Tool '{tool_name}' not found in registry (proposer may have hallucinated tool name), skipping.")
                 continue
 
-            try:
-                print(f"  Executing {tool_name}...")
-                result_str = tool.run(
-                    image_path=input_path,
-                    target_class=target_class,
-                    image_id=f"{image_id_prefix}_{tool_name}"
+            print(f"  Executing {tool_name}...")
+            result_str = tool.run(
+                image_path=input_path,
+                target_class=target_class,
+                image_id=f"{image_id_prefix}_{tool_name}"
+            )
+            result = json.loads(result_str)
+
+            # Compute suggested_bounding_box from tool statistics (same logic as _format_tool_statistics)
+            if result.get('success'):
+                stats = result.get('statistics', {})
+                top_coords = (
+                    stats.get('top_attention_coords') or
+                    stats.get('top_importance_coords') or
+                    stats.get('top_gradient_coords')
                 )
-                result = json.loads(result_str)
+                if top_coords and len(top_coords) > 0:
+                    xs = [c.get('x', 0) for c in top_coords if isinstance(c, dict)]
+                    ys = [c.get('y', 0) for c in top_coords if isinstance(c, dict)]
+                    if xs and ys:
+                        result['suggested_bounding_box'] = [min(xs), min(ys), max(xs), max(ys)]
 
-                # Compute suggested_bounding_box from tool statistics (same logic as _format_tool_statistics)
-                if result.get('success'):
-                    stats = result.get('statistics', {})
-                    top_coords = (
-                        stats.get('top_attention_coords') or
-                        stats.get('top_importance_coords') or
-                        stats.get('top_gradient_coords')
-                    )
-                    if top_coords and len(top_coords) > 0:
-                        xs = [c.get('x', 0) for c in top_coords if isinstance(c, dict)]
-                        ys = [c.get('y', 0) for c in top_coords if isinstance(c, dict)]
-                        if xs and ys:
-                            result['suggested_bounding_box'] = [min(xs), min(ys), max(xs), max(ys)]
+            tool_outputs[tool_name] = result
 
-                tool_outputs[tool_name] = result
-
-                if result.get('success'):
-                    viz_path = result.get('visualization_path')
-                    if viz_path:
-                        all_viz_paths.append({'tool': tool_name, 'path': viz_path})
-                    tool_summaries.append(f"{tool_name}: success")
-                else:
-                    tool_summaries.append(f"{tool_name}: failed")
-
-            except Exception as e:
-                tool_outputs[tool_name] = {"success": False, "error": str(e)}
-                tool_summaries.append(f"{tool_name}: error - {str(e)}")
+            if result.get('success'):
+                viz_path = result.get('visualization_path')
+                if viz_path:
+                    all_viz_paths.append({'tool': tool_name, 'path': viz_path})
+                tool_summaries.append(f"{tool_name}: success")
+            else:
+                raise RuntimeError(f"Tool '{tool_name}' returned failure: {result.get('error', 'unknown error')}")
 
             # Free intermediate activation tensors left by XAI tools after each run
             try:
@@ -1247,58 +1217,33 @@ Respond with ONLY valid JSON:"""
 
             print(f"    [{i+1}/{len(autonomous_tasks)}] Executing '{task_type}' task...")
 
-            try:
-                # Build prompt directly from task specification
-                prompt = self._build_autonomous_task_prompt(
-                    task_type=task_type,
-                    query=query,
-                    expected_output=expected_output,
-                    prediction=prediction,
-                    question=question,
-                    modality=modality,
-                    tool_results=tool_results
-                )
+            # Build prompt directly from task specification
+            prompt = self._build_autonomous_task_prompt(
+                task_type=task_type,
+                query=query,
+                expected_output=expected_output,
+                prediction=prediction,
+                question=question,
+                modality=modality,
+                tool_results=tool_results
+            )
 
-                # Prepare images for VLM (vision modality)
-                images = []
-                if modality == "vision" and input_path and os.path.exists(input_path):
-                    images.append(input_path)
+            # Prepare images for VLM (vision modality)
+            images = []
+            if modality == "vision" and input_path and os.path.exists(input_path):
+                images.append(input_path)
 
-                # Call VLM to execute the task
-                response = self.invoke_vlm(prompt, images if images else None)
+            # Call VLM and parse JSON, with retry on parse failure
+            parsed = self.invoke_vlm_for_json(prompt, images if images else None)
 
-                # Parse response
-                parsed = self.parse_json_response(response)
-
-                if parsed:
-                    result = {
-                        "success": True,
-                        "task_type": task_type,
-                        "query": query,
-                        "result": parsed,
-                        "raw_response": response[:1000]
-                    }
-                else:
-                    # If JSON parsing fails, store raw response
-                    result = {
-                        "success": True,
-                        "task_type": task_type,
-                        "query": query,
-                        "result": {"text_response": response[:1500]},
-                        "raw_response": response[:1000]
-                    }
-
-                autonomous_results[task_type] = result
-                print(f"        '{task_type}': completed")
-
-            except Exception as e:
-                print(f"        '{task_type}': failed - {str(e)}")
-                autonomous_results[task_type] = {
-                    "success": False,
-                    "task_type": task_type,
-                    "query": query,
-                    "error": str(e)
-                }
+            autonomous_results[task_type] = {
+                "success": True,
+                "task_type": task_type,
+                "query": query,
+                "result": parsed,
+                "raw_response": str(parsed)[:1000]
+            }
+            print(f"        '{task_type}': completed")
 
         return autonomous_results
 
@@ -1581,15 +1526,22 @@ JSON Response:"""
                 if ext in IMAGE_EXTENSIONS:
                     images.append(viz_path)
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt, images if images else None)
-
-        # Parse response with validation
-        return self._parse_feature_response(
-            response, modality, q_type,
-            tool_results=tool_results,
-            image_size=image_size
-        )
+        # Call VLM and parse, with retry on parse failure
+        last_error = None
+        for attempt in range(1, 4):
+            response = self.invoke_vlm(prompt, images if images else None)
+            try:
+                return self._parse_feature_response(
+                    response, modality, q_type,
+                    tool_results=tool_results,
+                    image_size=image_size
+                )
+            except RuntimeError as e:
+                last_error = e
+                if attempt < 3:
+                    print(f"  Feature extraction parse failed (attempt {attempt}/3), retrying in 2s...")
+                    time.sleep(2)
+        raise last_error
 
     def _build_feature_extraction_prompt(
         self,
@@ -2089,11 +2041,8 @@ JSON Response:"""
         if hasattr(question_template, 'prompt_builder') and question_template.prompt_builder:
             return question_template.prompt_builder
 
-        try:
-            from prompts import get_prompt_builder
-            return get_prompt_builder(question.get('q_type', 1), question.get('modality', 'vision'))
-        except ImportError:
-            return None
+        from prompts import get_prompt_builder
+        return get_prompt_builder(question.get('q_type', 1), question.get('modality', 'vision'))
 
     def _build_context(
         self,
@@ -2159,15 +2108,7 @@ JSON Response:"""
         """Generate explanation using prompt builder"""
         prompt = prompt_builder.build_actor_prompt(context, strategy, results)
 
-        response = self.invoke_vlm(prompt)
-
-        parsed = self.parse_json_response(response)
-
-        if not parsed:
-            raise RuntimeError(
-                f"Failed to parse VLM response for explanation generation. "
-                f"Response preview: {response[:500]}"
-            )
+        parsed = self.invoke_vlm_for_json(prompt)
 
         # Merge with tool results
         parsed['tool_results'] = tool_results.get('tool_results', {})
@@ -2411,7 +2352,7 @@ Respond with ONLY valid JSON:"""
         for t, p in zip(tensors, paths):
             img = _load_single(t, p)
             if img is not None:
-                images.append(img.resize((224, 224)))
+                images.append(img)
 
         return images if images else None
 
@@ -2536,8 +2477,7 @@ Respond with ONLY valid JSON:"""
         except json.JSONDecodeError:
             pass
 
-        print(f"      Warning: Failed to parse no-tools response: {response[:200]}...")
-        return None
+        raise RuntimeError(f"Failed to parse no-tools VLM response. Response preview: {response[:300]}")
 
     def _run_pure_reasoning(
         self,
@@ -2578,6 +2518,20 @@ Respond with ONLY valid JSON:"""
         is_multi = len(_paths) > 1
         _pred = _preds[0] if _preds else {}
 
+        # Prepare images for vision first so we know the exact size VLM will see
+        images = self._prepare_images_for_vlm(
+            input_tensor=None,
+            input_path=_paths[0] if _paths else "",
+            modality=modality,
+            input_tensors=None,
+            input_paths=_paths if is_multi else None
+        )
+
+        # Get image size from the prepared PIL images (what VLM actually sees)
+        image_size = (224, 224)
+        if modality == "vision" and images:
+            image_size = images[0].size  # (width, height) of what VLM receives
+
         # Build prompt (pass placeholder list for multi so is_multi is detected)
         all_input_datas = [None] * len(_paths) if is_multi else None
         all_predictions = _preds if is_multi else None
@@ -2587,25 +2541,13 @@ Respond with ONLY valid JSON:"""
             prediction=_pred,
             modality=modality,
             q_type=q_type,
-            image_size=(224, 224),
+            image_size=image_size,
             input_data=None,
             all_input_datas=all_input_datas,
             all_predictions=all_predictions
         )
 
-        # Prepare images for vision
-        images = self._prepare_images_for_vlm(
-            input_tensor=None,
-            input_path=_paths[0] if _paths else "",
-            modality=modality,
-            input_tensors=None,
-            input_paths=_paths if is_multi else None
-        )
-
-        # Invoke VLM
-        response = self.invoke_vlm(prompt, images)
-
-        # Compute parsing parameters
+        # Compute parsing parameters (independent of response, compute once)
         text_length = 100
         available_features = None
 
@@ -2634,21 +2576,28 @@ Respond with ONLY valid JSON:"""
             if isinstance(features, dict):
                 available_features = list(features.keys()) if features else None
 
-        # Parse response
-        parsed_result = self._parse_no_tools_response(
-            response=response,
-            modality=modality,
-            q_type=q_type,
-            image_size=(224, 224),
-            text_length=text_length,
-            available_features=available_features
-        )
-
-        if not parsed_result:
-            raise RuntimeError(
-                f"[Actor] Pure-reasoning VLM response could not be parsed. "
-                f"Preview: {response[:500]}"
-            )
+        # Invoke VLM and parse, with retry on parse failure
+        last_error = None
+        parsed_result = None
+        for attempt in range(1, 4):
+            response = self.invoke_vlm(prompt, images)
+            try:
+                parsed_result = self._parse_no_tools_response(
+                    response=response,
+                    modality=modality,
+                    q_type=q_type,
+                    image_size=image_size,
+                    text_length=text_length,
+                    available_features=available_features
+                )
+                break
+            except RuntimeError as e:
+                last_error = e
+                if attempt < 3:
+                    print(f"  Pure-reasoning parse failed (attempt {attempt}/3), retrying in 2s...")
+                    time.sleep(2)
+        else:
+            raise last_error
 
         # Attach metadata
         parsed_result['question_id'] = question.get('question_id', 'unknown')
@@ -2902,7 +2851,7 @@ Respond with ONLY valid JSON:"""
                 try:
                     self.data_model_loader.load_sample(index=image_indices[i], split=split)
                 except Exception as e:
-                    print(f"  Warning: Failed to reload sample {image_indices[i]} for instance {i}: {e}")
+                    raise RuntimeError(f"Failed to reload sample {image_indices[i]} for instance {i}: {e}") from e
 
             instance_question = question.copy()
             instance_question['instance_index'] = i
@@ -3063,15 +3012,22 @@ Respond with ONLY valid JSON:"""
                 if ext in IMAGE_EXTENSIONS:
                     images.append(viz_path)
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt, images if images else None)
-
-        # Parse response
-        return self._parse_feature_response(
-            response, modality, q_type,
-            tool_results=tool_results,
-            image_size=image_size
-        )
+        # Call VLM and parse, with retry on parse failure
+        last_error = None
+        for attempt in range(1, 4):
+            response = self.invoke_vlm(prompt, images if images else None)
+            try:
+                return self._parse_feature_response(
+                    response, modality, q_type,
+                    tool_results=tool_results,
+                    image_size=image_size
+                )
+            except RuntimeError as e:
+                last_error = e
+                if attempt < 3:
+                    print(f"  Feature extraction parse failed (attempt {attempt}/3), retrying in 2s...")
+                    time.sleep(2)
+        raise last_error
 
     def _build_feature_extraction_prompt_with_reflection(
         self,
@@ -3278,15 +3234,7 @@ Pay special attention to:
 
 JSON Response:"""
 
-        response = self.invoke_vlm(prompt)
-
-        parsed = self.parse_json_response(response)
-
-        if not parsed:
-            raise RuntimeError(
-                f"Failed to parse VLM response for reflection explanation. "
-                f"Response preview: {response[:500]}"
-            )
+        parsed = self.invoke_vlm_for_json(prompt)
 
         parsed['tool_results'] = tool_results.get('tool_results', {})
         parsed['visualization_paths'] = tool_results.get('visualization_paths', [])

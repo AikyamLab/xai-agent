@@ -215,23 +215,8 @@ class ProposerAgent(BaseAgent):
         if hasattr(question_template, 'build_proposer_prompt') and not hasattr(question_template, 'prompt_builder'):
             return question_template
 
-        # Try to import from prompts module
-        try:
-            from prompts import get_prompt_builder
-            return get_prompt_builder(q_type, modality)
-        except ImportError:
-            pass
-
-        # Fallback: try to get prompt builder from question_templates module
-        try:
-            from question_templates import get_question_template
-            template = get_question_template(q_type, modality)
-            if template and template.prompt_builder:
-                return template.prompt_builder
-        except Exception:
-            pass
-
-        return None
+        from prompts import get_prompt_builder
+        return get_prompt_builder(q_type, modality)
 
     def _build_context(
         self,
@@ -372,26 +357,7 @@ class ProposerAgent(BaseAgent):
         prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
         print(f"\n  Generated multi-instance proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM with retry on JSON parse failure (response may be truncated)
-        strategy = {}
-        last_response = ""
-        for attempt in range(3):
-            response = self.invoke_vlm(prompt)
-            if attempt == 0:
-                print(f"  VLM Response preview: {response[:300]}...")
-            else:
-                print(f"  Retry {attempt}: VLM Response preview: {response[:300]}...")
-            last_response = response
-            strategy = self.parse_json_response(response)
-            if strategy:
-                break
-            print(f"  Warning: JSON parse failed on attempt {attempt + 1}, retrying...")
-
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response as JSON for multi-instance strategy after 3 attempts. "
-                f"Response preview: {last_response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -418,26 +384,7 @@ class ProposerAgent(BaseAgent):
 
         print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM with retry on JSON parse failure (response may be truncated)
-        strategy = {}
-        last_response = ""
-        for attempt in range(3):
-            response = self.invoke_vlm(prompt)
-            if attempt == 0:
-                print(f"  VLM Response preview: {response[:300]}...")
-            else:
-                print(f"  Retry {attempt}: VLM Response preview: {response[:300]}...")
-            last_response = response
-            strategy = self.parse_json_response(response)
-            if strategy:
-                break
-            print(f"  Warning: JSON parse failed on attempt {attempt + 1}, retrying...")
-
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response as JSON for strategy after 3 attempts. "
-                f"Response preview: {last_response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -731,17 +678,7 @@ Generate a new strategy in the same JSON format as before.
 
         print(f"\n  Generated Q4 proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse strategy
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response for Q4 strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -854,17 +791,7 @@ Generate a new strategy in the same JSON format as before.
 
         print(f"\n  Generated reflection-aware prompt ({len(full_prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(full_prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse response
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response for reflection strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(full_prompt)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):

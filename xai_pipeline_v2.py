@@ -439,16 +439,28 @@ class XAIPipelineV2:
                         return image_root + rel
                     return self._build_image_path(image_root, dataset_name, idx)
 
+                temp_img_dir = self.output_dir / "temp_images"
+                temp_img_dir.mkdir(parents=True, exist_ok=True)
+
+                def _resolve_img_path(pil_img, path, idx, label):
+                    """Return path; save to temp file if path doesn't exist on disk."""
+                    if path and os.path.exists(path):
+                        return path
+                    temp_path = str(temp_img_dir / f"q4_{label}_{idx}_{split}.png")
+                    pil_img.save(temp_path)
+                    return temp_path
+
                 # Load Instance A
                 img_idx_a = _get_vis_index(instance_a)
                 print(f"\n  Loading Instance A: image_index={img_idx_a}")
 
-                img_path_a = _get_vis_path(instance_a, img_idx_a)
-                data_paths['A'] = img_path_a
-                print(f"    Path: {img_path_a}")
-
                 data_a = self.data_model_loader.load_sample(index=img_idx_a, split=split)
                 input_tensors['A'] = data_a.get('image')
+                img_path_a = _resolve_img_path(input_tensors['A'],
+                                               _get_vis_path(instance_a, img_idx_a),
+                                               img_idx_a, 'A')
+                data_paths['A'] = img_path_a
+                print(f"    Path: {img_path_a}")
 
                 # Make prediction for A
                 pred_a = self.data_model_loader.predict(input_tensors['A'])
@@ -464,12 +476,13 @@ class XAIPipelineV2:
                 img_idx_b = _get_vis_index(instance_b)
                 print(f"\n  Loading Instance B: image_index={img_idx_b}")
 
-                img_path_b = _get_vis_path(instance_b, img_idx_b)
-                data_paths['B'] = img_path_b
-                print(f"    Path: {img_path_b}")
-
                 data_b = self.data_model_loader.load_sample(index=img_idx_b, split=split)
                 input_tensors['B'] = data_b.get('image')
+                img_path_b = _resolve_img_path(input_tensors['B'],
+                                               _get_vis_path(instance_b, img_idx_b),
+                                               img_idx_b, 'B')
+                data_paths['B'] = img_path_b
+                print(f"    Path: {img_path_b}")
 
                 # Make prediction for B
                 pred_b = self.data_model_loader.predict(input_tensors['B'])
@@ -1769,8 +1782,13 @@ class XAIPipelineV2:
                     data = self.data_model_loader.load_sample(index=sample_index, split=split)
                     input_tensor = data.get('image') # This is the PIL image
 
-                    loaded_data_path = f"dataset_index_{sample_index}"
-                    print(f"Data loaded: {loaded_data_path}")
+                    # Save PIL image to a real file so actor_agent can pass it to VLM
+                    temp_img_dir = self.output_dir / "temp_images"
+                    temp_img_dir.mkdir(parents=True, exist_ok=True)
+                    temp_img_path = temp_img_dir / f"sample_{sample_index}_{split}.png"
+                    input_tensor.save(str(temp_img_path))
+                    loaded_data_path = str(temp_img_path)
+                    print(f"Data loaded: index={sample_index} -> {loaded_data_path}")
                     print(f"  Ground truth: {data.get('label_name')} (class {data.get('label')})")
 
                 # Make prediction using the loader's predict method
@@ -1994,19 +2012,27 @@ class XAIPipelineV2:
 
                 print(f"Loading {len(image_indices)} instances...")
 
+                temp_img_dir = self.output_dir / "temp_images"
+                temp_img_dir.mkdir(parents=True, exist_ok=True)
+
                 # Load each instance
                 for i, img_idx in enumerate(image_indices):
                     print(f"  Loading Instance {i}: index={img_idx}")
 
-                    # Build image path
-                    img_path = self._build_image_path(image_root, dataset_name, img_idx)
-                    data_paths.append(img_path)
-                    print(f"    Path: {img_path}")
-
-                    # Load sample
+                    # Load sample first to get PIL image
                     data = self.data_model_loader.load_sample(index=img_idx, split=split)
                     image = data.get('image')  # PIL Image
                     input_tensors.append(image)
+
+                    # Use real file path if it exists, else save PIL to temp file
+                    candidate_path = self._build_image_path(image_root, dataset_name, img_idx)
+                    if candidate_path and os.path.exists(candidate_path):
+                        img_path = candidate_path
+                    else:
+                        img_path = str(temp_img_dir / f"multi_{img_idx}_{split}.png")
+                        image.save(img_path)
+                    data_paths.append(img_path)
+                    print(f"    Path: {img_path}")
 
                     # Make prediction
                     pred = self.data_model_loader.predict(image)

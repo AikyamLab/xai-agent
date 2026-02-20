@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -95,17 +96,58 @@ class BaseAgent(ABC):
         Returns:
             Parsed dictionary, or empty dict on failure
         """
-        try:
-            # Try to find JSON object in response
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
+        # Strategy 1: existing regex approach (fast path, works for most responses)
+        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        if json_match:
+            try:
                 return json.loads(json_match.group())
-        except json.JSONDecodeError as e:
-            print(f"  Warning: JSON parse error: {e}")
-        except Exception as e:
-            print(f"  Warning: Failed to parse response: {e}")
+            except json.JSONDecodeError:
+                pass
 
-        return {}
+        # Strategy 2: raw_decode from first '{' (handles code fences and trailing content)
+        start = response.find('{')
+        if start != -1:
+            try:
+                obj, _ = json.JSONDecoder().raw_decode(response, start)
+                return obj
+            except json.JSONDecodeError:
+                pass
+
+        raise RuntimeError(f"JSON parse error in VLM response. Response preview: {response[:300]}")
+
+    def invoke_vlm_for_json(
+        self,
+        prompt: str,
+        images: Optional[List[str]] = None,
+        max_retries: int = 3,
+        retry_delay: float = 2.0
+    ) -> Dict[str, Any]:
+        """
+        Call VLM and parse JSON response, retrying on parse errors.
+
+        Args:
+            prompt: Prompt string
+            images: Optional list of image paths
+            max_retries: Maximum number of attempts (default 3)
+            retry_delay: Seconds to wait between retries (default 2)
+
+        Returns:
+            Parsed JSON dictionary
+
+        Raises:
+            RuntimeError: If parsing fails on all attempts
+        """
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            response = self.invoke_vlm(prompt, images)
+            try:
+                return self.parse_json_response(response)
+            except RuntimeError as e:
+                last_error = e
+                if attempt < max_retries:
+                    print(f"  JSON parse failed (attempt {attempt}/{max_retries}), retrying in {retry_delay}s... Error: {e}")
+                    time.sleep(retry_delay)
+        raise last_error
 
     def save_json(self, data: Dict[str, Any], filename: str, subdir: str = "") -> Path:
         """
