@@ -113,6 +113,7 @@ Options:
     --question_ids IDS       Question IDs to run (default: 0)
                              Examples: "0 1 2 3 4" or "0" or range "0-9"
                              Use "all" to auto-detect length from each JSON file
+                             Use "N-all" (e.g. "1-all") to start from ID N to end
     --mode MODE              Dataset split to use: train or test (default: test)
                              Benchmark JSONs are loaded from dataset/{mode}/{modality}/
     --use_test_variant       Use _test variant dataset files if available
@@ -167,6 +168,7 @@ else:
 }
 
 # Parse range like "0-4" into "0 1 2 3 4"
+# Passes through "all" and "N-all" unchanged (handled per-JSON in the build loop)
 expand_range() {
     local input="$1"
     local result=""
@@ -368,8 +370,8 @@ if [[ "$MODALITIES" == "all" ]]; then
     MODALITIES="vision text tabular"
 fi
 
-# Expand question IDs (handle ranges); leave "all" unchanged for per-JSON auto-detection
-if [[ "$QUESTION_IDS" != "all" ]]; then
+# Expand question IDs (handle numeric ranges); leave "all" and "N-all" for per-JSON detection
+if [[ "$QUESTION_IDS" != "all" ]] && [[ ! "$QUESTION_IDS" =~ ^[0-9]+-all$ ]]; then
     QUESTION_IDS=$(expand_range "$QUESTION_IDS")
 fi
 
@@ -432,11 +434,20 @@ for dataset in $DATASETS_TO_RUN; do
             continue
         fi
 
-        # Resolve question IDs: auto-detect from JSON when "all" is requested
+        # Resolve question IDs: auto-detect end from JSON for "all" and "N-all"
         if [[ "$QUESTION_IDS" == "all" ]]; then
             n=$(count_questions "$dataset_path")
             RESOLVED_IDS=$(seq 0 $((n - 1)))
-            log_info "  ${dataset}_q${q_type}: auto-detected $n questions"
+            log_info "  ${dataset}_q${q_type}: IDs 0-$((n-1)) ($n questions)"
+        elif [[ "$QUESTION_IDS" =~ ^([0-9]+)-all$ ]]; then
+            start="${BASH_REMATCH[1]}"
+            n=$(count_questions "$dataset_path")
+            if [[ $start -ge $n ]]; then
+                log_warn "  ${dataset}_q${q_type}: start_id $start >= count $n, skipping"
+                continue
+            fi
+            RESOLVED_IDS=$(seq "$start" $((n - 1)))
+            log_info "  ${dataset}_q${q_type}: IDs $start-$((n-1)) ($((n - start)) questions)"
         else
             RESOLVED_IDS="$QUESTION_IDS"
         fi

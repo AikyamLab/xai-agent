@@ -91,7 +91,7 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (contrastive attribution)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (contrastive attribution)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} that DISTINGUISH top-1 from top-2 prediction
 - Evaluation metric: 1 if masking flips ranking between top-1 and top-2, else 0

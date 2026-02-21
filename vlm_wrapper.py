@@ -1165,10 +1165,11 @@ class ClaudeVLM:
                     print(f"  Rate limited: max retries ({self._max_retries}) exceeded.")
                     raise
             except self._anthropic.APIError as e:
-                if e.status_code == 529:  # Overloaded
+                if e.status_code in (500, 529):  # Internal server error or overloaded
                     delay = self._base_retry_delay * (2 ** attempt)
                     if attempt < self._max_retries - 1:
-                        print(f"  API overloaded (attempt {attempt + 1}/{self._max_retries}). "
+                        label = "API overloaded" if e.status_code == 529 else "Internal server error (500)"
+                        print(f"  {label} (attempt {attempt + 1}/{self._max_retries}). "
                               f"Retrying in {delay:.0f}s...")
                         time.sleep(delay)
                     else:

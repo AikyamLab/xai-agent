@@ -186,12 +186,10 @@ class ProposerAgent(BaseAgent):
                 context=context
             )
 
-        # Validate strategy
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                "Strategy generation produced no selected_tools. "
-                f"Strategy content: {strategy}"
-            )
+        # Pure-reasoning strategy is valid: actor will skip tool execution and use VLM reasoning directly
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning strategy: no tools or autonomous tasks selected. "
+                  "Actor will generate explanation via direct VLM reasoning.")
 
         # Save strategy
         self._save_strategy(strategy, question)
@@ -217,23 +215,8 @@ class ProposerAgent(BaseAgent):
         if hasattr(question_template, 'build_proposer_prompt') and not hasattr(question_template, 'prompt_builder'):
             return question_template
 
-        # Try to import from prompts module
-        try:
-            from prompts import get_prompt_builder
-            return get_prompt_builder(q_type, modality)
-        except ImportError:
-            pass
-
-        # Fallback: try to get prompt builder from question_templates module
-        try:
-            from question_templates import get_question_template
-            template = get_question_template(q_type, modality)
-            if template and template.prompt_builder:
-                return template.prompt_builder
-        except Exception:
-            pass
-
-        return None
+        from prompts import get_prompt_builder
+        return get_prompt_builder(q_type, modality)
 
     def _build_context(
         self,
@@ -374,27 +357,14 @@ class ProposerAgent(BaseAgent):
         prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
         print(f"\n  Generated multi-instance proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse response
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response as JSON for multi-instance strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                f"Multi-instance strategy has no selected_tools after parsing. "
-                f"Strategy: {strategy}"
-            )
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning multi-instance strategy: actor will use direct VLM reasoning.")
 
         return strategy
 
@@ -414,26 +384,14 @@ class ProposerAgent(BaseAgent):
 
         print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse response
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response as JSON for strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                f"Strategy has no selected_tools after parsing. Strategy: {strategy}"
-            )
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning strategy: actor will use direct VLM reasoning.")
 
         return strategy
 
@@ -633,11 +591,9 @@ class ProposerAgent(BaseAgent):
             original_strategy=original_strategy
         )
 
-        # Validate strategy
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                f"Improved strategy missing selected_tools. Strategy: {strategy}"
-            )
+        # Pure-reasoning strategy is valid: no tools/tasks means actor uses direct VLM reasoning
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning improved strategy: actor will use direct VLM reasoning.")
 
         # Save improved strategy
         self._save_strategy(strategy, question, suffix="_improved")
@@ -656,7 +612,9 @@ class ProposerAgent(BaseAgent):
         question: Dict[str, Any],
         question_template: Any,
         model_info: Optional[Dict[str, Any]] = None,
-        instances: List[Dict[str, Any]] = None  # [{'prediction': ..., 'path': ..., 'label': 'A/B'}]
+        instances: List[Dict[str, Any]] = None,  # [{'prediction': ..., 'path': ..., 'label': 'A/B'}]
+        proposer_reflection: Optional[str] = None,
+        original_strategy: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Run Proposer for Q4 contrastive instances.
@@ -688,29 +646,46 @@ class ProposerAgent(BaseAgent):
         context = self._build_context_q4(question, clean_model_info, instances)
 
         # Use build_proposer_prompt_multi (base class provides default implementation)
-        prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
+        base_prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
+
+        # If reflection provided, append it to the base prompt (same pattern as _generate_strategy_with_reflection)
+        if proposer_reflection and original_strategy:
+            print("  Applying critic reflection to Q4 strategy generation...")
+            original_tools = [t.get('tool_name') for t in original_strategy.get('selected_tools', [])]
+            reflection_prompt = f"""
+
+You are the Proposer Agent. Your previous strategy did not achieve satisfactory explanation faithfulness.
+
+## Previous Strategy
+- Tools Used: {original_tools}
+- Reasoning: {original_strategy.get('reasoning', 'N/A')}
+
+## Critic's Feedback on Your Strategy
+{proposer_reflection}
+
+## Your Task
+Based on the critic's feedback, generate an IMPROVED strategy for this contrastive Q4 question. Consider:
+1. Which tools to keep based on their effectiveness across both instances A and B
+2. Which tools to remove (low importance scores)
+3. Which tools to add for better contrastive coverage
+4. How to adjust tool priorities
+
+Generate a new strategy in the same JSON format as before.
+"""
+            prompt = f"{base_prompt}\n\n{reflection_prompt}"
+        else:
+            prompt = base_prompt
+
         print(f"\n  Generated Q4 proposer prompt ({len(prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse strategy
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response for Q4 strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(prompt)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                f"Q4 strategy has no selected_tools after parsing. Strategy: {strategy}"
-            )
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning Q4 strategy: actor will use direct VLM reasoning.")
 
         # Mark as Q4 strategy
         strategy['is_q4'] = True
@@ -816,26 +791,14 @@ Generate a new strategy in the same JSON format as before.
 
         print(f"\n  Generated reflection-aware prompt ({len(full_prompt)} chars)")
 
-        # Call VLM - let exceptions propagate
-        response = self.invoke_vlm(full_prompt)
-        print(f"  VLM Response preview: {response[:300]}...")
-
-        # Parse response
-        strategy = self.parse_json_response(response)
-        if not strategy:
-            raise RuntimeError(
-                f"Failed to parse VLM response for reflection strategy. "
-                f"Response preview: {response[:500]}"
-            )
+        strategy = self.invoke_vlm_for_json(full_prompt)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if not strategy.get('selected_tools'):
-            raise RuntimeError(
-                f"Reflection strategy has no selected_tools. Strategy: {strategy}"
-            )
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+            print("  [Proposer] Pure-reasoning reflection strategy: actor will use direct VLM reasoning.")
 
         # Mark as improved
         strategy['_improved'] = True

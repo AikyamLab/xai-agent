@@ -294,10 +294,19 @@ class XAIPipelineV2:
         modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular'}
         question['modality'] = modality_map.get(question.get('modality', 'image'), 'vision')
 
-        # Extract instance indices: vision uses features.image_index; text/tabular use row_no
+        # Extract instance indices: prefer features.image_index, fall back to features.row_no, then inst.row_no
+        def _get_image_index(inst):
+            feats = inst.get('features', {})
+            idx = feats.get('image_index')
+            if idx is None:
+                idx = feats.get('row_no')
+            if idx is None:
+                idx = inst.get('row_no')
+            return idx
+
         if question['modality'] == 'vision':
-            image_index_a = instance_a['features']['image_index']
-            image_index_b = instance_b['features']['image_index']
+            image_index_a = _get_image_index(instance_a)
+            image_index_b = _get_image_index(instance_b)
         else:
             image_index_a = instance_a.get('row_no', instance_a.get('features', {}).get('image_index'))
             image_index_b = instance_b.get('row_no', instance_b.get('features', {}).get('image_index'))
@@ -414,16 +423,44 @@ class XAIPipelineV2:
 
                 split = question.get('split', 'test')
 
-                # Load Instance A
-                img_idx_a = instance_a['features']['image_index']
-                print(f"\n  Loading Instance A: image_index={img_idx_a}")
+                def _get_vis_index(inst):
+                    feats = inst.get('features', {})
+                    idx = feats.get('image_index')
+                    if idx is None:
+                        idx = feats.get('row_no')
+                    if idx is None:
+                        idx = inst.get('row_no')
+                    return idx
 
-                img_path_a = self._build_image_path(image_root, dataset_name, img_idx_a)
-                data_paths['A'] = img_path_a
-                print(f"    Path: {img_path_a}")
+                def _get_vis_path(inst, idx):
+                    """Use features.image_path if available, else build from index."""
+                    rel = inst.get('features', {}).get('image_path')
+                    if rel:
+                        return image_root + rel
+                    return self._build_image_path(image_root, dataset_name, idx)
+
+                temp_img_dir = self.output_dir / "temp_images"
+                temp_img_dir.mkdir(parents=True, exist_ok=True)
+
+                def _resolve_img_path(pil_img, path, idx, label):
+                    """Return path; save to temp file if path doesn't exist on disk."""
+                    if path and os.path.exists(path):
+                        return path
+                    temp_path = str(temp_img_dir / f"q4_{label}_{idx}_{split}.png")
+                    pil_img.save(temp_path)
+                    return temp_path
+
+                # Load Instance A
+                img_idx_a = _get_vis_index(instance_a)
+                print(f"\n  Loading Instance A: image_index={img_idx_a}")
 
                 data_a = self.data_model_loader.load_sample(index=img_idx_a, split=split)
                 input_tensors['A'] = data_a.get('image')
+                img_path_a = _resolve_img_path(input_tensors['A'],
+                                               _get_vis_path(instance_a, img_idx_a),
+                                               img_idx_a, 'A')
+                data_paths['A'] = img_path_a
+                print(f"    Path: {img_path_a}")
 
                 # Make prediction for A
                 pred_a = self.data_model_loader.predict(input_tensors['A'])
@@ -436,15 +473,16 @@ class XAIPipelineV2:
                 predictions['A'] = pred_a
 
                 # Load Instance B
-                img_idx_b = instance_b['features']['image_index']
+                img_idx_b = _get_vis_index(instance_b)
                 print(f"\n  Loading Instance B: image_index={img_idx_b}")
-
-                img_path_b = self._build_image_path(image_root, dataset_name, img_idx_b)
-                data_paths['B'] = img_path_b
-                print(f"    Path: {img_path_b}")
 
                 data_b = self.data_model_loader.load_sample(index=img_idx_b, split=split)
                 input_tensors['B'] = data_b.get('image')
+                img_path_b = _resolve_img_path(input_tensors['B'],
+                                               _get_vis_path(instance_b, img_idx_b),
+                                               img_idx_b, 'B')
+                data_paths['B'] = img_path_b
+                print(f"    Path: {img_path_b}")
 
                 # Make prediction for B
                 pred_b = self.data_model_loader.predict(input_tensors['B'])
@@ -533,9 +571,7 @@ class XAIPipelineV2:
                         predictions[label] = pred
 
         except Exception as e:
-            print(f"Warning: Failed to load model/data for Q4: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load model/data for Q4: {e}") from e
 
         return model_info, predictions, data_paths, input_tensors
 
@@ -546,7 +582,10 @@ class XAIPipelineV2:
         target_model_url: Optional[str] = None,
         image_root: Optional[str] = None,
         evaluate_faithfulness: bool = True,
-        faithfulness_threshold: float = 0.1
+        faithfulness_threshold: float = 0.1,
+        enable_improvement: bool = True,
+        enable_sf: bool = True,
+        sf_max_samples: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Run XAI pipeline for Q4 (contrastive instances).
@@ -588,7 +627,8 @@ class XAIPipelineV2:
 
         def _get_instance_index(inst):
             if modality == 'vision':
-                return inst['features']['image_index']
+                feats = inst.get('features', {})
+                return feats.get('image_index', feats.get('row_no'))
             return inst.get('row_no')
 
         instances = [
@@ -652,6 +692,151 @@ class XAIPipelineV2:
         else:
             print("  Skipping faithfulness evaluation")
             evaluation = {"status": "skipped"}
+
+        # Step 7: Check faithfulness and run improvement loop (mirrors run_multi_instance logic)
+        sf_result = None
+        if evaluate_faithfulness and model_info and model_info.get('model') and evaluation:
+            faithfulness_result = evaluation.get('faithfulness', {})
+            faithfulness_score = faithfulness_result.get('score')
+            if faithfulness_score is None:
+                faithfulness_score = 0.0
+            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= faithfulness_threshold)
+            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', faithfulness_threshold)
+
+            if faithfulness_passed:
+                print("\n=== Step 7: Explanation Faithfulness Check (Q4) ===")
+                print(f"  Explanation faithfulness ({faithfulness_score:.4f}) passed (threshold: {evaluator_threshold})")
+                print("  Saving training datapoint for passed sample.")
+                self._save_training_datapoint_passed(
+                    question=question,
+                    original_strategy=strategy,
+                    original_results=results,
+                    original_evaluation=evaluation
+                )
+            else:
+                print("\n=== Step 7: Strategy Faithfulness Evaluation (Q4) ===")
+                print(f"  Explanation faithfulness ({faithfulness_score:.4f}) failed (threshold: {evaluator_threshold})")
+
+                # Convert Q4 A/B dicts to lists for ToolAttributionEvaluator (same interface as Q9/Q10)
+                input_paths_list = [data_paths['A'], data_paths['B']]
+                predictions_list = [predictions['A'], predictions['B']]
+                input_tensors_list = [input_tensors['A'], input_tensors['B']]
+
+                if enable_sf:
+                    print("  Running strategy faithfulness evaluation...")
+                    if self.tool_attribution_evaluator is None:
+                        self.tool_attribution_evaluator = ToolAttributionEvaluator(
+                            cache_dir=str(self.sf_cache_dir),
+                            output_dir=str(self.sf_dir)
+                        )
+                        self.tool_attribution_evaluator.set_agents(self.actor, self.critic)
+
+                    original_tool_results = {
+                        'tool_results': results.get('tool_results', {}),
+                        'visualization_paths': results.get('visualization_paths', []),
+                        'tool_results_summary': results.get('tool_results_summary', '')
+                    }
+
+                    sf_result = self.tool_attribution_evaluator.compute_tool_importance(
+                        original_strategy=strategy,
+                        original_faithfulness=faithfulness_score,
+                        original_tool_results=original_tool_results,
+                        question=question,
+                        question_template=template,
+                        input_path=input_paths_list[0],
+                        model_info=model_info,
+                        prediction=predictions_list[0],
+                        input_tensor=input_tensors_list[0],
+                        faithfulness_threshold=faithfulness_threshold,
+                        processor=model_info.get('processor'),
+                        device=model_info.get('device', 'cuda'),
+                        max_samples=sf_max_samples,
+                        input_paths=input_paths_list,
+                        predictions=predictions_list,
+                        input_tensors=input_tensors_list
+                    )
+                    self.tool_attribution_evaluator.save_result(sf_result, question)
+                else:
+                    print("  Strategy faithfulness evaluation skipped (--no-sf).")
+
+                # Step 8: Improvement Phase
+                if enable_improvement:
+                    print("\n=== Step 8: Improvement Phase (Q4) ===")
+
+                    print("  Generating Critic reflections...")
+                    proposer_reflection, actor_reflection = self.critic.generate_reflections(
+                        strategy=strategy,
+                        results=results,
+                        question=question,
+                        faithfulness_result=evaluation.get('faithfulness', {}),
+                        tool_importance_scores=sf_result.tool_importance_scores if sf_result else {},
+                        threshold=evaluator_threshold
+                    )
+                    self.critic.save_reflections(proposer_reflection, actor_reflection, question)
+
+                    # Proposer generates improved Q4 strategy (reuses run_q4 with reflection params)
+                    print("\n  Proposer generating improved Q4 strategy...")
+                    improved_strategy = self.proposer.run_q4(
+                        question=question,
+                        question_template=template,
+                        model_info=model_info,
+                        instances=instances,
+                        proposer_reflection=proposer_reflection,
+                        original_strategy=strategy
+                    )
+
+                    # Actor re-executes Q4 with improved strategy (same method, better strategy)
+                    print("\n  Actor re-executing Q4 with improved strategy...")
+                    improved_results = self.actor.run_q4(
+                        strategy=improved_strategy,
+                        question=question,
+                        question_template=template,
+                        instances=instances,
+                        model_info=model_info
+                    )
+
+                    # Critic evaluates improved Q4 explanation
+                    print("\n  Evaluating improved Q4 explanation...")
+                    improved_evaluation = self.critic.run_q4(
+                        results=improved_results,
+                        question=question,
+                        inputs={'A': input_tensors['A'], 'B': input_tensors['B']},
+                        predictions={'A': predictions['A'], 'B': predictions['B']},
+                        processor=model_info.get('processor'),
+                        device=model_info.get('device', 'cuda'),
+                        suffix="_improved"
+                    )
+
+                    improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
+                    if improved_faithfulness is None:
+                        improved_faithfulness = 0.0
+                    improvement_delta = improved_faithfulness - faithfulness_score
+
+                    # Save training datapoint with before/after improvement data
+                    self._save_training_datapoint(
+                        question=question,
+                        original_strategy=strategy,
+                        original_results=results,
+                        original_evaluation=evaluation,
+                        strategy_faithfulness=sf_result,
+                        proposer_reflection=proposer_reflection,
+                        actor_reflection=actor_reflection,
+                        improved_strategy=improved_strategy,
+                        improved_results=improved_results,
+                        improved_evaluation=improved_evaluation
+                    )
+
+                    print(f"\n  Q4 Improvement complete:")
+                    print(f"    Original faithfulness: {faithfulness_score:.4f}")
+                    print(f"    Improved faithfulness: {improved_faithfulness:.4f}")
+                    print(f"    Delta: {improvement_delta:+.4f}")
+
+                    # Update evaluation and results to the improved version for complete_results
+                    evaluation = improved_evaluation
+                    results = improved_results
+                    strategy = improved_strategy
+                else:
+                    print("\n  Improvement disabled. Skipping improvement phase.")
 
         # Combine results
         complete_results = {
@@ -1051,7 +1236,10 @@ class XAIPipelineV2:
                 question_id=question_id,
                 target_model_url=target_model_url,
                 evaluate_faithfulness=evaluate_faithfulness,
-                faithfulness_threshold=faithfulness_threshold
+                faithfulness_threshold=faithfulness_threshold,
+                enable_improvement=enable_improvement,
+                enable_sf=enable_sf,
+                sf_max_samples=sf_max_samples
             )
 
         # Auto-detect Q9/Q10 multi-instance format and route to run_multi_instance
@@ -1380,9 +1568,21 @@ class XAIPipelineV2:
 
         # Normalize question fields
         question['question'] = question.get('example', question.get('q', ''))
-        # Infer modality from dataset
+        # Infer modality from question dict, then fall back to dataset path
         modality = question.get('modality')
-        
+        if not modality:
+            path_lower = dataset_path.lower()
+            if '/tabular/' in path_lower or 'tabular' in path_lower:
+                modality = 'tabular'
+            elif '/text/' in path_lower or 'text' in path_lower:
+                modality = 'text'
+            else:
+                modality = 'vision'
+            print(f"  Inferred modality from dataset path: {modality}")
+        # Normalize modality aliases (e.g. 'image' -> 'vision')
+        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular', 'vision': 'vision'}
+        modality = modality_map.get(modality, modality)
+
         question['question_id'] = f"q{question_id}"
 
         print(f"Question: {question.get('question', '')}")
@@ -1582,8 +1782,13 @@ class XAIPipelineV2:
                     data = self.data_model_loader.load_sample(index=sample_index, split=split)
                     input_tensor = data.get('image') # This is the PIL image
 
-                    loaded_data_path = f"dataset_index_{sample_index}"
-                    print(f"Data loaded: {loaded_data_path}")
+                    # Save PIL image to a real file so actor_agent can pass it to VLM
+                    temp_img_dir = self.output_dir / "temp_images"
+                    temp_img_dir.mkdir(parents=True, exist_ok=True)
+                    temp_img_path = temp_img_dir / f"sample_{sample_index}_{split}.png"
+                    input_tensor.save(str(temp_img_path))
+                    loaded_data_path = str(temp_img_path)
+                    print(f"Data loaded: index={sample_index} -> {loaded_data_path}")
                     print(f"  Ground truth: {data.get('label_name')} (class {data.get('label')})")
 
                 # Make prediction using the loader's predict method
@@ -1689,9 +1894,7 @@ class XAIPipelineV2:
                         print(f"Warning: Prediction failed: {prediction.get('error') if prediction else 'Unknown'}")
 
         except Exception as e:
-            print(f"Warning: Failed to load model/data: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load model/data: {e}") from e
 
         return model_info, prediction, loaded_data_path, input_tensor
 
@@ -1809,19 +2012,27 @@ class XAIPipelineV2:
 
                 print(f"Loading {len(image_indices)} instances...")
 
+                temp_img_dir = self.output_dir / "temp_images"
+                temp_img_dir.mkdir(parents=True, exist_ok=True)
+
                 # Load each instance
                 for i, img_idx in enumerate(image_indices):
                     print(f"  Loading Instance {i}: index={img_idx}")
 
-                    # Build image path
-                    img_path = self._build_image_path(image_root, dataset_name, img_idx)
-                    data_paths.append(img_path)
-                    print(f"    Path: {img_path}")
-
-                    # Load sample
+                    # Load sample first to get PIL image
                     data = self.data_model_loader.load_sample(index=img_idx, split=split)
                     image = data.get('image')  # PIL Image
                     input_tensors.append(image)
+
+                    # Use real file path if it exists, else save PIL to temp file
+                    candidate_path = self._build_image_path(image_root, dataset_name, img_idx)
+                    if candidate_path and os.path.exists(candidate_path):
+                        img_path = candidate_path
+                    else:
+                        img_path = str(temp_img_dir / f"multi_{img_idx}_{split}.png")
+                        image.save(img_path)
+                    data_paths.append(img_path)
+                    print(f"    Path: {img_path}")
 
                     # Make prediction
                     pred = self.data_model_loader.predict(image)
@@ -1934,9 +2145,7 @@ class XAIPipelineV2:
                         predictions.append({})
 
         except Exception as e:
-            print(f"Warning: Failed to load instance data for multi-instance: {e}")
-            import traceback
-            traceback.print_exc()
+            raise RuntimeError(f"Failed to load instance data for multi-instance: {e}") from e
 
         return model_info, predictions, data_paths, input_tensors
 

@@ -113,7 +113,7 @@ The goal is to find features that are AS DIFFERENT AS POSSIBLE between the corre
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (correct vs incorrect comparison)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (correct vs incorrect comparison)**:
 - {modality_config['spatial_note']}
 - Target: Find DISTINCT {modality_config['element_type']} - minimize overlap between correct and wrong feature sets
 - Evaluation metric: -Sim(F_correct, F_wrong) - larger difference = better explanation

@@ -20,7 +20,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+import re
+from typing import Dict, List, Optional, Union
 
 # ============================================================================
 # Configuration
@@ -139,17 +140,28 @@ def setup_logging(log_dir: Path, verbose: bool = False) -> logging.Logger:
     return logger
 
 
-def parse_range(value: str) -> Optional[List[int]]:
+@dataclass
+class AutoRange:
+    """Sentinel: run from *start* to the auto-detected end of each JSON."""
+    start: int = 0
+
+
+def parse_range(value: str) -> Union[List[int], AutoRange, None]:
     """Parse a range string into a list of integers.
 
     Supports:
       - Single IDs:  "0 1 2"
-      - Ranges:      "0-4"   ->  [0, 1, 2, 3, 4]
-      - Mixed:       "0 2-4" ->  [0, 2, 3, 4]
-      - Auto-detect: "all"   ->  None  (count inferred per JSON at build time)
+      - Ranges:      "0-4"     ->  [0, 1, 2, 3, 4]
+      - Mixed:       "0 2-4"   ->  [0, 2, 3, 4]
+      - Auto-detect: "all"     ->  AutoRange(0)  (0 to end, inferred per JSON)
+      - Offset+auto: "1-all"   ->  AutoRange(1)  (1 to end, inferred per JSON)
     """
-    if value.strip().lower() == "all":
-        return None  # sentinel: auto-detect question count from each dataset JSON
+    stripped = value.strip().lower()
+    if stripped == "all":
+        return AutoRange(start=0)
+    m = re.match(r'^(\d+)-all$', stripped)
+    if m:
+        return AutoRange(start=int(m.group(1)))
     result = []
     for part in value.split():
         if "-" in part and not part.startswith("-"):
@@ -222,7 +234,7 @@ def get_model_path(dataset: str, models_dir: str) -> Optional[str]:
 def build_jobs(
     datasets: List[str],
     q_types: List[int],
-    question_ids: Optional[List[int]],   # None = auto-detect from each JSON
+    question_ids: Union[List[int], AutoRange, None],
     dataset_dir: str,
     models_dir: str,
     mode: str = "test",
@@ -231,9 +243,11 @@ def build_jobs(
 ) -> List[Job]:
     """Build list of jobs to execute.
 
-    When *question_ids* is ``None`` (``--question_ids all``), the count is
-    read from each benchmark JSON individually, so different datasets/q_types
-    can have different lengths.
+    *question_ids* can be:
+      - ``List[int]``   explicit IDs
+      - ``AutoRange(0)``  "all"   → 0 to end of each JSON
+      - ``AutoRange(N)``  "N-all" → N to end of each JSON (skip first N)
+      - ``None``          legacy alias for ``AutoRange(0)``
     """
     jobs = []
 
@@ -260,12 +274,16 @@ def build_jobs(
                     logger.warning(f"Dataset file not found: {dataset}_q{q_type}, skipping")
                 continue
 
-            # Resolve question IDs: auto-detect when "all" was requested
-            if question_ids is None:
+            # Resolve question IDs
+            if question_ids is None or isinstance(question_ids, AutoRange):
+                start = question_ids.start if isinstance(question_ids, AutoRange) else 0
                 count = get_question_count(dataset_path)
-                resolved_ids = list(range(count))
+                resolved_ids = list(range(start, count))
                 if logger:
-                    logger.info(f"  {dataset}_q{q_type}: auto-detected {count} questions")
+                    logger.info(
+                        f"  {dataset}_q{q_type}: IDs {start}-{count-1} "
+                        f"({len(resolved_ids)} questions)"
+                    )
             else:
                 resolved_ids = question_ids
 
@@ -542,7 +560,7 @@ Available Datasets:
     parser.add_argument("--q_types", nargs="+", type=int, default=[1],
                         help="Question types to run (default: 1)")
     parser.add_argument("--question_ids", type=str, default="0",
-                        help="Question IDs to run, supports ranges like '0-4' (default: 0)")
+                        help="Question IDs: '0-4', 'all' (0 to end), '1-all' (1 to end) (default: 0)")
 
     # Configuration options
     parser.add_argument("--config", type=str,
@@ -630,7 +648,13 @@ Available Datasets:
     logger.info(f"  Datasets: {datasets}")
     logger.info(f"  Mode: {config['mode']}")
     logger.info(f"  Q Types: {args.q_types}")
-    logger.info(f"  Question IDs: {'all (auto-detect per JSON)' if question_ids is None else question_ids}")
+    if isinstance(question_ids, AutoRange):
+        qid_display = f"{question_ids.start}-all (auto-detect end per JSON)"
+    elif question_ids is None:
+        qid_display = "all (auto-detect per JSON)"
+    else:
+        qid_display = str(question_ids)
+    logger.info(f"  Question IDs: {qid_display}")
     logger.info(f"  Use test variant: {args.use_test_variant}")
     logger.info(f"  Parallel: {args.parallel}")
     logger.info(f"  Output dir: {config['output_dir']}")
