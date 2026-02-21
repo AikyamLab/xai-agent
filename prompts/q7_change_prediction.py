@@ -89,7 +89,7 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (counterfactual outcome prediction)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (counterfactual outcome prediction)**:
 - {modality_config['spatial_note']}
 - Target: Predict the NEW class and confidence after modifying the specified {modality_config['element_type']}
 - Evaluation metric: 1 if predicted new class matches actual modified outcome, else 0

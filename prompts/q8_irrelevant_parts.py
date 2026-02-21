@@ -91,7 +91,7 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (spurious feature detection)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (spurious feature detection)**:
 - {modality_config['spatial_note']}
 - Target: Find {modality_config['element_type']} with HIGH attribution but LOW semantic relevance to ground truth
 - Evaluation metric: 1 if masking spurious part improves correct class probability, else 0

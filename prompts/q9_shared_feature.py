@@ -107,7 +107,7 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
     }}
 }}
 
-**Guidelines for {self.modality.upper()} tasks (shared spurious feature detection)**:
+**Guidelines for {(self.modality or "tabular").upper()} tasks (shared spurious feature detection)**:
 - {modality_config['spatial_note']}
 - Target: Find the SAME type of {modality_config['element_type']} present in ALL instances
 - Evaluation metric: 1 if removing shared feature improves ALL predictions, else 0

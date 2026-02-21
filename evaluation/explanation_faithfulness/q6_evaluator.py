@@ -50,131 +50,121 @@ class Q6Evaluator(BaseEvaluator):
         Returns:
             EvaluationResult with flip success score (1 or 0)
         """
-        try:
-            # Get change plan from agent output.
-            # Vision always returns a single dict; text/tabular may return a list of dicts.
-            output_data = agent_output.get('output', {})
-            change_plan_raw = output_data.get('change_plan', {})
+        # Get change plan from agent output.
+        # Vision always returns a single dict; text/tabular may return a list of dicts.
+        output_data = agent_output.get('output', {})
+        change_plan_raw = output_data.get('change_plan', {})
 
-            # Normalise to a uniform list of plan dicts for sequential application.
-            if isinstance(change_plan_raw, dict):
-                change_plans = [change_plan_raw] if change_plan_raw else []
-            elif isinstance(change_plan_raw, list):
-                change_plans = [p for p in change_plan_raw if isinstance(p, dict)]
-            else:
-                change_plans = []
+        # Normalise to a uniform list of plan dicts for sequential application.
+        if isinstance(change_plan_raw, dict):
+            change_plans = [change_plan_raw] if change_plan_raw else []
+        elif isinstance(change_plan_raw, list):
+            change_plans = [p for p in change_plan_raw if isinstance(p, dict)]
+        else:
+            change_plans = []
 
-            if not change_plans:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["No change plan provided by agent"]
-                )
-
-            # Get target/expected class
-            expected_class = kwargs.get('expected_class')
-            if expected_class is None:
-                expected_class = kwargs.get('target_class')
-            if expected_class is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Expected/target class not provided"]
-                )
-
-            # Convert expected_class to index if it's a string
-            expected_class_idx = self._get_class_index(expected_class, kwargs.get('class_names'))
-
-            # Apply each plan sequentially.  For text/tabular the agent may propose
-            # several feature/span changes; each is applied on top of the previous result.
-            modified_input = original_input
-            region_ratio = 0.0
-            for plan in change_plans:
-                region = self._extract_region_from_change_plan(plan)
-                if region is None:
-                    continue
-                action = plan.get('action', 'change')
-                new_value = plan.get('new_value')
-                modified_input = self._apply_change_plan(
-                    modified_input, region, action, new_value, kwargs
-                )
-                region_ratio += self.compute_region_ratio(region, original_input)
-            region_ratio = min(1.0, region_ratio)
-
-            # Get prediction on modified input
-            processor = kwargs.get('processor')
-            device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
-
-            modified_prediction = self.get_prediction(model, modified_input, processor, device)
-            modified_class = modified_prediction.get('predicted_class_idx', -1)
-            modified_probs = modified_prediction.get('probabilities')
-            original_probs = original_prediction.get('probabilities')
-            original_class_idx = original_prediction.get('predicted_class_idx', 0)
-
-            # expected_class_idx == -1 means "any different class" (e.g. vision Q6 has no
-            # specific target class — just "flip to a different class").
-            if expected_class_idx == -1:
-                # Pass if the predicted class changed at all
-                flipped_correctly = (modified_class != original_class_idx)
-                # p_original / p_modified track the *original* class probability so we can
-                # measure how much the model's confidence in the original class dropped.
-                p_original = float(original_probs[original_class_idx]) if original_probs is not None else None
-                p_modified = float(modified_probs[original_class_idx]) if modified_probs is not None else None
-                # Soft score: probability drop of original class (higher = more convincing flip)
-                if p_original is not None and p_modified is not None:
-                    soft_score = max(0.0, p_original - p_modified)
-                else:
-                    soft_score = 1.0 if flipped_correctly else 0.0
-                metric_formula = "1 if R1_modified != original_class else 0"
-                interpretation = "score = P_drop(original_class) * (1 - region_ratio)"
-            else:
-                # Specific target class requested
-                flipped_correctly = (modified_class == expected_class_idx)
-                # p_original: target class probability BEFORE modification
-                p_original = float(original_probs[expected_class_idx]) if original_probs is not None else None
-                # Soft score: probability of target class after modification
-                if modified_probs is not None:
-                    p_modified = float(modified_probs[expected_class_idx])
-                    soft_score = max(0.0, min(1.0, p_modified))
-                else:
-                    p_modified = None
-                    soft_score = 1.0 if flipped_correctly else 0.0
-                metric_formula = self.metric_formula
-                interpretation = "score = P(target_class) * (1 - region_ratio)"
-
-            # Size penalty: penalize larger modified regions
-            size_penalty = 1.0 - region_ratio
-            score = soft_score * size_penalty
-
-            return EvaluationResult(
-                score=score,
-                passed=flipped_correctly,
-                metric_name=self.metric_name,
-                metric_formula=metric_formula,
-                original_class=str(original_class_idx),
-                modified_class=str(modified_class),
-                p_original=p_original,
-                p_modified=p_modified,
-                details={
-                    "change_plan": change_plan_raw,
-                    "expected_class": expected_class,
-                    "expected_class_idx": expected_class_idx,
-                    "soft_score": soft_score,
-                    "region_ratio": region_ratio,
-                    "size_penalty": size_penalty,
-                    "flipped_correctly": flipped_correctly,
-                    "interpretation": interpretation
-                }
-            )
-
-        except Exception as e:
+        if not change_plans:
             return EvaluationResult(
                 score=0.0,
                 passed=False,
-                metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                errors=[str(e)]
+                errors=["No change plan provided by agent"]
             )
+
+        # Get target/expected class
+        expected_class = kwargs.get('expected_class')
+        if expected_class is None:
+            expected_class = kwargs.get('target_class')
+        if expected_class is None:
+            return EvaluationResult(
+                score=0.0,
+                passed=False,
+                errors=["Expected/target class not provided"]
+            )
+
+        # Convert expected_class to index if it's a string
+        expected_class_idx = self._get_class_index(expected_class, kwargs.get('class_names'))
+
+        # Apply each plan sequentially.  For text/tabular the agent may propose
+        # several feature/span changes; each is applied on top of the previous result.
+        modified_input = original_input
+        region_ratio = 0.0
+        for plan in change_plans:
+            region = self._extract_region_from_change_plan(plan)
+            if region is None:
+                continue
+            action = plan.get('action', 'change')
+            new_value = plan.get('new_value')
+            modified_input = self._apply_change_plan(
+                modified_input, region, action, new_value, kwargs
+            )
+            region_ratio += self.compute_region_ratio(region, original_input)
+        region_ratio = min(1.0, region_ratio)
+
+        # Get prediction on modified input
+        processor = kwargs.get('processor')
+        device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+
+        modified_prediction = self.get_prediction(model, modified_input, processor, device)
+        modified_class = modified_prediction.get('predicted_class_idx', -1)
+        modified_probs = modified_prediction.get('probabilities')
+        original_probs = original_prediction.get('probabilities')
+        original_class_idx = original_prediction.get('predicted_class_idx', 0)
+
+        # expected_class_idx == -1 means "any different class" (e.g. vision Q6 has no
+        # specific target class — just "flip to a different class").
+        if expected_class_idx == -1:
+            # Pass if the predicted class changed at all
+            flipped_correctly = (modified_class != original_class_idx)
+            # p_original / p_modified track the *original* class probability so we can
+            # measure how much the model's confidence in the original class dropped.
+            p_original = float(original_probs[original_class_idx]) if original_probs is not None else None
+            p_modified = float(modified_probs[original_class_idx]) if modified_probs is not None else None
+            # Soft score: probability drop of original class (higher = more convincing flip)
+            if p_original is not None and p_modified is not None:
+                soft_score = max(0.0, p_original - p_modified)
+            else:
+                soft_score = 1.0 if flipped_correctly else 0.0
+            metric_formula = "1 if R1_modified != original_class else 0"
+            interpretation = "score = P_drop(original_class) * (1 - region_ratio)"
+        else:
+            # Specific target class requested
+            flipped_correctly = (modified_class == expected_class_idx)
+            # p_original: target class probability BEFORE modification
+            p_original = float(original_probs[expected_class_idx]) if original_probs is not None else None
+            # Soft score: probability of target class after modification
+            if modified_probs is not None:
+                p_modified = float(modified_probs[expected_class_idx])
+                soft_score = max(0.0, min(1.0, p_modified))
+            else:
+                p_modified = None
+                soft_score = 1.0 if flipped_correctly else 0.0
+            metric_formula = self.metric_formula
+            interpretation = "score = P(target_class) * (1 - region_ratio)"
+
+        # Size penalty: penalize larger modified regions
+        size_penalty = 1.0 - region_ratio
+        score = soft_score * size_penalty
+
+        return EvaluationResult(
+            score=score,
+            passed=flipped_correctly,
+            metric_name=self.metric_name,
+            metric_formula=metric_formula,
+            original_class=str(original_class_idx),
+            modified_class=str(modified_class),
+            p_original=p_original,
+            p_modified=p_modified,
+            details={
+                "change_plan": change_plan_raw,
+                "expected_class": expected_class,
+                "expected_class_idx": expected_class_idx,
+                "soft_score": soft_score,
+                "region_ratio": region_ratio,
+                "size_penalty": size_penalty,
+                "flipped_correctly": flipped_correctly,
+                "interpretation": interpretation
+            }
+        )
 
     def _apply_change_plan(self, original_input, region, action, new_value, kwargs) -> Any:
         """Apply the agent's change plan to produce a modified input.
