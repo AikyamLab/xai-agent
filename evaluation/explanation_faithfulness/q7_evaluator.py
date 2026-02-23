@@ -77,6 +77,13 @@ class Q7Evaluator(BaseEvaluator):
             # Use the most important region from original analysis
             part_to_change = self._get_important_region(original_prediction, kwargs)
 
+        # For vision Q7, the agent identifies the region itself and returns masked_region.
+        # Use it as fallback when no pre-specified region is available.
+        if part_to_change is None and self.modality == 'vision':
+            masked_region = output_data.get('masked_region', {})
+            if isinstance(masked_region, dict) and masked_region.get('bounding_box'):
+                part_to_change = masked_region
+
         if part_to_change is None:
             return EvaluationResult(
                 score=0.0,

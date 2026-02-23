@@ -409,9 +409,9 @@ class ActorAgent(BaseAgent):
         if not parsed_result.get('output') or not isinstance(parsed_result.get('output'), dict):
             parsed_result['output'] = {}
 
-        # Add per-instance outputs if not present
+        # Add per-instance outputs if not present (always use letter-based keys: input_A, input_B, input_C...)
         for i in range(num_instances):
-            key = f'input_{i}' if num_instances > 2 else ('input_A' if i == 0 else 'input_B')
+            key = f'input_{chr(ord("A") + i)}'
             if key not in parsed_result['output']:
                 parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
 
@@ -1072,7 +1072,8 @@ Respond with ONLY valid JSON:"""
         input_path: str,
         prediction: Dict[str, Any],
         modality: str = "vision",
-        question: Optional[Dict[str, Any]] = None
+        question: Optional[Dict[str, Any]] = None,
+        save_suffix: str = ""
     ) -> Dict[str, Any]:
         """Execute XAI tools based on strategy"""
         import re
@@ -1171,7 +1172,7 @@ Respond with ONLY valid JSON:"""
 
         # Save tool outputs
         if question:
-            self._save_tool_outputs(tool_outputs, question)
+            self._save_tool_outputs(tool_outputs, question, suffix=save_suffix)
 
         return {
             "tool_results": tool_outputs,
@@ -1450,7 +1451,7 @@ JSON Response:"""
 
         return ""
 
-    def _save_tool_outputs(self, tool_outputs: Dict[str, Any], question: Dict[str, Any]):
+    def _save_tool_outputs(self, tool_outputs: Dict[str, Any], question: Dict[str, Any], suffix: str = ""):
         """Save tool outputs to file."""
         import re
         dataset_base_name = question.get('dataset_base_name', 'unknown')
@@ -1476,7 +1477,8 @@ JSON Response:"""
             tool_outputs_dir = self.output_dir / "tool_outputs" / modality / dataset_name / q_type_str / str(row_no)
         tool_outputs_dir.mkdir(parents=True, exist_ok=True)
 
-        output_file = tool_outputs_dir / "tool_outputs.json"
+        filename = f"tool_outputs{suffix}.json"
+        output_file = tool_outputs_dir / filename
 
         with open(output_file, 'w') as f:
             json.dump(tool_outputs, f, indent=2)
@@ -2733,7 +2735,8 @@ Respond with ONLY valid JSON:"""
             input_path=input_path or "",
             prediction=prediction or {},
             modality=modality,
-            question=question
+            question=question,
+            save_suffix="_improved"
         )
 
         # Step 1.5: Execute autonomous tasks if any
@@ -2748,6 +2751,7 @@ Respond with ONLY valid JSON:"""
         if autonomous_results:
             tool_results['autonomous_results'] = autonomous_results
             tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+            self._save_tool_outputs(tool_results['tool_results'], question, suffix="_improved")
 
         # Step 2: Extract features with reflection guidance
         print("  Step 2: Extracting features with reflection...")
@@ -2846,10 +2850,28 @@ Respond with ONLY valid JSON:"""
         for i, (input_path, prediction) in enumerate(zip(input_paths, predictions or [{}] * num_instances)):
             print(f"  Step 1.{i+1}: Executing XAI tools on Instance {i}...")
 
-            # Reload this instance's sample in data_model_loader
+            # Reload this instance's sample in data_model_loader so XAI tools
+            # operate on the correct data (mirrors _execute_multi_instance logic)
             if self.data_model_loader and i < len(image_indices):
                 try:
-                    self.data_model_loader.load_sample(index=image_indices[i], split=split)
+                    if modality == 'text':
+                        features_list = question.get('features', [])
+                        if isinstance(features_list, list) and i < len(features_list):
+                            feat = features_list[i]
+                            if 'premise' in feat and 'hypothesis' in feat:
+                                text_input = feat
+                            elif 'text' in feat:
+                                text_input = feat.get('text', '')
+                            elif 'review_text' in feat:
+                                text_input = feat.get('review_text', '')
+                            else:
+                                text_input = feat
+                            data = self.data_model_loader.loader_module.load_data(text_input)
+                            self.data_model_loader.current_sample_data = data
+                        else:
+                            print(f"  Warning: No features entry for text instance {i}")
+                    else:
+                        self.data_model_loader.load_sample(index=image_indices[i], split=split)
                 except Exception as e:
                     raise RuntimeError(f"Failed to reload sample {image_indices[i]} for instance {i}: {e}") from e
 
@@ -2862,7 +2884,8 @@ Respond with ONLY valid JSON:"""
                 input_path=input_path,
                 prediction=prediction,
                 modality=modality,
-                question=instance_question
+                question=instance_question,
+                save_suffix="_improved"
             )
 
             all_tool_results.append(tool_results)
@@ -2931,7 +2954,7 @@ Respond with ONLY valid JSON:"""
             parsed_result['output'] = {}
 
         for i in range(num_instances):
-            key = f'input_{i}' if num_instances > 2 else ('input_A' if i == 0 else 'input_B')
+            key = f'input_{chr(ord("A") + i)}'
             if key not in parsed_result['output']:
                 parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
 
