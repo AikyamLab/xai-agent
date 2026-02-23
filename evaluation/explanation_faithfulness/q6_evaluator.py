@@ -185,7 +185,7 @@ class Q6Evaluator(BaseEvaluator):
             # Use SD inpainting when a text prompt is provided
             if new_value:
                 try:
-                    from evaluation.sd_inpainting import generate_counterfactual_image
+                    from ..sd_inpainting import generate_counterfactual_image
                     bbox = region.get('bounding_box')
                     prompt = self._clean_sd_prompt(str(new_value))
                     result = generate_counterfactual_image(original_input, bbox, prompt)

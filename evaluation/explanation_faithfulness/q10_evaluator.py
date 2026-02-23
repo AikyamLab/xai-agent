@@ -1,11 +1,11 @@
 """
-Q4 Evaluator: Contrastive Instances (Why A != B)
+Q10 Evaluator: Similar Instances with Different Predictions (correct vs wrong)
 
-Metric: 1 - Sim(F_A, F_B)
-Higher score = better (features should be distinct between instances)
+Metric: 1 - Sim(F_correct, F_wrong)
+Higher score = better (features for correct vs wrong instance should be distinct)
 
 Similarity measures:
-- Vision: Jaccard word similarity on concise feature phrases
+- Vision: Jaccard word similarity on feature phrases
 - Text: Word overlap between extracted spans
 - Tabular: Jaccard overlap weighted by rank agreement on top_features lists
 """

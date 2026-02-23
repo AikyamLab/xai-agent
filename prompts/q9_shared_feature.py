@@ -194,6 +194,12 @@ Provide your strategy as a JSON object:
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
 
+        # Build output slots dynamically for all instances
+        instance_slots = ",\n        ".join([
+            f'"input_{chr(65 + i)}": {{\n            {output_format}\n        }}'
+            for i in range(num_instances)
+        ])
+
         prompt = f"""You are an XAI expert. Find the SHARED feature causing all misclassifications.
 
 ## Question
@@ -208,17 +214,12 @@ Find what COMMON feature they share that confuses the model.
 {self._format_results_comprehensive(results)}
 
 ## Your Task
-Identify the SHARED spurious feature and its location in EACH instance.
+Identify the SHARED spurious feature and its location in EACH of the {num_instances} instances.
 
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
     "output": {{
-        "input_A": {{
-            {output_format}
-        }},
-        "input_B": {{
-            {output_format}
-        }}
+        {instance_slots}
     }},
     "shared_feature_description": "Description of the common feature across all inputs",
     "explanation": "2-3 sentences explaining how this shared feature confuses the model",
@@ -226,6 +227,7 @@ Identify the SHARED spurious feature and its location in EACH instance.
 }}
 
 **Critical Requirements:**
+- Provide a region for EVERY instance (input_A through input_{chr(65 + num_instances - 1)})
 - Identify the SAME type of feature in EACH instance
 - This shared feature should be SPURIOUS (not truly relevant to classification)
 - Removing this feature from ALL instances should improve ALL predictions
