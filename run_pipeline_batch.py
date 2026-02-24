@@ -314,6 +314,8 @@ def run_single_job(
     sf_max_samples: Optional[int],
     log_dir: Path,
     mode: str = "test",
+    tinker_checkpoint: Optional[str] = None,
+    tinker_lora_rank: int = 16,
 ) -> JobResult:
     """Execute a single pipeline job."""
     start_time = datetime.now()
@@ -341,6 +343,9 @@ def run_single_job(
         cmd.append("--no-sf")
     if sf_max_samples is not None:
         cmd.extend(["--sf_max_samples", str(sf_max_samples)])
+    if tinker_checkpoint is not None:
+        cmd.extend(["--tinker_checkpoint", tinker_checkpoint])
+        cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
 
     # Create log file
     log_file = log_dir / f"{job.job_id}.log"
@@ -428,6 +433,8 @@ def run_jobs_sequential(
             sf_max_samples=config.get("sf_max_samples"),
             log_dir=log_dir,
             mode=config.get("mode", "test"),
+            tinker_checkpoint=config.get("tinker_checkpoint"),
+            tinker_lora_rank=config.get("tinker_lora_rank", 16),
         )
 
         results.append(result)
@@ -464,6 +471,8 @@ def run_jobs_parallel(
                 sf_max_samples=config.get("sf_max_samples"),
                 log_dir=log_dir,
                 mode=config.get("mode", "test"),
+                tinker_checkpoint=config.get("tinker_checkpoint"),
+                tinker_lora_rank=config.get("tinker_lora_rank", 16),
             ): job
             for job in jobs
         }
@@ -594,7 +603,16 @@ Available Datasets:
     parser.add_argument("--output_dir", type=str, default=str(DEFAULT_CONFIG["output_dir"]),
                         help="Output directory")
     parser.add_argument("--vlm", type=str, default=DEFAULT_CONFIG["vlm_model"],
-                        help="VLM model ID. Local: 'Qwen/Qwen3-VL-8B-Instruct'. API: 'gemini-2.5-pro', 'gemini-3-pro'")
+                        help="VLM model ID. Local: 'Qwen/Qwen3-VL-8B-Instruct'. "
+                             "Tinker base: 'tinker/Qwen3-VL-30B-A3B-Instruct'. "
+                             "API: 'gemini-2.5-pro'")
+    parser.add_argument("--tinker_checkpoint", type=str, default=None,
+                        help="Tinker LoRA/DPO checkpoint for evaluation (mode=test only). "
+                             "Format: 'tinker/<run_id>--<step>', e.g. "
+                             "'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'. "
+                             "Requires --vlm to be a tinker/* base model.")
+    parser.add_argument("--tinker_lora_rank", type=int, default=16,
+                        help="LoRA rank used during DPO/LoRA training (must match training job, default: 16)")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose logging")
 
@@ -616,6 +634,8 @@ Available Datasets:
     config["no_sf"] = args.no_sf
     config["sf_max_samples"] = args.sf_max_samples
     config["mode"] = args.mode
+    config["tinker_checkpoint"] = args.tinker_checkpoint
+    config["tinker_lora_rank"] = args.tinker_lora_rank
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -658,6 +678,8 @@ Available Datasets:
     logger.info(f"  Use test variant: {args.use_test_variant}")
     logger.info(f"  Parallel: {args.parallel}")
     logger.info(f"  Output dir: {config['output_dir']}")
+    if config["tinker_checkpoint"]:
+        logger.info(f"  Tinker checkpoint: {config['tinker_checkpoint']} (rank={config['tinker_lora_rank']})")
 
     # Build jobs
     jobs = build_jobs(
@@ -681,17 +703,21 @@ Available Datasets:
     if args.dry_run:
         logger.info("\n--- Dry Run - Commands to execute ---")
         for job in jobs:
-            cmd = (
-                f"python xai_pipeline_v2.py "
-                f"--dataset {job.dataset_path} "
-                f"--question_id {job.question_id} "
-                f"--model_url {job.model_path} "
-                f"--dataset_dir {config['dataset_dir']} "
-                f"--models_dir {config['models_dir']} "
-                f"--mode {config['mode']}"
-            )
+            parts = [
+                f"python xai_pipeline_v2.py",
+                f"--dataset {job.dataset_path}",
+                f"--question_id {job.question_id}",
+                f"--model_url {job.model_path}",
+                f"--dataset_dir {config['dataset_dir']}",
+                f"--models_dir {config['models_dir']}",
+                f"--vlm {config['vlm_model']}",
+                f"--mode {config['mode']}",
+            ]
+            if config["tinker_checkpoint"]:
+                parts.append(f"--tinker_checkpoint {config['tinker_checkpoint']}")
+                parts.append(f"--tinker_lora_rank {config['tinker_lora_rank']}")
             logger.info(f"\n{job.job_id}:")
-            logger.info(f"  {cmd}")
+            logger.info(f"  {' '.join(parts)}")
         sys.exit(0)
 
     # Execute jobs

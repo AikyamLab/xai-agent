@@ -126,6 +126,11 @@ class Q6Evaluator(BaseEvaluator):
                 soft_score = 1.0 if flipped_correctly else 0.0
             metric_formula = "1 if R1_modified != original_class else 0"
             interpretation = "score = P_drop(original_class) * (1 - region_ratio)"
+            # Prob breakdown: original class tracked; no specific target class
+            p_original_class_original = p_original
+            p_original_class_modified  = p_modified
+            p_target_class_before   = None
+            p_target_class_after    = None
         else:
             # Specific target class requested
             flipped_correctly = (modified_class == expected_class_idx)
@@ -140,6 +145,11 @@ class Q6Evaluator(BaseEvaluator):
                 soft_score = 1.0 if flipped_correctly else 0.0
             metric_formula = self.metric_formula
             interpretation = "score = P(target_class) * (1 - region_ratio)"
+            # Prob breakdown: both original predicted class and target class, before & after
+            p_original_class_original = float(original_probs[original_class_idx]) if original_probs is not None else None
+            p_original_class_modified  = float(modified_probs[original_class_idx]) if modified_probs is not None else None
+            p_target_class_original   = p_original
+            p_target_class_modified    = p_modified
 
         # Size penalty: penalize larger modified regions
         size_penalty = 1.0 - region_ratio
@@ -162,7 +172,11 @@ class Q6Evaluator(BaseEvaluator):
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "flipped_correctly": flipped_correctly,
-                "interpretation": interpretation
+                "interpretation": interpretation,
+                "p_original_class_original": p_original_class_original,
+                "p_original_class_modified":  p_original_class_modified,
+                "p_target_class_original":   p_target_class_original,
+                "p_target_class_modified":    p_target_class_modified,
             }
         )
 
@@ -214,8 +228,26 @@ class Q6Evaluator(BaseEvaluator):
         else:  # tabular
             # Set the feature to the agent-provided new_value
             if new_value is not None:
+                # If a StandardScaler preprocessor is available, the stored tensor is in
+                # normalized (z-score) space but the agent proposes values in raw feature
+                # space.  Normalize before writing so the model sees a sensible input.
+                normalized_new_value = new_value
+                processor = kwargs.get('processor')
+                if (processor is not None and hasattr(processor, 'mean_') and
+                        hasattr(processor, 'scale_')):
+                    feature_names_list = list(kwargs.get('feature_names', []))
+                    col_idx = self._resolve_feature_col(region['feature_key'], feature_names_list)
+                    if col_idx is not None and col_idx < len(processor.mean_):
+                        try:
+                            raw_val = float(str(new_value))
+                            normalized_new_value = (
+                                (raw_val - processor.mean_[col_idx]) / processor.scale_[col_idx]
+                            )
+                        except (ValueError, TypeError):
+                            pass  # categorical value — _set_tabular_feature handles it
+
                 modified = self._set_tabular_feature(
-                    original_input, region['feature_key'], new_value,
+                    original_input, region['feature_key'], normalized_new_value,
                     kwargs.get('feature_names', [])
                 )
                 if modified is not None:
