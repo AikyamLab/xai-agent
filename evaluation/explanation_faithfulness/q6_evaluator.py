@@ -265,8 +265,7 @@ class Q6Evaluator(BaseEvaluator):
 
                 modified = self._set_tabular_feature(
                     original_input, region['feature_key'], normalized_new_value,
-                    kwargs.get('feature_names', []),
-                    processor=kwargs.get('processor')
+                    kwargs.get('feature_names', [])
                 )
                 if modified is not None:
                     # Direct feature-set bypasses masker.mask(), so save explicitly
