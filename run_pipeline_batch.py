@@ -48,12 +48,10 @@ DATASET_MODEL_MAP = {
     "snli_cnn": "text/snli_cnn.pth",
     "snli_2layernn": "text/snli_2layernn.pth",
     # Tabular
-    "adult_census": "tabular/adult_census.pth",
-    "adult_tabnn": "tabular/adult_tabnn.pth",
     "adult_2layernn": "tabular/adult_2layernn.pth",
-    "cancer_2nn": "tabular/cancer_2nn.pth",
-    "cancer_tabnn": "tabular/cancer_tabnn.pth",
+    "adult_tabnn": "tabular/adult_tabnn.pth",
     "cancer_2layernn": "tabular/cancer_2layernn.pth",
+    "cancer_tabnn": "tabular/cancer_tabnn.pth",
 }
 
 # Dataset to modality mapping
@@ -66,18 +64,16 @@ DATASET_MODALITY_MAP = {
     "imdb_2layernn": "text",
     "snli_cnn": "text",
     "snli_2layernn": "text",
-    "adult_census": "tabular",
-    "adult_tabnn": "tabular",
     "adult_2layernn": "tabular",
-    "cancer_2nn": "tabular",
-    "cancer_tabnn": "tabular",
+    "adult_tabnn": "tabular",
     "cancer_2layernn": "tabular",
+    "cancer_tabnn": "tabular",
 }
 
 MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
-    "tabular": ["adult_census", "adult_tabnn", "adult_2layernn", "cancer_2nn", "cancer_tabnn", "cancer_2layernn"],
+    "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn"],
 }
 
 
@@ -557,7 +553,7 @@ Examples:
 Available Datasets:
     Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet
     Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
-    Tabular: adult_census, adult_tabnn, cancer_2nn, cancer_tabnn
+    Tabular: adult_2layernn, adult_tabnn, cancer_2layernn, cancer_tabnn
         """,
     )
 

@@ -233,22 +233,40 @@ class Q6Evaluator(BaseEvaluator):
                 # space.  Normalize before writing so the model sees a sensible input.
                 normalized_new_value = new_value
                 processor = kwargs.get('processor')
-                if (processor is not None and hasattr(processor, 'mean_') and
-                        hasattr(processor, 'scale_')):
+                # Resolve the underlying StandardScaler regardless of wrapper type.
+                # Handles both plain StandardScaler (Cancer) and ColumnTransformer (Adult).
+                num_scaler = None
+                if processor is not None:
+                    if hasattr(processor, 'mean_') and hasattr(processor, 'scale_'):
+                        num_scaler = processor  # plain StandardScaler
+                    elif hasattr(processor, 'named_transformers_'):
+                        # ColumnTransformer: numeric scaler lives under the 'num' key
+                        _ns = processor.named_transformers_.get('num')
+                        if _ns is not None:
+                            if hasattr(_ns, 'mean_'):
+                                num_scaler = _ns  # direct StandardScaler
+                            elif hasattr(_ns, 'steps'):
+                                # Pipeline([('scaler', StandardScaler()), ...])
+                                for _, step in _ns.steps:
+                                    if hasattr(step, 'mean_'):
+                                        num_scaler = step
+                                        break
+                if num_scaler is not None:
                     feature_names_list = list(kwargs.get('feature_names', []))
                     col_idx = self._resolve_feature_col(region['feature_key'], feature_names_list)
-                    if col_idx is not None and col_idx < len(processor.mean_):
+                    if col_idx is not None and col_idx < len(num_scaler.mean_):
                         try:
                             raw_val = float(str(new_value))
                             normalized_new_value = (
-                                (raw_val - processor.mean_[col_idx]) / processor.scale_[col_idx]
+                                (raw_val - num_scaler.mean_[col_idx]) / num_scaler.scale_[col_idx]
                             )
                         except (ValueError, TypeError):
                             pass  # categorical value — _set_tabular_feature handles it
 
                 modified = self._set_tabular_feature(
                     original_input, region['feature_key'], normalized_new_value,
-                    kwargs.get('feature_names', [])
+                    kwargs.get('feature_names', []),
+                    processor=kwargs.get('processor')
                 )
                 if modified is not None:
                     # Direct feature-set bypasses masker.mask(), so save explicitly
