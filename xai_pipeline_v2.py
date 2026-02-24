@@ -146,6 +146,16 @@ class XAIPipelineV2:
         print(f"Models directory: {self.models_dir}")
         print(f"Output directory: {self.output_dir}")
 
+        # If a tinker_checkpoint is provided but the caller did not explicitly select a
+        # tinker/* base model (i.e. the default local model is still set), auto-derive
+        # the base model from the checkpoint name so we go through the Tinker path
+        # instead of trying to load an 8B / 30B model locally.
+        if tinker_checkpoint is not None and not vlm_model_id.startswith("tinker/"):
+            derived = self._derive_tinker_base_model(tinker_checkpoint)
+            if derived:
+                print(f"\nAuto-deriving VLM base model from tinker_checkpoint: tinker/{derived}")
+                vlm_model_id = f"tinker/{derived}"
+
         # Initialize VLM
         print("\nInitializing VLM...")
         self.vlm = create_vlm(model_id=vlm_model_id)
@@ -185,6 +195,27 @@ class XAIPipelineV2:
     # =========================================================================
     # Tinker Checkpoint Loading (test-mode evaluation of fine-tuned models)
     # =========================================================================
+
+    @staticmethod
+    def _derive_tinker_base_model(checkpoint: str) -> Optional[str]:
+        """Extract the base model name from a tinker checkpoint path.
+
+        Expected format: 'tinker/{algo}_{ModelName}_{timestamp}--{step}'
+        e.g. 'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'
+             -> 'Qwen3-VL-30B-A3B-Instruct'
+
+        Returns the ModelName portion, or None if parsing fails.
+        """
+        name = checkpoint.removeprefix("tinker/")
+        run_id = name.split("--")[0]          # strip '--step-...' suffix
+        parts = run_id.split("_")             # ['dpo', 'Qwen3', 'VL', '30B', ..., '1771865187']
+        if len(parts) < 3:
+            return None
+        # Drop the algorithm prefix (first part) and the numeric timestamp (last part)
+        inner = parts[1:-1] if parts[-1].isdigit() else parts[1:]
+        if not inner:
+            return None
+        return "-".join(inner)                # 'Qwen3-VL-30B-A3B-Instruct'
 
     def _load_tinker_checkpoint(self, checkpoint: str, lora_rank: int = 16) -> None:
         """
@@ -231,20 +262,41 @@ class XAIPipelineV2:
         print(f"  Base model             : {base_model}")
         print(f"  LoRA rank              : {lora_rank}")
 
-        service_client = tinker.ServiceClient()
-        training_client = service_client.create_lora_training_client(
-            base_model=base_model,
-            rank=lora_rank,
-        )
-        training_client.load_state(tinker_path)
+        import time
+        max_retries = 5
+        base_delay = 10  # seconds; doubles each attempt
 
-        sampling_path = training_client.save_weights_for_sampler(name="eval").result().path
-        print(f"  Sampler weights path   : {sampling_path}")
+        last_exc: Exception = RuntimeError("unreachable")
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    delay = base_delay * (2 ** (attempt - 2))  # 10, 20, 40, 80 s
+                    print(f"  Retry {attempt}/{max_retries} after {delay}s ...")
+                    time.sleep(delay)
 
-        # Replace the sampling client in-place so the existing VLM object is reused
-        self.vlm.sampling_client = service_client.create_sampling_client(
-            model_path=sampling_path
-        )
+                service_client = tinker.ServiceClient()
+                training_client = service_client.create_lora_training_client(
+                    base_model=base_model,
+                    rank=lora_rank,
+                )
+                training_client.load_state(tinker_path)
+
+                sampling_path = training_client.save_weights_for_sampler(name="eval").result().path
+                print(f"  Sampler weights path   : {sampling_path}")
+
+                # Replace the sampling client in-place so the existing VLM object is reused
+                self.vlm.sampling_client = service_client.create_sampling_client(
+                    model_path=sampling_path
+                )
+                break  # success
+
+            except Exception as exc:
+                last_exc = exc
+                print(f"  Attempt {attempt}/{max_retries} failed: {exc}")
+                if attempt == max_retries:
+                    raise RuntimeError(
+                        f"Failed to load Tinker checkpoint after {max_retries} attempts: {exc}"
+                    ) from exc
 
         # Propagate updated VLM to all three agents
         self.proposer.vlm = self.vlm
