@@ -100,7 +100,9 @@ class XAIPipelineV2:
         output_dir: Optional[str] = None,
         dataset_dir: Optional[str] = None,
         models_dir: Optional[str] = None,
-        mode: str = "test"
+        mode: str = "test",
+        tinker_checkpoint: Optional[str] = None,
+        tinker_lora_rank: int = 16,
     ):
         """
         Initialize XAI Pipeline V2.
@@ -112,6 +114,11 @@ class XAIPipelineV2:
             models_dir: Directory containing models
             mode: Dataset split to use ('train' or 'test'); benchmark JSONs are
                   loaded from ``dataset_dir/{mode}/{modality}/``.
+            tinker_checkpoint: Tinker checkpoint to load for evaluation, e.g.
+                  'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'.
+                  Only applied when mode='test'. Requires vlm_model_id to be a
+                  tinker/* model (used as the LoRA base model).
+            tinker_lora_rank: LoRA rank used during DPO/LoRA training (default: 16).
         """
         self.mode = mode
 
@@ -152,6 +159,14 @@ class XAIPipelineV2:
             models_dir=str(self.models_dir)
         )
 
+        # Load Tinker LoRA/DPO checkpoint for evaluation (test mode only)
+        if tinker_checkpoint is not None:
+            if mode == "test":
+                self._load_tinker_checkpoint(tinker_checkpoint, tinker_lora_rank)
+            else:
+                print(f"\nWarning: tinker_checkpoint is ignored in mode='{mode}' "
+                      f"(only applied when mode='test').")
+
         # Strategy faithfulness evaluator (lazy initialization)
         self.tool_attribution_evaluator: Optional[ToolAttributionEvaluator] = None
 
@@ -166,6 +181,77 @@ class XAIPipelineV2:
         self.sf_cache_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nXAI Pipeline V2 initialized successfully!")
+
+    # =========================================================================
+    # Tinker Checkpoint Loading (test-mode evaluation of fine-tuned models)
+    # =========================================================================
+
+    def _load_tinker_checkpoint(self, checkpoint: str, lora_rank: int = 16) -> None:
+        """
+        Load a fine-tuned LoRA/DPO checkpoint from Tinker and replace the VLM's
+        sampling client.  Only called when mode='test'.
+
+        The checkpoint path format is 'tinker/<run_id>--<step>', e.g.:
+            'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'
+
+        This is converted to 'tinker://<run_id>/<step>' for load_state(), then
+        save_weights_for_sampler() prepares it for inference.
+
+        Args:
+            checkpoint:  Tinker checkpoint path as passed via --tinker_checkpoint.
+            lora_rank:   LoRA rank used during training (must match the original job).
+        """
+        try:
+            import tinker
+        except ImportError:
+            raise ImportError(
+                "tinker package not available. Install with: pip install tinker"
+            )
+
+        from vlm_wrapper import TinkerVisionLanguageModel
+        if not isinstance(self.vlm, TinkerVisionLanguageModel):
+            raise RuntimeError(
+                f"tinker_checkpoint requires a Tinker-backed VLM (--vlm tinker/...), "
+                f"but current VLM is {type(self.vlm).__name__}."
+            )
+
+        # Parse 'tinker/run_id--step_name'  ->  'tinker://run_id/step_name'
+        checkpoint_name = checkpoint.removeprefix("tinker/")
+        if "--" in checkpoint_name:
+            run_id, step = checkpoint_name.split("--", 1)
+            tinker_path = f"tinker://{run_id}/{step}"
+        else:
+            # Fallback: treat the whole name as the path component
+            tinker_path = f"tinker://{checkpoint_name}"
+
+        base_model = self.vlm.model_id  # e.g. "Qwen/Qwen3-VL-30B-A3B-Instruct"
+
+        print(f"\nLoading Tinker LoRA/DPO checkpoint for evaluation...")
+        print(f"  Checkpoint tinker path : {tinker_path}")
+        print(f"  Base model             : {base_model}")
+        print(f"  LoRA rank              : {lora_rank}")
+
+        service_client = tinker.ServiceClient()
+        training_client = service_client.create_lora_training_client(
+            base_model=base_model,
+            rank=lora_rank,
+        )
+        training_client.load_state(tinker_path)
+
+        sampling_path = training_client.save_weights_for_sampler(name="eval").result().path
+        print(f"  Sampler weights path   : {sampling_path}")
+
+        # Replace the sampling client in-place so the existing VLM object is reused
+        self.vlm.sampling_client = service_client.create_sampling_client(
+            model_path=sampling_path
+        )
+
+        # Propagate updated VLM to all three agents
+        self.proposer.vlm = self.vlm
+        self.actor.vlm = self.vlm
+        self.critic.vlm = self.vlm
+
+        print("Tinker checkpoint loaded successfully.")
 
     # =========================================================================
     # Image Path Helpers (for auto-constructing paths from root + dataset + index)
@@ -2408,7 +2494,7 @@ def main():
     parser.add_argument(
         "--vlm",
         type=str,
-        default="Qwen/Qwen3-VL-8B-Instruct",
+        default=None,
         help="VLM model ID. Local: 'Qwen/Qwen3-VL-8B-Instruct'. Tinker: 'tinker/Qwen/Qwen3-VL-30B-A3B-Instruct'. API: 'gemini-2.5-pro', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'"
     )
     parser.add_argument(
@@ -2469,8 +2555,42 @@ def main():
         default="test",
         help="Dataset split to use: 'train' loads from dataset/train/, 'test' loads from dataset/test/ (default: test)"
     )
+    parser.add_argument(
+        "--tinker_checkpoint",
+        type=str,
+        default=None,
+        help=(
+            "Tinker LoRA/DPO checkpoint to evaluate (mode=test only). "
+            "Format: 'tinker/<run_id>--<step>', e.g. "
+            "'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'. "
+            "Requires --vlm to be a tinker/* base model."
+        )
+    )
+    parser.add_argument(
+        "--tinker_lora_rank",
+        type=int,
+        default=32,
+        help="LoRA rank used during DPO/LoRA training (must match the training job, default: 16)"
+    )
 
     args = parser.parse_args()
+
+    # Auto-derive --vlm from --tinker_checkpoint when not explicitly provided
+    if args.vlm is None:
+        if args.tinker_checkpoint is not None:
+            import re
+            checkpoint_name = args.tinker_checkpoint.removeprefix("tinker/")
+            run_id = checkpoint_name.split("--")[0]
+            # Strip trailing numeric job ID (e.g. _1771865187)
+            model_name = re.sub(r'_\d+$', '', run_id)
+            # Strip leading method prefix (e.g. dpo_, lora_)
+            model_name = re.sub(r'^[a-z]+_', '', model_name)
+            args.vlm = f"tinker/{model_name}"
+            print(f"Auto-derived --vlm from tinker checkpoint: {args.vlm}")
+        else:
+            raise ValueError(
+                "Must provide --vlm <model_id> or --tinker_checkpoint <path>."
+            )
 
     # Create pipeline
     pipeline = XAIPipelineV2(
@@ -2478,7 +2598,9 @@ def main():
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
         models_dir=args.models_dir,
-        mode=args.mode
+        mode=args.mode,
+        tinker_checkpoint=args.tinker_checkpoint,
+        tinker_lora_rank=args.tinker_lora_rank,
     )
 
     # Run pipeline

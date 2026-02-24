@@ -335,6 +335,7 @@ class BaseMasker(ABC):
         self._current_dataset_name = dataset_name
         self._current_q_type = q_type_str
         self._current_question_id = f"{row_no}/{instance_str}" if instance_str else row_no
+        self._current_feature_names = kwargs.get('feature_names', [])
 
         self.save(data, auto_filename)
 
@@ -805,23 +806,36 @@ class TabularMasker(BaseMasker):
         return 0.0
 
     def save(self, masked_data: Any, filename: str):
-        """Save tabular as JSON or CSV"""
+        """Save tabular as JSON (feature dict) or CSV fallback"""
         path_kwargs = {
             'dataset_name': getattr(self, '_current_dataset_name', None),
             'q_type': getattr(self, '_current_q_type', None),
             'question_id': getattr(self, '_current_question_id', None)
         }
+        feature_names = getattr(self, '_current_feature_names', [])
+
         if isinstance(masked_data, dict):
             save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
             with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(masked_data, f, indent=4)
         else:
-            save_path = self._get_target_path("tabular", "csv", filename, **path_kwargs)
             if TORCH_AVAILABLE and isinstance(masked_data, torch.Tensor):
-                arr = masked_data.cpu().numpy()
+                arr = masked_data.cpu().numpy().flatten()
             else:
-                arr = masked_data
-            np.savetxt(save_path, arr, delimiter=",")
+                arr = np.asarray(masked_data).flatten()
+
+            if feature_names and len(feature_names) == len(arr):
+                # Convert to human-readable JSON dict: {feature_name: value, ...}
+                feat_dict = {
+                    name: round(float(arr[i]), 6)
+                    for i, name in enumerate(feature_names)
+                }
+                save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
+                with open(save_path, "w", encoding="utf-8") as f:
+                    json.dump(feat_dict, f, indent=4)
+            else:
+                save_path = self._get_target_path("tabular", "csv", filename, **path_kwargs)
+                np.savetxt(save_path, arr, delimiter=",")
         print(f"[Auto-Save] Tabular output: {save_path}")
 
     def validate_region(self, region: Dict[str, Any]) -> bool:

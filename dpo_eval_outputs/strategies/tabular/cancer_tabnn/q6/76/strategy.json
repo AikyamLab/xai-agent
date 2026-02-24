@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach leverages both autonomous reasoning and external XAI tools to ensure robust identification of counterfactual changes. Autonomous analysis provides initial insight into feature importance and domain knowledge, while XAI tools like SHAP and sensitivity analysis validate and refine the findings, ensuring minimal yet effective modifications to flip the prediction.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify which features are most likely to influence the prediction of malignant vs benign in the given dataset based on domain knowledge and feature distributions.",
+      "expected_output": "List of features with high discriminative power between malignant and benign classes, such as mean radius, mean area, and mean concavity."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given the current prediction of malignant with high confidence, what changes to the input features would most likely shift the prediction to benign?",
+      "expected_output": "Proposed changes to specific features (e.g., reduce mean radius, mean area, and mean concavity) that are known to be associated with benign tumors."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the current feature values with typical values for benign tumors to identify the most impactful differences.",
+      "expected_output": "Feature-wise comparison highlighting which features need adjustment to align with benign tumor characteristics."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP with contrastive targeting identifies features that contribute most to the current prediction (malignant) versus the target (benign), while sensitivity analysis evaluates how changes in input features affect the model's output, ensuring minimal but effective modifications to flip the prediction."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP with contrastive targeting identifies features that contribute most to the current prediction (malignant) versus the target (benign), while sensitivity analysis evaluates how changes in input features affect the model's output, ensuring minimal but effective modifications to flip the prediction.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP with contrastive targeting identifies features that contribute most to the current prediction (malignant) versus the target (benign), while sensitivity analysis evaluates how changes in input features affect the model's output, ensuring minimal but effective modifications to flip the prediction.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach is optimal because autonomous analysis can provide initial insights into feature importance based on domain knowledge and current prediction confidence, while external XAI tools like SHAP and Sensitivity Analysis offer quantitative, model-agnostic validation of feature contributions. This ensures both interpretability and robustness in identifying minimal changes to flip the prediction.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify which features are most likely to influence the prediction from benign to malignant based on the current input values and class probabilities.",
+      "expected_output": "List of features with high influence on the benign prediction, such as mean concavity, mean compactness, or mean area."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given the current prediction of benign with 67.6% confidence, what changes in feature values would most likely shift the model's output toward malignant?",
+      "expected_output": "Proposed direction of change (e.g., increase in mean concavity, decrease in mean smoothness) and rationale based on feature distribution and model behavior."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the current feature values with typical values for malignant tumors in the dataset to identify key differences.",
+      "expected_output": "Feature-wise comparison highlighting which features differ significantly between benign and malignant cases."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP provides feature-level contributions to the prediction, enabling contrastive analysis between benign and malignant classes. Sensitivity Analysis identifies features whose perturbations most affect the model output, helping to pinpoint minimal changes required to flip the prediction. Together, they ensure both interpretability and precision in counterfactual generation."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides feature-level contributions to the prediction, enabling contrastive analysis between benign and malignant classes. Sensitivity Analysis identifies features whose perturbations most affect the model output, helping to pinpoint minimal changes required to flip the prediction. Together, they ensure both interpretability and precision in counterfactual generation.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides feature-level contributions to the prediction, enabling contrastive analysis between benign and malignant classes. Sensitivity Analysis identifies features whose perturbations most affect the model output, helping to pinpoint minimal changes required to flip the prediction. Together, they ensure both interpretability and precision in counterfactual generation.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}
