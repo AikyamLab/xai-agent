@@ -195,6 +195,16 @@ for baseline in ${BASELINES}; do
                 dataset_json="${DATASET_DIR}/${MODE}/${modality}/${dataset}_q${q_type}_test.json"
             fi
 
+            # Try q{q_type}_{dataset} variant
+            if [[ ! -f "${dataset_json}" ]]; then
+                dataset_json="${DATASET_DIR}/${MODE}/${modality}/q${q_type}_${dataset}.json"
+            fi
+
+            # Try any available question type for this dataset
+            if [[ ! -f "${dataset_json}" ]]; then
+                dataset_json=$(find "${DATASET_DIR}/${MODE}/${modality}" -name "${dataset}_q*.json" -type f | head -1)
+            fi
+
             if [[ ! -f "${dataset_json}" ]]; then
                 log "  ⊘ Skipping ${dataset}_q${q_type}: JSON not found"
                 ((skipped_jobs++)) || true

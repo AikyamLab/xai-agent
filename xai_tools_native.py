@@ -1816,7 +1816,15 @@ class XAIToolRegistry:
         if 'shap' in available_tools:
             self._tools['shap'] = SHAPTool(**tool_context)
 
-
+    @property
+    def tools(self) -> Dict[str, BaseTool]:
+        """
+        Get all tools dictionary.
+        
+        Returns:
+            Dictionary of tool name -> tool instance
+        """
+        return self._tools
 
     def get_tool(self, tool_name: str) -> Optional[BaseTool]:
         """
