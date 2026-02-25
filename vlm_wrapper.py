@@ -59,7 +59,7 @@ class VisionLanguageModel:
         self,
         model_id: str = "Qwen/Qwen3-VL-8B-Instruct",
         device: Optional[str] = None,
-        temperature: float = 0.1,
+        temperature: float = 0.0,
         max_new_tokens: int = 1024,
         min_new_tokens: int = 1,
         top_k: int = 50,
@@ -837,7 +837,7 @@ class GeminiVLM:
     def __init__(
         self,
         model_id: str = "gemini-2.5-pro",
-        temperature: float = 0.1,
+        temperature: float = 0.0,
         max_new_tokens: int = 8192,
         **kwargs
     ):
@@ -1089,7 +1089,7 @@ class ClaudeVLM:
     def __init__(
         self,
         model_id: str = "claude-sonnet-4-5-20250929",
-        temperature: float = 0.1,
+        temperature: float = 0.0,
         max_new_tokens: int = 8192,
         **kwargs
     ):
@@ -1342,7 +1342,7 @@ class TinkerVisionLanguageModel:
     def __init__(
         self,
         model_id: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
-        temperature: float = 0.1,
+        temperature: float = 0.0,
         max_new_tokens: int = 1024,
         top_p: float = 0.9,
         tinker_api_key: Optional[str] = None,

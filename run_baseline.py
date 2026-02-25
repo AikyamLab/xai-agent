@@ -447,6 +447,9 @@ class BaselinePipeline:
             else:
                 result["evaluation"] = {"status": "skipped"}
 
+            # Save result with evaluation data
+            agent.save_baseline_result(result, question)
+
             all_results[bname] = result
 
         if baseline_name == "all":
@@ -511,7 +514,7 @@ class BaselinePipeline:
         print(f"\n  Evaluating faithfulness (Q{q_type})...")
 
         try:
-            evaluator = get_evaluator(q_type)
+            evaluator = get_evaluator(q_type, modality=modality)
 
             # Derive ground truth
             gt = question.get("ground_truth")
@@ -521,6 +524,13 @@ class BaselinePipeline:
                 target = question.get("target", {})
                 if isinstance(target, dict):
                     gt = target.get("value")
+
+            # Extract expected_class from agent output (for Q6+)
+            expected_class = None
+            if isinstance(result, dict):
+                output_data = result.get('output', {})
+                if isinstance(output_data, dict):
+                    expected_class = output_data.get('expected_class')
 
             eval_result = evaluator.evaluate(
                 agent_output=result,
@@ -532,23 +542,28 @@ class BaselinePipeline:
                 device=model_info.get("device", "cuda"),
                 class_names=model_info.get("label_map", {}),
                 feature_names=model_info.get("feature_names", []),
+                expected_class=expected_class,
             )
 
-            faithfulness = {
-                "score": eval_result.score if eval_result else None,
-                "passed": (
-                    eval_result.passed if eval_result else False
-                ),
-                "details": {
-                    "p_original": eval_result.p_original if eval_result else None,
-                    "p_modified": eval_result.p_modified if eval_result else None,
-                    "threshold": threshold,
-                },
-            }
+            # faithfulness = {
+            #     "score": eval_result.score if eval_result else None,
+            #     "passed": (
+            #         eval_result.passed if eval_result else False
+            #     ),
+            #     "details": {
+            #         "p_original": eval_result.p_original if eval_result else None,
+            #         "p_modified": eval_result.p_modified if eval_result else None,
+            #         "threshold": threshold,
+            #     },
+            # }
+
+            faithfulness = eval_result.to_dict()
 
             status = "PASSED" if faithfulness["passed"] else "FAILED"
             print(f"  Faithfulness: {faithfulness['score']:.4f} ({status})")
             return {"faithfulness": faithfulness}
+
+            # return 
 
         except Exception as e:
             print(f"  Evaluation error: {e}")
