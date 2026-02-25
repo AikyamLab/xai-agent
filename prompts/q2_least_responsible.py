@@ -172,7 +172,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Model Prediction
-Class: {prediction.get('predicted_class', 'Unknown')}
+Class: {prediction.get('predicted_class_name', 'Unknown')}
 Confidence: {prediction.get('confidence', 0.0):.4f}
 {size_constraint}{instance_data_section}
 ## XAI Analysis

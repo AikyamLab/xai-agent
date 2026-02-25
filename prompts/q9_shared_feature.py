@@ -53,7 +53,7 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
             for i, inst in enumerate(instances):
                 pred = inst.get('prediction', {})
                 gt = inst.get('ground_truth', 'Unknown')
-                instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class', 'Unknown')}, Ground Truth: {gt}\n"
+                instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class_name', 'Unknown')}, Ground Truth: {gt}\n"
         else:
             instance_info = f"- {num_instances} instances, all MISCLASSIFIED\n"
 
