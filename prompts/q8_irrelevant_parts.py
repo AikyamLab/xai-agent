@@ -49,7 +49,7 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
 **Model Information**:
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
-- Model Predicted: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+- Model Predicted: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class_name', 'Unknown')})
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - **Ground Truth**: {ground_truth}
 - **Status**: MISCLASSIFIED
@@ -173,7 +173,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Misclassification
-- Model Predicted: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Model Predicted: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Ground Truth: {ground_truth}
 {size_constraint}{instance_data_section}
 ## XAI Analysis

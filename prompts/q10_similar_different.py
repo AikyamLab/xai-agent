@@ -56,8 +56,8 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
             inst_b = instances[1]
             pred_a = inst_a.get('prediction', {})
             pred_b = inst_b.get('prediction', {})
-            instance_info = f"""- Instance A (CORRECT): Predicted {pred_a.get('predicted_class', 'Unknown')} (Ground Truth: {inst_a.get('ground_truth', 'Same')})
-- Instance B (WRONG): Predicted {pred_b.get('predicted_class', 'Unknown')} (Ground Truth: {inst_b.get('ground_truth', 'Different')})"""
+            instance_info = f"""- Instance A (CORRECT): Predicted {pred_a.get('predicted_class_name', 'Unknown')} (Ground Truth: {inst_a.get('ground_truth', 'Same')})
+- Instance B (WRONG): Predicted {pred_b.get('predicted_class_name', 'Unknown')} (Ground Truth: {inst_b.get('ground_truth', 'Different')})"""
         else:
             instance_info = """- Instance A: Correctly classified
 - Instance B: Incorrectly classified (similar to A but wrong prediction)"""

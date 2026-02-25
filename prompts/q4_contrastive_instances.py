@@ -52,7 +52,7 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
         if instances:
             for i, inst in enumerate(instances):
                 pred = inst.get('prediction', {})
-                instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class', 'Unknown')} (Confidence: {pred.get('confidence', 0):.4f})\n"
+                instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class_name', 'Unknown')} (Confidence: {pred.get('confidence', 0):.4f})\n"
         else:
             instance_info = "- Instance A: Different prediction from B\n- Instance B: Different prediction from A\n"
 

@@ -4,27 +4,33 @@ Prepare trajectory-level DPO data for XAI ProposerAgent + ActorAgent (same model
 Produces two kinds of pairs, mixed into one JSONL:
 
   PROPOSER pairs  (role="proposer"):
-    prompt          = base_prompt (PromptBuilder output, no reflection)
-    chosen          = full trajectory: original strategy + execution
-                      → reflection (proposer_reflection + actor_reflection)
-                      → improved strategy + execution + faithfulness      [Type B]
-                    OR original strategy + execution + faithfulness        [Type A, no reflection]
-    rejected        = full trajectory (same structure but degraded)        [Type C]
+    prompt    = base_prompt (SAME for chosen and rejected — same instance).
+    chosen    = improved strategy + execution only (no reflection)         [Type B]
+              OR original only (was better than improved)                  [Type C]
+    rejected  = original strategy + execution only                         [Type B]
+              OR improved strategy + execution only (no reflection)        [Type C]
 
   ACTOR pairs  (role="actor"):
-    prompt          = base actor prompt (PromptBuilder, original strategy)
-    chosen          = full trajectory: original explanation
-                      → critic's feedback (actor_reflection)
-                      → improved explanation + faithfulness                [Type B]
-                    OR original explanation + faithfulness                 [Type A, no reflection]
-    rejected        = full trajectory (same structure but degraded)        [Type C]
+    prompt    = base actor prompt with original strategy (SAME for both sides).
+    chosen    = improved explanation only (no reflection)                  [Type B]
+              OR original explanation only (was better)                    [Type C]
+    rejected  = original explanation only                                  [Type B]
+              OR improved explanation only (no reflection)                 [Type C]
 
-Both use cross-instance B×C and A×C pairing matched by q_type (same modality).
+Reflection is excluded from all completions to isolate response quality signal.
+
+Same-instance pairing: every Type B/C datapoint generates its own pair.
+Prompt is identical for chosen and rejected — DPO gradient targets response
+quality rather than prompt/domain differences.
+
+Type A (passed 1st attempt, no `improved` field) is excluded: there is no
+natural same-instance negative; use cross-instance pairing (see flag below)
+to re-enable A×C pairs if needed.
 
 Quality tiers:
   high   delta>0.3 AND imp_faith>0.5  → weight=2.0
   medium 0.1<delta≤0.3                → weight=1.0
-  a      passed 1st attempt (no improved) → weight=1.0
+  c      Type C (delta<0)             → weight=1.0
 """
 
 import inspect
@@ -57,7 +63,24 @@ CANONICAL_STRATEGY_KEYS = [
     "autonomous_tasks", "tool_selection",
 ]
 
-QUALITY_WEIGHTS = {"high": 2.0, "medium": 1.0, "a": 1.0}
+QUALITY_WEIGHTS = {"high": 2.0, "medium": 1.0, "a": 1.0, "c": 1.0}
+
+
+def delta_to_weight(delta: float) -> float:
+    """Map |delta| to a pair-level loss weight for same-instance pairing.
+
+    Works for both Type B (delta > 0) and Type C (delta < 0) by using |delta|.
+      |delta| > 0.3  → 2.0  (large quality gap, reliable signal)
+      |delta| > 0.1  → 1.0  (moderate gap)
+      |delta| ≤ 0.1  → 0.5  (weak signal; only reached when filter_noise=False)
+    """
+    abs_d = abs(delta)
+    if abs_d > 0.3:
+        return 2.0
+    elif abs_d > 0.1:
+        return 1.0
+    else:
+        return 0.5
 
 # Each Type C sample can be used as 'rejected' at most this many times.
 # Prevents a single rare C record from dominating the dataset (e.g. Q2/Q5 have only 1 C).
@@ -272,8 +295,6 @@ def build_proposer_completion_a(d: dict) -> str:
     expl        = orig.get("explanation", {})
     expl_output = expl.get("output", {})
     expl_text   = expl.get("explanation", "")
-    auto_res    = expl.get("autonomous_results", {})
-    auto_str    = fmt_autonomous_results(auto_res)
 
     c = (
         f"```json\n{json.dumps(orig_strat, indent=2)}\n```\n\n"
@@ -282,8 +303,6 @@ def build_proposer_completion_a(d: dict) -> str:
         f"```json\n{json.dumps(expl_output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{expl_text}\n"
     )
-    if auto_str:
-        c += f"\n**Autonomous Task Results:**\n```json\n{auto_str}\n```\n"
     c += "\n" + _fmt_faith(orig.get("explanation_faithfulness", {}))
     return c
 
@@ -300,7 +319,6 @@ def build_proposer_completion_full(d: dict) -> str:
     orig_expl   = orig.get("explanation", {})
     orig_output = orig_expl.get("output", {})
     orig_text   = orig_expl.get("explanation", "")
-    orig_auto_s = fmt_autonomous_results(orig_expl.get("autonomous_results", {}))
 
     # ── reflection ──
     sf        = d.get("strategy_faithfulness", {})
@@ -313,7 +331,6 @@ def build_proposer_completion_full(d: dict) -> str:
     imp_expl   = imp.get("explanation", {})
     imp_output = imp_expl.get("output", {})
     imp_text   = imp_expl.get("explanation", "")
-    imp_auto_s = fmt_autonomous_results(imp_expl.get("autonomous_results", {}))
 
     c = (
         f"## Initial Strategy\n"
@@ -323,8 +340,6 @@ def build_proposer_completion_full(d: dict) -> str:
         f"```json\n{json.dumps(orig_output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{orig_text}\n"
     )
-    if orig_auto_s:
-        c += f"\n**Autonomous Task Results:**\n```json\n{orig_auto_s}\n```\n"
     c += "\n" + _fmt_faith(orig.get("explanation_faithfulness", {}))
 
     c += (
@@ -339,8 +354,6 @@ def build_proposer_completion_full(d: dict) -> str:
         f"```json\n{json.dumps(imp_output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{imp_text}\n"
     )
-    if imp_auto_s:
-        c += f"\n**Autonomous Task Results:**\n```json\n{imp_auto_s}\n```\n"
     c += "\n" + _fmt_faith(imp.get("explanation_faithfulness", {}))
 
     return c
@@ -377,9 +390,7 @@ def build_results_for_actor(tool_outputs: dict, strategy: dict, expl: dict) -> d
     if not tool_results:
         tool_results = {k: v for k, v in tool_outputs.items() if k != "autonomous_tasks"}
 
-    autonomous_results = expl.get("autonomous_results",
-                                  tool_outputs.get("autonomous_tasks", {}))
-    return {"tool_results": tool_results, "autonomous_results": autonomous_results}
+    return {"tool_results": tool_results}
 
 
 def load_improved_tool_results(datapoint_id: str, modality: str) -> dict:
@@ -442,14 +453,11 @@ def build_actor_completion_a(d: dict) -> str:
     expl    = d["original"].get("explanation", {})
     output  = expl.get("output", {})
     text    = expl.get("explanation", "")
-    auto_s  = fmt_autonomous_results(expl.get("autonomous_results", {}))
 
     c = (
         f"```json\n{json.dumps(output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{text}\n"
     )
-    if auto_s:
-        c += f"\n**Autonomous Task Results:**\n```json\n{auto_s}\n```\n"
     c += "\n" + _fmt_faith(d["original"].get("explanation_faithfulness", {}))
     return c
 
@@ -462,7 +470,6 @@ def build_actor_completion_full(d: dict, modality: str = "tabular") -> str:
     orig_expl   = d["original"].get("explanation", {})
     orig_output = orig_expl.get("output", {})
     orig_text   = orig_expl.get("explanation", "")
-    orig_auto_s = fmt_autonomous_results(orig_expl.get("autonomous_results", {}))
 
     # ── tool importance scores (from strategy_faithfulness) ──
     sf        = d.get("strategy_faithfulness", {})
@@ -488,15 +495,12 @@ def build_actor_completion_full(d: dict, modality: str = "tabular") -> str:
     imp_expl   = d["improved"].get("explanation", {})
     imp_output = imp_expl.get("output", {})
     imp_text   = imp_expl.get("explanation", "")
-    imp_auto_s = fmt_autonomous_results(imp_expl.get("autonomous_results", {}))
 
     c = (
         f"## Initial Explanation\n\n"
         f"```json\n{json.dumps(orig_output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{orig_text}\n"
     )
-    if orig_auto_s:
-        c += f"\n**Autonomous Task Results:**\n```json\n{orig_auto_s}\n```\n"
     c += "\n" + _fmt_faith(d["original"].get("explanation_faithfulness", {}))
 
     c += (
@@ -508,10 +512,99 @@ def build_actor_completion_full(d: dict, modality: str = "tabular") -> str:
         f"```json\n{json.dumps(imp_output, indent=2)}\n```\n\n"
         f"**Explanation:**\n{imp_text}\n"
     )
-    if imp_auto_s:
-        c += f"\n**Autonomous Task Results:**\n```json\n{imp_auto_s}\n```\n"
     c += "\n" + _fmt_faith(d["improved"].get("explanation_faithfulness", {}))
 
+    return c
+
+
+# ── Same-instance completion helpers ────────────────────────────────────────────
+# These produce the "original only" half used as rejected (Type B) or chosen (Type C)
+# in same-instance pairs.  Format mirrors the opening section of the *_full builders
+# so the two sides of each pair look structurally consistent.
+
+def build_proposer_completion_orig_only(d: dict) -> str:
+    """Original-only proposer completion for same-instance pairing.
+
+    Matches the header/format of the opening section of build_proposer_completion_full
+    so chosen and rejected share a consistent structure.
+    """
+    orig        = d["original"]
+    orig_strat  = clean_strategy(orig["strategy"])
+    orig_expl   = orig.get("explanation", {})
+    orig_output = orig_expl.get("output", {})
+    orig_text   = orig_expl.get("explanation", "")
+
+    c = (
+        f"## Initial Strategy\n"
+        f"```json\n{json.dumps(orig_strat, indent=2)}\n```\n\n"
+        f"## Initial Execution Result\n\n"
+        f"**Structured Output:**\n"
+        f"```json\n{json.dumps(orig_output, indent=2)}\n```\n\n"
+        f"**Explanation:**\n{orig_text}\n"
+    )
+    c += "\n" + _fmt_faith(orig.get("explanation_faithfulness", {}))
+    return c
+
+
+def build_actor_completion_orig_only(d: dict) -> str:
+    """Original-only actor completion for same-instance pairing.
+
+    Matches the header/format of the opening section of build_actor_completion_full
+    so chosen and rejected share a consistent structure.
+    """
+    orig_expl   = d["original"].get("explanation", {})
+    orig_output = orig_expl.get("output", {})
+    orig_text   = orig_expl.get("explanation", "")
+
+    c = (
+        f"## Initial Explanation\n\n"
+        f"```json\n{json.dumps(orig_output, indent=2)}\n```\n\n"
+        f"**Explanation:**\n{orig_text}\n"
+    )
+    c += "\n" + _fmt_faith(d["original"].get("explanation_faithfulness", {}))
+    return c
+
+
+def build_proposer_completion_improved_only(d: dict) -> str:
+    """Improved-only proposer completion (no reflection) for same-instance pairing.
+
+    Same structure as build_proposer_completion_orig_only but uses d["improved"].
+    Reflection is intentionally excluded to isolate response quality signal.
+    """
+    imp        = d["improved"]
+    imp_strat  = clean_strategy(imp["strategy"])
+    imp_expl   = imp.get("explanation", {})
+    imp_output = imp_expl.get("output", {})
+    imp_text   = imp_expl.get("explanation", "")
+
+    c = (
+        f"## Initial Strategy\n"
+        f"```json\n{json.dumps(imp_strat, indent=2)}\n```\n\n"
+        f"## Initial Execution Result\n\n"
+        f"**Structured Output:**\n"
+        f"```json\n{json.dumps(imp_output, indent=2)}\n```\n\n"
+        f"**Explanation:**\n{imp_text}\n"
+    )
+    c += "\n" + _fmt_faith(imp.get("explanation_faithfulness", {}))
+    return c
+
+
+def build_actor_completion_improved_only(d: dict) -> str:
+    """Improved-only actor completion (no reflection) for same-instance pairing.
+
+    Same structure as build_actor_completion_orig_only but uses d["improved"].
+    Reflection is intentionally excluded to isolate response quality signal.
+    """
+    imp_expl   = d["improved"].get("explanation", {})
+    imp_output = imp_expl.get("output", {})
+    imp_text   = imp_expl.get("explanation", "")
+
+    c = (
+        f"## Initial Explanation\n\n"
+        f"```json\n{json.dumps(imp_output, indent=2)}\n```\n\n"
+        f"**Explanation:**\n{imp_text}\n"
+    )
+    c += "\n" + _fmt_faith(d["improved"].get("explanation_faithfulness", {}))
     return c
 
 
@@ -519,20 +612,27 @@ def build_actor_completion_full(d: dict, modality: str = "tabular") -> str:
 
 def load_trajectory_pairs(
     data_dir: Path,
-    modality: str = "tabular",
-    seed: int = 42,
+    modality:     str  = "tabular",
+    seed:         int  = 42,
+    filter_noise: bool = False,
 ) -> list[dict]:
-    """B×C and A×C trajectory pairs matched by q_type (same modality, cross-model).
+    """Build DPO pairs from trajectory datapoints.
 
-    Type A: no `improved` field; original passed faithfulness threshold (passed=True).
-            prompt    = base_prompt (PromptBuilder only).
-            chosen    = original strategy + execution + faithfulness (passed).
-    Type B: has `improved`; meaningful delta (high: >0.3 & imp>0.5, medium: 0.1<delta≤0.3).
-            prompt    = base_prompt.
-            chosen    = full trajectory: original → reflection → improved (better).
-    Type C: has `improved`; delta < 0 (faithfulness degraded).
-            prompt    = base_prompt.
-            rejected  = full trajectory: original → reflection → improved (worse).
+    Same-instance mode (default, cross_instance_flag=False):
+      Every Type B/C datapoint generates one pair with a shared prompt.
+      Type B: chosen=full trajectory, rejected=original only.
+      Type C: chosen=original only,   rejected=full trajectory.
+      Type A: excluded (no natural same-instance negative).
+
+    filter_noise controls handling of weak-signal pairs (|delta| ≤ 0.1):
+      True  → exclude weak pairs entirely (filtered out).
+      False → include weak pairs with weight=0.5 (down-weighted).
+    Applies to Type B weak (0<delta≤0.1) and Type C with small |delta|.
+
+    Cross-instance mode (cross_instance_flag=True):
+      B×C and A×C pairs matched by q_type (same modality, cross-model).
+      Prompts differ between chosen and rejected sides.
+      Set cross_instance_flag=True below to re-enable.
     """
     pattern = str(data_dir / modality / "**/*.json")
     files   = glob.glob(pattern, recursive=True)
@@ -540,8 +640,8 @@ def load_trajectory_pairs(
     type_a        = defaultdict(list)
     type_b_high   = defaultdict(list)
     type_b_medium = defaultdict(list)
+    type_b_weak   = defaultdict(list)   # 0 < delta ≤ 0.1
     type_c        = defaultdict(list)
-    skipped_low   = 0
     build_errors  = 0
 
     for f in files:
@@ -593,221 +693,391 @@ def load_trajectory_pairs(
         elif 0.1 < delta <= 0.3:
             type_b_medium[key].append(record)
         elif 0 < delta <= 0.1:
-            skipped_low += 1
+            type_b_weak[key].append(record)
         elif delta < 0:
             type_c[key].append(record)
 
     rng = random.Random(seed)
     pairs = []
-    skipped_no_c = 0
-    pair_errors  = 0
+    pair_errors = 0
 
-    # ── Proposer B×C pairs ───────────────────────────────────────────────────────
-    def make_pair_bc(b_rec, c_rec, quality: str) -> dict | None:
-        try:
-            prompt_chosen   = build_base_prompt(b_rec["d"], b_rec["model"])
-            chosen          = build_proposer_completion_full(b_rec["d"])
-            prompt_rejected = build_base_prompt(c_rec["d"], c_rec["model"])
-            rejected        = build_proposer_completion_full(c_rec["d"])
-        except Exception:
-            return None
-        return {
-            "prompt_chosen":     prompt_chosen,
-            "prompt_rejected":   prompt_rejected,
-            "chosen":            chosen,
-            "rejected":          rejected,
-            "weight":            QUALITY_WEIGHTS[quality],
-            "quality":           quality,
-            "role":              "proposer",
-            "delta_chosen":      round(b_rec["delta"], 4),
-            "delta_rejected":    round(c_rec["delta"], 4),
-            "imp_faith_chosen":  round(b_rec["imp_s"], 4),
-            "orig_faith_chosen": round(b_rec["orig_s"], 4),
-            "q_type":            b_rec["q_type"],
-            "model":             b_rec["model"],
-            "dataset_chosen":    b_rec["dataset"],
-            "dataset_rejected":  c_rec["dataset"],
-        }
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Set cross_instance_flag = True to restore the original cross-instance
+    # B×C / A×C pairing (different prompts for chosen vs rejected, matched by
+    # q_type across models).  False = same-instance pairing (default).
+    # ═══════════════════════════════════════════════════════════════════════════
+    cross_instance_flag = False
 
-    for tier_name, tier_dict in [("high", type_b_high), ("medium", type_b_medium)]:
-        for key, b_list in tier_dict.items():
+    if cross_instance_flag:
+        # ── CROSS-INSTANCE PAIRING (kept for reference) ──────────────────────
+        # Pairs are matched by q_type only; chosen and rejected come from
+        # different datapoints (cross-model, cross-dataset within same modality).
+        # Disadvantage: DPO gradient can attribute quality differences to
+        # prompt/domain rather than response quality.
+
+        skipped_no_c = 0
+
+        # ── Proposer B×C pairs ───────────────────────────────────────────────
+        def make_pair_bc(b_rec, c_rec, quality: str) -> dict | None:
+            try:
+                prompt_chosen   = build_base_prompt(b_rec["d"], b_rec["model"])
+                chosen          = build_proposer_completion_full(b_rec["d"])
+                prompt_rejected = build_base_prompt(c_rec["d"], c_rec["model"])
+                rejected        = build_proposer_completion_full(c_rec["d"])
+            except Exception:
+                return None
+            return {
+                "prompt_chosen":     prompt_chosen,
+                "prompt_rejected":   prompt_rejected,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            QUALITY_WEIGHTS[quality],
+                "quality":           quality,
+                "role":              "proposer",
+                "delta_chosen":      round(b_rec["delta"], 4),
+                "delta_rejected":    round(c_rec["delta"], 4),
+                "imp_faith_chosen":  round(b_rec["imp_s"], 4),
+                "orig_faith_chosen": round(b_rec["orig_s"], 4),
+                "q_type":            b_rec["q_type"],
+                "model":             b_rec["model"],
+                "dataset_chosen":    b_rec["dataset"],
+                "dataset_rejected":  c_rec["dataset"],
+            }
+
+        for tier_name, tier_dict in [("high", type_b_high), ("medium", type_b_medium)]:
+            for key, b_list in tier_dict.items():
+                c_list = type_c.get(key, [])
+                if not c_list:
+                    skipped_no_c += len(b_list)
+                    continue
+                c_usage = defaultdict(int)
+                for b_rec in rng.sample(b_list, len(b_list)):
+                    available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
+                    if not available:
+                        break
+                    idx  = rng.choice(available)
+                    c_usage[idx] += 1
+                    pair = make_pair_bc(b_rec, c_list[idx], tier_name)
+                    if pair is None:
+                        pair_errors += 1
+                    else:
+                        pairs.append(pair)
+
+        # ── Proposer A×C pairs ───────────────────────────────────────────────
+        def make_pair_ac(a_rec, c_rec) -> dict | None:
+            try:
+                prompt_chosen   = build_base_prompt(a_rec["d"], a_rec["model"])
+                chosen          = build_proposer_completion_a(a_rec["d"])
+                prompt_rejected = build_base_prompt(c_rec["d"], c_rec["model"])
+                rejected        = build_proposer_completion_full(c_rec["d"])
+            except Exception:
+                return None
+            return {
+                "prompt_chosen":     prompt_chosen,
+                "prompt_rejected":   prompt_rejected,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            QUALITY_WEIGHTS["a"],
+                "quality":           "a",
+                "role":              "proposer",
+                "delta_chosen":      round(a_rec["orig_s"], 4),
+                "delta_rejected":    round(c_rec["delta"], 4),
+                "imp_faith_chosen":  round(a_rec["orig_s"], 4),
+                "orig_faith_chosen": round(a_rec["orig_s"], 4),
+                "q_type":            a_rec["q_type"],
+                "model":             a_rec["model"],
+                "dataset_chosen":    a_rec["dataset"],
+                "dataset_rejected":  c_rec["dataset"],
+            }
+
+        for key, a_list in type_a.items():
             c_list = type_c.get(key, [])
             if not c_list:
-                skipped_no_c += len(b_list)
+                skipped_no_c += len(a_list)
                 continue
             c_usage = defaultdict(int)
-            for b_rec in rng.sample(b_list, len(b_list)):
-                available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
-                if not available:
-                    break
-                idx   = rng.choice(available)
-                c_usage[idx] += 1
-                pair  = make_pair_bc(b_rec, c_list[idx], tier_name)
-                if pair is None:
-                    pair_errors += 1
-                else:
-                    pairs.append(pair)
-
-    # ── Proposer A×C pairs ───────────────────────────────────────────────────────
-    def make_pair_ac(a_rec, c_rec) -> dict | None:
-        try:
-            # chosen: first-pass (no reflection) → passed
-            prompt_chosen   = build_base_prompt(a_rec["d"], a_rec["model"])
-            chosen          = build_proposer_completion_a(a_rec["d"])
-            # rejected: full degraded trajectory
-            prompt_rejected = build_base_prompt(c_rec["d"], c_rec["model"])
-            rejected        = build_proposer_completion_full(c_rec["d"])
-        except Exception:
-            return None
-        return {
-            "prompt_chosen":     prompt_chosen,
-            "prompt_rejected":   prompt_rejected,
-            "chosen":            chosen,
-            "rejected":          rejected,
-            "weight":            QUALITY_WEIGHTS["a"],
-            "quality":           "a",
-            "role":              "proposer",
-            "delta_chosen":      round(a_rec["orig_s"], 4),
-            "delta_rejected":    round(c_rec["delta"], 4),
-            "imp_faith_chosen":  round(a_rec["orig_s"], 4),
-            "orig_faith_chosen": round(a_rec["orig_s"], 4),
-            "q_type":            a_rec["q_type"],
-            "model":             a_rec["model"],
-            "dataset_chosen":    a_rec["dataset"],
-            "dataset_rejected":  c_rec["dataset"],
-        }
-
-    for key, a_list in type_a.items():
-        c_list = type_c.get(key, [])
-        if not c_list:
-            skipped_no_c += len(a_list)
-            continue
-        c_usage = defaultdict(int)
-        for a_rec in rng.sample(a_list, len(a_list)):
-            available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
-            if not available:
-                break
-            idx   = rng.choice(available)
-            c_usage[idx] += 1
-            pair  = make_pair_ac(a_rec, c_list[idx])
-            if pair is None:
-                pair_errors += 1
-            else:
-                pairs.append(pair)
-
-    proposer_count = len(pairs)
-
-    # ── Actor B×C pairs ──────────────────────────────────────────────────────────
-    def make_pair_actor_bc(b_rec, c_rec, quality: str) -> dict | None:
-        try:
-            # Both sides use base actor prompt (original strategy); full trajectory in completion
-            prompt_chosen   = build_actor_prompt_for_attempt(
-                b_rec["d"], "original", b_rec["model"], modality)
-            chosen          = build_actor_completion_full(b_rec["d"], modality)
-            prompt_rejected = build_actor_prompt_for_attempt(
-                c_rec["d"], "original", c_rec["model"], modality)
-            rejected        = build_actor_completion_full(c_rec["d"], modality)
-        except Exception:
-            return None
-        return {
-            "prompt_chosen":     prompt_chosen,
-            "prompt_rejected":   prompt_rejected,
-            "chosen":            chosen,
-            "rejected":          rejected,
-            "weight":            QUALITY_WEIGHTS[quality],
-            "quality":           quality,
-            "role":              "actor",
-            "delta_chosen":      round(b_rec["delta"], 4),
-            "delta_rejected":    round(c_rec["delta"], 4),
-            "imp_faith_chosen":  round(b_rec["imp_s"], 4),
-            "orig_faith_chosen": round(b_rec["orig_s"], 4),
-            "q_type":            b_rec["q_type"],
-            "model":             b_rec["model"],
-            "dataset_chosen":    b_rec["dataset"],
-            "dataset_rejected":  c_rec["dataset"],
-        }
-
-    for tier_name, tier_dict in [("high", type_b_high), ("medium", type_b_medium)]:
-        for key, b_list in tier_dict.items():
-            c_list = type_c.get(key, [])
-            if not c_list:
-                continue
-            c_usage = defaultdict(int)
-            for b_rec in rng.sample(b_list, len(b_list)):
+            for a_rec in rng.sample(a_list, len(a_list)):
                 available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
                 if not available:
                     break
                 idx  = rng.choice(available)
                 c_usage[idx] += 1
-                pair = make_pair_actor_bc(b_rec, c_list[idx], tier_name)
+                pair = make_pair_ac(a_rec, c_list[idx])
                 if pair is None:
                     pair_errors += 1
                 else:
                     pairs.append(pair)
 
-    # ── Actor A×C pairs ──────────────────────────────────────────────────────────
-    def make_pair_actor_ac(a_rec, c_rec) -> dict | None:
-        try:
-            # chosen: base prompt (original strategy) → original explanation (passed, no reflection)
-            prompt_chosen   = build_actor_prompt_for_attempt(
-                a_rec["d"], "original", a_rec["model"], modality)
-            chosen          = build_actor_completion_a(a_rec["d"])
-            # rejected: base prompt (original strategy) → full degraded trajectory
-            prompt_rejected = build_actor_prompt_for_attempt(
-                c_rec["d"], "original", c_rec["model"], modality)
-            rejected        = build_actor_completion_full(c_rec["d"], modality)
-        except Exception:
-            return None
-        return {
-            "prompt_chosen":     prompt_chosen,
-            "prompt_rejected":   prompt_rejected,
-            "chosen":            chosen,
-            "rejected":          rejected,
-            "weight":            QUALITY_WEIGHTS["a"],
-            "quality":           "a",
-            "role":              "actor",
-            "delta_chosen":      round(a_rec["orig_s"], 4),
-            "delta_rejected":    round(c_rec["delta"], 4),
-            "imp_faith_chosen":  round(a_rec["orig_s"], 4),
-            "orig_faith_chosen": round(a_rec["orig_s"], 4),
-            "q_type":            a_rec["q_type"],
-            "model":             a_rec["model"],
-            "dataset_chosen":    a_rec["dataset"],
-            "dataset_rejected":  c_rec["dataset"],
-        }
+        proposer_count = len(pairs)
 
-    for key, a_list in type_a.items():
-        c_list = type_c.get(key, [])
-        if not c_list:
-            continue
-        c_usage = defaultdict(int)
-        for a_rec in rng.sample(a_list, len(a_list)):
-            available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
-            if not available:
-                break
-            idx  = rng.choice(available)
-            c_usage[idx] += 1
-            pair = make_pair_actor_ac(a_rec, c_list[idx])
-            if pair is None:
-                pair_errors += 1
-            else:
-                pairs.append(pair)
+        # ── Actor B×C pairs ──────────────────────────────────────────────────
+        def make_pair_actor_bc(b_rec, c_rec, quality: str) -> dict | None:
+            try:
+                prompt_chosen   = build_actor_prompt_for_attempt(
+                    b_rec["d"], "original", b_rec["model"], modality)
+                chosen          = build_actor_completion_full(b_rec["d"], modality)
+                prompt_rejected = build_actor_prompt_for_attempt(
+                    c_rec["d"], "original", c_rec["model"], modality)
+                rejected        = build_actor_completion_full(c_rec["d"], modality)
+            except Exception:
+                return None
+            return {
+                "prompt_chosen":     prompt_chosen,
+                "prompt_rejected":   prompt_rejected,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            QUALITY_WEIGHTS[quality],
+                "quality":           quality,
+                "role":              "actor",
+                "delta_chosen":      round(b_rec["delta"], 4),
+                "delta_rejected":    round(c_rec["delta"], 4),
+                "imp_faith_chosen":  round(b_rec["imp_s"], 4),
+                "orig_faith_chosen": round(b_rec["orig_s"], 4),
+                "q_type":            b_rec["q_type"],
+                "model":             b_rec["model"],
+                "dataset_chosen":    b_rec["dataset"],
+                "dataset_rejected":  c_rec["dataset"],
+            }
 
-    actor_count = len(pairs) - proposer_count
-    total_c     = sum(len(v) for v in type_c.values())
+        for tier_name, tier_dict in [("high", type_b_high), ("medium", type_b_medium)]:
+            for key, b_list in tier_dict.items():
+                c_list = type_c.get(key, [])
+                if not c_list:
+                    continue
+                c_usage = defaultdict(int)
+                for b_rec in rng.sample(b_list, len(b_list)):
+                    available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
+                    if not available:
+                        break
+                    idx  = rng.choice(available)
+                    c_usage[idx] += 1
+                    pair = make_pair_actor_bc(b_rec, c_list[idx], tier_name)
+                    if pair is None:
+                        pair_errors += 1
+                    else:
+                        pairs.append(pair)
 
+        # ── Actor A×C pairs ──────────────────────────────────────────────────
+        def make_pair_actor_ac(a_rec, c_rec) -> dict | None:
+            try:
+                prompt_chosen   = build_actor_prompt_for_attempt(
+                    a_rec["d"], "original", a_rec["model"], modality)
+                chosen          = build_actor_completion_a(a_rec["d"])
+                prompt_rejected = build_actor_prompt_for_attempt(
+                    c_rec["d"], "original", c_rec["model"], modality)
+                rejected        = build_actor_completion_full(c_rec["d"], modality)
+            except Exception:
+                return None
+            return {
+                "prompt_chosen":     prompt_chosen,
+                "prompt_rejected":   prompt_rejected,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            QUALITY_WEIGHTS["a"],
+                "quality":           "a",
+                "role":              "actor",
+                "delta_chosen":      round(a_rec["orig_s"], 4),
+                "delta_rejected":    round(c_rec["delta"], 4),
+                "imp_faith_chosen":  round(a_rec["orig_s"], 4),
+                "orig_faith_chosen": round(a_rec["orig_s"], 4),
+                "q_type":            a_rec["q_type"],
+                "model":             a_rec["model"],
+                "dataset_chosen":    a_rec["dataset"],
+                "dataset_rejected":  c_rec["dataset"],
+            }
+
+        for key, a_list in type_a.items():
+            c_list = type_c.get(key, [])
+            if not c_list:
+                continue
+            c_usage = defaultdict(int)
+            for a_rec in rng.sample(a_list, len(a_list)):
+                available = [i for i in range(len(c_list)) if c_usage[i] < MAX_C_REUSE]
+                if not available:
+                    break
+                idx  = rng.choice(available)
+                c_usage[idx] += 1
+                pair = make_pair_actor_ac(a_rec, c_list[idx])
+                if pair is None:
+                    pair_errors += 1
+                else:
+                    pairs.append(pair)
+
+        actor_count = len(pairs) - proposer_count
+        print(f"  Matching: by q_type only (cross-model, same modality)")
+        print(f"  Skipped (no matching Type C):        {skipped_no_c}")
+        print(f"  Proposer pairs (B×C + A×C):          {proposer_count}")
+        print(f"  Actor pairs    (B×C + A×C):          {actor_count}")
+
+    else:
+        # ── SAME-INSTANCE PAIRING (active) ────────────────────────────────────
+        # Each Type B/C datapoint produces one pair with an identical prompt for
+        # both chosen and rejected.  Type A excluded (no same-instance negative).
+
+        # ── Proposer same-instance pairs ─────────────────────────────────────
+        def make_pair_proposer_same_b(rec, quality: str) -> dict | None:
+            """Type B: chosen=improved only, rejected=original only. Same prompt. No reflection."""
+            d = rec["d"]
+            try:
+                prompt   = build_base_prompt(d, rec["model"])
+                chosen   = build_proposer_completion_improved_only(d)
+                rejected = build_proposer_completion_orig_only(d)
+            except Exception:
+                return None
+            return {
+                "prompt":            prompt,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            delta_to_weight(rec["delta"]),
+                "quality":           quality,
+                "role":              "proposer",
+                "delta_chosen":      round(rec["delta"], 4),
+                "delta_rejected":    0.0,
+                "imp_faith_chosen":  round(rec["imp_s"], 4),
+                "orig_faith_chosen": round(rec["orig_s"], 4),
+                "q_type":            rec["q_type"],
+                "model":             rec["model"],
+                "dataset":           rec["dataset"],
+            }
+
+        def make_pair_proposer_same_c(rec) -> dict | None:
+            """Type C: chosen=original only (was better), rejected=improved only. Same prompt. No reflection."""
+            d = rec["d"]
+            try:
+                prompt   = build_base_prompt(d, rec["model"])
+                chosen   = build_proposer_completion_orig_only(d)
+                rejected = build_proposer_completion_improved_only(d)
+            except Exception:
+                return None
+            return {
+                "prompt":            prompt,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            delta_to_weight(rec["delta"]),
+                "quality":           "c",
+                "role":              "proposer",
+                "delta_chosen":      0.0,
+                "delta_rejected":    round(rec["delta"], 4),
+                "imp_faith_chosen":  round(rec["orig_s"], 4),
+                "orig_faith_chosen": round(rec["orig_s"], 4),
+                "q_type":            rec["q_type"],
+                "model":             rec["model"],
+                "dataset":           rec["dataset"],
+            }
+
+        b_tiers = [("high", type_b_high), ("medium", type_b_medium)]
+        if not filter_noise:
+            b_tiers.append(("weak", type_b_weak))
+        for tier_name, tier_dict in b_tiers:
+            for key, b_list in tier_dict.items():
+                for b_rec in b_list:
+                    pair = make_pair_proposer_same_b(b_rec, tier_name)
+                    if pair is None:
+                        pair_errors += 1
+                    else:
+                        pairs.append(pair)
+
+        for key, c_list in type_c.items():
+            for c_rec in c_list:
+                if filter_noise and abs(c_rec["delta"]) <= 0.1:
+                    continue
+                pair = make_pair_proposer_same_c(c_rec)
+                if pair is None:
+                    pair_errors += 1
+                else:
+                    pairs.append(pair)
+
+        proposer_count = len(pairs)
+
+        # ── Actor same-instance pairs ─────────────────────────────────────────
+        def make_pair_actor_same_b(rec, quality: str) -> dict | None:
+            """Type B actor: chosen=improved only, rejected=original only. Same prompt. No reflection."""
+            d = rec["d"]
+            try:
+                prompt   = build_actor_prompt_for_attempt(d, "original", rec["model"], modality)
+                chosen   = build_actor_completion_improved_only(d)
+                rejected = build_actor_completion_orig_only(d)
+            except Exception:
+                return None
+            return {
+                "prompt":            prompt,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            delta_to_weight(rec["delta"]),
+                "quality":           quality,
+                "role":              "actor",
+                "delta_chosen":      round(rec["delta"], 4),
+                "delta_rejected":    0.0,
+                "imp_faith_chosen":  round(rec["imp_s"], 4),
+                "orig_faith_chosen": round(rec["orig_s"], 4),
+                "q_type":            rec["q_type"],
+                "model":             rec["model"],
+                "dataset":           rec["dataset"],
+            }
+
+        def make_pair_actor_same_c(rec) -> dict | None:
+            """Type C actor: chosen=original only, rejected=improved only. Same prompt. No reflection."""
+            d = rec["d"]
+            try:
+                prompt   = build_actor_prompt_for_attempt(d, "original", rec["model"], modality)
+                chosen   = build_actor_completion_orig_only(d)
+                rejected = build_actor_completion_improved_only(d)
+            except Exception:
+                return None
+            return {
+                "prompt":            prompt,
+                "chosen":            chosen,
+                "rejected":          rejected,
+                "weight":            delta_to_weight(rec["delta"]),
+                "quality":           "c",
+                "role":              "actor",
+                "delta_chosen":      0.0,
+                "delta_rejected":    round(rec["delta"], 4),
+                "imp_faith_chosen":  round(rec["orig_s"], 4),
+                "orig_faith_chosen": round(rec["orig_s"], 4),
+                "q_type":            rec["q_type"],
+                "model":             rec["model"],
+                "dataset":           rec["dataset"],
+            }
+
+        for tier_name, tier_dict in b_tiers:
+            for key, b_list in tier_dict.items():
+                for b_rec in b_list:
+                    pair = make_pair_actor_same_b(b_rec, tier_name)
+                    if pair is None:
+                        pair_errors += 1
+                    else:
+                        pairs.append(pair)
+
+        for key, c_list in type_c.items():
+            for c_rec in c_list:
+                if filter_noise and abs(c_rec["delta"]) <= 0.1:
+                    continue
+                pair = make_pair_actor_same_c(c_rec)
+                if pair is None:
+                    pair_errors += 1
+                else:
+                    pairs.append(pair)
+
+        actor_count = len(pairs) - proposer_count
+        print(f"  Matching: same-instance (shared prompt for chosen/rejected)")
+        print(f"  Type A excluded (no same-instance negative): "
+              f"{sum(len(v) for v in type_a.values())}")
+        print(f"  Proposer pairs (B+C):                {proposer_count}")
+        print(f"  Actor pairs    (B+C):                {actor_count}")
+
+    n_weak = sum(len(v) for v in type_b_weak.values())
+    n_c_weak = sum(1 for v in type_c.values() for r in v if abs(r["delta"]) <= 0.1)
     print(f"  Total files:                         {len(files)}")
     print(f"  PromptBuilder errors (skipped):      {build_errors}")
-    print(f"  Type A (passed 1st attempt):         {sum(len(v) for v in type_a.values())}")
     print(f"  Type B high  (delta>0.3, imp>0.5):   {sum(len(v) for v in type_b_high.values())}")
     print(f"  Type B medium (0.1<delta≤0.3):       {sum(len(v) for v in type_b_medium.values())}")
-    print(f"  Type B excluded (delta≤0.1):         {skipped_low}")
-    print(f"  Type C (delta<0):                    {total_c}")
-    print(f"  Matching: by q_type only (cross-model, same modality)")
-    print(f"  Skipped (no matching Type C):        {skipped_no_c}")
+    print(f"  Type B weak  (0<delta≤0.1):          {n_weak}"
+          f"  [{'excluded' if filter_noise else 'included weight=0.5'}]")
+    print(f"  Type C (delta<0):                    {sum(len(v) for v in type_c.values())}"
+          f"  (weak |delta|≤0.1: {n_c_weak}"
+          f"  [{'excluded' if filter_noise else 'included weight=0.5'}])")
     print(f"  Build errors:                        {pair_errors}")
-    print(f"  Proposer pairs (B×C + A×C):          {proposer_count}")
-    print(f"  Actor pairs    (B×C + A×C):          {actor_count}")
     print(f"  Total pairs:                         {len(pairs)}")
     return pairs
 
@@ -842,8 +1112,10 @@ def print_stats(pairs: list):
     sys_len = len(SYSTEM_PROMPT)
     lens = []
     for p in pairs:
-        c_toks = (sys_len + len(p["prompt_chosen"])  + len(p["chosen"]))  / 3.5
-        r_toks = (sys_len + len(p["prompt_rejected"]) + len(p["rejected"])) / 3.5
+        prompt_c = p.get("prompt_chosen", p.get("prompt", ""))
+        prompt_r = p.get("prompt_rejected", p.get("prompt", ""))
+        c_toks = (sys_len + len(prompt_c) + len(p["chosen"]))  / 3.5
+        r_toks = (sys_len + len(prompt_r) + len(p["rejected"])) / 3.5
         lens.append(max(c_toks, r_toks))
     sl = sorted(lens)
     n  = len(sl)
@@ -858,14 +1130,15 @@ def print_stats(pairs: list):
 # ── Main ────────────────────────────────────────────────────────────────────────
 
 def prepare(
-    eval_ratio: float = 0.1,
-    seed:       int   = 42,
-    modality:   str   = "tabular",
+    eval_ratio:   float = 0.1,
+    seed:         int   = 42,
+    modality:     str   = "tabular",
+    filter_noise: bool  = False,
 ):
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nLoading trajectory pairs ({modality}) ...")
-    pairs = load_trajectory_pairs(DATA_DIR, modality, seed)
+    print(f"\nLoading trajectory pairs ({modality}, filter_noise={filter_noise}) ...")
+    pairs = load_trajectory_pairs(DATA_DIR, modality, seed, filter_noise)
 
     if not pairs:
         print("No pairs found.")
@@ -887,8 +1160,10 @@ def prepare(
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
-    p.add_argument("--eval_ratio", type=float, default=0.1)
-    p.add_argument("--seed",       type=int,   default=42)
-    p.add_argument("--modality",   type=str,   default="tabular")
+    p.add_argument("--eval_ratio",      type=float, default=0.1)
+    p.add_argument("--seed",            type=int,   default=42)
+    p.add_argument("--modality",        type=str,   default="tabular")
+    p.add_argument("--no_filter_noise", action="store_true",
+                   help="Include weak-signal pairs (|delta|≤0.1) with weight=0.5 instead of excluding them")
     args = p.parse_args()
-    prepare(args.eval_ratio, args.seed, args.modality)
+    prepare(args.eval_ratio, args.seed, args.modality, filter_noise=not args.no_filter_noise)

@@ -239,7 +239,8 @@ class ActorAgent(BaseAgent):
             context=context,
             strategy=strategy,
             results=results_for_prompt,
-            tool_results=tool_results
+            tool_results=tool_results,
+            question=question
         )
 
         # Add metadata
@@ -2097,6 +2098,15 @@ JSON Response:"""
                 context["data_description"] = str(features)[:400]
                 context["instance_data_single"] = {"features": {}}
 
+        # Add target_class / queried_part / part_to_change for counterfactual questions (Q5-Q7)
+        if question.get("q_type") in [5, 6, 7]:
+            extracted = self._extract_question_context_fields(question)
+            context["target_class"] = extracted.get("target_class", question.get("target_class", "a different prediction"))
+            if "queried_part" in extracted:
+                context["queried_part"] = extracted["queried_part"]
+            if "part_to_change" in extracted:
+                context["part_to_change"] = extracted["part_to_change"]
+
         return context
 
     def _generate_explanation_with_prompt_builder(
@@ -2105,10 +2115,14 @@ JSON Response:"""
         context: Dict[str, Any],
         strategy: Dict[str, Any],
         results: Dict[str, Any],
-        tool_results: Dict[str, Any]
+        tool_results: Dict[str, Any],
+        question: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Generate explanation using prompt builder"""
         prompt = prompt_builder.build_actor_prompt(context, strategy, results)
+
+        if question:
+            self._save_prompt(prompt, question, "actor_prompt")
 
         parsed = self.invoke_vlm_for_json(prompt)
 
@@ -2783,7 +2797,8 @@ Respond with ONLY valid JSON:"""
             results=results_for_prompt,
             tool_results=tool_results,
             actor_reflection=actor_reflection,
-            original_results=original_results
+            original_results=original_results,
+            question=question
         )
 
         # Add metadata
@@ -2946,7 +2961,8 @@ Respond with ONLY valid JSON:"""
             results=results_for_prompt,
             tool_results=combined_tool_results,
             actor_reflection=actor_reflection,
-            original_results=original_results
+            original_results=original_results,
+            question=question
         )
 
         # Ensure multi-instance output format
@@ -3157,7 +3173,8 @@ JSON Response:"""
         results: Dict[str, Any],
         tool_results: Dict[str, Any],
         actor_reflection: str,
-        original_results: Dict[str, Any]
+        original_results: Dict[str, Any],
+        question: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Generate improved explanation based on Critic's reflection feedback.
@@ -3256,6 +3273,9 @@ Pay special attention to:
 {output_schema_str}
 
 JSON Response:"""
+
+        if question:
+            self._save_prompt(prompt, question, "actor_prompt_improved")
 
         parsed = self.invoke_vlm_for_json(prompt)
 

@@ -46,7 +46,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 **Model Information**:
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
-- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class_name', 'Unknown')})
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - Target Prediction: {target_class}
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
@@ -54,7 +54,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 **Input Content Description**:
 {context.get(modality_config['description_key'], 'Not available')}
 
-**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class', 'current')}" to "{target_class}".
+**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class_name', 'current')}" to "{target_class}".
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -208,7 +208,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Target Prediction: {target_class}
 {size_constraint}{instance_data_section}
 ## XAI Analysis

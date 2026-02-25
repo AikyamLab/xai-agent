@@ -47,7 +47,7 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
 **Model Information**:
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
-- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class_name', 'Unknown')})
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
 
@@ -177,7 +177,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
 {size_constraint}
 ## XAI Analysis
@@ -231,7 +231,7 @@ Respond with ONLY JSON:"""
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
 - Part to Change: {part_to_change}
 {size_constraint}{instance_data_section}

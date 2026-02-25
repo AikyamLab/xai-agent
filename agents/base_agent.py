@@ -176,9 +176,87 @@ class BaseAgent(ABC):
 
         return filepath
 
+    def _save_prompt(self, prompt: str, question: Dict[str, Any], label: str) -> Path:
+        """Save a prompt string to outputs/prompts/{modality}/{dataset}/{q_type}/{row_no}/{label}.txt"""
+        import re
+        dataset_base_name = question.get('dataset_base_name', 'unknown')
+        row_no = question.get('row_no', question.get('question_id', 0))
+        modality = question.get('modality', 'vision')
+        match = re.match(r'(.+?)_(q\d+)(?:_.*)?$', dataset_base_name)
+        if match:
+            dataset_name = match.group(1)
+            q_type_str = match.group(2)
+        else:
+            dataset_name = dataset_base_name
+            q_type_str = f"q{question.get('q_type', 1)}"
+        save_dir = self.output_dir / f"prompts/{modality}/{dataset_name}/{q_type_str}/{row_no}"
+        save_dir.mkdir(parents=True, exist_ok=True)
+        filepath = save_dir / f"{label}.txt"
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(prompt)
+        return filepath
+
     def log(self, message: str, level: str = "INFO"):
         """Log a message with agent name prefix"""
         print(f"[{self.agent_name}] {level}: {message}")
+
+    @staticmethod
+    def _extract_question_context_fields(question: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract Q5/Q6/Q7 specific fields from the question's 'example' text.
+
+        Returns a dict with zero or more of:
+          - target_class  (Q6): the flip-target class label
+          - queried_part  (Q5): the feature/region being masked
+          - part_to_change (Q7): the feature/region being removed/changed
+        """
+        q_type = question.get('q_type')
+        example = question.get('example', '') or question.get('question', '') or ''
+        q_template = question.get('q', '')
+        result = {}
+
+        if q_type == 6:
+            # "flip the model into X" or "flip the model's prediction to X"
+            m = re.search(
+                r"flip the (?:model(?:'s prediction)?|prediction)(?:\s+into\s+|\s+to\s+)(.+?)(?:\?|$)",
+                example, re.IGNORECASE
+            )
+            if m:
+                result['target_class'] = m.group(1).strip().rstrip('?').strip()
+
+        elif q_type == 5:
+            # Text pattern: "mask the word 'X' from this input"
+            m = re.search(r"mask the word ['\"](.+?)['\"]", example, re.IGNORECASE)
+            if m:
+                result['queried_part'] = m.group(1).strip()
+            else:
+                # Tabular pattern: "mask the X feature of this" or "mask the X of this"
+                m = re.search(r'mask the (.+?)(?:\s+feature\b|\s+(?:of|from)\s+this)', example, re.IGNORECASE)
+                if m:
+                    result['queried_part'] = m.group(1).strip()
+                else:
+                    # Fallback: {placeholder} in q template (skip generic placeholders)
+                    m2 = re.search(r'\{(.+?)\}', q_template)
+                    if m2 and m2.group(1) not in ('certain', 'certain_part'):
+                        result['queried_part'] = m2.group(1)
+
+        elif q_type == 7:
+            # Text pattern: "remove/change the word 'X' from this input"
+            m = re.search(r"remove/change (?:the )?word ['\"](.+?)['\"]", example, re.IGNORECASE)
+            if m:
+                result['part_to_change'] = m.group(1).strip()
+            else:
+                # Tabular/general pattern: "remove/change X,"
+                m = re.search(r'remove/change\s+(.+?)(?:,|\?{1,2}|$)', example, re.IGNORECASE)
+                if m:
+                    result['part_to_change'] = m.group(1).strip().rstrip('?,').strip()
+                else:
+                    # Fallback: {placeholder} in q template
+                    m2 = re.search(r'\{(.+?)\}', q_template)
+                    if m2:
+                        result['part_to_change'] = m2.group(1)
+
+        return result
 
     @abstractmethod
     def run(self, *args, **kwargs) -> Dict[str, Any]:
