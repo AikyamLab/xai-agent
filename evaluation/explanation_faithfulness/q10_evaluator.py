@@ -55,66 +55,85 @@ class Q10Evaluator(MultiInstanceEvaluator):
         Returns:
             EvaluationResult with negative similarity score
         """
-        try:
-            output_data = agent_output.get('output', {})
+        output_data = agent_output.get('output', {})
 
-            # Get features for correct and wrong instances
-            correct_features = output_data.get('correct_instance_features')
-            wrong_features = output_data.get('wrong_instance_features')
+        # Get features for correct and wrong instances
+        correct_features = output_data.get('correct_instance_features')
+        wrong_features = output_data.get('wrong_instance_features')
 
-            if correct_features is None or wrong_features is None:
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Features not provided for both instances"]
-                )
-
-            # Calculate similarity based on modality
-            if self.modality == "vision":
-                similarity = self._compute_text_similarity(
-                    str(correct_features),
-                    str(wrong_features)
-                )
-            elif self.modality == "text":
-                similarity = self._compute_span_overlap(
-                    correct_features,
-                    wrong_features,
-                    inputs
-                )
-            else:  # tabular
-                similarity = self._compute_feature_similarity(
-                    correct_features,
-                    wrong_features
-                )
-
-            # Soft score: 1 - similarity, range [0, 1], higher = more distinct
-            score = 1.0 - similarity
-
-            # Passed logic unchanged: similarity below threshold
-            passed = similarity < threshold
-
-            return EvaluationResult(
-                score=score,
-                passed=passed,
-                metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                details={
-                    "correct_features": correct_features,
-                    "wrong_features": wrong_features,
-                    "similarity": similarity,
-                    "threshold": threshold,
-                    "interpretation": "Soft score: 1 - similarity, range [0,1], higher = more distinct"
-                }
-            )
-
-        except Exception as e:
+        if correct_features is None or wrong_features is None:
             return EvaluationResult(
                 score=0.0,
                 passed=False,
-                metric_name=self.metric_name,
-                metric_formula=self.metric_formula,
-                errors=[str(e)]
+                errors=["Features not provided for both instances"]
             )
+
+        # Validate agent output: bad responses → score 0.0
+        if self.modality == "vision":
+            # Q10 vision output is a concise feature phrase (string), not a bounding box
+            for label, feat in [("correct_instance", correct_features),
+                                 ("wrong_instance", wrong_features)]:
+                text = str(feat).lower().strip()
+                if not text or text in ('none', 'null', '{}', '[]'):
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"Empty vision phrase for {label}"])
+                if any(m in text for m in self._REFUSAL_MARKERS):
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"Refusal marker in {label} vision phrase"])
+        else:
+            # text/tabular: features are dicts in standard region format
+            inp_a = inputs[0] if inputs else None
+            inp_b = inputs[1] if len(inputs) > 1 else None
+            for label, feat, inp in [("correct_instance", correct_features, inp_a),
+                                      ("wrong_instance", wrong_features, inp_b)]:
+                err = self.validate_region(feat, inp, **kwargs)
+                if err:
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"{label}: {err}"])
+
+        # Calculate similarity based on modality
+        if self.modality == "vision":
+            similarity = self._compute_text_similarity(
+                str(correct_features),
+                str(wrong_features)
+            )
+        elif self.modality == "text":
+            similarity = self._compute_span_overlap(
+                correct_features,
+                wrong_features,
+                inputs
+            )
+        else:  # tabular
+            similarity = self._compute_feature_similarity(
+                correct_features,
+                wrong_features
+            )
+
+        # Soft score: 1 - similarity, range [0, 1], higher = more distinct
+        score = 1.0 - similarity
+
+        # Passed logic unchanged: similarity below threshold
+        passed = similarity < threshold
+
+        return EvaluationResult(
+            score=score,
+            passed=passed,
+            metric_name=self.metric_name,
+            metric_formula=self.metric_formula,
+            details={
+                "correct_features": correct_features,
+                "wrong_features": wrong_features,
+                "similarity": similarity,
+                "threshold": threshold,
+                "interpretation": "Soft score: 1 - similarity, range [0,1], higher = more distinct"
+            }
+        )
 
     def _compute_text_similarity(self, text1: str, text2: str) -> float:
         """
@@ -173,44 +192,26 @@ class Q10Evaluator(MultiInstanceEvaluator):
         """
         Compute overlap between text features from correct/wrong instances.
 
-        Strategy:
-        1. If both features have valid start_index/end_index AND we can extract
-           text from inputs, slice the spans and compare word overlap.
-        2. Otherwise, fall back to comparing description/span text fields
-           using word-level Jaccard similarity.
+        Expects new multi-span format: {"spans": [{"start_index": ..., "end_index": ...}]}.
+        Extracts actual text from inputs and computes word similarity.
         """
-        try:
-            start1 = feat1.get('start_index')
-            end1 = feat1.get('end_index')
-            start2 = feat2.get('start_index')
-            end2 = feat2.get('end_index')
+        spans1 = feat1.get('spans')
+        spans2 = feat2.get('spans')
+        if not spans1 or not spans2:
+            return 1.0  # max similarity → score 0.0
 
-            has_spans = (
-                start1 is not None and end1 is not None and end1 > start1 and
-                start2 is not None and end2 is not None and end2 > start2
-            )
+        if len(inputs) < 2:
+            return 1.0  # max similarity → score 0.0
 
-            if has_spans and len(inputs) >= 2:
-                # Extract text from inputs (handles str, NLI dict, etc.)
-                full_text1 = self._extract_text(inputs[0])
-                full_text2 = self._extract_text(inputs[1])
+        full_text1 = self._extract_text(inputs[0])
+        full_text2 = self._extract_text(inputs[1])
 
-                if full_text1 and full_text2:
-                    span_text1 = full_text1[start1:end1]
-                    span_text2 = full_text2[start2:end2]
-                    if span_text1 and span_text2:
-                        return self._compute_text_similarity(span_text1, span_text2)
+        def extract_span_text(text, spans):
+            return " ".join(text[s['start_index']:s['end_index']] for s in spans)
 
-            # Fallback: compare description or span text fields directly
-            desc1 = feat1.get('description', feat1.get('span', ''))
-            desc2 = feat2.get('description', feat2.get('span', ''))
-            if desc1 and desc2:
-                return self._compute_text_similarity(str(desc1), str(desc2))
-
-            return 0.0
-
-        except Exception:
-            return 0.0
+        span_text1 = extract_span_text(full_text1, spans1)
+        span_text2 = extract_span_text(full_text2, spans2)
+        return self._compute_text_similarity(span_text1, span_text2)
 
     @staticmethod
     def _strip_value_annotation(feat: str) -> str:
@@ -236,41 +237,34 @@ class Q10Evaluator(MultiInstanceEvaluator):
         Feature strings may include value annotations like 'mean_compactness (0.123)'
         which are stripped before comparison so the same feature name matches.
         """
-        try:
-            list1 = features1.get('top_features', []) if isinstance(features1, dict) else []
-            list2 = features2.get('top_features', []) if isinstance(features2, dict) else []
+        if not isinstance(features1, dict) or not isinstance(features2, dict):
+            return 1.0  # max similarity → score 0.0
 
-            # Fallback for single feature_key format
-            if not list1 and isinstance(features1, dict) and 'feature_key' in features1:
-                list1 = [features1['feature_key']]
-            if not list2 and isinstance(features2, dict) and 'feature_key' in features2:
-                list2 = [features2['feature_key']]
+        list1 = features1.get('feature_keys') or features1.get('top_features', [])
+        list2 = features2.get('feature_keys') or features2.get('top_features', [])
 
-            if not list1 or not list2:
-                return 0.0
+        if not list1 or not list2:
+            return 1.0  # max similarity → score 0.0
 
-            # Normalize: strip value annotations before comparison
-            norm1 = [self._strip_value_annotation(f) for f in list1]
-            norm2 = [self._strip_value_annotation(f) for f in list2]
+        # Normalize: strip value annotations before comparison
+        norm1 = [self._strip_value_annotation(f) for f in list1]
+        norm2 = [self._strip_value_annotation(f) for f in list2]
 
-            set1, set2 = set(norm1), set(norm2)
-            intersection = set1 & set2
-            union = set1 | set2
+        set1, set2 = set(norm1), set(norm2)
+        intersection = set1 & set2
+        union = set1 | set2
 
-            jaccard = len(intersection) / len(union) if union else 0.0
+        jaccard = len(intersection) / len(union) if union else 0.0
 
-            if not intersection:
-                return 0.0
-
-            # Rank agreement: average of 1/(1+|rank_diff|) for shared features
-            rank_scores = []
-            for feat in intersection:
-                r1 = norm1.index(feat) + 1
-                r2 = norm2.index(feat) + 1
-                rank_scores.append(1.0 / (1.0 + abs(r1 - r2)))
-            rank_agreement = sum(rank_scores) / len(rank_scores)
-
-            return jaccard * rank_agreement
-
-        except Exception:
+        if not intersection:
             return 0.0
+
+        # Rank agreement: average of 1/(1+|rank_diff|) for shared features
+        rank_scores = []
+        for feat in intersection:
+            r1 = norm1.index(feat) + 1
+            r2 = norm2.index(feat) + 1
+            rank_scores.append(1.0 / (1.0 + abs(r1 - r2)))
+        rank_agreement = sum(rank_scores) / len(rank_scores)
+
+        return jaccard * rank_agreement

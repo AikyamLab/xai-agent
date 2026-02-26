@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from .rollout import Trajectory, TrajectoryGroup, Transition, do_group_rollout
+from .env import XAIRLEnv
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ class GRPOTrainer:
 
     All public methods are async coroutines. Call via::
 
-        asyncio.run(trainer.fit(dataset, env_factory_fn))
+        asyncio.run(trainer.fit(dataset, env, sampling_client))
 
     Args:
         training_client:  tinker.TrainingClient (created via create_lora_training_client_async)
@@ -281,21 +282,26 @@ class GRPOTrainer:
 
     async def fit(
         self,
-        dataset,           # XAIRLDataset
-        env_factory_fn,    # Callable[[dict], XAIEnv]
-        eval_fn=None,      # Optional async Callable(training_client, step, sampling_client)
+        dataset,              # XAIRLDataset
+        env: "XAIRLEnv",      # XAIRLEnv instance (pipeline + rl_vlm)
+        sampling_client,      # Initial Tinker SamplingClient (current policy)
+        eval_fn=None,         # Optional async Callable(training_client, step, sampling_client)
     ):
         """
         Full async GRPO training loop.
 
+        The pipeline's VLM calls are captured synchronously by RLSamplingVLM
+        (via .result()), so do_group_rollout() is synchronous and is called
+        directly from within this async coroutine.
+
         Args:
-            dataset:        XAIRLDataset
-            env_factory_fn: question_dict → fresh XAIEnv
-            eval_fn:        Optional async callback(training_client, step, sampling_client)
+            dataset:         XAIRLDataset
+            env:             XAIRLEnv wrapping XAIPipelineV2 with RLSamplingVLM
+            sampling_client: Initial current-policy Tinker SamplingClient
+            eval_fn:         Optional async callback(training_client, step, sampling_client)
         """
         print(f"\n{'='*60}")
         print(f"GRPO Training (Tinker backend)")
-        print(f"  Model:         Qwen/Qwen3-VL-30B-A3B-Instruct")
         print(f"  Questions:     {len(dataset)}")
         print(f"  Batch size:    {self.cfg.batch_size}")
         print(f"  Rollouts/Q:    {self.cfg.num_rollouts}")
@@ -304,10 +310,6 @@ class GRPOTrainer:
         print(f"  KL coef:       {self.cfg.kl_coef}")
         print(f"  LoRA rank:     {self.cfg.lora_rank}")
         print(f"{'='*60}\n")
-
-        # Get initial sampling client (current base + LoRA weights)
-        print("Getting initial sampling client...")
-        sampling_client = await self.training_client.save_weights_and_get_sampling_client_async()
 
         for epoch in range(self.cfg.num_epochs):
             print(f"\n── Epoch {epoch+1}/{self.cfg.num_epochs} ──")
@@ -320,7 +322,7 @@ class GRPOTrainer:
                     f"{self.cfg.num_rollouts} rollouts..."
                 )
 
-                # ── 1. Collect rollouts (async, using current sampling_client) ─
+                # ── 1. Collect rollouts (sync, via RLSamplingVLM.result()) ────
                 trajectory_groups: List[TrajectoryGroup] = []
 
                 for q_idx, question in enumerate(question_batch):
@@ -329,13 +331,11 @@ class GRPOTrainer:
                         f"q_type={question.get('q_type')} "
                         f"row={question.get('row_no', '?')}"
                     )
-                    group = await do_group_rollout(
+                    group = do_group_rollout(
+                        env=env,
+                        question=question,
                         sampling_client=sampling_client,
-                        tokenizer=self.tokenizer,
-                        env_factory=lambda q=question: env_factory_fn(q),
                         num_rollouts=self.cfg.num_rollouts,
-                        max_new_tokens=self.cfg.max_new_tokens,
-                        temperature=self.cfg.temperature,
                     )
                     compute_advantages(group)
                     trajectory_groups.append(group)

@@ -41,6 +41,8 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
         prediction = context.get('prediction', {})
         top5 = prediction.get('top5_predictions', [])
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         top1_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
         top2_class = top5[1] if len(top5) > 1 else 'Unknown'
@@ -68,7 +70,7 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
    - Provide {modality_config['location_type']} for decisive {modality_config['element_type']}
 
 2. **External XAI Tools**: Use established explainability methods for contrastive analysis:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -83,18 +85,13 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for contrastive {self.modality} analysis"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (contrastive attribution)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} that DISTINGUISH top-1 from top-2 prediction
-- Evaluation metric: 1 if masking flips ranking between top-1 and top-2, else 0
 
 Provide your strategy as a JSON object:
 """
@@ -189,7 +186,6 @@ Provide your strategy as a JSON object:
 
 ## Your Task
 Identify the part that DISTINGUISHES {top1} from {top2}.
-If this part were masked, the prediction should flip from top-1 to top-2.
 
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
@@ -201,10 +197,10 @@ If this part were masked, the prediction should flip from top-1 to top-2.
 }}
 
 **Critical Requirements:**
-- This part should be DECISIVE for choosing top-1 over top-2
-- Masking should cause top-2 to become the new top-1
-- Focus on class-specific features, not general importance
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
+- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
         return prompt

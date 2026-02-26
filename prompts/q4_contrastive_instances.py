@@ -46,6 +46,8 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
     ) -> str:
         """Build prompt for Proposer with multiple instances"""
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         # Extract instance predictions if available
         instance_info = ""
@@ -82,7 +84,7 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
    - Provide {modality_config['location_type']} for decisive {modality_config['element_type']} in each instance
 
 2. **External XAI Tools**: Use established explainability methods for comparative analysis:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -97,18 +99,13 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for comparing {self.modality} instances"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (instance comparison)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} in EACH instance that drive their respective predictions
-- Evaluation metric: Success if masking both parts reduces the prediction gap between instances
 
 Provide your strategy as a JSON object:
 """
@@ -178,55 +175,6 @@ Provide your strategy as a JSON object:
         """Build actor prompt"""
         return self.build_actor_prompt_multi(context, strategy, results, [])
 
-    def _format_multi_instance_results(self, results: Dict[str, Any]) -> str:
-        """Format tool results for multiple instances (Q4 specific)"""
-        tool_results = results.get('tool_results', {})
-        extracted = results.get('extracted_features', {})
-
-        sections = []
-
-        # Format Instance A results
-        instance_a_results = tool_results.get('instance_A', {})
-        if instance_a_results:
-            sections.append("### Instance A Tool Results")
-            for tool_name, result in instance_a_results.items():
-                if isinstance(result, dict):
-                    success = result.get('success', False)
-                    summary = result.get('summary', result.get('description', 'N/A'))
-                    sections.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
-
-                    # Include key statistics
-                    if success:
-                        if 'suggested_bounding_box' in result:
-                            sections.append(f"  - Suggested bbox: {result['suggested_bounding_box']}")
-                        if 'detections' in result:
-                            for det in result['detections'][:3]:
-                                bbox = det.get('bbox', {})
-                                bbox_list = [bbox.get('x1'), bbox.get('y1'), bbox.get('x2'), bbox.get('y2')]
-                                sections.append(f"  - Detected {det.get('class_name', 'object')}: {bbox_list}")
-
-        # Format Instance B results
-        instance_b_results = tool_results.get('instance_B', {})
-        if instance_b_results:
-            sections.append("\n### Instance B Tool Results")
-            for tool_name, result in instance_b_results.items():
-                if isinstance(result, dict):
-                    success = result.get('success', False)
-                    summary = result.get('summary', result.get('description', 'N/A'))
-                    sections.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
-
-                    # Include key statistics
-                    if success:
-                        if 'suggested_bounding_box' in result:
-                            sections.append(f"  - Suggested bbox: {result['suggested_bounding_box']}")
-                        if 'detections' in result:
-                            for det in result['detections'][:3]:
-                                bbox = det.get('bbox', {})
-                                bbox_list = [bbox.get('x1'), bbox.get('y1'), bbox.get('x2'), bbox.get('y2')]
-                                sections.append(f"  - Detected {det.get('class_name', 'object')}: {bbox_list}")
-
-        return "\n".join(sections) if sections else "No tool results available."
-
     def _get_image_size_from_multi_results(self, tool_results: Dict[str, Any]) -> tuple:
         """Extract image size from multi-instance tool results"""
         # Try instance_A first, then instance_B
@@ -255,28 +203,26 @@ Provide your strategy as a JSON object:
         "input_B": "concise feature phrase for prediction B (e.g. 'wings and fuselage body')"'''
             critical_reqs = """- For vision: Output a SHORT feature phrase — only name the concrete visual features/objects/patterns
 - Do NOT write full sentences
-- The two feature phrases should use DISTINCT words"""
+"""
         elif self.modality == "text":
             output_format_block = '''"input_A": {
-            "start_index": int,
-            "end_index": int
+            "spans": [{"start_index": int, "end_index": int}]
         },
         "input_B": {
-            "start_index": int,
-            "end_index": int
+            "spans": [{"start_index": int, "end_index": int}]
         }'''
-            critical_reqs = """- For text: Identify the specific word span in each instance that drives its prediction
-- start_index and end_index as character positions in the original text"""
+            critical_reqs = """- For text: spans as a list of {start_index, end_index} character positions (one or more spans) for each instance
+"""
         else:
             output_format_block = '''"input_A": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "input_B": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }'''
-            critical_reqs = """- For tabular: Rank the top 3 most decisive features (columns) for each instance's prediction
-- List them in order of importance (most decisive first), using exact column names
-- The two top_features lists should use DIFFERENT features"""
+            critical_reqs = """- For tabular: feature_keys as a list of column names (one or more features) for each instance
+- List the most decisive features, using exact column names
+"""
 
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
@@ -287,7 +233,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 {instance_data_section}
 ## XAI Analysis
-{self._format_multi_instance_results(results)}
+{self._format_results_comprehensive(results)}
 
 ## Your Task
 Identify the DECISIVE parts in BOTH instances:
@@ -304,8 +250,6 @@ Identify the DECISIVE parts in BOTH instances:
 }}
 
 **Critical Requirements:**
-- Identify ONE decisive part for EACH instance
-- These parts should explain why predictions differ
 {critical_reqs}
 
 Respond with ONLY JSON:"""

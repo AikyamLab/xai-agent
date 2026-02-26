@@ -91,68 +91,6 @@ class BoundingBox:
 
 
 @dataclass
-class TextSpan:
-    """
-    Text span representation for text modality.
-    Uses character-level start_index and end_index.
-    """
-    start_index: int
-    end_index: int
-    text: Optional[str] = None
-    importance: float = 1.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "start_index": self.start_index,
-            "end_index": self.end_index,
-            "text": self.text,
-            "importance": self.importance
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "TextSpan":
-        """Create from dictionary"""
-        return cls(
-            start_index=data["start_index"],
-            end_index=data["end_index"],
-            text=data.get("text"),
-            importance=data.get("importance", 1.0)
-        )
-
-    def is_valid(self) -> bool:
-        """Check if text span indices are valid"""
-        return self.end_index > self.start_index and self.start_index >= 0
-
-
-@dataclass
-class TabularFeature:
-    """
-    Tabular feature representation for tabular modality.
-    """
-    feature_key: str
-    value: Optional[Any] = None
-    importance: float = 1.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "feature_key": self.feature_key,
-            "value": self.value,
-            "importance": self.importance
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "TabularFeature":
-        """Create from dictionary"""
-        return cls(
-            feature_key=data["feature_key"],
-            value=data.get("value"),
-            importance=data.get("importance", 1.0)
-        )
-
-
-@dataclass
 class ChangePlan:
     """
     Change plan for counterfactual questions (Q6).
@@ -341,14 +279,50 @@ class PromptBuilder(ABC):
 
         return result
 
+    def _get_available_tools_description(
+        self,
+        context: Dict[str, Any],
+        fallback_description: str
+    ) -> str:
+        """
+        Return a formatted tool-description block for use in proposer prompts.
+
+        If context['available_tools'] is populated (by ProposerAgent after
+        calling set_tool_registry), format the real tool names and descriptions.
+        Otherwise fall back to the hardcoded per-question description string.
+        """
+        available_tools: Dict[str, str] = context.get('available_tools', {})
+        if available_tools:
+            lines = [f"   - {name}: {desc}" for name, desc in available_tools.items()]
+            return "\n".join(lines)
+        return fallback_description
+
+    def _get_available_tools_list(
+        self,
+        context: Dict[str, Any],
+        fallback_list: str
+    ) -> str:
+        """
+        Return a JSON array string of available tool names for use in proposer
+        prompt JSON examples.
+
+        If context['available_tools'] is populated, build the list from the
+        real registry names; otherwise use the hardcoded fallback string.
+        """
+        import json as _json
+        available_tools: Dict[str, str] = context.get('available_tools', {})
+        if available_tools:
+            return _json.dumps(list(available_tools.keys()))
+        return fallback_list
+
     def _get_modality_specific_output_format(self) -> str:
         """Get modality-specific output format description"""
         if self.modality == "vision":
             return '"bounding_box": [x_min, y_min, x_max, y_max]  // pixel coordinates, integers'
         elif self.modality == "text":
-            return '"start_index": int, "end_index": int  // character positions'
+            return '"spans": [{"start_index": int, "end_index": int}]  // character positions; list one or more spans'
         elif self.modality == "tabular":
-            return '"feature_key": "string"  // column/feature name'
+            return '"feature_keys": ["feature_name"]  // column/feature names; list one or more features'
         else:
             return '"output": {...}'
 
@@ -704,58 +678,6 @@ class PromptBuilder(ABC):
 
         return "\n".join(lines) if lines else "No detailed statistics available."
 
-    def _format_extracted_features(self, features: Dict[str, Any]) -> str:
-        """Format extracted features for prompt"""
-        if not features:
-            return "No pre-extracted features available."
-
-        lines = []
-
-        # Handle the format with 'output' key (from VLM feature extraction)
-        output = features.get('output', {})
-        if output:
-            if 'bounding_box' in output:
-                bbox = output['bounding_box']
-                if isinstance(bbox, list) and len(bbox) == 4:
-                    lines.append(f"- Pre-extracted bounding box: [{bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}]")
-            if 'start_index' in output:
-                lines.append(f"- Pre-extracted text span: [{output['start_index']}, {output.get('end_index', 0)}]")
-            if 'feature_key' in output:
-                lines.append(f"- Pre-extracted feature: {output['feature_key']}")
-
-        # Handle explanation from feature extraction
-        explanation = features.get('explanation', '')
-        if explanation:
-            lines.append(f"- Extraction reasoning: {explanation}")
-
-        # Handle confidence
-        confidence = features.get('confidence', 0)
-        if confidence:
-            lines.append(f"- Extraction confidence: {confidence:.2f}")
-
-        # Legacy format support
-        if 'responsible_regions' in features:
-            for i, region in enumerate(features['responsible_regions'][:3]):
-                label = region.get('label', f'Region {i+1}')
-                importance = region.get('importance', 0)
-                bbox = region.get('bbox', region.get('bounding_box'))
-                if bbox:
-                    lines.append(f"- {label}: importance={importance:.2f}, bbox={bbox}")
-                else:
-                    lines.append(f"- {label}: importance={importance:.2f}")
-
-        if 'key_visual_features' in features:
-            lines.append(f"- Key features: {', '.join(features['key_visual_features'][:5])}")
-
-        if 'importance_distribution' in features:
-            dist = features['importance_distribution']
-            if 'primary_region_contribution' in dist:
-                lines.append(f"- Primary region contribution: {dist['primary_region_contribution']:.2%}")
-            if 'secondary_regions_contribution' in dist:
-                lines.append(f"- Secondary regions contribution: {dist['secondary_regions_contribution']:.2%}")
-
-        return "\n".join(lines) if lines else "No pre-extracted features available."
-
     def _build_image_size_constraint(self, tool_results: Dict[str, Any]) -> str:
         """Build image size constraint section for vision modality"""
         if self.modality != "vision":
@@ -811,9 +733,8 @@ class PromptBuilder(ABC):
         return "\n".join(lines) if lines else ""
 
     def _format_results_comprehensive(self, results: Dict[str, Any]) -> str:
-        """Comprehensive formatting of results including tool summaries, detailed stats, and extracted features"""
+        """Comprehensive formatting of results including tool summaries, detailed stats, and autonomous results"""
         tool_results = results.get('tool_results', {})
-        extracted = results.get('extracted_features', {})
         autonomous_results = results.get('autonomous_results', {})
 
         sections = []

@@ -113,6 +113,22 @@ class BaseAgent(ABC):
             except json.JSONDecodeError:
                 pass
 
+        # Strategy 3: truncated JSON recovery — balance unmatched brackets and retry.
+        # Handles VLM output that was cut off mid-stream (e.g. a long "findings" array).
+        if start != -1:
+            partial = response[start:].rstrip()
+            partial = re.sub(r',\s*$', '', partial)       # trailing comma
+            partial = re.sub(r'"[^"]*$', '', partial)     # dangling open string
+            open_braces = partial.count('{') - partial.count('}')
+            open_brackets = partial.count('[') - partial.count(']')
+            suffix = ']' * max(0, open_brackets) + '}' * max(0, open_braces)
+            if suffix:
+                try:
+                    obj = json.loads(partial + suffix)
+                    return obj
+                except json.JSONDecodeError:
+                    pass
+
         raise RuntimeError(f"JSON parse error in VLM response. Response preview: {response[:300]}")
 
     def invoke_vlm_for_json(

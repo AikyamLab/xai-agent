@@ -11,7 +11,7 @@ from collections import defaultdict
 
 EVAL_ROOT = Path(
     "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-    "/dpo_eval_outputs/evaluations"
+    "/dpo_eval_outputs2/evaluations"
 )
 
 # SCORE_KEYS = ["overall_score", "quality_score", "completeness"]
@@ -163,6 +163,40 @@ def print_table(rows):
         )
 
     print("-" * len(agg_header))
+
+    # --- aggregate totals per q_type ---
+    print("\n=== Aggregate by q_type ===\n")
+
+    qtype_header = (
+        f"{'q_type':<{col_widths['q_type']}}"
+        f"{'n_total':>{7}}"
+        f"{'faith_score':>{col_widths['faithfulness_score']}}"
+        f"{'faith_pass%':>{col_widths['faithfulness_pass_rate']}}"
+    )
+    print("-" * len(qtype_header))
+    print(qtype_header)
+    print("-" * len(qtype_header))
+
+    sorted_by_qtype = sorted(rows, key=lambda r: r["q_type"])
+    for q_type, group in groupby(sorted_by_qtype, key=lambda r: r["q_type"]):
+        group = list(group)
+        n_total = sum(r["n"] for r in group)
+
+        def weighted_avg_q(key):
+            # check for nan via r[key] == r[key]
+            valid_rows = [r for r in group if r[key] == r[key]]
+            total_n = sum(r["n"] for r in valid_rows)
+            if total_n == 0:
+                return float("nan")
+            return sum(r[key] * r["n"] for r in valid_rows) / total_n
+
+        print(
+            f"{q_type:<{col_widths['q_type']}}"
+            f"{n_total:>{7}}"
+            f"{weighted_avg_q('faithfulness_score'):>{col_widths['faithfulness_score']}.4f}"
+            f"{weighted_avg_q('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
+        )
+    print("-" * len(qtype_header))
 
 
 if __name__ == "__main__":

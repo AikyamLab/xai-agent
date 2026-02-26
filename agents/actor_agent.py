@@ -213,24 +213,13 @@ class ActorAgent(BaseAgent):
             tool_results['tool_results']['autonomous_tasks'] = autonomous_results
             self._save_tool_outputs(tool_results['tool_results'], question)
 
-        # Step 2: Extract features via VLM
-        print("  Step 2: Extracting features via VLM reasoning...")
-        extracted_features = self._extract_features_via_vlm(
-            tool_results=tool_results,
-            input_path=input_path,
-            question=question,
-            question_template=question_template,
-            prediction=prediction or {}
-        )
-
-        # Step 3: Generate structured explanation
-        print("  Step 3: Generating explanation...")
+        # Step 2: Generate structured explanation
+        print("  Step 2: Generating explanation...")
         prompt_builder = self._get_prompt_builder(question_template, question)
 
         context = self._build_context(question, model_info, prediction, input_path)
         results_for_prompt = {
             "tool_results": tool_results.get('tool_results', {}),
-            "extracted_features": extracted_features,
             "autonomous_results": autonomous_results
         }
 
@@ -374,24 +363,13 @@ class ActorAgent(BaseAgent):
             combined_tool_results['autonomous_results'] = autonomous_results
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
 
-        # Step 2: Extract comparative features via VLM
-        print("  Step 2: Extracting comparative features via VLM...")
-        extracted_features = self._extract_features_multi(
-            tool_results=combined_tool_results,
-            input_paths=input_paths,
-            question=question,
-            question_template=question_template,
-            predictions=predictions
-        )
-
-        # Step 3: Generate comparative explanation
-        print("  Step 3: Generating comparative explanation...")
+        # Step 2: Generate comparative explanation
+        print("  Step 2: Generating comparative explanation...")
         prompt_builder = self._get_prompt_builder(question_template, question)
 
         context = self._build_context_multi(question, model_info, predictions, input_paths)
         results_for_prompt = {
             "tool_results": combined_tool_results['tool_results'],
-            "extracted_features": extracted_features,
             "autonomous_results": autonomous_results,
             "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
         }
@@ -403,18 +381,13 @@ class ActorAgent(BaseAgent):
             strategy=strategy,
             results=results_for_prompt,
             tool_results=combined_tool_results,
-            instances=results_for_prompt['instances']
+            instances=results_for_prompt['instances'],
+            question=question
         )
 
         # Ensure multi-instance output format
         if not parsed_result.get('output') or not isinstance(parsed_result.get('output'), dict):
             parsed_result['output'] = {}
-
-        # Add per-instance outputs if not present (always use letter-based keys: input_A, input_B, input_C...)
-        for i in range(num_instances):
-            key = f'input_{chr(ord("A") + i)}'
-            if key not in parsed_result['output']:
-                parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
 
         # Add metadata
         parsed_result['question_id'] = question.get('question_id', 'unknown')
@@ -430,99 +403,6 @@ class ActorAgent(BaseAgent):
 
         print(f"\nMulti-instance explanation generated for {num_instances} instances")
         return parsed_result
-
-    def _extract_features_multi(
-        self,
-        tool_results: Dict[str, Any],
-        input_paths: List[str],
-        question: Dict[str, Any],
-        question_template: Any,
-        predictions: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """Extract features for multi-instance comparison (Q9, Q10)."""
-        num_instances = len(input_paths)
-        modality = question.get('modality', 'vision')
-        q_type = question.get('q_type', 9)
-
-        # Get image size from tool results
-        image_width, image_height = 224, 224
-        for inst_results in tool_results.get('instances', []):
-            for tool_name, result in inst_results.get('tool_results', {}).items():
-                if isinstance(result, dict) and result.get('success'):
-                    img_size = result.get('original_image_size', {})
-                    if img_size:
-                        image_width = img_size.get('width', image_width)
-                        image_height = img_size.get('height', image_height)
-                        break
-            if image_width != 224:
-                break
-
-        # Build size constraint
-        if modality == "vision":
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
-            size_constraint = f"""
-**CRITICAL IMAGE SIZE CONSTRAINT:**
-- Image dimensions: {image_width} x {image_height} pixels
-- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- Ensure x_max <= {image_width} and y_max <= {image_height}"""
-        elif modality == "text":
-            output_format = '"start_index": int, "end_index": int'
-            size_constraint = ""
-        else:
-            output_format = '"feature_key": "string"'
-            size_constraint = ""
-
-        # Build per-instance summaries with detailed tool statistics
-        instance_sections = []
-        for i in range(num_instances):
-            pred = predictions[i] if i < len(predictions) else {}
-            inst_results = tool_results.get('instances', [{}])[i] if i < len(tool_results.get('instances', [])) else {}
-
-            pred_class = pred.get('predicted_class_name', pred.get('predicted_class_idx', 'Unknown'))
-            confidence = pred.get('confidence', 0.0)
-
-            section = f"""### Instance {i}
-- Model Prediction: {pred_class} (confidence: {confidence:.2%})
-
-**Tool Results Summary:**
-{inst_results.get('tool_results_summary', 'No tools executed')}
-
-**Detailed Tool Statistics:**
-{self._format_tool_statistics(inst_results)}"""
-            instance_sections.append(section)
-
-        prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract key features for {num_instances} instances.
-
-## Context
-- Question: {question.get('question', '')}
-- Question Type: Q{q_type}
-- Modality: {modality}
-{size_constraint}
-
-## Instance Analysis
-{chr(10).join(instance_sections)}
-
-## Your Task
-For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes its prediction.
-
-**CRITICAL: Your response MUST be valid JSON with this exact structure:**
-{{
-    {', '.join([f'"output_{i}": {{{output_format}, "description": "explanation for instance {i}"}}' for i in range(num_instances)])},
-    "comparison": "Brief explanation of key differences between instances"
-}}
-
-**Important Guidelines:**
-- For vision: Provide bounding box as [x_min, y_min, x_max, y_max] in pixel coordinates
-  - MUST respect image bounds: x in [0, {image_width}], y in [0, {image_height}]
-  - Use the top_attention_coords from tool results to determine the region
-- For text: Provide character indices (start_index, end_index)
-- For tabular: Provide the exact feature name
-- **If quantitative XAI tool statistics are unavailable or incomplete, use the autonomous analysis results above to infer the answer. If no autonomous results exist either, perform your own direct reasoning based on the model prediction and context.**
-
-
-Respond with ONLY valid JSON:"""
-
-        return self.invoke_vlm_for_json(prompt)
 
     def _format_tool_summary(self, tool_results: Dict[str, Any]) -> str:
         """Format tool results as brief summary."""
@@ -615,11 +495,14 @@ Respond with ONLY valid JSON:"""
         strategy: Dict[str, Any],
         results: Dict[str, Any],
         tool_results: Dict[str, Any],
-        instances: List[Dict[str, Any]]
+        instances: List[Dict[str, Any]],
+        question: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Generate explanation using multi-instance prompt builder."""
         prompt = prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
         print(f"  Generated multi-instance actor prompt ({len(prompt)} chars)")
+        if question is not None:
+            self._save_prompt(prompt, question, "actor_prompt")
 
         return self.invoke_vlm_for_json(prompt)
 
@@ -782,18 +665,7 @@ Respond with ONLY valid JSON:"""
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
 
         # ═══════════════════════════════════════════════════════
-        # Step 4: Extract comparative features via VLM
-        # ═══════════════════════════════════════════════════════
-        print("  Step 3: Extracting comparative features...")
-        extracted_features = self._extract_features_q4(
-            tool_results_a=tool_results_a,
-            tool_results_b=tool_results_b,
-            instances=instances,
-            question=question
-        )
-
-        # ═══════════════════════════════════════════════════════
-        # Step 5: Generate Q4 explanation (one VLM call)
+        # Step 4: Generate Q4 explanation (one VLM call)
         # ═══════════════════════════════════════════════════════
         print("  Step 4: Generating Q4 comparative explanation...")
 
@@ -802,7 +674,6 @@ Respond with ONLY valid JSON:"""
 
         results_for_prompt = {
             "tool_results": combined_tool_results['tool_results'],
-            "extracted_features": extracted_features,
             "autonomous_results": autonomous_results
         }
 
@@ -813,17 +684,13 @@ Respond with ONLY valid JSON:"""
             strategy=strategy,
             results=results_for_prompt,
             tool_results=combined_tool_results,
-            instances=instances
+            instances=instances,
+            question=question
         )
 
         # Ensure Q4 output format
         if 'output' not in parsed_result:
             parsed_result['output'] = {}
-
-        if 'input_A' not in parsed_result['output']:
-            parsed_result['output']['input_A'] = extracted_features.get('output_A', {})
-        if 'input_B' not in parsed_result['output']:
-            parsed_result['output']['input_B'] = extracted_features.get('output_B', {})
 
         # Add metadata
         parsed_result['question_id'] = question.get('question_id', 'unknown')
@@ -838,109 +705,6 @@ Respond with ONLY valid JSON:"""
 
         print(f"\nQ4 Explanation generated")
         return parsed_result
-
-    def _extract_features_q4(
-        self,
-        tool_results_a: Dict[str, Any],
-        tool_results_b: Dict[str, Any],
-        instances: List[Dict[str, Any]],
-        question: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Extract features for Q4 comparison (Instance A vs B)."""
-        modality = question.get('modality', 'vision')
-        pred_a = instances[0].get('prediction', {})
-        pred_b = instances[1].get('prediction', {})
-
-        # Get image size from tool results
-        image_width, image_height = 224, 224
-        for tool_name, result in tool_results_a.get('tool_results', {}).items():
-            if isinstance(result, dict) and result.get('success'):
-                img_size = result.get('original_image_size', {})
-                if img_size:
-                    image_width = img_size.get('width', image_width)
-                    image_height = img_size.get('height', image_height)
-                    break
-
-        # Build size constraint based on modality
-        if modality == "vision":
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
-            size_constraint = f"""
-**CRITICAL IMAGE SIZE CONSTRAINT:**
-- Image dimensions: {image_width} x {image_height} pixels
-- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- Example valid bounding box for this image: [10, 20, 80, 70]
-- Ensure x_max <= {image_width} and y_max <= {image_height}. Do not hallucinate coordinates outside this range."""
-        elif modality == "text":
-            output_format = '"start_index": int, "end_index": int'
-            text_input = question.get('text_input', '')
-            text_length = len(text_input) if text_input else 100
-            size_constraint = f"""
-**CRITICAL TEXT LENGTH CONSTRAINT:**
-- Text length: {text_length} characters
-- ALL indices MUST be within: [0, {text_length}]"""
-        else:
-            output_format = '"feature_key": "string"'
-            size_constraint = ""
-
-        # Format predictions
-        pred_a_class = pred_a.get('predicted_class_name', pred_a.get('predicted_class_idx', 'Unknown'))
-        pred_a_conf = pred_a.get('confidence', 0.0)
-        pred_b_class = pred_b.get('predicted_class_name', pred_b.get('predicted_class_idx', 'Unknown'))
-        pred_b_conf = pred_b.get('confidence', 0.0)
-
-        prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract key features for two instances with DIFFERENT predictions.
-
-## Context
-- Question: {question.get('question', 'Why are instances A and B given different predictions?')}
-- Question Type: Q4 (Contrastive Instances)
-- Modality: {modality}
-{size_constraint}
-
-## Instance A Analysis
-- Model Prediction: {pred_a_class} (confidence: {pred_a_conf:.2%})
-
-**Tool Results Summary:**
-{tool_results_a.get('tool_results_summary', 'No tools executed')}
-
-**Detailed Tool Statistics:**
-{self._format_tool_statistics(tool_results_a)}
-
-## Instance B Analysis
-- Model Prediction: {pred_b_class} (confidence: {pred_b_conf:.2%})
-
-**Tool Results Summary:**
-{tool_results_b.get('tool_results_summary', 'No tools executed')}
-
-**Detailed Tool Statistics:**
-{self._format_tool_statistics(tool_results_b)}
-
-## Your Task
-For EACH instance, identify THE SINGLE MOST IMPORTANT region/feature that causes its prediction.
-Explain why these regions lead to DIFFERENT predictions.
-
-**CRITICAL: Your response MUST be valid JSON with this exact structure:**
-{{
-    "output_A": {{
-        {output_format},
-        "description": "2-3 sentences explaining why this region causes prediction A"
-    }},
-    "output_B": {{
-        {output_format},
-        "description": "2-3 sentences explaining why this region causes prediction B"
-    }},
-    "comparison": "Brief explanation of why these regions lead to different predictions"
-}}
-
-**Important Guidelines:**
-- For vision: Provide bounding box as [x_min, y_min, x_max, y_max] in pixel coordinates
-  - MUST respect image bounds: x in [0, {image_width}], y in [0, {image_height}]
-  - Use the top_attention_coords from tool results to determine the region
-- For text: Provide character indices (start_index, end_index)
-- For tabular: Provide the exact feature name
-
-Respond with ONLY valid JSON:"""
-
-        return self.invoke_vlm_for_json(prompt)
 
     def _compute_bbox_from_tool_results(
         self,
@@ -989,7 +753,7 @@ Respond with ONLY valid JSON:"""
         instances: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Build context for Q4."""
-        modality = question.get('modality', 'vision')
+        modality = question.get('modality')
         clean_model_info = {}
         if model_info:
             clean_model_info = {
@@ -1041,12 +805,15 @@ Respond with ONLY valid JSON:"""
         strategy: Dict[str, Any],
         results: Dict[str, Any],
         tool_results: Dict[str, Any],
-        instances: List[Dict[str, Any]]
+        instances: List[Dict[str, Any]],
+        question: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Generate Q4 explanation using the prompt builder."""
         # Use build_actor_prompt_multi for Q4
         prompt = prompt_builder.build_actor_prompt_multi(context, strategy, results, instances)
         print(f"  Generated Q4 actor prompt ({len(prompt)} chars)")
+        if question is not None:
+            self._save_prompt(prompt, question, "actor_prompt")
 
         print("=" * 70)
         print(f"\n DEBUG Q4 EXPLANATION PROMPT:\n{prompt}")
@@ -1486,155 +1253,6 @@ JSON Response:"""
 
         print(f"Tool outputs saved to: {output_file}")
 
-    def _extract_features_via_vlm(
-        self,
-        tool_results: Dict[str, Any],
-        input_path: Optional[str],
-        question: Dict[str, Any],
-        question_template: Any,
-        prediction: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """Use VLM to extract features from tool results"""
-        modality = question.get('modality', 'vision')
-        q_type = question.get('q_type', 1)
-
-        # Extract image size from tool results (for validation)
-        image_size = None
-        if modality == "vision":
-            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
-                if isinstance(tool_result, dict) and tool_result.get('success'):
-                    img_size = tool_result.get('original_image_size', {})
-                    if img_size:
-                        image_size = (img_size.get('width', 224), img_size.get('height', 224))
-                        break
-
-        # Build extraction prompt
-        prompt = self._build_feature_extraction_prompt(
-            tool_results=tool_results,
-            question=question,
-            prediction=prediction,
-            modality=modality,
-            q_type=q_type
-        )
-
-        # Collect images for VLM (only actual image files, not HTML/text artifacts)
-        IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
-        images = []
-        if modality == "vision" and input_path and os.path.exists(input_path):
-            images.append(input_path)
-        for viz_info in tool_results.get('visualization_paths', []):
-            viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
-            if viz_path and os.path.exists(viz_path):
-                ext = os.path.splitext(viz_path)[1].lower()
-                if ext in IMAGE_EXTENSIONS:
-                    images.append(viz_path)
-
-        # Call VLM and parse, with retry on parse failure
-        last_error = None
-        for attempt in range(1, 4):
-            response = self.invoke_vlm(prompt, images if images else None)
-            try:
-                return self._parse_feature_response(
-                    response, modality, q_type,
-                    tool_results=tool_results,
-                    image_size=image_size
-                )
-            except RuntimeError as e:
-                last_error = e
-                if attempt < 3:
-                    print(f"  Feature extraction parse failed (attempt {attempt}/3), retrying in 2s...")
-                    time.sleep(2)
-        raise last_error
-
-    def _build_feature_extraction_prompt(
-        self,
-        tool_results: Dict[str, Any],
-        question: Dict[str, Any],
-        prediction: Dict[str, Any],
-        modality: str,
-        q_type: int
-    ) -> str:
-        """Build prompt for feature extraction"""
-        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
-        confidence = prediction.get('confidence', 0.0)
-
-        # Extract image size from tool results (for vision modality)
-        image_width, image_height = 224, 224  # Default assumption
-        if modality == "vision":
-            # Try to get actual image size from any successful tool result
-            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
-                if isinstance(tool_result, dict) and tool_result.get('success'):
-                    img_size = tool_result.get('original_image_size', {})
-                    if img_size:
-                        image_width = img_size.get('width', image_width)
-                        image_height = img_size.get('height', image_height)
-                        break
-
-        # Get output format based on modality
-        if modality == "vision":
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
-            size_constraint = f"""
-**CRITICAL IMAGE SIZE CONSTRAINT:**
-- Image dimensions: {image_width} x {image_height} pixels
-- ALL coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- Example valid bounding box for this image: [10, 20, 80, 70]
-- Ensure x_max <= {image_width} and y_max <= {image_height}. Do not hallucinate coordinates outside this range."""
-        elif modality == "text":
-            output_format = '"start_index": int, "end_index": int'
-            text_input = question.get('text_input', '')
-            text_length = len(text_input) if text_input else 100
-            size_constraint = f"""
-**CRITICAL TEXT LENGTH CONSTRAINT:**
-- Text length: {text_length} characters
-- ALL indices MUST be within: [0, {text_length}]"""
-        else:
-            output_format = '"feature_key": "string"'
-            size_constraint = ""
-
-        # Format autonomous results if available
-        autonomous_summary = self._format_autonomous_results(tool_results)
-
-        prompt = f"""You are an expert XAI analyst. Analyze the XAI results and extract the key feature.
-
-## Context
-- Question: {question.get('question', '')}
-- Question Type: Q{q_type}
-- Modality: {modality}
-- Model Prediction: {pred_class} (confidence: {confidence:.2%})
-{size_constraint}
-
-## Tool Results Summary
-{tool_results.get('tool_results_summary', 'No tools executed')}
-
-## Detailed Tool Statistics
-{self._format_tool_statistics(tool_results)}
-{autonomous_summary}
-
-## Your Task
-Based on the XAI analysis, identify THE SINGLE MOST IMPORTANT region/feature that answers the question.
-
-**CRITICAL: Your response MUST be valid JSON with this exact structure:**
-{{
-    "output": {{
-        {output_format}
-    }},
-    "explanation": "2-3 sentences explaining why this region/feature is important",
-    "confidence": confidence score
-}}
-
-**Important Guidelines:**
-- For vision: Provide bounding box as [x_min, y_min, x_max, y_max] in pixel coordinates
-  - MUST respect image bounds: x in [0, {image_width}], y in [0, {image_height}]
-  - Use the top_attention_coords from tool results to determine the region
-- For text: Provide character indices (start_index, end_index)
-- For tabular: Provide the feature/column name as feature_key
-- Focus on the SINGLE most important region/feature, not multiple
-- **If quantitative XAI tool statistics are unavailable or incomplete, use the autonomous analysis results above to infer the answer. If no autonomous results exist either, perform your own direct reasoning based on the model prediction and context.**
-
-JSON Response:"""
-
-        return prompt
-
     def _format_tool_statistics(self, tool_results: Dict[str, Any]) -> str:
         """Format detailed tool statistics for the prompt"""
         lines = []
@@ -1779,263 +1397,6 @@ JSON Response:"""
 
         return "\n".join(lines) if len(lines) > 1 else ""
 
-    def _parse_feature_response(
-        self,
-        response: str,
-        modality: str,
-        q_type: int,
-        tool_results: Optional[Dict[str, Any]] = None,
-        image_size: Optional[tuple] = None
-    ) -> Dict[str, Any]:
-        """Parse VLM feature extraction response with validation"""
-        parsed = self.parse_json_response(response)
-
-        if not parsed:
-            raise RuntimeError(
-                f"Failed to parse VLM response for feature extraction. "
-                f"Response preview: {response[:500]}"
-            )
-
-        # Ensure output field exists
-        if 'output' not in parsed:
-            parsed['output'] = self._extract_output_from_parsed(parsed, modality)
-
-        """
-        # Validate and fix bounding box for vision modality
-        if modality == "vision" and image_size:
-            parsed['output'] = self._validate_and_fix_bounding_box(
-                parsed.get('output', {}),
-                image_size,
-                tool_results
-            )
-        """
-
-        return {
-            "output": parsed.get('output', {}),
-            "explanation": parsed.get('explanation', ''),
-            "confidence": parsed.get('confidence', 0.5),
-            "raw_response": response[:500]
-        }
-
-    def _validate_and_fix_bounding_box(
-        self,
-        output: Dict[str, Any],
-        image_size: tuple,
-        tool_results: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """Validate bounding box and fix if out of bounds or too small"""
-        width, height = image_size
-        bbox = output.get('bounding_box', [])
-
-        # Minimum size: at least 10% of image dimensions
-        min_width = max(int(width * 0.1), 10)
-        min_height = max(int(height * 0.1), 10)
-
-        if not bbox or len(bbox) != 4:
-            # No bounding box, try to compute from tool results
-            print(f"[ActorAgent] No valid bbox provided, computing from tool results...")
-            return self._compute_bbox_from_tools(tool_results, image_size)
-
-        x_min, y_min, x_max, y_max = bbox
-        bbox_width = x_max - x_min
-        bbox_height = y_max - y_min
-
-        # Check if bbox is completely out of bounds
-        if x_min >= width or y_min >= height or x_max <= 0 or y_max <= 0:
-            print(f"[ActorAgent] WARNING: VLM returned out-of-bounds bbox {bbox} for {width}x{height} image")
-            print(f"[ActorAgent] Computing bounding box from tool results instead...")
-            return self._compute_bbox_from_tools(tool_results, image_size)
-
-        # Check if bbox is too small
-        if bbox_width < min_width or bbox_height < min_height:
-            print(f"[ActorAgent] WARNING: VLM returned too-small bbox {bbox} ({bbox_width}x{bbox_height} pixels)")
-            print(f"[ActorAgent] Minimum required size: {min_width}x{min_height} pixels")
-
-            # First, try to use object detection bbox if available
-            obj_det_bbox = self._get_object_detection_bbox(tool_results, image_size)
-            if obj_det_bbox:
-                print(f"[ActorAgent] Using object detection bbox instead: {obj_det_bbox}")
-                return {"bounding_box": obj_det_bbox}
-
-            # Otherwise, expand the small bbox around its center
-            center_x = (x_min + x_max) / 2
-            center_y = (y_min + y_max) / 2
-
-            # Expand to minimum size
-            half_w = max(bbox_width / 2, min_width / 2)
-            half_h = max(bbox_height / 2, min_height / 2)
-
-            x_min = max(0, int(center_x - half_w))
-            x_max = min(width, int(center_x + half_w))
-            y_min = max(0, int(center_y - half_h))
-            y_max = min(height, int(center_y + half_h))
-
-            print(f"[ActorAgent] Expanded bbox to: [{x_min}, {y_min}, {x_max}, {y_max}]")
-            return {"bounding_box": [int(x_min), int(y_min), int(x_max), int(y_max)]}
-
-        # Clip to image bounds
-        x_min = max(0, min(x_min, width - 1))
-        y_min = max(0, min(y_min, height - 1))
-        x_max = max(1, min(x_max, width))
-        y_max = max(1, min(y_max, height))
-
-        # Ensure min < max
-        if x_min >= x_max:
-            x_max = min(x_min + min_width, width)
-        if y_min >= y_max:
-            y_max = min(y_min + min_height, height)
-
-        return {"bounding_box": [int(x_min), int(y_min), int(x_max), int(y_max)]}
-
-    def _get_object_detection_bbox(
-        self,
-        tool_results: Optional[Dict[str, Any]],
-        image_size: tuple
-    ) -> Optional[List[int]]:
-        """Get the best object detection bounding box if available"""
-        if not tool_results:
-            return None
-
-        width, height = image_size
-        best_detection = None
-        best_confidence = 0
-
-        for tool_name, result in tool_results.get('tool_results', {}).items():
-            if not isinstance(result, dict) or not result.get('success'):
-                continue
-
-            detections = result.get('detections', [])
-            for det in detections:
-                conf = det.get('confidence', 0)
-                bbox = det.get('bbox', {})
-                if bbox and conf > best_confidence:
-                    best_confidence = conf
-                    best_detection = bbox
-
-        if best_detection:
-            x1 = max(0, min(best_detection.get('x1', 0), width))
-            y1 = max(0, min(best_detection.get('y1', 0), height))
-            x2 = max(0, min(best_detection.get('x2', width), width))
-            y2 = max(0, min(best_detection.get('y2', height), height))
-            if x2 > x1 and y2 > y1:
-                return [int(x1), int(y1), int(x2), int(y2)]
-
-        return None
-
-    def _compute_bbox_from_tools(
-        self,
-        tool_results: Optional[Dict[str, Any]],
-        image_size: tuple
-    ) -> Dict[str, Any]:
-        """Compute bounding box directly from tool results, prioritizing object detection"""
-        width, height = image_size
-
-        # Minimum size: at least 10% of image dimensions
-        min_width = max(int(width * 0.1), 10)
-        min_height = max(int(height * 0.1), 10)
-
-        if not tool_results:
-            # Default to center region (at least 50% of image)
-            margin_x = width // 4
-            margin_y = height // 4
-            return {"bounding_box": [margin_x, margin_y, width - margin_x, height - margin_y]}
-
-        # PRIORITY 1: Use object detection bbox if available
-        obj_det_bbox = self._get_object_detection_bbox(tool_results, image_size)
-        if obj_det_bbox:
-            print(f"[ActorAgent] Using object detection bbox: {obj_det_bbox}")
-            return {"bounding_box": obj_det_bbox}
-
-        # PRIORITY 2: Compute from attention/importance coordinates
-        all_xs = []
-        all_ys = []
-
-        for tool_name, result in tool_results.get('tool_results', {}).items():
-            if not isinstance(result, dict) or not result.get('success'):
-                continue
-
-            stats = result.get('statistics', {})
-
-            # Get top coordinates from various tool types
-            top_coords = (
-                stats.get('top_attention_coords') or
-                stats.get('top_importance_coords') or
-                stats.get('top_gradient_coords')
-            )
-
-            if top_coords:
-                for coord in top_coords:
-                    x, y = coord.get('x', 0), coord.get('y', 0)
-                    if 0 <= x < width and 0 <= y < height:
-                        all_xs.append(x)
-                        all_ys.append(y)
-
-        if all_xs and all_ys:
-            # Compute center of attention region
-            center_x = sum(all_xs) / len(all_xs)
-            center_y = sum(all_ys) / len(all_ys)
-
-            # Calculate spread of attention points
-            x_spread = max(all_xs) - min(all_xs)
-            y_spread = max(all_ys) - min(all_ys)
-
-            # Ensure minimum size with extra padding (20% of image or spread, whichever is larger)
-            half_w = max(x_spread / 2 + 5, min_width, width * 0.1)
-            half_h = max(y_spread / 2 + 5, min_height, height * 0.1)
-
-            x_min = max(0, int(center_x - half_w))
-            y_min = max(0, int(center_y - half_h))
-            x_max = min(width, int(center_x + half_w))
-            y_max = min(height, int(center_y + half_h))
-
-            print(f"[ActorAgent] Computed expanded bbox from attention coords: [{x_min}, {y_min}, {x_max}, {y_max}]")
-            return {"bounding_box": [int(x_min), int(y_min), int(x_max), int(y_max)]}
-            
-
-    def _extract_output_from_parsed(self, parsed: Dict, modality: str) -> Dict:
-        """Try to extract output from various parsed formats"""
-        if modality == "vision":
-            # Look for bounding_box in various places
-            if 'bounding_box' in parsed:
-                return {"bounding_box": parsed['bounding_box']}
-            if 'responsible_regions' in parsed and parsed['responsible_regions']:
-                region = parsed['responsible_regions'][0]
-                bbox = region.get('bbox', region.get('bounding_box'))
-                if bbox:
-                    if isinstance(bbox, dict):
-                        return {"bounding_box": [bbox.get('x1', 0), bbox.get('y1', 0),
-                                                  bbox.get('x2', 100), bbox.get('y2', 100)]}
-                    return {"bounding_box": bbox}
-        elif modality == "text":
-            if 'start_index' in parsed:
-                return {"start_index": parsed['start_index'], "end_index": parsed.get('end_index', 0)}
-        elif modality == "tabular":
-            if 'feature_key' in parsed:
-                return {"feature_key": parsed['feature_key']}
-
-        return {}
-
-    def _get_default_features(self, modality: str) -> Dict[str, Any]:
-        """Return default features when extraction fails"""
-        default_output = {
-            "vision": {"bounding_box": [0, 0, 100, 100]},
-            "text": {"start_index": 0, "end_index": 10},
-            "tabular": {"feature_key": "unknown"}
-        }
-        return {
-            "output": default_output.get(modality, {}),
-            "explanation": "Feature extraction failed, using default.",
-            "confidence": 0.1
-        }
-
-    def _format_output_from_features(
-        self,
-        features: Dict[str, Any],
-        modality: str
-    ) -> Dict[str, Any]:
-        """Format output from extracted features"""
-        return features.get('output', self._get_default_features(modality)['output'])
-
     def _get_prompt_builder(self, question_template: Any, question: Dict) -> Any:
         """Get prompt builder from template or create one"""
         if hasattr(question_template, 'build_actor_prompt'):
@@ -2167,7 +1528,13 @@ JSON Response:"""
         confidence = _pred.get('confidence', 0.0)
 
         # Canonical output schema for this Q-type x modality
-        schema = get_output_schema(q_type, modality)
+        import copy as _copy
+        schema = _copy.deepcopy(get_output_schema(q_type, modality))
+        # Q9: expand the instances list to match the actual number of inputs so
+        # the VLM produces one entry per input (schema hardcodes only 2 by default)
+        if q_type == 9 and is_multi and isinstance(schema.get('output', {}).get('instances'), list):
+            template = schema['output']['instances'][0]
+            schema['output']['instances'] = [_copy.deepcopy(template) for _ in all_input_datas]
         schema_str = json.dumps(schema, indent=4)
 
         # Build modality-specific context sections
@@ -2235,7 +1602,7 @@ JSON Response:"""
 
             guidelines = (
                 "- Replace every placeholder value with your actual analysis result\n"
-                "- start_index / end_index must be valid character positions in each instance's text"
+                "- spans must be a list of {start_index, end_index} character positions (one or more spans)"
             )
 
         else:  # tabular
@@ -2256,9 +1623,15 @@ JSON Response:"""
                     if not feats:
                         if isinstance(q_features, list) and i < len(q_features):
                             feats = q_features[i] if isinstance(q_features[i], dict) else {}
-                        elif isinstance(q_features, dict):
+                        elif isinstance(q_features, dict) and q_features:
                             feats = q_features
-                    all_features = feats  # same schema across instances
+                    # Q4-style fallback: instance_A / instance_B stored separately in question
+                    if not feats:
+                        inst_key = f'instance_{lbl}'
+                        inst = question.get(inst_key, {})
+                        feats = inst.get('features', {})
+                    if feats:
+                        all_features = feats  # same schema across instances
                     cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
                     feat_lines = "\n".join(f"  - {k}: {v}" for k, v in feats.items())
                     parts.append(f"### Instance {lbl} (prediction: {cls})\n{feat_lines}")
@@ -2281,7 +1654,7 @@ JSON Response:"""
                     input_section = ""
 
             guidelines = (
-                "- feature_key must be the EXACT name of one of the available features listed above\n"
+                "- feature_keys must be a list of EXACT feature names from the available features listed above\n"
                 "- Replace every placeholder value with your actual analysis result"
             )
 
@@ -2410,12 +1783,23 @@ Respond with ONLY valid JSON:"""
             if modality == "vision" and 'bounding_box' in d:
                 d['bounding_box'] = clip_bounding_box(d['bounding_box'], width, height)
             elif modality == "text":
-                if 'start_index' in d and 'end_index' in d:
+                if 'spans' in d and isinstance(d['spans'], list):
+                    for span in d['spans']:
+                        if isinstance(span, dict) and 'start_index' in span and 'end_index' in span:
+                            s, e = clip_text_indices(span['start_index'], span['end_index'], text_length)
+                            span['start_index'], span['end_index'] = s, e
+                elif 'start_index' in d and 'end_index' in d:
+                    # legacy single-span (e.g. Q6 change_plan items)
                     s, e = clip_text_indices(d['start_index'], d['end_index'], text_length)
                     d['start_index'], d['end_index'] = s, e
             elif modality == "tabular" and available_features:
-                if 'feature_key' in d and d['feature_key'] not in available_features:
-                    d['feature_key'] = available_features[0] if available_features else "unknown"
+                if 'feature_keys' in d and isinstance(d['feature_keys'], list):
+                    d['feature_keys'] = [
+                        k for k in d['feature_keys'] if k in available_features
+                    ] or [available_features[0]]
+                elif 'feature_key' in d and d['feature_key'] not in available_features:
+                    # legacy single-key (e.g. Q6 change_plan items)
+                    d['feature_key'] = available_features[0]
             return d
 
         def validate_and_fix_output(parsed: Dict, modality: str) -> Dict:
@@ -2468,7 +1852,7 @@ Respond with ONLY valid JSON:"""
                 elif modality == "text" and 'start_index' in parsed and 'end_index' in parsed:
                     start, end = clip_text_indices(parsed['start_index'], parsed['end_index'], text_length)
                     return {
-                        "output": {"start_index": start, "end_index": end},
+                        "output": {"spans": [{"start_index": start, "end_index": end}]},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
                         "confidence": parsed.get('confidence', 0.5)
                     }
@@ -2477,7 +1861,7 @@ Respond with ONLY valid JSON:"""
                     if available_features and feature_key not in available_features:
                         feature_key = available_features[0] if available_features else "unknown"
                     return {
-                        "output": {"feature_key": feature_key},
+                        "output": {"feature_keys": [feature_key]},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
                         "confidence": parsed.get('confidence', 0.5)
                     }
@@ -2634,17 +2018,6 @@ Respond with ONLY valid JSON:"""
         print(f"  [Actor] Pure-reasoning complete.")
         return parsed_result
 
-    def _create_error_result(self, error: str, question: Dict) -> Dict[str, Any]:
-        """Create error result"""
-        modality = question.get('modality', 'vision')
-        return {
-            "explanation": f"Execution failed: {error}",
-            "output": self._get_default_features(modality)['output'],
-            "confidence": 0.0,
-            "error": error,
-            "question_id": question.get('question_id', 'unknown')
-        }
-
     def _save_results(
         self,
         results: Dict[str, Any],
@@ -2767,26 +2140,13 @@ Respond with ONLY valid JSON:"""
             tool_results['tool_results']['autonomous_tasks'] = autonomous_results
             self._save_tool_outputs(tool_results['tool_results'], question, suffix="_improved")
 
-        # Step 2: Extract features with reflection guidance
-        print("  Step 2: Extracting features with reflection...")
-        extracted_features = self._extract_features_with_reflection(
-            tool_results=tool_results,
-            input_path=input_path,
-            question=question,
-            question_template=question_template,
-            prediction=prediction or {},
-            actor_reflection=actor_reflection,
-            original_results=original_results
-        )
-
-        # Step 3: Generate improved explanation
-        print("  Step 3: Generating improved explanation...")
+        # Step 2: Generate improved explanation
+        print("  Step 2: Generating improved explanation...")
         prompt_builder = self._get_prompt_builder(question_template, question)
 
         context = self._build_context(question, model_info, prediction, input_path)
         results_for_prompt = {
             "tool_results": tool_results.get('tool_results', {}),
-            "extracted_features": extracted_features,
             "autonomous_results": autonomous_results
         }
 
@@ -2931,25 +2291,13 @@ Respond with ONLY valid JSON:"""
             combined_tool_results['autonomous_results'] = autonomous_results
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
 
-        # Step 2: Extract features with reflection guidance
-        # Use _extract_features_multi but inject reflection context
-        print("  Step 2: Extracting comparative features with reflection...")
-        extracted_features = self._extract_features_multi(
-            tool_results=combined_tool_results,
-            input_paths=input_paths,
-            question=question,
-            question_template=question_template,
-            predictions=predictions
-        )
-
-        # Step 3: Generate improved explanation with reflection
-        print("  Step 3: Generating improved comparative explanation with reflection...")
+        # Step 2: Generate improved explanation with reflection
+        print("  Step 2: Generating improved comparative explanation with reflection...")
         prompt_builder = self._get_prompt_builder(question_template, question)
 
         context = self._build_context_multi(question, model_info, predictions, input_paths)
         results_for_prompt = {
             "tool_results": combined_tool_results['tool_results'],
-            "extracted_features": extracted_features,
             "autonomous_results": autonomous_results,
             "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
         }
@@ -2969,11 +2317,6 @@ Respond with ONLY valid JSON:"""
         if 'output' not in parsed_result:
             parsed_result['output'] = {}
 
-        for i in range(num_instances):
-            key = f'input_{chr(ord("A") + i)}'
-            if key not in parsed_result['output']:
-                parsed_result['output'][key] = extracted_features.get(f'output_{i}', {})
-
         # Add metadata
         parsed_result['question_id'] = question.get('question_id', 'unknown')
         parsed_result['question_type'] = q_type
@@ -2989,181 +2332,6 @@ Respond with ONLY valid JSON:"""
 
         print(f"\nImproved multi-instance explanation generated for {num_instances} instances")
         return parsed_result
-
-    def _extract_features_with_reflection(
-        self,
-        tool_results: Dict[str, Any],
-        input_path: Optional[str],
-        question: Dict[str, Any],
-        question_template: Any,
-        prediction: Dict[str, Any],
-        actor_reflection: str,
-        original_results: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Extract features using VLM with reflection guidance.
-
-        Args:
-            tool_results: Results from XAI tools
-            input_path: Path to input
-            question: Question dict
-            question_template: QuestionTemplate
-            prediction: Model prediction
-            actor_reflection: Critic's feedback
-            original_results: Previous results
-
-        Returns:
-            Extracted features dict
-        """
-        modality = question.get('modality', 'vision')
-        q_type = question.get('q_type', 1)
-
-        # Get image size for validation
-        image_size = None
-        if modality == "vision":
-            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
-                if isinstance(tool_result, dict) and tool_result.get('success'):
-                    img_size = tool_result.get('original_image_size', {})
-                    if img_size:
-                        image_size = (img_size.get('width', 224), img_size.get('height', 224))
-                        break
-
-        # Build reflection-aware feature extraction prompt
-        prompt = self._build_feature_extraction_prompt_with_reflection(
-            tool_results=tool_results,
-            question=question,
-            prediction=prediction,
-            modality=modality,
-            q_type=q_type,
-            actor_reflection=actor_reflection,
-            original_results=original_results
-        )
-
-        # Collect images for VLM (only actual image files, not HTML/text artifacts)
-        IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
-        images = []
-        if modality == "vision" and input_path and os.path.exists(input_path):
-            images.append(input_path)
-        for viz_info in tool_results.get('visualization_paths', []):
-            viz_path = viz_info.get('path', '') if isinstance(viz_info, dict) else str(viz_info)
-            if viz_path and os.path.exists(viz_path):
-                ext = os.path.splitext(viz_path)[1].lower()
-                if ext in IMAGE_EXTENSIONS:
-                    images.append(viz_path)
-
-        # Call VLM and parse, with retry on parse failure
-        last_error = None
-        for attempt in range(1, 4):
-            response = self.invoke_vlm(prompt, images if images else None)
-            try:
-                return self._parse_feature_response(
-                    response, modality, q_type,
-                    tool_results=tool_results,
-                    image_size=image_size
-                )
-            except RuntimeError as e:
-                last_error = e
-                if attempt < 3:
-                    print(f"  Feature extraction parse failed (attempt {attempt}/3), retrying in 2s...")
-                    time.sleep(2)
-        raise last_error
-
-    def _build_feature_extraction_prompt_with_reflection(
-        self,
-        tool_results: Dict[str, Any],
-        question: Dict[str, Any],
-        prediction: Dict[str, Any],
-        modality: str,
-        q_type: int,
-        actor_reflection: str,
-        original_results: Dict[str, Any]
-    ) -> str:
-        """
-        Build feature extraction prompt incorporating critic's feedback.
-
-        Args:
-            tool_results: XAI tool results
-            question: Question dict
-            prediction: Model prediction
-            modality: Data modality
-            q_type: Question type
-            actor_reflection: Critic's feedback
-            original_results: Previous results
-
-        Returns:
-            Prompt string
-        """
-        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
-        confidence = prediction.get('confidence', 0.0)
-
-        # Get image dimensions for vision
-        image_width, image_height = 224, 224
-        if modality == "vision":
-            for tool_name, tool_result in tool_results.get('tool_results', {}).items():
-                if isinstance(tool_result, dict) and tool_result.get('success'):
-                    img_size = tool_result.get('original_image_size', {})
-                    if img_size:
-                        image_width = img_size.get('width', image_width)
-                        image_height = img_size.get('height', image_height)
-                        break
-
-        # Get output format
-        if modality == "vision":
-            output_format = '"bounding_box": [x_min, y_min, x_max, y_max]'
-            size_constraint = f"""
-**IMAGE BOUNDS:** {image_width} x {image_height} pixels
-All coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""
-        elif modality == "text":
-            output_format = '"start_index": int, "end_index": int'
-            text_input = question.get('text_input', '')
-            size_constraint = f"**TEXT LENGTH:** {len(text_input)} characters"
-        else:
-            output_format = '"feature_key": "string"'
-            size_constraint = ""
-
-        # Get original output for reference
-        original_output = original_results.get('output', {})
-
-        prompt = f"""You are an expert XAI analyst. Your previous analysis had issues. Improve it based on feedback.
-
-## Context
-- Question: {question.get('question', '')}
-- Question Type: Q{q_type}
-- Modality: {modality}
-- Model Prediction: {pred_class} (confidence: {confidence:.2%})
-{size_constraint}
-
-## Previous Output (had issues)
-{original_output}
-
-## Critic's Feedback on Your Previous Explanation
-{actor_reflection}
-
-## Current Tool Results Summary
-{tool_results.get('tool_results_summary', 'No tools executed')}
-
-## Detailed Tool Statistics
-{self._format_tool_statistics(tool_results)}
-
-## Your Task
-Based on the critic's feedback, provide an IMPROVED identification of the key region/feature.
-Pay special attention to:
-1. Region accuracy - use tool statistics to guide your selection
-2. Explanation clarity - be specific about why this region matters
-3. Any specific issues mentioned in the feedback
-
-**Output valid JSON:**
-{{
-    "output": {{
-        {output_format}
-    }},
-    "explanation": "2-3 sentences explaining why, addressing critic's feedback",
-    "confidence": 0.0-1.0
-}}
-
-JSON Response:"""
-
-        return prompt
 
     def _generate_explanation_with_reflection(
         self,
@@ -3186,7 +2354,7 @@ JSON Response:"""
             prompt_builder: PromptBuilder instance
             context: Context dict
             strategy: Strategy dict
-            results: Current results (includes extracted_features from Step 2)
+            results: Current results (tool_results, autonomous_results)
             tool_results: Tool execution results
             actor_reflection: Critic's feedback (JSON string or dict)
             original_results: Previous results
@@ -3229,9 +2397,6 @@ All bounding_box coordinates must be within: x in [0, {image_width}], y in [0, {
         original_output = original_results.get('output', {})
         original_explanation = original_results.get('explanation', 'N/A')
 
-        # Get extracted features from Step 2 reflection
-        extracted_features = results.get('extracted_features', {})
-
         prompt = f"""You are an expert XAI analyst. Your previous explanation had issues. Generate an IMPROVED explanation based on the critic's feedback.
 
 ## Question
@@ -3252,20 +2417,17 @@ All bounding_box coordinates must be within: x in [0, {image_width}], y in [0, {
 ## Critic's Feedback
 {actor_reflection}
 
-## Updated Extracted Features (from re-analysis)
-{extracted_features}
-
 ## Current Tool Results Summary
 {tool_results.get('tool_results_summary', 'No tools executed')}
 
 ## Detailed Tool Statistics
 {self._format_tool_statistics(tool_results)}
-
+{self._format_autonomous_results(tool_results)}
 ## Your Task
-Based on the critic's feedback and updated features, generate an IMPROVED explanation.
+Based on the critic's feedback and tool results, generate an IMPROVED explanation.
 Pay special attention to:
 1. Address EVERY specific issue mentioned in the critic's feedback
-2. Use the updated extracted features to guide your region/feature selection
+2. Use the tool statistics to guide your region/feature selection
 3. Ensure region accuracy matches tool statistics
 4. Provide clear reasoning for why this region/feature matters
 

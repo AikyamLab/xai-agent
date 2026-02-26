@@ -36,8 +36,6 @@ from prompts.base_prompt import (
     Modality,
     AttributionType,
     BoundingBox,
-    TextSpan,
-    TabularFeature,
     ExtractionField,
 )
 
@@ -375,8 +373,6 @@ __all__ = [
     "AttributionType",
     # Data classes
     "BoundingBox",
-    "TextSpan",
-    "TabularFeature",
     "ExtractionField",
     # Output schema utilities
     "get_output_schema",

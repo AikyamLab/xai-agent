@@ -82,6 +82,15 @@ class Q7Evaluator(BaseEvaluator):
         if part_to_change is None and self.modality == 'vision':
             masked_region = output_data.get('masked_region', {})
             if isinstance(masked_region, dict) and masked_region.get('bounding_box'):
+                err = self.validate_region(masked_region, original_input, **kwargs)
+                if err:
+                    return EvaluationResult(
+                        score=0.0,
+                        passed=False,
+                        metric_name=self.metric_name,
+                        metric_formula=self.metric_formula,
+                        errors=[f"Agent masked_region invalid: {err}"]
+                    )
                 part_to_change = masked_region
 
         if part_to_change is None:
@@ -92,14 +101,15 @@ class Q7Evaluator(BaseEvaluator):
             )
 
         # Mask using modality-appropriate default strategy
-        masker = get_masker(self.modality)
+        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
         modified_input = masker.mask(
             original_input, part_to_change,
             dataset_base_name=kwargs.get('dataset_base_name'),
             row_no=kwargs.get('row_no'),
             tool_name=kwargs.get('tool_name'),
             mask_suffix=kwargs.get('mask_suffix', ''),
-            feature_names=kwargs.get('feature_names', [])
+            feature_names=kwargs.get('feature_names', []),
+            original_features=kwargs.get('original_features', {})
         )
 
         # Get actual prediction after modification
