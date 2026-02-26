@@ -41,6 +41,8 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
         prediction = context.get('prediction', {})
         ground_truth = context.get('ground_truth', 'Unknown')
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's MISCLASSIFICATION on {modality_config['input_type']}.
 
@@ -68,7 +70,7 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
    - Reason about spurious correlations the model may have learned
 
 2. **External XAI Tools**: Use established explainability methods to find spurious features:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -83,19 +85,13 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for finding spurious {self.modality} features"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (spurious feature detection)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} with HIGH attribution but LOW semantic relevance to ground truth
-- Evaluation metric: 1 if masking spurious part improves correct class probability, else 0
-- Examples: background patterns, artifacts, watermarks, confounding correlations
 
 Provide your strategy as a JSON object:
 """
@@ -196,10 +192,10 @@ This is a part that:
 }}
 
 **Critical Requirements:**
-- Identify a part that is BOTH high-attribution AND semantically irrelevant
-- Masking this part should IMPROVE the probability of the correct class
-- This is about finding what the model WRONGLY relies on
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
+- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
         return prompt

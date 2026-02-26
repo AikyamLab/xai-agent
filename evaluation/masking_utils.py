@@ -11,6 +11,7 @@ Updated: Automatic saving and optimized caching for tabular mean values.
 
 import os
 import json
+import re
 import time
 from datetime import datetime
 from abc import ABC, abstractmethod
@@ -336,6 +337,8 @@ class BaseMasker(ABC):
         self._current_q_type = q_type_str
         self._current_question_id = f"{row_no}/{instance_str}" if instance_str else row_no
         self._current_feature_names = kwargs.get('feature_names', [])
+        self._current_original_features = kwargs.get('original_features', {})
+        self._current_masked_keys = kwargs.get('masked_keys', [])
 
         self.save(data, auto_filename)
 
@@ -571,6 +574,23 @@ class TextMasker(BaseMasker):
         self.mask_token = mask_token
 
     def _apply_mask(self, input_data: Any, region: Dict[str, Any], **kwargs) -> Any:
+        # Handle multi-span format: {"spans": [{start_index, end_index}, ...]}
+        if "spans" in region:
+            spans = region["spans"]
+            # Sort descending by start_index so deletions don't shift subsequent indices
+            sorted_spans = sorted(spans, key=lambda s: s.get("start_index", 0), reverse=True)
+            if isinstance(input_data, dict) and 'premise' in input_data:
+                text = input_data['premise']
+                for span in sorted_spans:
+                    text = self._mask_text(text, span, **kwargs)
+                result = input_data.copy()
+                result['premise'] = text
+                return result
+            text = input_data
+            for span in sorted_spans:
+                text = self._mask_text(text, span, **kwargs)
+            return text
+
         if not self.validate_region(region):
             raise ValueError(f"Invalid region specification: {region}")
 
@@ -632,6 +652,11 @@ class TextMasker(BaseMasker):
         print(f"[Auto-Save] Text output: {save_path}")
 
     def validate_region(self, region: Dict[str, Any]) -> bool:
+        # Accept multi-span format
+        if "spans" in region:
+            spans = region["spans"]
+            return isinstance(spans, list) and len(spans) > 0
+        # Accept legacy single-span format
         if "start_index" not in region or "end_index" not in region:
             return False
         start = region["start_index"]
@@ -655,18 +680,41 @@ class TabularMasker(BaseMasker):
         self,
         strategy: MaskingStrategy = MaskingStrategy.MEAN,
         feature_means: Optional[Dict[str, float]] = None,
-        dataset_path: Optional[str] = None
+        dataset_path: Optional[str] = None,
+        preprocessor: Optional[Any] = None,
     ):
         super().__init__(strategy)
         self.feature_means = feature_means or {}
         self.dataset_path = dataset_path
+        self.preprocessor = preprocessor
         self._mean_cache = get_feature_mean_cache()
 
     def _apply_mask(self, input_data: Any, region: Dict[str, Any], **kwargs) -> Any:
+        # Handle multi-key format: {"feature_keys": ["f1", "f2", ...]}
+        if "feature_keys" in region:
+            feature_keys = region["feature_keys"]
+            # Track for save()
+            self._current_masked_keys = list(feature_keys)
+            self._current_original_features = kwargs.get('original_features', {})
+            self._current_feature_names = kwargs.get('feature_names', [])
+            result = input_data
+            for key in feature_keys:
+                result = self._apply_mask(result, {"feature_key": key}, **kwargs)
+            return result
+
+        # Single feature_key — only initialize if not already set by the multi-key caller above
+        if not getattr(self, '_current_masked_keys', None):
+            self._current_masked_keys = [region.get("feature_key")]
+            self._current_original_features = kwargs.get('original_features', {})
+            self._current_feature_names = kwargs.get('feature_names', [])
+
         if not self.validate_region(region):
             raise ValueError(f"Invalid region specification: {region}")
 
         feature_key = region["feature_key"]
+        # Strip trailing comparison conditions from feature key
+        # e.g. 'worst concave points > 0.71' → 'worst concave points'
+        feature_key = re.sub(r'\s*[><=!]+[\s\d.]+$', '', str(feature_key)).strip()
 
         # Get dataset path from kwargs or instance
         dataset_path = kwargs.get("dataset_path", self.dataset_path)
@@ -678,6 +726,10 @@ class TabularMasker(BaseMasker):
 
         if isinstance(input_data, dict):
             data = input_data.copy()
+            # Handle 'feature=value' format: try replacing '=' with '_' if the
+            # exact key is absent (VLMs often use 'occupation=Craft-repair').
+            if feature_key not in data and '=' in feature_key:
+                feature_key = feature_key.replace('=', '_')
             if feature_key not in data:
                 raise ValueError(f"Feature '{feature_key}' not found in input data")
 
@@ -716,19 +768,55 @@ class TabularMasker(BaseMasker):
                     col_idx = feature_names.index(feature_key)
                     col_indices = [col_idx]
                 elif feature_names:
+                    # VLMs sometimes use '=' as a separator for categorical features,
+                    # e.g. 'occupation=Craft-repair' instead of 'occupation_Craft-repair'.
+                    # Normalise that variant up-front so all subsequent lookups work.
+                    fk_eq = feature_key.replace('=', '_') if '=' in feature_key else feature_key
+
                     # Normalise the key: agents may use underscores where feature_names
                     # use spaces (e.g. 'mean_compactness' vs 'mean compactness'), or
                     # vice-versa.  Try both directions before falling back to prefix search.
-                    alt_key = feature_key.replace('_', ' ') if '_' in feature_key else feature_key.replace(' ', '_')
-                    if alt_key in feature_names:
-                        col_idx = feature_names.index(alt_key)
+                    # Also try the '='-replaced variant.
+                    alt_key = fk_eq.replace('_', ' ') if '_' in fk_eq else fk_eq.replace(' ', '_')
+                    matched_key = next(
+                        (k for k in (fk_eq, alt_key) if k in feature_names),
+                        None
+                    )
+                    if matched_key is not None:
+                        col_idx = feature_names.index(matched_key)
                         col_indices = [col_idx]
                     else:
                         # Categorical one-hot fallback: the agent used a pre-encoding column
                         # name (e.g. 'relationship') whose post-encoding representation is a
                         # set of '{feature_key}_*' one-hot columns.  Mask all siblings together.
-                        prefix = f"{feature_key}_"
-                        col_indices = [i for i, n in enumerate(feature_names) if n.startswith(prefix)]
+                        # Try both the original key and the '='-normalised variant.
+                        col_indices = []
+                        for fk_try in dict.fromkeys([feature_key, fk_eq]):  # unique, order-preserving
+                            prefix = f"{fk_try}_"
+                            col_indices = [i for i, n in enumerate(feature_names) if n.startswith(prefix)]
+                            if col_indices:
+                                break
+                        if not col_indices:
+                            # Reverse-prefix fallback: agent used an already-encoded column
+                            # name (e.g. 'occupation_Craft-repair') but feature_names has the
+                            # base column ('occupation') or vice-versa with hyphens.
+                            # Find which base column the key belongs to, then mask all siblings.
+                            base_matches = []
+                            for fk_try in dict.fromkeys([feature_key, fk_eq]):
+                                base_matches = [
+                                    (i, n) for i, n in enumerate(feature_names)
+                                    if fk_try.startswith(n + '_') or fk_try.startswith(n + '-')
+                                ]
+                                if base_matches:
+                                    break
+                            if base_matches:
+                                # Use the longest matching base name
+                                base_idx, base_name = max(base_matches, key=lambda x: len(x[1]))
+                                sib_prefix = f"{base_name}_"
+                                col_indices = [i for i, n in enumerate(feature_names)
+                                               if n.startswith(sib_prefix)]
+                                if not col_indices:
+                                    col_indices = [base_idx]
                         if not col_indices:
                             raise ValueError(
                                 f"For array/tensor input, feature_key must be a column index or a name "
@@ -805,14 +893,35 @@ class TabularMasker(BaseMasker):
         print(f"[TabularMasker] Warning: No mean available for {feature_key}, using 0.0")
         return 0.0
 
+    def _get_original_scale_mean(self, feature_key: str, feature_names: list) -> Optional[float]:
+        """Get the training mean for a feature in original (pre-standardization) scale."""
+        preprocessor = self.preprocessor
+        if preprocessor is None:
+            return None
+        try:
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.compose import ColumnTransformer
+            if isinstance(preprocessor, ColumnTransformer):
+                for _, transformer, cols in preprocessor.transformers_:
+                    cols_list = list(cols)
+                    if isinstance(transformer, StandardScaler) and feature_key in cols_list:
+                        idx = cols_list.index(feature_key)
+                        return float(transformer.mean_[idx])
+            elif isinstance(preprocessor, StandardScaler):
+                if feature_key in feature_names:
+                    idx = feature_names.index(feature_key)
+                    return float(preprocessor.mean_[idx])
+        except Exception:
+            pass
+        return None
+
     def save(self, masked_data: Any, filename: str):
-        """Save tabular as JSON (feature dict) or CSV fallback"""
+        """Save tabular masked input as human-readable JSON in original feature scale."""
         path_kwargs = {
             'dataset_name': getattr(self, '_current_dataset_name', None),
             'q_type': getattr(self, '_current_q_type', None),
             'question_id': getattr(self, '_current_question_id', None)
         }
-        feature_names = getattr(self, '_current_feature_names', [])
 
         if isinstance(masked_data, dict):
             save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
@@ -824,8 +933,22 @@ class TabularMasker(BaseMasker):
             else:
                 arr = np.asarray(masked_data).flatten()
 
-            if feature_names and len(feature_names) == len(arr):
-                # Convert to human-readable JSON dict: {feature_name: value, ...}
+            original_features = getattr(self, '_current_original_features', {})
+            masked_keys = getattr(self, '_current_masked_keys', [])
+            feature_names = getattr(self, '_current_feature_names', [])
+
+            if original_features:
+                # Build human-readable dict from original-scale features, replacing
+                # masked features with their training mean in original scale.
+                readable_dict = dict(original_features)
+                for key in masked_keys:
+                    mean_val = self._get_original_scale_mean(key, feature_names)
+                    readable_dict[key] = round(mean_val, 4) if mean_val is not None else None
+                save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
+                with open(save_path, "w", encoding="utf-8") as f:
+                    json.dump(readable_dict, f, indent=4)
+            elif feature_names and len(feature_names) == len(arr):
+                # Fallback: standardized tensor values with feature names
                 feat_dict = {
                     name: round(float(arr[i]), 6)
                     for i, name in enumerate(feature_names)
@@ -834,11 +957,20 @@ class TabularMasker(BaseMasker):
                 with open(save_path, "w", encoding="utf-8") as f:
                     json.dump(feat_dict, f, indent=4)
             else:
-                save_path = self._get_target_path("tabular", "csv", filename, **path_kwargs)
-                np.savetxt(save_path, arr, delimiter=",")
+                # Last resort: index-keyed JSON (no CSV)
+                feat_dict = {f"feature_{i}": round(float(v), 6) for i, v in enumerate(arr)}
+                save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
+                with open(save_path, "w", encoding="utf-8") as f:
+                    json.dump(feat_dict, f, indent=4)
+
         print(f"[Auto-Save] Tabular output: {save_path}")
 
     def validate_region(self, region: Dict[str, Any]) -> bool:
+        # Accept multi-key format
+        if "feature_keys" in region:
+            keys = region["feature_keys"]
+            return isinstance(keys, list) and len(keys) > 0
+        # Accept legacy single-key format
         return "feature_key" in region and region["feature_key"] is not None
 
 
@@ -885,7 +1017,8 @@ def get_masker(
             strategy = MaskingStrategy.MEAN
         feature_means = kwargs.get("feature_means")
         dataset_path = kwargs.get("dataset_path")
-        return TabularMasker(strategy, feature_means, dataset_path)
+        preprocessor = kwargs.get("preprocessor")
+        return TabularMasker(strategy, feature_means, dataset_path, preprocessor)
 
     else:
         raise ValueError(f"Unsupported modality: {modality}")

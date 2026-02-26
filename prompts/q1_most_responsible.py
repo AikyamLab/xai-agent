@@ -41,6 +41,8 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
 
         # Modality-specific configurations
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -65,7 +67,7 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
    - Provide {modality_config['location_type']} and confidence scores for different {modality_config['element_type']}
 
 2. **External XAI Tools**: Use established explainability methods:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -80,18 +82,13 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for {self.modality} modality"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (positive attribution)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} that drive the prediction with highest positive contribution
-- Evaluation metric: P_original - P_modified (higher = better, part was indeed important)
 
 Provide your strategy as a JSON object:
 """
@@ -164,7 +161,6 @@ Provide your strategy as a JSON object:
 
         # Get tool results
         tool_results = results.get('tool_results', {})
-        extracted = results.get('extracted_features', {})
 
         # Format tool results with detailed statistics (use parent class methods)
         tool_summary = self._format_tool_results_summary(tool_results)
@@ -190,7 +186,7 @@ Confidence: {prediction.get('confidence', 0.0):.4f}
 {detailed_stats}
 
 ## Your Task
-Identify the SINGLE MOST RESPONSIBLE part that caused this prediction.
+Identify the MOST RESPONSIBLE part that caused this prediction.
 
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
@@ -202,11 +198,10 @@ Identify the SINGLE MOST RESPONSIBLE part that caused this prediction.
 }}
 
 **Critical Requirements:**
-- Identify ONE specific region/span/feature (the most important)
 - For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
-- For text: start_index and end_index as character positions
-- For tabular: feature_key as the column name
-- This part should have HIGH attribution to the predicted class
+- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
         return prompt

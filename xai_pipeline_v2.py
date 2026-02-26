@@ -103,12 +103,13 @@ class XAIPipelineV2:
         mode: str = "test",
         tinker_checkpoint: Optional[str] = None,
         tinker_lora_rank: int = 16,
+        vlm: Optional[Any] = None,
     ):
         """
         Initialize XAI Pipeline V2.
 
         Args:
-            vlm_model_id: VLM model ID
+            vlm_model_id: VLM model ID (ignored when vlm is provided)
             output_dir: Output directory
             dataset_dir: Directory containing datasets
             models_dir: Directory containing models
@@ -119,6 +120,9 @@ class XAIPipelineV2:
                   Only applied when mode='test'. Requires vlm_model_id to be a
                   tinker/* model (used as the LoRA base model).
             tinker_lora_rank: LoRA rank used during DPO/LoRA training (default: 16).
+            vlm: Optional pre-built VLM instance. When provided, vlm_model_id and
+                 tinker_checkpoint are ignored. Useful for RL training where the VLM
+                 is a custom RLSamplingVLM that records token trajectories.
         """
         self.mode = mode
 
@@ -146,19 +150,24 @@ class XAIPipelineV2:
         print(f"Models directory: {self.models_dir}")
         print(f"Output directory: {self.output_dir}")
 
-        # If a tinker_checkpoint is provided but the caller did not explicitly select a
-        # tinker/* base model (i.e. the default local model is still set), auto-derive
-        # the base model from the checkpoint name so we go through the Tinker path
-        # instead of trying to load an 8B / 30B model locally.
-        if tinker_checkpoint is not None and not vlm_model_id.startswith("tinker/"):
-            derived = self._derive_tinker_base_model(tinker_checkpoint)
-            if derived:
-                print(f"\nAuto-deriving VLM base model from tinker_checkpoint: tinker/{derived}")
-                vlm_model_id = f"tinker/{derived}"
+        if vlm is not None:
+            # Use the provided VLM directly (e.g. RLSamplingVLM for GRPO training)
+            print("\nUsing provided VLM instance (skipping create_vlm).")
+            self.vlm = vlm
+        else:
+            # If a tinker_checkpoint is provided but the caller did not explicitly select a
+            # tinker/* base model (i.e. the default local model is still set), auto-derive
+            # the base model from the checkpoint name so we go through the Tinker path
+            # instead of trying to load an 8B / 30B model locally.
+            if tinker_checkpoint is not None and not vlm_model_id.startswith("tinker/"):
+                derived = self._derive_tinker_base_model(tinker_checkpoint)
+                if derived:
+                    print(f"\nAuto-deriving VLM base model from tinker_checkpoint: tinker/{derived}")
+                    vlm_model_id = f"tinker/{derived}"
 
-        # Initialize VLM
-        print("\nInitializing VLM...")
-        self.vlm = create_vlm(model_id=vlm_model_id)
+            # Initialize VLM
+            print("\nInitializing VLM...")
+            self.vlm = create_vlm(model_id=vlm_model_id)
 
         # Initialize three agents using new modular system
         print("\nInitializing Agents (New Architecture)...")
@@ -542,6 +551,7 @@ class XAIPipelineV2:
 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 self.critic.set_model(self.data_model_loader.get_model())
 
             # Load both instances based on modality
@@ -825,7 +835,8 @@ class XAIPipelineV2:
                 inputs={'A': input_tensors['A'], 'B': input_tensors['B']},
                 predictions={'A': predictions['A'], 'B': predictions['B']},
                 processor=model_info.get('processor'),
-                device=model_info.get('device', 'cuda')
+                device=model_info.get('device', 'cuda'),
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -942,7 +953,8 @@ class XAIPipelineV2:
                         predictions={'A': predictions['A'], 'B': predictions['B']},
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -1114,7 +1126,8 @@ class XAIPipelineV2:
                 feature_names=model_info.get('feature_names', []),
                 inputs=input_tensors,
                 predictions=predictions_list,
-                ground_truths=ground_truths
+                ground_truths=ground_truths,
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -1266,7 +1279,8 @@ class XAIPipelineV2:
                         inputs=input_tensors,
                         predictions=predictions_list,
                         ground_truths=ground_truths,
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -1450,7 +1464,8 @@ class XAIPipelineV2:
                 processor=model_info.get('processor'),
                 device=model_info.get('device', 'cuda'),
                 class_names=model_info.get('label_map', {}),
-                feature_names=model_info.get('feature_names', [])
+                feature_names=model_info.get('feature_names', []),
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation (no model or disabled)")
@@ -1608,7 +1623,8 @@ class XAIPipelineV2:
                         device=model_info.get('device', 'cuda'),
                         class_names=model_info.get('label_map', {}),
                         feature_names=model_info.get('feature_names', []),
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     # Calculate improvement metrics
@@ -1887,6 +1903,7 @@ class XAIPipelineV2:
                 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 # Set model for critic
                 self.critic.set_model(self.data_model_loader.get_model())
 
@@ -2122,6 +2139,7 @@ class XAIPipelineV2:
 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 self.critic.set_model(self.data_model_loader.get_model())
 
             except Exception as e:
@@ -2597,7 +2615,7 @@ def main():
     parser.add_argument(
         "--sf_max_samples",
         type=int,
-        default=None,
+        default=32,
         help="Max number of tool configs to sample for strategy faithfulness (default: None = full 2^N enumeration)"
     )
     parser.add_argument(

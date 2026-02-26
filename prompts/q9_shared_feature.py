@@ -46,6 +46,8 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
         """Build prompt for Proposer with multiple misclassified instances"""
         num_instances = len(instances) if instances else context.get('num_instances', 2)
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         # Build instance info
         instance_info = ""
@@ -84,7 +86,7 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
    - Reason about potential spurious correlations
 
 2. **External XAI Tools**: Use established explainability methods to find shared patterns:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -99,19 +101,13 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for finding shared {self.modality} patterns"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (shared spurious feature detection)**:
-- {modality_config['spatial_note']}
-- Target: Find the SAME type of {modality_config['element_type']} present in ALL instances
-- Evaluation metric: 1 if removing shared feature improves ALL predictions, else 0
-- Examples: common background, similar texture, shared artifact, confounding correlation
 
 Provide your strategy as a JSON object:
 """
@@ -194,11 +190,9 @@ Provide your strategy as a JSON object:
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
 
-        # Build output slots dynamically for all instances
-        instance_slots = ",\n        ".join([
-            f'"input_{chr(65 + i)}": {{\n            {output_format}\n        }}'
-            for i in range(num_instances)
-        ])
+        # Build instances list with one entry per instance
+        instance_entry = f'{{{output_format}}}'
+        instances_list = ",\n            ".join([instance_entry for _ in range(num_instances)])
 
         prompt = f"""You are an XAI expert. Find the SHARED feature causing all misclassifications.
 
@@ -219,7 +213,9 @@ Identify the SHARED spurious feature and its location in EACH of the {num_instan
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
     "output": {{
-        {instance_slots}
+        "instances": [
+            {instances_list}
+        ]
     }},
     "shared_feature_description": "Description of the common feature across all inputs",
     "explanation": "2-3 sentences explaining how this shared feature confuses the model",
@@ -227,10 +223,9 @@ Identify the SHARED spurious feature and its location in EACH of the {num_instan
 }}
 
 **Critical Requirements:**
-- Provide a region for EVERY instance (input_A through input_{chr(65 + num_instances - 1)})
-- Identify the SAME type of feature in EACH instance
+- "instances" MUST contain exactly {num_instances} entries (one per misclassified input, in order)
+- Identify the SAME type of feature in EACH entry
 - This shared feature should be SPURIOUS (not truly relevant to classification)
-- Removing this feature from ALL instances should improve ALL predictions
 - Examples: common background, similar texture, shared artifact
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 

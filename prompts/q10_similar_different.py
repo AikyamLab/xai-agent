@@ -48,6 +48,8 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
     ) -> str:
         """Build prompt for Proposer"""
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         # Build instance info
         instance_info = ""
@@ -90,7 +92,7 @@ The goal is to find features that are AS DIFFERENT AS POSSIBLE between the corre
    - Find distinguishing characteristics between the two outcomes
 
 2. **External XAI Tools**: Use established explainability methods for contrastive analysis:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -105,19 +107,13 @@ The goal is to find features that are AS DIFFERENT AS POSSIBLE between the corre
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for comparing {self.modality} success vs failure"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (correct vs incorrect comparison)**:
-- {modality_config['spatial_note']}
-- Target: Find DISTINCT {modality_config['element_type']} - minimize overlap between correct and wrong feature sets
-- Evaluation metric: -Sim(F_correct, F_wrong) - larger difference = better explanation
-- Focus on what makes one succeed and the other fail
 
 Provide your strategy as a JSON object:
 """
@@ -201,19 +197,17 @@ Provide your strategy as a JSON object:
         "wrong_instance_features": "concise feature phrase for wrong prediction (e.g. 'blurred edges and noisy background')"'''
         elif self.modality == "text":
             output_format = '''"correct_instance_features": {
-            "start_index": int,
-            "end_index": int
+            "spans": [{"start_index": int, "end_index": int}]
         },
         "wrong_instance_features": {
-            "start_index": int,
-            "end_index": int
+            "spans": [{"start_index": int, "end_index": int}]
         }'''
         else:
             output_format = '''"correct_instance_features": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "wrong_instance_features": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }'''
 
         # Include text/tabular instance data if available
@@ -252,8 +246,8 @@ The goal is to find DISTINCT features.
 - For vision: Output a SHORT feature phrase (e.g. "dog's fur and face", "blurred edges and noisy background")
   - Do NOT write full sentences — only name the concrete visual features/objects/patterns
   - The two feature phrases should use DISTINCT words — minimize overlap
-- For text: Identify DIFFERENT spans in each instance
-- For tabular: Rank the top 3 most decisive features for each instance, using exact column names; the two lists should be DIFFERENT
+- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans) for each instance; the two span lists should cover DIFFERENT parts
+- For tabular: feature_keys as a list of column names (one or more features) for each instance, using exact column names; the two lists should be DIFFERENT
 - Explain what makes one succeed and the other fail
 
 Respond with ONLY JSON:"""

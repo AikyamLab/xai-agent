@@ -583,20 +583,11 @@ class ToolAttributionEvaluator:
 
         if is_multi:
             # Multi-instance path: use actor's multi-instance methods
-            extracted_features = self.actor._extract_features_multi(
-                tool_results=filtered_results_structure,
-                input_paths=input_paths,
-                question=question,
-                question_template=question_template,
-                predictions=predictions
-            )
-
             prompt_builder = self.actor._get_prompt_builder(question_template, question)
             context = self.actor._build_context_multi(question, model_info, predictions, input_paths)
 
             results_for_prompt = {
                 "tool_results": filtered_results_structure['tool_results'],
-                "extracted_features": extracted_features,
                 "instances": [{'prediction': p, 'path': path} for p, path in zip(predictions, input_paths)]
             }
 
@@ -607,7 +598,8 @@ class ToolAttributionEvaluator:
                     strategy=original_strategy,
                     results=results_for_prompt,
                     tool_results=filtered_results_structure,
-                    instances=results_for_prompt['instances']
+                    instances=results_for_prompt['instances'],
+                    question=question
                 )
             else:
                 parsed_result = self.actor._generate_explanation_with_prompt_builder(
@@ -618,35 +610,12 @@ class ToolAttributionEvaluator:
                     tool_results=filtered_results_structure
                 )
         else:
-            # Single-instance path (original logic)
-            try:
-                extracted_features = self.actor._extract_features_via_vlm(
-                    tool_results=filtered_results_structure,
-                    input_path=input_path,
-                    question=question,
-                    question_template=question_template,
-                    prediction=prediction or {}
-                )
-            except RuntimeError as e:
-                # VLM still refused even after the fallback prompt instruction.
-                # Treat this config as faithfulness=0 and continue.
-                print(f"    Warning: feature extraction failed for config {config} "
-                      f"(tools={included_tools}): {e}")
-                return {
-                    "config": config,
-                    "included_tools": included_tools,
-                    "explanation": {},
-                    "evaluation": {"faithfulness": {"score": 0.0}},
-                    "faithfulness_score": 0.0,
-                    "feature_extraction_failed": True
-                }
-
+            # Single-instance path
             prompt_builder = self.actor._get_prompt_builder(question_template, question)
             context = self.actor._build_context(question, model_info, prediction, input_path)
 
             results_for_prompt = {
                 "tool_results": filtered_tool_results,
-                "extracted_features": extracted_features,
                 "autonomous_results": filtered_autonomous_results
             }
 
@@ -667,18 +636,29 @@ class ToolAttributionEvaluator:
         # Save result to results/ directory (parallel to actor.run() behaviour)
         self.actor._save_results(parsed_result, question, suffix=f"_{tool_config_name}")
 
+        # Derive ground_truth the same way the main pipeline does (needed for Q8)
+        _gt = question.get('ground_truth')
+        if _gt is None and prediction:
+            _gt = prediction.get('ground_truth_idx')
+        if _gt is None:
+            _target = question.get('target', {})
+            if isinstance(_target, dict):
+                _gt = _target.get('value')
+
         # Run Critic to evaluate faithfulness
         critic_kwargs = {
             'results': parsed_result,
             'question': question,
             'original_input': input_tensor,
             'original_prediction': prediction,
+            'ground_truth': _gt,
             'processor': processor,
             'device': device,
             'tool_name': tool_config_name,
             # Required for tabular masking (feature_key lookup) and class resolution
             'feature_names': model_info.get('feature_names', []) if model_info else [],
             'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
+            'original_features': question.get('features', {}),
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors
@@ -781,6 +761,9 @@ class ToolAttributionEvaluator:
             input_paths=input_paths if is_multi else None
         )
 
+        # Save no-tools prompt for inspection
+        self.actor._save_prompt(prompt, question, "actor_prompt_no_tools")
+
         # Invoke VLM directly
         response = self.actor.invoke_vlm(prompt, images)
 
@@ -844,17 +827,29 @@ class ToolAttributionEvaluator:
 
         # Run Critic to evaluate faithfulness
         is_multi = question.get('is_multi_instance', False) and input_paths and predictions
+
+        # Derive ground_truth the same way the main pipeline does (needed for Q8)
+        _gt = question.get('ground_truth')
+        if _gt is None and prediction:
+            _gt = prediction.get('ground_truth_idx')
+        if _gt is None:
+            _target = question.get('target', {})
+            if isinstance(_target, dict):
+                _gt = _target.get('value')
+
         critic_kwargs = {
             'results': parsed_result,
             'question': question,
             'original_input': input_tensor,
             'original_prediction': prediction,
+            'ground_truth': _gt,
             'processor': processor,
             'device': device,
             'tool_name': "no_tools",
             # Required for tabular masking (feature_key lookup) and class resolution
             'feature_names': model_info.get('feature_names', []) if model_info else [],
             'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
+            'original_features': question.get('features', {}),
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors
@@ -951,7 +946,13 @@ class ToolAttributionEvaluator:
         confidence = _pred.get('confidence', 0.0)
 
         # Canonical output schema for this Q-type × modality
-        schema = get_output_schema(q_type, modality)
+        import copy as _copy
+        schema = _copy.deepcopy(get_output_schema(q_type, modality))
+        # Q9: expand the instances list to match the actual number of inputs so
+        # the VLM produces one entry per input (schema hardcodes only 2 by default)
+        if q_type == 9 and is_multi and isinstance(schema.get('output', {}).get('instances'), list):
+            template = schema['output']['instances'][0]
+            schema['output']['instances'] = [_copy.deepcopy(template) for _ in all_input_datas]
         schema_str = json.dumps(schema, indent=4)
 
         # Build modality-specific context sections

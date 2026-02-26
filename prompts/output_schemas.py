@@ -51,8 +51,9 @@ Q1_SCHEMA_VISION = {
 
 Q1_SCHEMA_TEXT = {
     "output": {
-        "start_index": 0,
-        "end_index": 10
+        "spans": [
+            {"start_index": 0, "end_index": 10}
+        ]
     },
     "explanation": "string",
     "confidence": 0.85
@@ -60,7 +61,7 @@ Q1_SCHEMA_TEXT = {
 
 Q1_SCHEMA_TABULAR = {
     "output": {
-        "feature_key": "string"
+        "feature_keys": ["feature_name"]
     },
     "explanation": "string",
     "confidence": 0.85
@@ -98,12 +99,10 @@ Q4_SCHEMA_VISION = {
 Q4_SCHEMA_TEXT = {
     "output": {
         "input_A": {
-            "start_index": 0,
-            "end_index": 10
+            "spans": [{"start_index": 0, "end_index": 10}]
         },
         "input_B": {
-            "start_index": 0,
-            "end_index": 10
+            "spans": [{"start_index": 0, "end_index": 10}]
         }
     },
     "explanation": "string",
@@ -113,10 +112,10 @@ Q4_SCHEMA_TEXT = {
 Q4_SCHEMA_TABULAR = {
     "output": {
         "input_A": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "input_B": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
     "explanation": "string",
@@ -165,12 +164,14 @@ Q6_SCHEMA_VISION = {
 
 Q6_SCHEMA_TEXT = {
     "output": {
-        "change_plan": {
-            "start_index": 0,
-            "end_index": 10,
-            "action": "change",  # "change" | "delete" | "swap" | "add"
-            "new_value": "replacement text"
-        }
+        "change_plan": [
+            {
+                "start_index": 0,
+                "end_index": 10,
+                "action": "change",  # "change" | "delete" | "swap" | "add"
+                "new_value": "replacement text"
+            }
+        ]
     },
     "explanation": "string",
     "confidence": 0.85
@@ -178,11 +179,13 @@ Q6_SCHEMA_TEXT = {
 
 Q6_SCHEMA_TABULAR = {
     "output": {
-        "change_plan": {
-            "feature_key": "string",
-            "action": "change",  # "change" | "delete" | "swap"
-            "new_value": "new feature value"
-        }
+        "change_plan": [
+            {
+                "feature_key": "string",
+                "action": "change",  # "change" | "delete" | "swap"
+                "new_value": "new feature value"
+            }
+        ]
     },
     "explanation": "string",
     "confidence": 0.85
@@ -228,13 +231,10 @@ Q8_SCHEMA_TABULAR = Q1_SCHEMA_TABULAR.copy()
 
 Q9_SCHEMA_VISION = {
     "output": {
-        "input_A": {
-            "bounding_box": [0, 0, 100, 100]
-        },
-        "input_B": {
-            "bounding_box": [0, 0, 100, 100]
-        }
-        # Can have more inputs: input_C, input_D, etc.
+        "instances": [
+            {"bounding_box": [0, 0, 100, 100]},
+            {"bounding_box": [0, 0, 100, 100]}
+        ]
     },
     "shared_feature_description": "string",
     "explanation": "string",
@@ -243,14 +243,10 @@ Q9_SCHEMA_VISION = {
 
 Q9_SCHEMA_TEXT = {
     "output": {
-        "input_A": {
-            "start_index": 0,
-            "end_index": 10
-        },
-        "input_B": {
-            "start_index": 0,
-            "end_index": 10
-        }
+        "instances": [
+            {"spans": [{"start_index": 0, "end_index": 10}]},
+            {"spans": [{"start_index": 0, "end_index": 10}]}
+        ]
     },
     "shared_feature_description": "string",
     "explanation": "string",
@@ -259,12 +255,10 @@ Q9_SCHEMA_TEXT = {
 
 Q9_SCHEMA_TABULAR = {
     "output": {
-        "input_A": {
-            "feature_key": "string"
-        },
-        "input_B": {
-            "feature_key": "string"
-        }
+        "instances": [
+            {"feature_keys": ["feature_name"]},
+            {"feature_keys": ["feature_name"]}
+        ]
     },
     "shared_feature_description": "string",
     "explanation": "string",
@@ -287,12 +281,10 @@ Q10_SCHEMA_VISION = {
 Q10_SCHEMA_TEXT = {
     "output": {
         "correct_instance_features": {
-            "start_index": 0,
-            "end_index": 10
+            "spans": [{"start_index": 0, "end_index": 10}]
         },
         "wrong_instance_features": {
-            "start_index": 0,
-            "end_index": 10
+            "spans": [{"start_index": 0, "end_index": 10}]
         }
     },
     "explanation": "string",
@@ -302,10 +294,10 @@ Q10_SCHEMA_TEXT = {
 Q10_SCHEMA_TABULAR = {
     "output": {
         "correct_instance_features": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         },
         "wrong_instance_features": {
-            "top_features": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
     "explanation": "string",
@@ -389,7 +381,7 @@ def validate_output(output: Dict[str, Any], q_type: int, modality: str) -> Tuple
     output_data = output.get("output", {})
     schema_output = schema.get("output", {})
 
-    # Q1, Q2, Q3, Q8: Single region output
+    # Q1, Q2, Q3, Q8: (Possibly multiple) region output
     if q_type in [1, 2, 3, 8]:
         if modality == "vision":
             if "bounding_box" not in output_data:
@@ -397,20 +389,25 @@ def validate_output(output: Dict[str, Any], q_type: int, modality: str) -> Tuple
             elif not isinstance(output_data["bounding_box"], list) or len(output_data["bounding_box"]) != 4:
                 errors.append("'bounding_box' must be a list of 4 integers [x_min, y_min, x_max, y_max]")
         elif modality == "text":
-            if "start_index" not in output_data:
-                errors.append("Missing required field: 'output.start_index'")
-            if "end_index" not in output_data:
-                errors.append("Missing required field: 'output.end_index'")
+            # Accept new multi-span format or legacy single-span
+            if "spans" not in output_data and "start_index" not in output_data:
+                errors.append("Missing required field: 'output.spans' (list of {start_index, end_index})")
         elif modality == "tabular":
-            if "feature_key" not in output_data:
-                errors.append("Missing required field: 'output.feature_key'")
+            # Accept new multi-key format or legacy single-key
+            if "feature_keys" not in output_data and "feature_key" not in output_data:
+                errors.append("Missing required field: 'output.feature_keys' (list of feature names)")
 
-    # Q4, Q9: Multi-instance output
-    elif q_type in [4, 9]:
+    # Q4: two-instance output with named keys
+    elif q_type == 4:
         if "input_A" not in output_data:
             errors.append("Missing required field: 'output.input_A'")
         if "input_B" not in output_data:
             errors.append("Missing required field: 'output.input_B'")
+
+    # Q9: shared-feature output as ordered list of instances
+    elif q_type == 9:
+        if "instances" not in output_data:
+            errors.append("Missing required field: 'output.instances' (list of per-instance regions)")
 
     # Q5: Yes/No prediction
     elif q_type == 5:
@@ -477,20 +474,41 @@ def extract_region_from_output(output: Dict[str, Any], q_type: int, modality: st
             return {"bounding_box": output_data["change_plan"].get("bounding_box")}
 
     elif modality == "text":
+        # New multi-span format
+        spans = output_data.get("spans")
+        if spans and isinstance(spans, list):
+            return {"spans": spans}
+        # Legacy single-span format
         start = output_data.get("start_index")
         end = output_data.get("end_index")
         if start is not None and end is not None:
-            return {"start_index": start, "end_index": end}
+            return {"spans": [{"start_index": start, "end_index": end}]}
+        # change_plan (Q6): may be a list or single dict
         if "change_plan" in output_data:
             cp = output_data["change_plan"]
-            return {"start_index": cp.get("start_index"), "end_index": cp.get("end_index")}
+            if isinstance(cp, list) and cp:
+                first = cp[0]
+                return {"spans": [{"start_index": first.get("start_index"), "end_index": first.get("end_index")}]}
+            elif isinstance(cp, dict):
+                return {"spans": [{"start_index": cp.get("start_index"), "end_index": cp.get("end_index")}]}
 
     elif modality == "tabular":
+        # New multi-key format
+        keys = output_data.get("feature_keys")
+        if keys and isinstance(keys, list):
+            return {"feature_keys": keys}
+        # Legacy single-key format
         key = output_data.get("feature_key")
         if key:
-            return {"feature_key": key}
+            return {"feature_keys": [key]}
         if "change_plan" in output_data:
-            return {"feature_key": output_data["change_plan"].get("feature_key")}
+            cp = output_data["change_plan"]
+            if isinstance(cp, list) and cp:
+                key = cp[0].get("feature_key")
+                return {"feature_keys": [key]} if key else None
+            elif isinstance(cp, dict):
+                key = cp.get("feature_key")
+                return {"feature_keys": [key]} if key else None
 
     return None
 
@@ -514,16 +532,42 @@ def extract_multi_instance_regions(
     output_data = output.get("output", {})
     regions = {}
 
+    def _extract_one(value, modality):
+        if modality == "vision":
+            return {"bounding_box": value.get("bounding_box")}
+        elif modality == "text":
+            spans = value.get("spans")
+            if spans and isinstance(spans, list):
+                return {"spans": spans}
+            elif value.get("start_index") is not None:
+                return {"spans": [{"start_index": value.get("start_index"),
+                                    "end_index": value.get("end_index")}]}
+        elif modality == "tabular":
+            keys = value.get("feature_keys")
+            if keys and isinstance(keys, list):
+                return {"feature_keys": keys}
+            top = value.get("top_features")
+            if top and isinstance(top, list):
+                return {"feature_keys": top}
+            if value.get("feature_key"):
+                return {"feature_keys": [value.get("feature_key")]}
+        return None
+
+    # Q9: new list format {"instances": [{...}, {...}, ...]}
+    instances_list = output_data.get("instances")
+    if isinstance(instances_list, list):
+        for i, value in enumerate(instances_list):
+            key = f"input_{chr(ord('A') + i)}"
+            r = _extract_one(value, modality)
+            if r is not None:
+                regions[key] = r
+        return regions
+
+    # Q4 and legacy Q9: named keys input_A, input_B, ...
     for key, value in output_data.items():
         if key.startswith("input_"):
-            if modality == "vision":
-                regions[key] = {"bounding_box": value.get("bounding_box")}
-            elif modality == "text":
-                regions[key] = {
-                    "start_index": value.get("start_index"),
-                    "end_index": value.get("end_index")
-                }
-            elif modality == "tabular":
-                regions[key] = {"feature_key": value.get("feature_key")}
+            r = _extract_one(value, modality)
+            if r is not None:
+                regions[key] = r
 
     return regions

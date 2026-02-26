@@ -92,6 +92,15 @@ class Q6Evaluator(BaseEvaluator):
             region = self._extract_region_from_change_plan(plan)
             if region is None:
                 continue
+            err = self._validate_change_plan_region(region, original_input, **kwargs)
+            if err:
+                return EvaluationResult(
+                    score=0.0,
+                    passed=False,
+                    metric_name=self.metric_name,
+                    metric_formula=self.metric_formula,
+                    errors=[f"Invalid change_plan region: {err}"]
+                )
             action = plan.get('action', 'change')
             new_value = plan.get('new_value')
             modified_input = self._apply_change_plan(
@@ -193,6 +202,7 @@ class Q6Evaluator(BaseEvaluator):
             tool_name=kwargs.get('tool_name'),
             mask_suffix=kwargs.get('mask_suffix', ''),
             feature_names=kwargs.get('feature_names', []),
+            original_features=kwargs.get('original_features', {}),
         )
 
         if self.modality == 'vision':
@@ -204,12 +214,12 @@ class Q6Evaluator(BaseEvaluator):
                     prompt = self._clean_sd_prompt(str(new_value))
                     result = generate_counterfactual_image(original_input, bbox, prompt)
                     # SD inpainting bypasses masker.mask(), so save explicitly
-                    masker = get_masker(self.modality, MaskingStrategy.GRAY)
+                    masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
                     masker.save_from_kwargs(result, **mask_kwargs)
                     return result
                 except Exception as e:
                     print(f"[Q6] SD inpainting failed ({e}), falling back to gray fill")
-            masker = get_masker(self.modality, MaskingStrategy.GRAY)
+            masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
             return masker.mask(original_input, region, **mask_kwargs)
 
         elif self.modality == 'text':
@@ -218,11 +228,11 @@ class Q6Evaluator(BaseEvaluator):
             if action == 'change' and new_value:
                 result = self._replace_text_span(original_input, region, str(new_value))
                 # Text replacement bypasses masker.mask(), so save explicitly
-                masker = get_masker(self.modality, MaskingStrategy.DELETE)
+                masker = get_masker(self.modality, MaskingStrategy.DELETE, preprocessor=kwargs.get('processor'))
                 masker.save_from_kwargs(result, **mask_kwargs)
                 return result
             else:
-                masker = get_masker(self.modality, MaskingStrategy.DELETE)
+                masker = get_masker(self.modality, MaskingStrategy.DELETE, preprocessor=kwargs.get('processor'))
                 return masker.mask(original_input, region, **mask_kwargs)
 
         else:  # tabular
@@ -269,11 +279,11 @@ class Q6Evaluator(BaseEvaluator):
                 )
                 if modified is not None:
                     # Direct feature-set bypasses masker.mask(), so save explicitly
-                    masker = get_masker(self.modality, MaskingStrategy.GRAY)
+                    masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
                     masker.save_from_kwargs(modified, **mask_kwargs)
                     return modified
             # Fallback: mean-fill
-            masker = get_masker(self.modality, MaskingStrategy.GRAY)
+            masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
             return masker.mask(original_input, region, **mask_kwargs)
 
     def _replace_text_span(self, original_input, region, new_value: str):
@@ -392,6 +402,64 @@ class Q6Evaluator(BaseEvaluator):
         if alt_key in feature_names_list:
             return feature_names_list.index(alt_key)
         return None
+
+    def _validate_change_plan_region(self, region: Dict, original_input, **kwargs) -> str:
+        """Validate a Q6 change_plan region (uses legacy single-key/span format).
+        Returns error string if bad agent output, empty string if OK.
+        """
+        if self.modality == "vision":
+            # Same format as standard — delegate
+            return self.validate_region(region, original_input, **kwargs)
+        elif self.modality == "text":
+            s = region.get('start_index')
+            e = region.get('end_index')
+            if s is None or e is None:
+                return "Missing start_index/end_index in change_plan"
+            if s < 0 or s >= e:
+                return f"Invalid text span [{s},{e}) in change_plan"
+            text_len = self._get_text_len(original_input)
+            if text_len > 0 and e > text_len:
+                return f"Span [{s},{e}) exceeds text length {text_len}"
+            return ""
+        else:  # tabular
+            key = region.get('feature_key')
+            if not key:
+                return "Missing feature_key in change_plan"
+            k_low = str(key).lower().strip()
+            if any(m in k_low for m in self._REFUSAL_MARKERS):
+                return f"Refusal/unknown marker in feature_key: {key!r}"
+            available = set(kwargs.get('feature_names', []))
+            if available:
+                import re as _re
+
+                def _strip_cond(s: str) -> str:
+                    return _re.sub(r'\s*[><=!]+[\s\d.]+$', '', str(s)).strip()
+
+                def _norm(s: str) -> str:
+                    # Normalise separators: underscore, hyphen, and '=' (VLMs
+                    # often write categorical features as 'occupation=Craft-repair')
+                    # are all collapsed to '-' so they compare equal.
+                    return s.lower().replace('_', '-').replace('=', '-')
+
+                k = _strip_cond(key)
+                k_eq = k.replace('=', '_')  # alternate form for raw-string checks
+                k_norm = _norm(k)
+                avail_normed = {_norm(f): f for f in available}
+                in_dataset = (
+                    k in available
+                    or k_eq in available
+                    or any(f.startswith(k + '_') or f.startswith(k_eq + '_') for f in available)
+                    or any(k.startswith(f + '_') or k.startswith(f + '-')
+                           or k_eq.startswith(f + '_') or k_eq.startswith(f + '-')
+                           for f in available)
+                    or k_norm in avail_normed
+                    or any(fn.startswith(k_norm + '-') for fn in avail_normed)
+                    or any(k_norm.startswith(fn + '-') or k_norm.startswith(fn + '_')
+                           for fn in avail_normed)
+                )
+                if not in_dataset:
+                    return f"feature_key {key!r} is not in dataset features (hallucinated)"
+            return ""
 
     def _extract_region_from_change_plan(self, change_plan: Dict) -> Dict:
         """Extract region from change plan based on modality"""

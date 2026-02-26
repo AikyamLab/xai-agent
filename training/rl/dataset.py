@@ -295,12 +295,19 @@ def _load_json_questions(
     else:
         return []
 
-    for q in questions:
+    for idx, q in enumerate(questions):
         if modality and not q.get("modality"):
             q["modality"] = modality
         if q_type is not None and not q.get("q_type"):
             q["q_type"] = q_type
-        if dataset_name and not q.get("dataset_name"):
-            q["dataset_name"] = dataset_name
+        if dataset_name:
+            if not q.get("dataset_name"):
+                q["dataset_name"] = dataset_name
+            # Agents use "dataset_base_name" for output directory naming
+            if not q.get("dataset_base_name"):
+                q["dataset_base_name"] = dataset_name
+        # Store source info so XAIRLEnv can call pipeline.run(source_path, idx)
+        q["_source_path"]   = str(path)
+        q["_question_idx"]  = idx
 
     return questions

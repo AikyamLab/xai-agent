@@ -1822,13 +1822,26 @@ class XAIToolRegistry:
         """
         Get a specific tool by name.
 
+        Handles modality-suffixed aliases the proposer may generate, e.g.
+        'shap_tabular' → 'shap', 'lime_vision' → 'lime'.
+
         Args:
             tool_name: Name of the tool
 
         Returns:
             Tool instance or None if not available
         """
-        return self._tools.get(tool_name)
+        tool = self._tools.get(tool_name)
+        if tool is not None:
+            return tool
+        # Strip known modality suffixes and retry
+        for suffix in ("_tabular", "_vision", "_text", "_image"):
+            if tool_name.endswith(suffix):
+                canonical = tool_name[: -len(suffix)]
+                tool = self._tools.get(canonical)
+                if tool is not None:
+                    return tool
+        return None
 
     def get_all_tools(self) -> List[BaseTool]:
         """

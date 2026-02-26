@@ -1,38 +1,36 @@
 """
 GRPO (Group Relative Policy Optimization) Training Framework for XAI Agent
 
-This package implements GRPO-based RL training for the XAI pipeline using
-Tinker as the training backend (Qwen/Qwen3-VL-30B-A3B-Instruct):
+Uses XAIPipelineV2 directly for all XAI logic (prompt building, tool
+execution, Q-type routing, improvement loop, faithfulness evaluation).
+RLSamplingVLM is injected as the pipeline VLM to capture token trajectories.
 
-  - Policy model:    Tinker-hosted Qwen3-VL-30B with LoRA (cloud training)
-  - Environment:     Local tool execution + faithfulness evaluation
-  - Reflection:      Deterministic env output injected as additional MDP turns
-
-Core MDP structure:
-  Turn 0: Model generates XAI strategy (Proposer role)
-  Turn 1: Model generates explanation  (Actor role) → faithfulness evaluation
-          if score >= threshold → done, reward = score
-          else → reflection injected by env (no gradient)
-  Turn 2: Model improves strategy given reflection (Proposer + reflection)
-  Turn 3: Model regenerates explanation → final evaluation → done, reward = final_score
+Core flow:
+  1. RLSamplingVLM wraps Tinker SamplingClient; records every VLM call as RLTransition.
+  2. XAIPipelineV2(vlm=rl_vlm) runs the full XAI pipeline per episode.
+  3. XAIRLEnv calls pipeline.run() and extracts faithfulness score as reward.
+  4. do_group_rollout() (sync) collects K trajectories per question.
+  5. GRPOTrainer assembles Tinker Datums and runs async forward_backward + optim_step.
 
 GRPO advantage: A_k = (r_k - mean(group_rewards)) / std(group_rewards)
 Loss: Tinker importance_sampling loss  (IS = p_θ / p_old per token)
 """
 
-# ── Environment ───────────────────────────────────────────────────────────────
-from .env import XAIEnv, XAIMultiTurnEnv, Observation, StepResult
+# ── VLM ───────────────────────────────────────────────────────────────────────
+from .rl_vlm import RLSamplingVLM, RLTransition
 
-# ── Rollout (Tinker SamplingClient) ──────────────────────────────────────────
+# ── Environment ───────────────────────────────────────────────────────────────
+from .env import XAIRLEnv
+
+# ── Rollout ───────────────────────────────────────────────────────────────────
 from .rollout import (
     Trajectory,
     TrajectoryGroup,
     Transition,
-    do_rollout,
     do_group_rollout,
 )
 
-# ── GRPO Trainer (Tinker TrainingClient) ─────────────────────────────────────
+# ── GRPO Trainer ──────────────────────────────────────────────────────────────
 from .grpo_trainer import (
     GRPOConfig,
     GRPOTrainer,
@@ -45,16 +43,15 @@ from .grpo_trainer import (
 from .dataset import XAIRLDataset, infer_modality
 
 __all__ = [
+    # rl_vlm
+    "RLSamplingVLM",
+    "RLTransition",
     # env
-    "XAIEnv",
-    "XAIMultiTurnEnv",
-    "Observation",
-    "StepResult",
+    "XAIRLEnv",
     # rollout
     "Trajectory",
     "TrajectoryGroup",
     "Transition",
-    "do_rollout",
     "do_group_rollout",
     # grpo_trainer
     "GRPOConfig",

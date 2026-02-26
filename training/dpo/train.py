@@ -401,8 +401,11 @@ def train(args):
     epoch = 0
     overopt_streak = 0  # consecutive steps with margin > early_stop_margin
 
-    while step < args.steps:
+    # test for 3 epoch
+    while epoch < 5:
+    # while step < args.steps:
         epoch += 1
+        log.info(f"=== Epoch {epoch} start (step {step}/{args.steps}) ===")
         for batch in iter_batches(train_records, args.batch_size, seed=epoch):
             if step >= args.steps:
                 break

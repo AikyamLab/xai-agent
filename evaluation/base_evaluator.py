@@ -4,6 +4,7 @@ Base Evaluator classes for XAI Agent Framework
 Defines the abstract interface for explanation faithfulness evaluation.
 """
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -68,6 +69,11 @@ class BaseEvaluator(ABC):
     3. Runs the model on original and modified inputs
     4. Computes the faithfulness metric
     """
+
+    _REFUSAL_MARKERS: frozenset = frozenset({
+        'unknown', 'cannot', "can't", "n/a", 'none', 'not available',
+        'refuse', "i don't", "i can't", 'unsure', 'unclear'
+    })
 
     def __init__(self, modality: str = "vision"):
         """
@@ -156,11 +162,8 @@ class BaseEvaluator(ABC):
                 return region_area / image_area if image_area > 0 else 0.0
 
             elif self.modality == "text":
-                start = region.get("start_index", 0)
-                end = region.get("end_index", 0)
-                span_len = max(0, end - start)
+                # Determine text length
                 if isinstance(original_input, dict) and 'premise' in original_input:
-                    # NLI: region indices refer to premise text
                     text_len = len(original_input['premise'])
                 elif isinstance(original_input, str):
                     text_len = len(original_input)
@@ -168,10 +171,21 @@ class BaseEvaluator(ABC):
                     text_len = len(original_input)
                 else:
                     return 0.0
+                # Multi-span format
+                spans = region.get("spans")
+                if spans and isinstance(spans, list):
+                    total_len = sum(
+                        max(0, s.get("end_index", 0) - s.get("start_index", 0))
+                        for s in spans
+                    )
+                    return min(1.0, total_len / text_len) if text_len > 0 else 0.0
+                # Legacy single-span
+                start = region.get("start_index", 0)
+                end = region.get("end_index", 0)
+                span_len = max(0, end - start)
                 return span_len / text_len if text_len > 0 else 0.0
 
             elif self.modality == "tabular":
-                # One feature masked at a time
                 if isinstance(original_input, dict):
                     total = len(original_input)
                 elif isinstance(original_input, torch.Tensor):
@@ -180,6 +194,11 @@ class BaseEvaluator(ABC):
                     total = original_input.shape[-1]
                 else:
                     return 0.0
+                # Multi-key format
+                keys = region.get("feature_keys")
+                if keys and isinstance(keys, list):
+                    return min(1.0, len(keys) / total) if total > 0 else 0.0
+                # Legacy single-key
                 return 1.0 / total if total > 0 else 0.0
 
         except Exception:
@@ -203,14 +222,24 @@ class BaseEvaluator(ABC):
             if bbox:
                 return {"bounding_box": bbox}
         elif self.modality == "text":
+            # New multi-span format
+            spans = output_data.get("spans")
+            if spans and isinstance(spans, list):
+                return {"spans": spans}
+            # Legacy single-span format
             start = output_data.get("start_index")
             end = output_data.get("end_index")
             if start is not None and end is not None:
-                return {"start_index": start, "end_index": end}
+                return {"spans": [{"start_index": start, "end_index": end}]}
         elif self.modality == "tabular":
+            # New multi-key format
+            keys = output_data.get("feature_keys")
+            if keys and isinstance(keys, list):
+                return {"feature_keys": keys}
+            # Legacy single-key format
             key = output_data.get("feature_key")
             if key:
-                return {"feature_key": key}
+                return {"feature_keys": [key]}
 
         return None
 
@@ -304,6 +333,144 @@ class BaseEvaluator(ABC):
         if isinstance(probs, dict):
             return [probs[k] for k in sorted(probs.keys())]
         return probs
+
+    # ------------------------------------------------------------------
+    # Agent-output validation helpers
+    # ------------------------------------------------------------------
+
+    def _get_image_dims(self, input_data: Any) -> Tuple[int, int]:
+        """Return (width, height) from an image input, or (0, 0) if unknown."""
+        if PIL_AVAILABLE and isinstance(input_data, Image.Image):
+            return input_data.size  # (width, height)
+        if isinstance(input_data, torch.Tensor):
+            if input_data.dim() == 4:
+                return input_data.shape[3], input_data.shape[2]
+            if input_data.dim() == 3:
+                return input_data.shape[2], input_data.shape[1]
+        if isinstance(input_data, np.ndarray) and input_data.ndim >= 2:
+            return input_data.shape[1], input_data.shape[0]
+        return 0, 0
+
+    def _get_text_len(self, input_data: Any) -> int:
+        """Return character length of text input."""
+        if isinstance(input_data, str):
+            return len(input_data)
+        if isinstance(input_data, dict):
+            return (len(input_data.get('premise', ''))
+                    + len(input_data.get('hypothesis', ''))
+                    + len(input_data.get('text', '')))
+        return 0
+
+    def validate_region(self, region: Any, original_input: Any, **kwargs) -> str:
+        """Check if a standard agent-output region dict is valid.
+
+        Returns an error string describing the problem if the region is bad
+        (empty, hallucinated, refusal, or out-of-bounds).  Returns empty
+        string "" if the region is acceptable.
+
+        This method only catches *bad agent outputs* — pipeline errors that
+        prevent a region from being formed at all should raise ValueError /
+        RuntimeError instead.
+        """
+        if not isinstance(region, dict):
+            return f"Region is not a dict: {type(region).__name__}"
+
+        if self.modality == "vision":
+            bbox = region.get("bounding_box")
+            if not bbox:
+                return "Missing bounding_box in agent response"
+            if not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+                return f"Invalid bounding_box format: {bbox}"
+            try:
+                x1, y1, x2, y2 = (float(v) for v in bbox)
+            except (TypeError, ValueError):
+                return f"Non-numeric bounding_box values: {bbox}"
+            if x2 <= x1 or y2 <= y1:
+                return f"Degenerate bounding box (x2<=x1 or y2<=y1): {bbox}"
+            img_w, img_h = self._get_image_dims(original_input)
+            if img_w > 0 and img_h > 0:
+                if x1 < 0 or y1 < 0 or x2 > img_w or y2 > img_h:
+                    return (f"Bounding box {bbox} out of image bounds "
+                            f"[0,0,{img_w},{img_h}]")
+            return ""
+
+        elif self.modality == "text":
+            spans = region.get("spans")
+            if not spans:
+                return "Empty or missing spans in agent response"
+            if not isinstance(spans, list):
+                return f"'spans' is not a list: {spans}"
+            text_len = self._get_text_len(original_input)
+            for sp in spans:
+                if not isinstance(sp, dict):
+                    return f"Span entry is not a dict: {sp}"
+                s = sp.get('start_index', 0)
+                e = sp.get('end_index', 0)
+                if s < 0 or s >= e:
+                    return f"Invalid span [{s},{e}) — start must be >= 0 and < end"
+                if text_len > 0 and e > text_len:
+                    return f"Span [{s},{e}) exceeds text length {text_len}"
+            return ""
+
+        else:  # tabular
+            keys = region.get("feature_keys")
+            if not keys:
+                return "Empty or missing feature_keys in agent response"
+            if not isinstance(keys, list):
+                return f"'feature_keys' is not a list: {keys}"
+            for k in keys:
+                k_low = str(k).lower().strip()
+                if any(m in k_low for m in self._REFUSAL_MARKERS):
+                    return f"Refusal/unknown marker in feature key: {k!r}"
+            available = set(kwargs.get('feature_names', []))
+            if available:
+                # Helpers -------------------------------------------------------
+                def _strip_cond(s: str) -> str:
+                    """Strip trailing comparison conditions.
+                    e.g. 'worst concave points > 0.71' → 'worst concave points'
+                    """
+                    return re.sub(r'\s*[><=!]+[\s\d.]+$', '', str(s)).strip()
+
+                def _norm(s: str) -> str:
+                    # Normalise separators: underscore, hyphen, and '=' (VLMs
+                    # often write categorical features as 'occupation=Craft-repair')
+                    # are all collapsed to '-' so they compare equal.
+                    return s.lower().replace('_', '-').replace('=', '-')
+
+                avail_normed = {_norm(f): f for f in available}
+
+                def key_in_dataset(k: str) -> bool:
+                    k = _strip_cond(k)
+                    # Also try replacing '=' with '_' for the raw-string checks
+                    # below (handles 'occupation=Craft-repair' → 'occupation_Craft-repair')
+                    k_eq = k.replace('=', '_')
+                    # 1. Exact match
+                    if k in available or k_eq in available:
+                        return True
+                    # 2. Forward prefix: k is base column, available has k_Category (one-hot)
+                    if any(f.startswith(k + '_') or f.startswith(k_eq + '_') for f in available):
+                        return True
+                    # 3. Reverse prefix: k is one-hot (base_Category), available has base
+                    if any(k.startswith(f + '_') or k.startswith(f + '-')
+                           or k_eq.startswith(f + '_') or k_eq.startswith(f + '-')
+                           for f in available):
+                        return True
+                    # 4. Normalised exact match (case-insensitive, hyphen↔underscore↔equals)
+                    k_norm = _norm(k)
+                    if k_norm in avail_normed:
+                        return True
+                    # 5. Normalised forward prefix
+                    if any(fn.startswith(k_norm + '-') for fn in avail_normed):
+                        return True
+                    # 6. Normalised reverse prefix
+                    if any(k_norm.startswith(fn + '-') or k_norm.startswith(fn + '_')
+                           for fn in avail_normed):
+                        return True
+                    return False
+
+                if not any(key_in_dataset(k) for k in keys):
+                    return f"All feature keys are hallucinated (not in dataset): {keys}"
+            return ""
 
     def compute_probability_difference(
         self,

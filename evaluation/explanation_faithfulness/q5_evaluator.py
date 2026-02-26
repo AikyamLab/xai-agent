@@ -72,14 +72,15 @@ class Q5Evaluator(BaseEvaluator):
             )
 
         # Mask using modality-appropriate default strategy
-        masker = get_masker(self.modality)
+        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
         masked_input = masker.mask(
             original_input, queried_region,
             dataset_base_name=kwargs.get('dataset_base_name'),
             row_no=kwargs.get('row_no'),
             tool_name=kwargs.get('tool_name'),
             mask_suffix=kwargs.get('mask_suffix', ''),
-            feature_names=kwargs.get('feature_names', [])
+            feature_names=kwargs.get('feature_names', []),
+            original_features=kwargs.get('original_features', {})
         )
 
         processor = kwargs.get('processor')

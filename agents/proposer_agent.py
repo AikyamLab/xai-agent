@@ -47,6 +47,7 @@ class ProposerAgent(BaseAgent):
         super().__init__(vlm, output_dir, "ProposerAgent")
 
         self.data_model_loader = data_model_loader
+        self.tool_registry = None  # Set via set_tool_registry() after ActorAgent.initialize_tools()
 
         if models_dir is None:
             models_dir = os.path.join(os.getcwd(), "models_to_read")
@@ -56,6 +57,29 @@ class ProposerAgent(BaseAgent):
         self.strategy_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"  Models directory: {self.models_dir}")
+
+    def set_tool_registry(self, tool_registry: Any) -> None:
+        """
+        Provide the proposer with the actual tool registry so that
+        build_proposer_prompt receives a live available_tools dict
+        instead of the hardcoded fallback lists in each PromptBuilder.
+
+        Call this after ActorAgent.initialize_tools() in the pipeline:
+            self.proposer.set_tool_registry(self.actor.tool_registry)
+        """
+        self.tool_registry = tool_registry
+
+    def _get_tool_info_for_context(self, modality: str) -> Dict[str, str]:
+        """
+        Return {tool_name: description} for tools that are actually available
+        in the registry for the given modality.
+
+        Falls back to an empty dict when no registry is set; prompt builders
+        will then use their own hardcoded fallback values.
+        """
+        if self.tool_registry is not None:
+            return self.tool_registry.get_tool_descriptions()
+        return {}
 
     def run(
         self,
@@ -233,6 +257,7 @@ class ProposerAgent(BaseAgent):
             "user_question": question.get("question", ""),
             "model_info": model_info,
             "prediction": prediction,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         if modality == "vision":
@@ -302,6 +327,7 @@ class ProposerAgent(BaseAgent):
             "user_question": question.get("question", ""),
             "model_info": model_info,
             "num_instances": num_instances,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         # Add all predictions
@@ -721,10 +747,12 @@ Generate a new strategy in the same JSON format as before.
         instance_a = question.get('instance_A', {})
         instance_b = question.get('instance_B', {})
 
+        modality = question.get('modality', 'vision')
         context = {
             "user_question": question.get("question", question.get("example", "")),
             "model_info": model_info,
             "num_instances": 2,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         # Add predictions

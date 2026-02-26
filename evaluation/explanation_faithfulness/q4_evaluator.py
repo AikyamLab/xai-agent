@@ -69,6 +69,34 @@ class Q4Evaluator(MultiInstanceEvaluator):
                 errors=["Features not provided for both instances"]
             )
 
+        # Validate agent output: bad responses → score 0.0
+        if self.modality == "vision":
+            # Q4 vision output is a concise feature phrase (string), not a bounding box
+            for label, feat in [("input_A", features_a), ("input_B", features_b)]:
+                text = str(feat).lower().strip()
+                if not text or text in ('none', 'null', '{}', '[]'):
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"Empty vision phrase for {label}"])
+                if any(m in text for m in self._REFUSAL_MARKERS):
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"Refusal marker in {label} vision phrase"])
+        else:
+            # text/tabular: features_a/b are dicts in standard region format
+            inp_a = inputs[0] if inputs else None
+            inp_b = inputs[1] if len(inputs) > 1 else None
+            for label, feat, inp in [("input_A", features_a, inp_a),
+                                      ("input_B", features_b, inp_b)]:
+                err = self.validate_region(feat, inp, **kwargs)
+                if err:
+                    return EvaluationResult(score=0.0, passed=False,
+                                            metric_name=self.metric_name,
+                                            metric_formula=self.metric_formula,
+                                            errors=[f"{label}: {err}"])
+
         # Calculate similarity based on modality
         if self.modality == "vision":
             similarity = self._compute_text_similarity(
@@ -146,20 +174,25 @@ class Q4Evaluator(MultiInstanceEvaluator):
         """
         Compute overlap between text spans from different instances.
 
+        Expects new multi-span format: {"spans": [{"start_index": ..., "end_index": ...}]}.
         Extracts the actual text from each instance and computes word similarity.
         """
-        start1, end1 = span1.get('start_index', 0), span1.get('end_index', 0)
-        start2, end2 = span2.get('start_index', 0), span2.get('end_index', 0)
+        spans1 = span1.get('spans')
+        spans2 = span2.get('spans')
+        if not spans1 or not spans2:
+            return 1.0  # max similarity → score 0.0
 
-        if len(inputs) >= 2:
-            text1 = inputs[0][start1:end1] if isinstance(inputs[0], str) else ""
-            text2 = inputs[1][start2:end2] if isinstance(inputs[1], str) else ""
-            return self._compute_text_similarity(text1, text2)
+        if len(inputs) < 2:
+            return 1.0  # max similarity → score 0.0
 
-        # Same text fallback: character-level IoU
-        intersection = max(0, min(end1, end2) - max(start1, start2))
-        union = max(end1, end2) - min(start1, start2)
-        return intersection / union if union > 0 else 0.0
+        def extract_span_text(text, spans):
+            if not isinstance(text, str):
+                raise TypeError(f"Expected str input, got {type(text)}")
+            return " ".join(text[s['start_index']:s['end_index']] for s in spans)
+
+        text1 = extract_span_text(inputs[0], spans1)
+        text2 = extract_span_text(inputs[1], spans2)
+        return self._compute_text_similarity(text1, text2)
 
     @staticmethod
     def _strip_value_annotation(feat: str) -> str:
@@ -185,17 +218,14 @@ class Q4Evaluator(MultiInstanceEvaluator):
         Feature strings may include value annotations like 'mean_compactness (0.123)'
         which are stripped before comparison so the same feature name matches.
         """
-        list1 = features1.get('top_features', []) if isinstance(features1, dict) else []
-        list2 = features2.get('top_features', []) if isinstance(features2, dict) else []
+        if not isinstance(features1, dict) or not isinstance(features2, dict):
+            return 1.0  # max similarity → score 0.0
 
-        # Fallback for single feature_key format
-        if not list1 and isinstance(features1, dict) and 'feature_key' in features1:
-            list1 = [features1['feature_key']]
-        if not list2 and isinstance(features2, dict) and 'feature_key' in features2:
-            list2 = [features2['feature_key']]
+        list1 = features1.get('feature_keys') or features1.get('top_features', [])
+        list2 = features2.get('feature_keys') or features2.get('top_features', [])
 
         if not list1 or not list2:
-            return 0.0
+            return 1.0  # max similarity → score 0.0
 
         # Normalize: strip value annotations before comparison
         norm1 = [self._strip_value_annotation(f) for f in list1]
