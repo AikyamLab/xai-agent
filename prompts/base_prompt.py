@@ -91,68 +91,6 @@ class BoundingBox:
 
 
 @dataclass
-class TextSpan:
-    """
-    Text span representation for text modality.
-    Uses character-level start_index and end_index.
-    """
-    start_index: int
-    end_index: int
-    text: Optional[str] = None
-    importance: float = 1.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "start_index": self.start_index,
-            "end_index": self.end_index,
-            "text": self.text,
-            "importance": self.importance
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "TextSpan":
-        """Create from dictionary"""
-        return cls(
-            start_index=data["start_index"],
-            end_index=data["end_index"],
-            text=data.get("text"),
-            importance=data.get("importance", 1.0)
-        )
-
-    def is_valid(self) -> bool:
-        """Check if text span indices are valid"""
-        return self.end_index > self.start_index and self.start_index >= 0
-
-
-@dataclass
-class TabularFeature:
-    """
-    Tabular feature representation for tabular modality.
-    """
-    feature_key: str
-    value: Optional[Any] = None
-    importance: float = 1.0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "feature_key": self.feature_key,
-            "value": self.value,
-            "importance": self.importance
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict) -> "TabularFeature":
-        """Create from dictionary"""
-        return cls(
-            feature_key=data["feature_key"],
-            value=data.get("value"),
-            importance=data.get("importance", 1.0)
-        )
-
-
-@dataclass
 class ChangePlan:
     """
     Change plan for counterfactual questions (Q6).
@@ -341,14 +279,50 @@ class PromptBuilder(ABC):
 
         return result
 
+    def _get_available_tools_description(
+        self,
+        context: Dict[str, Any],
+        fallback_description: str
+    ) -> str:
+        """
+        Return a formatted tool-description block for use in proposer prompts.
+
+        If context['available_tools'] is populated (by ProposerAgent after
+        calling set_tool_registry), format the real tool names and descriptions.
+        Otherwise fall back to the hardcoded per-question description string.
+        """
+        available_tools: Dict[str, str] = context.get('available_tools', {})
+        if available_tools:
+            lines = [f"   - {name}: {desc}" for name, desc in available_tools.items()]
+            return "\n".join(lines)
+        return fallback_description
+
+    def _get_available_tools_list(
+        self,
+        context: Dict[str, Any],
+        fallback_list: str
+    ) -> str:
+        """
+        Return a JSON array string of available tool names for use in proposer
+        prompt JSON examples.
+
+        If context['available_tools'] is populated, build the list from the
+        real registry names; otherwise use the hardcoded fallback string.
+        """
+        import json as _json
+        available_tools: Dict[str, str] = context.get('available_tools', {})
+        if available_tools:
+            return _json.dumps(list(available_tools.keys()))
+        return fallback_list
+
     def _get_modality_specific_output_format(self) -> str:
         """Get modality-specific output format description"""
         if self.modality == "vision":
             return '"bounding_box": [x_min, y_min, x_max, y_max]  // pixel coordinates, integers'
         elif self.modality == "text":
-            return '"start_index": int, "end_index": int  // character positions'
+            return '"spans": [{"start_index": int, "end_index": int}]  // character positions; list one or more spans'
         elif self.modality == "tabular":
-            return '"feature_key": "string"  // column/feature name'
+            return '"feature_keys": ["feature_name"]  // column/feature names; list one or more features'
         else:
             return '"output": {...}'
 
@@ -506,14 +480,112 @@ class PromptBuilder(ABC):
                             'confidence': conf
                         })
 
-            # Handle statistics with attention coordinates
+            # Handle statistics
             stats = result.get('statistics', {})
             if stats:
-                # Handle LIME segments with bounding boxes
+                # ── Tabular: feature_importance (SHAP / LIME / IG tabular) ───
+                feature_importance = stats.get('feature_importance', [])
+                if feature_importance and isinstance(feature_importance[0], dict) and 'feature' in feature_importance[0]:
+                    fi0 = feature_importance[0]
+                    if 'shap_value' in fi0:
+                        val_key = 'shap_value'
+                    elif 'attribution_score' in fi0:
+                        val_key = 'attribution_score'
+                    else:
+                        val_key = 'weight'
+                    sorted_fi = sorted(feature_importance,
+                                       key=lambda x: abs(x.get(val_key, 0)), reverse=True)
+                    top_pos = [f for f in sorted_fi if f.get('direction', '') == 'positive'][:5]
+                    top_neg = [f for f in sorted_fi if f.get('direction', '') == 'negative'][:5]
+                    if top_pos:
+                        lines.append(f"- Top positive features ({val_key}):")
+                        for fi in top_pos:
+                            lines.append(f"  - {fi['feature']}: {fi.get(val_key, 0):+.4f}")
+                    if top_neg:
+                        lines.append(f"- Top negative features ({val_key}):")
+                        for fi in top_neg:
+                            lines.append(f"  - {fi['feature']}: {fi.get(val_key, 0):+.4f}")
+                    pos_val = stats.get('max_positive_weight', stats.get('max_positive',
+                              stats.get('top_positive', 'N/A')))
+                    neg_val = stats.get('max_negative_weight', stats.get('max_negative',
+                              stats.get('top_negative', 'N/A')))
+                    lines.append(f"- Max positive: {pos_val}  Max negative: {neg_val}")
+                    lines.append(f"- Total features: {stats.get('num_features', len(feature_importance))}")
+
+                # ── Tabular: feature_sensitivity (Sensitivity Analysis) ────────
+                feature_sensitivity = stats.get('feature_sensitivity', [])
+                if feature_sensitivity:
+                    sorted_fs = sorted(feature_sensitivity,
+                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=True)
+                    lines.append("- Top sensitive features (prob_drop):")
+                    for fs in sorted_fs[:10]:
+                        lines.append(
+                            f"  - {fs['feature']}: drop={fs.get('prob_drop', 0):+.4f}"
+                            f"  (orig={fs.get('original_prob', 0):.4f} → mod={fs.get('modified_prob', 0):.4f})"
+                        )
+                    lines.append(f"- Max prob_drop: {stats.get('max_prob_drop', 'N/A')}  "
+                                 f"Max prob_increase: {stats.get('max_prob_increase', 'N/A')}")
+
+                # ── Text: token_importance (IG text) ──────────────────────────
+                token_importance = stats.get('token_importance', [])
+                if token_importance:
+                    sorted_ti = sorted(token_importance,
+                                       key=lambda x: abs(x.get('attribution_score', 0)), reverse=True)
+                    top_pos = [t for t in sorted_ti if t.get('direction', '') == 'positive'][:5]
+                    top_neg = [t for t in sorted_ti if t.get('direction', '') == 'negative'][:5]
+                    if top_pos:
+                        lines.append("- Top positive tokens (attribution):")
+                        for ti in top_pos:
+                            lines.append(f"  - [{ti.get('token_index', '?')}] '{ti['token']}': {ti.get('attribution_score', 0):+.4f}")
+                    if top_neg:
+                        lines.append("- Top negative tokens (attribution):")
+                        for ti in top_neg:
+                            lines.append(f"  - [{ti.get('token_index', '?')}] '{ti['token']}': {ti.get('attribution_score', 0):+.4f}")
+                    lines.append(f"- Total tokens: {stats.get('num_tokens', len(token_importance))}  "
+                                 f"Max positive: {stats.get('max_positive', 'N/A')}  "
+                                 f"Max negative: {stats.get('max_negative', 'N/A')}")
+
+                # ── Text: word_importance (LIME text / SHAP text) ─────────────
+                word_importance = stats.get('word_importance', [])
+                if word_importance:
+                    wi0 = word_importance[0]
+                    wi_val_key = 'shap_value' if 'shap_value' in wi0 else 'weight'
+                    sorted_wi = sorted(word_importance,
+                                       key=lambda x: abs(x.get(wi_val_key, 0)), reverse=True)
+                    top_pos = [w for w in sorted_wi if w.get('direction', '') == 'positive'][:5]
+                    top_neg = [w for w in sorted_wi if w.get('direction', '') == 'negative'][:5]
+                    if top_pos:
+                        lines.append(f"- Top positive words ({wi_val_key}):")
+                        for wi in top_pos:
+                            lines.append(f"  - '{wi['word']}': {wi.get(wi_val_key, 0):+.4f}")
+                    if top_neg:
+                        lines.append(f"- Top negative words ({wi_val_key}):")
+                        for wi in top_neg:
+                            lines.append(f"  - '{wi['word']}': {wi.get(wi_val_key, 0):+.4f}")
+                    pos_val = stats.get('max_positive_weight', stats.get('top_positive', 'N/A'))
+                    neg_val = stats.get('max_negative_weight', stats.get('top_negative', 'N/A'))
+                    lines.append(f"- Words: {stats.get('num_important_words', stats.get('num_words', len(word_importance)))}  "
+                                 f"Max positive: {pos_val}  Max negative: {neg_val}")
+
+                # ── Text: word_sensitivity (Sensitivity Analysis text) ─────────
+                word_sensitivity = stats.get('word_sensitivity', [])
+                if word_sensitivity:
+                    sorted_ws = sorted(word_sensitivity,
+                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=True)
+                    lines.append("- Top sensitive words (prob_drop):")
+                    for ws in sorted_ws[:10]:
+                        lines.append(
+                            f"  - [{ws.get('word_index', '?')}] '{ws['word']}': drop={ws.get('prob_drop', 0):+.4f}"
+                            f"  (orig={ws.get('original_prob', 0):.4f} → masked={ws.get('masked_prob', 0):.4f})"
+                        )
+                    lines.append(f"- Max prob_drop: {stats.get('max_prob_drop', 'N/A')}  "
+                                 f"Max prob_increase: {stats.get('max_prob_increase', 'N/A')}")
+
+                # ── Vision: LIME image segments ────────────────────────────────
                 top_positive_segments = stats.get('top_positive_segments', [])
                 if top_positive_segments:
                     lines.append("- **LIME POSITIVE SEGMENTS:**")
-                    for seg in top_positive_segments[:5]:  # Top 5 segments
+                    for seg in top_positive_segments[:5]:
                         seg_id = seg.get('segment_id', '?')
                         weight = seg.get('weight', 0)
                         bbox = seg.get('bbox', [])
@@ -521,8 +593,6 @@ class PromptBuilder(ABC):
                             lines.append(f"  - Segment {seg_id}: weight={weight:.4f}, bbox={bbox}**")
                         else:
                             lines.append(f"  - Segment {seg_id}: weight={weight:.4f}")
-
-                    # Show important region ratio
                     important_ratio = stats.get('important_region_ratio', 0)
                     if important_ratio:
                         lines.append(f"- Important region ratio: {important_ratio:.2%}")
@@ -530,56 +600,53 @@ class PromptBuilder(ABC):
                 top_negative_segments = stats.get('top_negative_segments', [])
                 if top_negative_segments:
                     lines.append("- **LIME NEGATIVE SEGMENTS (oppose prediction):**")
-                    for seg in top_negative_segments[:3]:  # Top 3 negative
+                    for seg in top_negative_segments[:3]:
                         seg_id = seg.get('segment_id', '?')
                         weight = seg.get('weight', 0)
                         bbox = seg.get('bbox', [])
                         if bbox:
                             lines.append(f"  - Segment {seg_id}: weight={weight:.4f}, bbox={bbox}")
 
-                # Top attention/importance/gradient coordinates
+                # ── Vision: attention/importance/gradient/impact coordinates ───
                 top_coords = (
                     stats.get('top_attention_coords') or
                     stats.get('top_importance_coords') or
-                    stats.get('top_gradient_coords')
+                    stats.get('top_gradient_coords') or
+                    stats.get('top_impact_coords')
                 )
                 if top_coords and len(top_coords) > 0:
-                    # Calculate bounding box from top coordinates WITH PADDING
                     xs = [c.get('x', 0) for c in top_coords]
                     ys = [c.get('y', 0) for c in top_coords]
                     if xs and ys:
-                        # Raw attention bbox (often too small!)
                         raw_x_min, raw_x_max = min(xs), max(xs)
                         raw_y_min, raw_y_max = min(ys), max(ys)
                         raw_width = raw_x_max - raw_x_min
                         raw_height = raw_y_max - raw_y_min
-
-                        # Add padding to make it a reasonable region (at least 15% of image dimension)
                         min_width = max(int(img_width * 0.15), 15)
                         min_height = max(int(img_height * 0.15), 15)
-
-                        # Calculate center and expand
                         center_x = (raw_x_min + raw_x_max) / 2
                         center_y = (raw_y_min + raw_y_max) / 2
-
                         expanded_half_w = max(raw_width / 2, min_width / 2)
                         expanded_half_h = max(raw_height / 2, min_height / 2)
-
                         expanded_x_min = max(0, int(center_x - expanded_half_w))
                         expanded_x_max = min(img_width, int(center_x + expanded_half_w))
                         expanded_y_min = max(0, int(center_y - expanded_half_h))
                         expanded_y_max = min(img_height, int(center_y + expanded_half_h))
-
-                        # Check if expansion actually happened
                         was_expanded = (raw_width < min_width or raw_height < min_height)
-
                         if was_expanded:
                             lines.append(f"- Raw attention peaks: x=[{raw_x_min}, {raw_x_max}], y=[{raw_y_min}, {raw_y_max}] (only {raw_width}x{raw_height} pixels - TOO SMALL!)")
                             lines.append(f"- EXPANDED attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}]**")
                         else:
                             lines.append(f"- Attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}] ({raw_width}x{raw_height} pixels)")
 
-                # Other useful stats
+                # ── Vision: sensitivity analysis (perturbation curve) ──────────
+                if 'perturbation_levels' in stats and 'probabilities' in stats:
+                    orig_prob = stats.get('original_probability', 'N/A')
+                    final_prob = stats.get('final_probability', 'N/A')
+                    prob_drop = stats.get('probability_drop', 'N/A')
+                    lines.append(f"- Sensitivity: orig_prob={orig_prob}  final_prob={final_prob}  drop={prob_drop}")
+
+                # ── Vision: scalar summary metrics ─────────────────────────────
                 if 'mean_attention' in stats:
                     lines.append(f"- Mean attention: {stats['mean_attention']:.3f}")
                 if 'max_attention' in stats:
@@ -590,6 +657,12 @@ class PromptBuilder(ABC):
                     lines.append(f"- Mean importance: {stats['mean_importance']:.3f}")
                 if 'mean_gradient' in stats:
                     lines.append(f"- Mean gradient: {stats['mean_gradient']:.3f}")
+                if 'mean_impact' in stats:
+                    lines.append(f"- Mean impact: {stats['mean_impact']:.3f}")
+                if 'max_impact' in stats:
+                    lines.append(f"- Max impact: {stats['max_impact']:.3f}")
+                if 'high_impact_ratio' in stats:
+                    lines.append(f"- High impact ratio: {stats['high_impact_ratio']:.2%}")
 
         # Add summary recommendation at the end
         """
@@ -604,58 +677,6 @@ class PromptBuilder(ABC):
             lines.append(self._format_autonomous_tasks(autonomous_tasks))
 
         return "\n".join(lines) if lines else "No detailed statistics available."
-
-    def _format_extracted_features(self, features: Dict[str, Any]) -> str:
-        """Format extracted features for prompt"""
-        if not features:
-            return "No pre-extracted features available."
-
-        lines = []
-
-        # Handle the format with 'output' key (from VLM feature extraction)
-        output = features.get('output', {})
-        if output:
-            if 'bounding_box' in output:
-                bbox = output['bounding_box']
-                if isinstance(bbox, list) and len(bbox) == 4:
-                    lines.append(f"- Pre-extracted bounding box: [{bbox[0]}, {bbox[1]}, {bbox[2]}, {bbox[3]}]")
-            if 'start_index' in output:
-                lines.append(f"- Pre-extracted text span: [{output['start_index']}, {output.get('end_index', 0)}]")
-            if 'feature_key' in output:
-                lines.append(f"- Pre-extracted feature: {output['feature_key']}")
-
-        # Handle explanation from feature extraction
-        explanation = features.get('explanation', '')
-        if explanation:
-            lines.append(f"- Extraction reasoning: {explanation}")
-
-        # Handle confidence
-        confidence = features.get('confidence', 0)
-        if confidence:
-            lines.append(f"- Extraction confidence: {confidence:.2f}")
-
-        # Legacy format support
-        if 'responsible_regions' in features:
-            for i, region in enumerate(features['responsible_regions'][:3]):
-                label = region.get('label', f'Region {i+1}')
-                importance = region.get('importance', 0)
-                bbox = region.get('bbox', region.get('bounding_box'))
-                if bbox:
-                    lines.append(f"- {label}: importance={importance:.2f}, bbox={bbox}")
-                else:
-                    lines.append(f"- {label}: importance={importance:.2f}")
-
-        if 'key_visual_features' in features:
-            lines.append(f"- Key features: {', '.join(features['key_visual_features'][:5])}")
-
-        if 'importance_distribution' in features:
-            dist = features['importance_distribution']
-            if 'primary_region_contribution' in dist:
-                lines.append(f"- Primary region contribution: {dist['primary_region_contribution']:.2%}")
-            if 'secondary_regions_contribution' in dist:
-                lines.append(f"- Secondary regions contribution: {dist['secondary_regions_contribution']:.2%}")
-
-        return "\n".join(lines) if lines else "No pre-extracted features available."
 
     def _build_image_size_constraint(self, tool_results: Dict[str, Any]) -> str:
         """Build image size constraint section for vision modality"""
@@ -712,9 +733,8 @@ class PromptBuilder(ABC):
         return "\n".join(lines) if lines else ""
 
     def _format_results_comprehensive(self, results: Dict[str, Any]) -> str:
-        """Comprehensive formatting of results including tool summaries, detailed stats, and extracted features"""
+        """Comprehensive formatting of results including tool summaries, detailed stats, and autonomous results"""
         tool_results = results.get('tool_results', {})
-        extracted = results.get('extracted_features', {})
         autonomous_results = results.get('autonomous_results', {})
 
         sections = []

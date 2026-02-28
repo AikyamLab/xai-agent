@@ -1780,7 +1780,7 @@ if __name__ == "__main__":
     # Initialize VLM with Qwen3-VL-8B-Instruct
     vlm = VisionLanguageModel(
         model_id="Qwen/Qwen3-VL-8B-Instruct",
-        temperature=0.1
+        temperature=0.0
     )
 
     print(f"\nModel info: {vlm.get_info()}")

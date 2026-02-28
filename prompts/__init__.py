@@ -10,8 +10,6 @@ from .base_prompt import (
     Modality,
     AttributionType,
     BoundingBox,
-    TextSpan,
-    TabularFeature,
     ExtractionField,
 )
 
@@ -71,8 +69,6 @@ __all__ = [
     "Modality",
     "AttributionType",
     "BoundingBox",
-    "TextSpan",
-    "TabularFeature",
     "ExtractionField",
     # Schema utilities
     "OutputSchema",

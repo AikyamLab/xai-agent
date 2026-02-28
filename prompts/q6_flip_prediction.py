@@ -38,6 +38,8 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
         prediction = context.get('prediction', {})
         target_class = context.get('target_class', 'a different class')
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -46,7 +48,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 **Model Information**:
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
-- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class_name', 'Unknown')})
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - Target Prediction: {target_class}
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
@@ -54,7 +56,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 **Input Content Description**:
 {context.get(modality_config['description_key'], 'Not available')}
 
-**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class', 'current')}" to "{target_class}".
+**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class_name', 'current')}" to "{target_class}".
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -63,7 +65,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
    - Propose specific change plans with {modality_config['location_type']}
 
 2. **External XAI Tools**: Use established explainability methods to identify modification targets:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -78,19 +80,13 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for finding {self.modality} counterfactuals"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (counterfactual generation)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} to modify that would flip prediction to target class
-- Evaluation metric: 1 if modified input predicts target class, else 0
-- Changes should be MINIMAL but sufficient to flip prediction
 
 Provide your strategy as a JSON object:
 """
@@ -172,12 +168,15 @@ Provide your strategy as a JSON object:
             "new_value": "Stable Diffusion inpainting prompt describing ONLY the desired appearance of the modified region (e.g. 'a deer head with elongated snout, large pointed ears, brown fur, side-facing eyes'). Do NOT mention the original class or use phrases like 'replace X with Y'. Just describe what should appear in this region as if painting it from scratch."
         }'''
         elif self.modality == "text":
-            output_format = '''"change_plan": {
-            "start_index": int,
-            "end_index": int,
-            "action": "change",
-            "new_value": "replacement text"
-        }'''
+            output_format = '''"change_plan": [
+            {
+                "start_index": int,
+                "end_index": int,
+                "action": "change",
+                "new_value": "replacement text"
+            }
+        ]
+        // Include multiple entries if changing several spans is needed to flip the prediction'''
         else:
             # Show original pre-encoding feature names and values so the agent can reason
             # naturally. The evaluator handles one-hot translation internally.
@@ -208,7 +207,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Target Prediction: {target_class}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
@@ -231,7 +230,7 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
 - For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
   - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
-- For text: identify span to replace and provide new text
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
 - For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
 - The change should be MINIMAL but sufficient to flip prediction
 

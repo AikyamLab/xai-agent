@@ -38,6 +38,8 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
         prediction = context.get('prediction', {})
         queried_part = context.get('queried_part', 'a specific region')
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -65,7 +67,7 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
    - Estimate the likelihood of prediction change
 
 2. **External XAI Tools**: Use established explainability methods to assess importance:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -80,20 +82,13 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for assessing masking impact on {self.modality}"
     }}
 }}
-
-**Guidelines for {(self.modality or 'tabular').upper()} tasks (counterfactual prediction)**:
-- {modality_config['spatial_note']}
-- Target: Determine if the queried {modality_config['element_type']} has HIGH or LOW importance
-- Evaluation metric: 1 if agent's prediction matches actual outcome, else 0
-- HIGH attribution -> masking CHANGES prediction (output 1)
-- LOW attribution -> masking does NOT change prediction (output 0)
 
 Provide your strategy as a JSON object:
 """
@@ -176,7 +171,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Current Prediction
-Class: {prediction.get('predicted_class', 'Unknown')}
+Class: {prediction.get('predicted_class_name', 'Unknown')}
 Confidence: {prediction.get('confidence', 0.0):.4f}
 {size_constraint}
 ## XAI Analysis
@@ -226,7 +221,7 @@ Respond with ONLY JSON:"""
 {context.get('user_question', self.question_template)}
 
 ## Current Prediction
-Class: {prediction.get('predicted_class', 'Unknown')}
+Class: {prediction.get('predicted_class_name', 'Unknown')}
 Confidence: {prediction.get('confidence', 0.0):.4f}
 
 ## Part to be Masked
@@ -252,8 +247,6 @@ Based on the XAI analysis, predict whether masking this part would change the pr
 **Critical Requirements:**
 - Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
 - Base your decision on the attribution analysis
-- High attribution part -> prediction likely changes
-- Low attribution part -> prediction likely unchanged
 
 Respond with ONLY JSON:"""
         return prompt

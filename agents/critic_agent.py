@@ -476,6 +476,9 @@ class CriticAgent(BaseAgent):
             threshold=threshold
         )
 
+        # Save prompt
+        self._save_prompt(prompt, question, "critic_prompt")
+
         # Call VLM
         response = self.invoke_vlm(prompt)
 

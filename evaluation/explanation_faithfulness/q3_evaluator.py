@@ -62,6 +62,16 @@ class Q3Evaluator(BaseEvaluator):
                 errors=["Could not extract region from agent output"]
             )
 
+        err = self.validate_region(region, original_input, **kwargs)
+        if err:
+            return EvaluationResult(
+                score=0.0,
+                passed=False,
+                metric_name=self.metric_name,
+                metric_formula=self.metric_formula,
+                errors=[err]
+            )
+
         # Get original top-1 and top-2 classes
         original_probs = original_prediction.get('probabilities')
         if original_probs is None:
@@ -85,14 +95,15 @@ class Q3Evaluator(BaseEvaluator):
         p_top2_original = float(original_probs[top2_class])
 
         # Mask using modality-appropriate default strategy
-        masker = get_masker(self.modality)
+        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
         masked_input = masker.mask(
             original_input, region,
             dataset_base_name=kwargs.get('dataset_base_name'),
             row_no=kwargs.get('row_no'),
             tool_name=kwargs.get('tool_name'),
             mask_suffix=kwargs.get('mask_suffix', ''),
-            feature_names=kwargs.get('feature_names', [])
+            feature_names=kwargs.get('feature_names', []),
+            original_features=kwargs.get('original_features', {})
         )
 
         processor = kwargs.get('processor')

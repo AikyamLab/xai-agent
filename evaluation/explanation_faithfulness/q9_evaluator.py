@@ -72,16 +72,34 @@ class Q9Evaluator(MultiInstanceEvaluator):
             # Extract regions for all inputs
             output_data = agent_output.get('output', {})
             regions = {}
-            for key in output_data:
-                if key.startswith('input_'):
-                    regions[key] = self._extract_instance_region(output_data[key])
+
+            # New list format: {"instances": [{...}, {...}, ...]}
+            instances_list = output_data.get('instances')
+            if isinstance(instances_list, list):
+                for i, inst_data in enumerate(instances_list):
+                    key = f"input_{chr(ord('A') + i)}"
+                    regions[key] = self._extract_instance_region(inst_data)
+            else:
+                # Legacy named-key format: input_A, input_B, input_C, ...
+                for key in output_data:
+                    if key.startswith('input_'):
+                        regions[key] = self._extract_instance_region(output_data[key])
 
             if len(regions) < len(inputs):
-                return EvaluationResult(
-                    score=0.0,
-                    passed=False,
-                    errors=["Regions not provided for all inputs"]
-                )
+                # Q9 identifies a SHARED feature across all inputs.  If the model
+                # provided fewer instance entries than inputs (e.g. schema defaulted
+                # to 2 while 3 inputs exist), broadcast the last available region to
+                # fill the gap rather than failing outright.
+                if len(regions) >= 1:
+                    last_region = regions[f"input_{chr(ord('A') + len(regions) - 1)}"]
+                    for i in range(len(regions), len(inputs)):
+                        regions[f"input_{chr(ord('A') + i)}"] = last_region
+                else:
+                    return EvaluationResult(
+                        score=0.0,
+                        passed=False,
+                        errors=["Regions not provided for all inputs"]
+                    )
 
             # Evaluate each input
             processor = kwargs.get('processor')
@@ -100,6 +118,12 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     details_per_input.append({"error": "Region not found"})
                     continue
 
+                err = self.validate_region(region, input_data, **kwargs)
+                if err:
+                    improvements.append(False)
+                    details_per_input.append({"error": f"Bad agent region: {err}"})
+                    continue
+
                 # Get correct class for this input
                 correct_class_idx = self._get_class_index(ground_truths[i], class_names)
 
@@ -116,7 +140,10 @@ class Q9Evaluator(MultiInstanceEvaluator):
                 # Mask and get new prediction (use GRAY for neutral masking)
                 # Use instance suffix for multi-instance saving (e.g., _A, _B, _C...)
                 instance_suffix = f"_{chr(ord('A') + i)}"
-                masker = get_masker(self.modality)
+                masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
+                # For multi-instance Q9, original_features may be a list; pick per-instance
+                raw_orig = kwargs.get('original_features', {})
+                per_inst_orig = raw_orig[i] if isinstance(raw_orig, list) and i < len(raw_orig) else raw_orig
                 masked_input = masker.mask(
                     input_data, region,
                     dataset_base_name=kwargs.get('dataset_base_name'),
@@ -124,7 +151,8 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     tool_name=kwargs.get('tool_name'),
                     instance_suffix=instance_suffix,
                     mask_suffix=kwargs.get('mask_suffix', ''),
-                    feature_names=kwargs.get('feature_names', [])
+                    feature_names=kwargs.get('feature_names', []),
+                    original_features=per_inst_orig
                 )
                 modified_pred = self.get_prediction(model, masked_input, processor, device)
                 modified_probs = modified_pred.get('probabilities')
@@ -208,12 +236,24 @@ class Q9Evaluator(MultiInstanceEvaluator):
             bbox = instance_data.get('bounding_box')
             return {"bounding_box": bbox} if bbox else None
         elif self.modality == "text":
+            # New multi-span format
+            spans = instance_data.get('spans')
+            if spans and isinstance(spans, list):
+                return {"spans": spans}
+            # Legacy single-span
             start = instance_data.get('start_index')
             end = instance_data.get('end_index')
-            return {"start_index": start, "end_index": end} if start is not None else None
+            if start is not None and end is not None:
+                return {"spans": [{"start_index": start, "end_index": end}]}
+            return None
         else:
+            # New multi-key format
+            keys = instance_data.get('feature_keys')
+            if keys and isinstance(keys, list):
+                return {"feature_keys": keys}
+            # Legacy single-key
             key = instance_data.get('feature_key')
-            return {"feature_key": key} if key else None
+            return {"feature_keys": [key]} if key else None
 
     def _get_class_index(self, class_ref: Any, class_names=None) -> int:
         """Convert class reference to index. class_names may be a list or dict."""

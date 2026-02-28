@@ -44,6 +44,8 @@ NO_SF=false
 SF_MAX_SAMPLES=""
 FAITHFULNESS_THRESHOLD=0.1
 VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
+TINKER_CHECKPOINT=""   # e.g. "tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500"
+TINKER_LORA_RANK=16
 PARALLEL=false
 MAX_PARALLEL_JOBS=4
 
@@ -124,7 +126,12 @@ Options:
     --faithfulness_threshold Threshold for faithfulness (default: 0.1)
     --vlm MODEL              VLM model ID (default: Qwen/Qwen3-VL-8B-Instruct)
                              API models: gemini-2.5-pro, gemini-3-pro
-                             Tinker: tinker/Qwen/Qwen3-VL-30B-A3B-Instruct
+                             Tinker base: tinker/Qwen3-VL-30B-A3B-Instruct
+    --tinker_checkpoint CKP  Tinker LoRA/DPO checkpoint (mode=test only).
+                             Format: tinker/<run_id>--<step>
+                             E.g. tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500
+                             Requires --vlm to be a tinker/* base model.
+    --tinker_lora_rank N     LoRA rank used during training (default: 16)
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
     --parallel               Run jobs in parallel
     --max_jobs N             Maximum parallel jobs (default: 4)
@@ -338,6 +345,14 @@ while [[ $# -gt 0 ]]; do
             VLM_MODEL="$2"
             shift 2
             ;;
+        --tinker_checkpoint)
+            TINKER_CHECKPOINT="$2"
+            shift 2
+            ;;
+        --tinker_lora_rank)
+            TINKER_LORA_RANK="$2"
+            shift 2
+            ;;
         --output_dir)
             OUTPUT_DIR="$2"
             shift 2
@@ -388,6 +403,9 @@ log_info "  No improvement: $NO_IMPROVEMENT"
 log_info "  No strategy faithfulness: $NO_SF"
 log_info "  Faithfulness threshold: $FAITHFULNESS_THRESHOLD"
 log_info "  Output dir: $OUTPUT_DIR"
+if [[ -n "$TINKER_CHECKPOINT" ]]; then
+    log_info "  Tinker checkpoint: $TINKER_CHECKPOINT (rank=$TINKER_LORA_RANK)"
+fi
 
 # ============================================================================
 # Build and Run Jobs
@@ -479,6 +497,11 @@ for dataset in $DATASETS_TO_RUN; do
 
             if [[ -n "$SF_MAX_SAMPLES" ]]; then
                 CMD="$CMD --sf_max_samples $SF_MAX_SAMPLES"
+            fi
+
+            if [[ -n "$TINKER_CHECKPOINT" ]]; then
+                CMD="$CMD --tinker_checkpoint $TINKER_CHECKPOINT"
+                CMD="$CMD --tinker_lora_rank $TINKER_LORA_RANK"
             fi
 
             JOBS+=("$CMD")

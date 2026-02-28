@@ -47,6 +47,7 @@ class ProposerAgent(BaseAgent):
         super().__init__(vlm, output_dir, "ProposerAgent")
 
         self.data_model_loader = data_model_loader
+        self.tool_registry = None  # Set via set_tool_registry() after ActorAgent.initialize_tools()
 
         if models_dir is None:
             models_dir = os.path.join(os.getcwd(), "models_to_read")
@@ -56,6 +57,29 @@ class ProposerAgent(BaseAgent):
         self.strategy_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"  Models directory: {self.models_dir}")
+
+    def set_tool_registry(self, tool_registry: Any) -> None:
+        """
+        Provide the proposer with the actual tool registry so that
+        build_proposer_prompt receives a live available_tools dict
+        instead of the hardcoded fallback lists in each PromptBuilder.
+
+        Call this after ActorAgent.initialize_tools() in the pipeline:
+            self.proposer.set_tool_registry(self.actor.tool_registry)
+        """
+        self.tool_registry = tool_registry
+
+    def _get_tool_info_for_context(self, modality: str) -> Dict[str, str]:
+        """
+        Return {tool_name: description} for tools that are actually available
+        in the registry for the given modality.
+
+        Falls back to an empty dict when no registry is set; prompt builders
+        will then use their own hardcoded fallback values.
+        """
+        if self.tool_registry is not None:
+            return self.tool_registry.get_tool_descriptions()
+        return {}
 
     def run(
         self,
@@ -183,7 +207,8 @@ class ProposerAgent(BaseAgent):
 
             strategy = self._generate_strategy_with_prompt_builder(
                 prompt_builder=prompt_builder,
-                context=context
+                context=context,
+                question=question
             )
 
         # Pure-reasoning strategy is valid: actor will skip tool execution and use VLM reasoning directly
@@ -232,6 +257,7 @@ class ProposerAgent(BaseAgent):
             "user_question": question.get("question", ""),
             "model_info": model_info,
             "prediction": prediction,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         if modality == "vision":
@@ -261,9 +287,14 @@ class ProposerAgent(BaseAgent):
             else:
                 context["data_description"] = str(features)[:400]
 
-        # Add target_class for counterfactual questions (Q5-Q7)
+        # Add target_class / queried_part / part_to_change for counterfactual questions (Q5-Q7)
         if question.get("q_type") in [5, 6, 7]:
-            context["target_class"] = question.get("target_class", "a different prediction")
+            extracted = self._extract_question_context_fields(question)
+            context["target_class"] = extracted.get("target_class", question.get("target_class", "a different prediction"))
+            if "queried_part" in extracted:
+                context["queried_part"] = extracted["queried_part"]
+            if "part_to_change" in extracted:
+                context["part_to_change"] = extracted["part_to_change"]
 
         # Add ground_truth for spurious feature questions (Q8-Q10)
         if question.get("q_type") in [8, 9, 10]:
@@ -296,6 +327,7 @@ class ProposerAgent(BaseAgent):
             "user_question": question.get("question", ""),
             "model_info": model_info,
             "num_instances": num_instances,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         # Add all predictions
@@ -371,7 +403,8 @@ class ProposerAgent(BaseAgent):
     def _generate_strategy_with_prompt_builder(
         self,
         prompt_builder: Any,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        question: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Generate strategy using PromptBuilder"""
         # Build prompt
@@ -383,6 +416,9 @@ class ProposerAgent(BaseAgent):
             prompt = prompt_builder.build_proposer_prompt(context)
 
         print(f"\n  Generated proposer prompt ({len(prompt)} chars)")
+
+        if question:
+            self._save_prompt(prompt, question, "proposer_prompt")
 
         strategy = self.invoke_vlm_for_json(prompt)
 
@@ -588,7 +624,8 @@ class ProposerAgent(BaseAgent):
             prompt_builder=prompt_builder,
             context=context,
             proposer_reflection=proposer_reflection,
-            original_strategy=original_strategy
+            original_strategy=original_strategy,
+            question=question
         )
 
         # Pure-reasoning strategy is valid: no tools/tasks means actor uses direct VLM reasoning
@@ -710,10 +747,12 @@ Generate a new strategy in the same JSON format as before.
         instance_a = question.get('instance_A', {})
         instance_b = question.get('instance_B', {})
 
+        modality = question.get('modality', 'vision')
         context = {
             "user_question": question.get("question", question.get("example", "")),
             "model_info": model_info,
             "num_instances": 2,
+            "available_tools": self._get_tool_info_for_context(modality),
         }
 
         # Add predictions
@@ -742,7 +781,8 @@ Generate a new strategy in the same JSON format as before.
         prompt_builder: Any,
         context: Dict[str, Any],
         proposer_reflection: str,
-        original_strategy: Dict[str, Any]
+        original_strategy: Dict[str, Any],
+        question: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Generate improved strategy using reflection feedback.
@@ -757,12 +797,15 @@ Generate a new strategy in the same JSON format as before.
             Improved strategy dictionary
         """
         # Build reflection-aware prompt
+        import json as _json
         original_tools = [t.get('tool_name') for t in original_strategy.get('selected_tools', [])]
+        original_auto_tasks = original_strategy.get('autonomous_tasks', [])
 
         reflection_prompt = f"""You are the Proposer Agent. Your previous strategy did not achieve satisfactory explanation faithfulness.
 
 ## Previous Strategy
 - Tools Used: {original_tools}
+- Autonomous Tasks: {_json.dumps(original_auto_tasks, ensure_ascii=False)}
 - Reasoning: {original_strategy.get('reasoning', 'N/A')}
 
 ## Critic's Feedback on Your Strategy
@@ -790,6 +833,9 @@ Generate a new strategy in the same JSON format as before.
         full_prompt = f"{base_prompt}\n\n{reflection_prompt}"
 
         print(f"\n  Generated reflection-aware prompt ({len(full_prompt)} chars)")
+
+        if question:
+            self._save_prompt(full_prompt, question, "proposer_prompt_improved")
 
         strategy = self.invoke_vlm_for_json(full_prompt)
 
