@@ -39,6 +39,8 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
         """Build prompt for Proposer"""
         prediction = context.get('prediction', {})
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -63,7 +65,7 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
    - Provide {modality_config['location_type']} and confidence scores for unimportant {modality_config['element_type']}
 
 2. **External XAI Tools**: Use established explainability methods to find LOW attribution regions:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -78,18 +80,13 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for {self.modality} modality"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (negative/minimal attribution)**:
-- {modality_config['spatial_note']}
-- Target: Find {modality_config['element_type']} with LOWEST attribution scores (near-zero importance)
-- Evaluation metric: -(P_original - P_modified) (smaller difference = better, part was indeed unimportant)
 
 Provide your strategy as a JSON object:
 """
@@ -172,7 +169,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Model Prediction
-Class: {prediction.get('predicted_class', 'Unknown')}
+Class: {prediction.get('predicted_class_name', 'Unknown')}
 Confidence: {prediction.get('confidence', 0.0):.4f}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
@@ -180,7 +177,7 @@ Confidence: {prediction.get('confidence', 0.0):.4f}
 
 ## Your Task
 Identify the part that had LEAST impact on the prediction.
-This should be a part that, if masked, would NOT significantly change the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
 
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
@@ -192,10 +189,10 @@ This should be a part that, if masked, would NOT significantly change the predic
 }}
 
 **Critical Requirements:**
-- Identify ONE region/span/feature with LOWEST attribution
-- This part should be irrelevant or background
-- Masking this part should NOT change the prediction significantly
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
+- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
         return prompt

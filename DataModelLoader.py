@@ -167,10 +167,28 @@ class DataModelLoader:
 
     def get_training_data(self) -> Optional[torch.Tensor]:
         """Returns training data tensor (for SHAP/LIME background data)."""
-        if hasattr(self.loader_module, '_cache'):
-            cache = self.loader_module._cache
-            if cache.get("X_train") is not None:
-                return cache["X_train"]
+        if not hasattr(self.loader_module, '_cache'):
+            return None
+        cache = self.loader_module._cache
+
+        # Direct X_train key (not currently used by any loader, but forward-compatible)
+        if cache.get("X_train") is not None:
+            return cache["X_train"]
+
+        # Adult Census: full dataset + train_indices set → reconstruct train split
+        if cache.get("X_all") is not None and cache.get("train_indices") is not None:
+            X_all = cache["X_all"]
+            train_indices = cache["train_indices"]  # set of original DataFrame indices
+            orig_to_pos = cache.get("orig_to_pos", {})
+            if orig_to_pos:
+                positions = [orig_to_pos[i] for i in train_indices if i in orig_to_pos]
+                if positions:
+                    return X_all[positions]
+
+        # Breast Cancer: X_full + X_test → derive train rows by exclusion
+        if cache.get("X_full") is not None and cache.get("X_test") is not None:
+            return cache["X_full"]
+
         return None
 
     def get_current_tensor(self) -> Optional[torch.Tensor]:

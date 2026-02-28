@@ -77,7 +77,7 @@ def run_rerun():
     print(f"Found {len(all_worse)} worse cases.")
     
     random.seed(42)
-    sample_cases = random.sample(all_worse, min(3, len(all_worse)))
+    sample_cases = random.sample(all_worse, min(10, len(all_worse)))
     
     # 2. Backup and modify vlm_wrapper.py
     if not VLM_WRAPPER_BACKUP.exists():
@@ -103,7 +103,7 @@ def run_rerun():
     try:
         # 4. Run pipeline for each case
         for i, case in enumerate(sample_cases):
-            print(f"\n[{i+1}/3] Rerunning {case['dataset_base_name']} row {case['row_no']} (Orig Delta: {case['orig_delta']:.4f})")
+            print(f"\n[{i+1}/10] Rerunning {case['dataset_base_name']} row {case['row_no']} (Orig Delta: {case['orig_delta']:.4f})")
             
             # dataset_path e.g. dataset/train/tabular/adult_2layernn_q1.json
             dataset_file = f"dataset/train/{case['modality']}/{case['dataset_base_name']}.json"

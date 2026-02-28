@@ -100,18 +100,29 @@ class XAIPipelineV2:
         output_dir: Optional[str] = None,
         dataset_dir: Optional[str] = None,
         models_dir: Optional[str] = None,
-        mode: str = "test"
+        mode: str = "test",
+        tinker_checkpoint: Optional[str] = None,
+        tinker_lora_rank: int = 16,
+        vlm: Optional[Any] = None,
     ):
         """
         Initialize XAI Pipeline V2.
 
         Args:
-            vlm_model_id: VLM model ID
+            vlm_model_id: VLM model ID (ignored when vlm is provided)
             output_dir: Output directory
             dataset_dir: Directory containing datasets
             models_dir: Directory containing models
             mode: Dataset split to use ('train' or 'test'); benchmark JSONs are
                   loaded from ``dataset_dir/{mode}/{modality}/``.
+            tinker_checkpoint: Tinker checkpoint to load for evaluation, e.g.
+                  'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'.
+                  Only applied when mode='test'. Requires vlm_model_id to be a
+                  tinker/* model (used as the LoRA base model).
+            tinker_lora_rank: LoRA rank used during DPO/LoRA training (default: 16).
+            vlm: Optional pre-built VLM instance. When provided, vlm_model_id and
+                 tinker_checkpoint are ignored. Useful for RL training where the VLM
+                 is a custom RLSamplingVLM that records token trajectories.
         """
         self.mode = mode
 
@@ -139,9 +150,24 @@ class XAIPipelineV2:
         print(f"Models directory: {self.models_dir}")
         print(f"Output directory: {self.output_dir}")
 
-        # Initialize VLM
-        print("\nInitializing VLM...")
-        self.vlm = create_vlm(model_id=vlm_model_id)
+        if vlm is not None:
+            # Use the provided VLM directly (e.g. RLSamplingVLM for GRPO training)
+            print("\nUsing provided VLM instance (skipping create_vlm).")
+            self.vlm = vlm
+        else:
+            # If a tinker_checkpoint is provided but the caller did not explicitly select a
+            # tinker/* base model (i.e. the default local model is still set), auto-derive
+            # the base model from the checkpoint name so we go through the Tinker path
+            # instead of trying to load an 8B / 30B model locally.
+            if tinker_checkpoint is not None and not vlm_model_id.startswith("tinker/"):
+                derived = self._derive_tinker_base_model(tinker_checkpoint)
+                if derived:
+                    print(f"\nAuto-deriving VLM base model from tinker_checkpoint: tinker/{derived}")
+                    vlm_model_id = f"tinker/{derived}"
+
+            # Initialize VLM
+            print("\nInitializing VLM...")
+            self.vlm = create_vlm(model_id=vlm_model_id)
 
         # Initialize three agents using new modular system
         print("\nInitializing Agents (New Architecture)...")
@@ -151,6 +177,14 @@ class XAIPipelineV2:
             output_dir=str(self.output_dir),
             models_dir=str(self.models_dir)
         )
+
+        # Load Tinker LoRA/DPO checkpoint for evaluation (test mode only)
+        if tinker_checkpoint is not None:
+            if mode == "test":
+                self._load_tinker_checkpoint(tinker_checkpoint, tinker_lora_rank)
+            else:
+                print(f"\nWarning: tinker_checkpoint is ignored in mode='{mode}' "
+                      f"(only applied when mode='test').")
 
         # Strategy faithfulness evaluator (lazy initialization)
         self.tool_attribution_evaluator: Optional[ToolAttributionEvaluator] = None
@@ -166,6 +200,119 @@ class XAIPipelineV2:
         self.sf_cache_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nXAI Pipeline V2 initialized successfully!")
+
+    # =========================================================================
+    # Tinker Checkpoint Loading (test-mode evaluation of fine-tuned models)
+    # =========================================================================
+
+    @staticmethod
+    def _derive_tinker_base_model(checkpoint: str) -> Optional[str]:
+        """Extract the base model name from a tinker checkpoint path.
+
+        Expected format: 'tinker/{algo}_{ModelName}_{timestamp}--{step}'
+        e.g. 'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'
+             -> 'Qwen3-VL-30B-A3B-Instruct'
+
+        Returns the ModelName portion, or None if parsing fails.
+        """
+        name = checkpoint.removeprefix("tinker/")
+        run_id = name.split("--")[0]          # strip '--step-...' suffix
+        parts = run_id.split("_")             # ['dpo', 'Qwen3', 'VL', '30B', ..., '1771865187']
+        if len(parts) < 3:
+            return None
+        # Drop the algorithm prefix (first part) and the numeric timestamp (last part)
+        inner = parts[1:-1] if parts[-1].isdigit() else parts[1:]
+        if not inner:
+            return None
+        return "-".join(inner)                # 'Qwen3-VL-30B-A3B-Instruct'
+
+    def _load_tinker_checkpoint(self, checkpoint: str, lora_rank: int = 16) -> None:
+        """
+        Load a fine-tuned LoRA/DPO checkpoint from Tinker and replace the VLM's
+        sampling client.  Only called when mode='test'.
+
+        The checkpoint path format is 'tinker/<run_id>--<step>', e.g.:
+            'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'
+
+        This is converted to 'tinker://<run_id>/<step>' for load_state(), then
+        save_weights_for_sampler() prepares it for inference.
+
+        Args:
+            checkpoint:  Tinker checkpoint path as passed via --tinker_checkpoint.
+            lora_rank:   LoRA rank used during training (must match the original job).
+        """
+        try:
+            import tinker
+        except ImportError:
+            raise ImportError(
+                "tinker package not available. Install with: pip install tinker"
+            )
+
+        from vlm_wrapper import TinkerVisionLanguageModel
+        if not isinstance(self.vlm, TinkerVisionLanguageModel):
+            raise RuntimeError(
+                f"tinker_checkpoint requires a Tinker-backed VLM (--vlm tinker/...), "
+                f"but current VLM is {type(self.vlm).__name__}."
+            )
+
+        # Parse 'tinker/run_id--step_name'  ->  'tinker://run_id/step_name'
+        checkpoint_name = checkpoint.removeprefix("tinker/")
+        if "--" in checkpoint_name:
+            run_id, step = checkpoint_name.split("--", 1)
+            tinker_path = f"tinker://{run_id}/{step}"
+        else:
+            # Fallback: treat the whole name as the path component
+            tinker_path = f"tinker://{checkpoint_name}"
+
+        base_model = self.vlm.model_id  # e.g. "Qwen/Qwen3-VL-30B-A3B-Instruct"
+
+        print(f"\nLoading Tinker LoRA/DPO checkpoint for evaluation...")
+        print(f"  Checkpoint tinker path : {tinker_path}")
+        print(f"  Base model             : {base_model}")
+        print(f"  LoRA rank              : {lora_rank}")
+
+        import time
+        max_retries = 5
+        base_delay = 10  # seconds; doubles each attempt
+
+        last_exc: Exception = RuntimeError("unreachable")
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    delay = base_delay * (2 ** (attempt - 2))  # 10, 20, 40, 80 s
+                    print(f"  Retry {attempt}/{max_retries} after {delay}s ...")
+                    time.sleep(delay)
+
+                service_client = tinker.ServiceClient()
+                training_client = service_client.create_lora_training_client(
+                    base_model=base_model,
+                    rank=lora_rank,
+                )
+                training_client.load_state(tinker_path)
+
+                sampling_path = training_client.save_weights_for_sampler(name="eval").result().path
+                print(f"  Sampler weights path   : {sampling_path}")
+
+                # Replace the sampling client in-place so the existing VLM object is reused
+                self.vlm.sampling_client = service_client.create_sampling_client(
+                    model_path=sampling_path
+                )
+                break  # success
+
+            except Exception as exc:
+                last_exc = exc
+                print(f"  Attempt {attempt}/{max_retries} failed: {exc}")
+                if attempt == max_retries:
+                    raise RuntimeError(
+                        f"Failed to load Tinker checkpoint after {max_retries} attempts: {exc}"
+                    ) from exc
+
+        # Propagate updated VLM to all three agents
+        self.proposer.vlm = self.vlm
+        self.actor.vlm = self.vlm
+        self.critic.vlm = self.vlm
+
+        print("Tinker checkpoint loaded successfully.")
 
     # =========================================================================
     # Image Path Helpers (for auto-constructing paths from root + dataset + index)
@@ -404,6 +551,7 @@ class XAIPipelineV2:
 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 self.critic.set_model(self.data_model_loader.get_model())
 
             # Load both instances based on modality
@@ -687,7 +835,8 @@ class XAIPipelineV2:
                 inputs={'A': input_tensors['A'], 'B': input_tensors['B']},
                 predictions={'A': predictions['A'], 'B': predictions['B']},
                 processor=model_info.get('processor'),
-                device=model_info.get('device', 'cuda')
+                device=model_info.get('device', 'cuda'),
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -804,7 +953,8 @@ class XAIPipelineV2:
                         predictions={'A': predictions['A'], 'B': predictions['B']},
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -976,7 +1126,8 @@ class XAIPipelineV2:
                 feature_names=model_info.get('feature_names', []),
                 inputs=input_tensors,
                 predictions=predictions_list,
-                ground_truths=ground_truths
+                ground_truths=ground_truths,
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -1128,7 +1279,8 @@ class XAIPipelineV2:
                         inputs=input_tensors,
                         predictions=predictions_list,
                         ground_truths=ground_truths,
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -1312,7 +1464,8 @@ class XAIPipelineV2:
                 processor=model_info.get('processor'),
                 device=model_info.get('device', 'cuda'),
                 class_names=model_info.get('label_map', {}),
-                feature_names=model_info.get('feature_names', [])
+                feature_names=model_info.get('feature_names', []),
+                original_features=question.get('features', {})
             )
         else:
             print("  Skipping faithfulness evaluation (no model or disabled)")
@@ -1470,7 +1623,8 @@ class XAIPipelineV2:
                         device=model_info.get('device', 'cuda'),
                         class_names=model_info.get('label_map', {}),
                         feature_names=model_info.get('feature_names', []),
-                        suffix="_improved"
+                        suffix="_improved",
+                        original_features=question.get('features', {})
                     )
 
                     # Calculate improvement metrics
@@ -1749,6 +1903,7 @@ class XAIPipelineV2:
                 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 # Set model for critic
                 self.critic.set_model(self.data_model_loader.get_model())
 
@@ -1984,6 +2139,7 @@ class XAIPipelineV2:
 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
+                self.proposer.set_tool_registry(self.actor.tool_registry)
                 self.critic.set_model(self.data_model_loader.get_model())
 
             except Exception as e:
@@ -2408,7 +2564,7 @@ def main():
     parser.add_argument(
         "--vlm",
         type=str,
-        default="Qwen/Qwen3-VL-8B-Instruct",
+        default=None,
         help="VLM model ID. Local: 'Qwen/Qwen3-VL-8B-Instruct'. Tinker: 'tinker/Qwen/Qwen3-VL-30B-A3B-Instruct'. API: 'gemini-2.5-pro', 'claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'"
     )
     parser.add_argument(
@@ -2459,7 +2615,7 @@ def main():
     parser.add_argument(
         "--sf_max_samples",
         type=int,
-        default=None,
+        default=32,
         help="Max number of tool configs to sample for strategy faithfulness (default: None = full 2^N enumeration)"
     )
     parser.add_argument(
@@ -2469,8 +2625,42 @@ def main():
         default="test",
         help="Dataset split to use: 'train' loads from dataset/train/, 'test' loads from dataset/test/ (default: test)"
     )
+    parser.add_argument(
+        "--tinker_checkpoint",
+        type=str,
+        default=None,
+        help=(
+            "Tinker LoRA/DPO checkpoint to evaluate (mode=test only). "
+            "Format: 'tinker/<run_id>--<step>', e.g. "
+            "'tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500'. "
+            "Requires --vlm to be a tinker/* base model."
+        )
+    )
+    parser.add_argument(
+        "--tinker_lora_rank",
+        type=int,
+        default=32,
+        help="LoRA rank used during DPO/LoRA training (must match the training job, default: 16)"
+    )
 
     args = parser.parse_args()
+
+    # Auto-derive --vlm from --tinker_checkpoint when not explicitly provided
+    if args.vlm is None:
+        if args.tinker_checkpoint is not None:
+            import re
+            checkpoint_name = args.tinker_checkpoint.removeprefix("tinker/")
+            run_id = checkpoint_name.split("--")[0]
+            # Strip trailing numeric job ID (e.g. _1771865187)
+            model_name = re.sub(r'_\d+$', '', run_id)
+            # Strip leading method prefix (e.g. dpo_, lora_)
+            model_name = re.sub(r'^[a-z]+_', '', model_name)
+            args.vlm = f"tinker/{model_name}"
+            print(f"Auto-derived --vlm from tinker checkpoint: {args.vlm}")
+        else:
+            raise ValueError(
+                "Must provide --vlm <model_id> or --tinker_checkpoint <path>."
+            )
 
     # Create pipeline
     pipeline = XAIPipelineV2(
@@ -2478,7 +2668,9 @@ def main():
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
         models_dir=args.models_dir,
-        mode=args.mode
+        mode=args.mode,
+        tinker_checkpoint=args.tinker_checkpoint,
+        tinker_lora_rank=args.tinker_lora_rank,
     )
 
     # Run pipeline

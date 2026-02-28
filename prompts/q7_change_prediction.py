@@ -39,6 +39,8 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
         prediction = context.get('prediction', {})
         part_to_change = context.get('part_to_change', 'the most important part')
         modality_config = self._get_modality_config()
+        tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
+        tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -47,7 +49,7 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
 **Model Information**:
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
-- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class', 'Unknown')})
+- Current Prediction: Class {prediction.get('predicted_class_idx')} ({prediction.get('predicted_class_name', 'Unknown')})
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
 
@@ -66,7 +68,7 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
    - Consider the distribution of remaining {modality_config['element_type']} importance
 
 2. **External XAI Tools**: Use established explainability methods to predict outcome:
-{modality_config['tools_description']}
+{tools_description}
 
 **Your Response Must Be Valid JSON** with the following structure:
 {{
@@ -81,19 +83,13 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
         }}
     ],
     "tool_selection": {{
-        "selected_tools": {modality_config['tool_list']},
+        "selected_tools": {tool_list},
         "tool_params": {{
             {modality_config['tool_params_example']}
         }},
         "reasoning": "Why these tools for predicting {self.modality} modification outcome"
     }}
 }}
-
-**Guidelines for {(self.modality or "tabular").upper()} tasks (counterfactual outcome prediction)**:
-- {modality_config['spatial_note']}
-- Target: Predict the NEW class and confidence after modifying the specified {modality_config['element_type']}
-- Evaluation metric: 1 if predicted new class matches actual modified outcome, else 0
-- Consider the importance distribution and alternative class probabilities
 
 Provide your strategy as a JSON object:
 """
@@ -177,7 +173,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
 {size_constraint}
 ## XAI Analysis
@@ -231,7 +227,7 @@ Respond with ONLY JSON:"""
 {context.get('user_question', self.question_template)}
 
 ## Current State
-- Current Prediction: {prediction.get('predicted_class', 'Unknown')} ({prediction.get('confidence', 0):.2%})
+- Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
 - Part to Change: {part_to_change}
 {size_constraint}{instance_data_section}
@@ -256,6 +252,7 @@ Predict what the NEW prediction would be after removing/changing the specified p
 - This is often the second-most-likely class (top-2) but could be different
 - Consider what features remain after the modification
 - changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
         return prompt
