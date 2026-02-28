@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (73.06%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.269424170255661}
+
+## Input Data
+Features: age=37, workclass=State-gov, fnlwgt=60227, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=38, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Vietnam.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.019389).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Vietnam: +0.0487
+  - hours-per-week: +0.0478
+  - native-country_Columbia: +0.0379
+  - education-num: +0.0172
+  - native-country_France: +0.0171
+- Top negative features (shap_value):
+  - native-country_Yugoslavia: -0.0487
+  - capital-loss: -0.0478
+  - native-country_Cuba: -0.0379
+  - capital-gain: -0.0172
+  - native-country_Germany: -0.0171
+- Max positive: 0.048731  Max negative: -0.048731
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2184
+  - capital-loss <= -0.22: +0.1155
+  - marital-status_Married-civ-spouse <= 0.00: +0.0737
+  - native-country_Canada <= 0.00: +0.0694
+  - relationship_Husband <= 0.00: +0.0621
+- Top negative features (weight):
+  - native-country_Puerto-Rico <= 0.00: -0.0659
+  - -0.05 < education-num <= 1.13: -0.0607
+  - native-country_Taiwan <= 0.00: -0.0128
+  - native-country_El-Salvador <= 0.00: -0.0012
+- Max positive: 0.218432  Max negative: -0.065854
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0192
+  - relationship_Not-in-family: +0.0175
+  - occupation_Adm-clerical: +0.0071
+  - fnlwgt: +0.0058
+  - native-country_United-States: +0.0046
+- Top negative features (attribution_score):
+  - education-num: -0.0139
+  - sex_Male: -0.0125
+  - education_Bachelors: -0.0088
+  - race_White: -0.0005
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.019164  Max negative: -0.013905
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0194  (orig=0.4330 → mod=0.4137)
+  - relationship_Not-in-family: drop=+0.0146  (orig=0.4330 → mod=0.4185)
+  - education-num: drop=-0.0111  (orig=0.4330 → mod=0.4441)
+  - sex_Male: drop=-0.0095  (orig=0.4330 → mod=0.4425)
+  - occupation_Adm-clerical: drop=+0.0081  (orig=0.4330 → mod=0.4249)
+  - native-country_United-States: drop=+0.0053  (orig=0.4330 → mod=0.4277)
+  - capital-loss: drop=+0.0021  (orig=0.4330 → mod=0.4310)
+  - hours-per-week: drop=+0.0018  (orig=0.4330 → mod=0.4312)
+  - capital-gain: drop=+0.0014  (orig=0.4330 → mod=0.4316)
+  - age: drop=+0.0014  (orig=0.4330 → mod=0.4316)
+- Max prob_drop: 0.019389  Max prob_increase: -0.011081
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic or socioeconomic features in the input (age, workclass, education, marital-status, occupation, sex, race) are known to correlate with income levels in the adult dataset, particularly distinguishing <=50K from >50K?
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "education", "action": "change", "new_value": "Masters"}]
+- Explanation: In the Adult Income Dataset, several demographic and socioeconomic features have strong correlations with income levels. 'Sex' shows a well-documented correlation where 'Female' individuals are significantly less likely to earn >50K compared to 'Male'. 'Marital-status' is critical: 'Married-civ-spouse' is strongly associated with higher income, while 'Never-married' is linked to lower income. 'Occupation' plays a major role—high-earning roles such as 'Prof-specialty' or 'Exec-managerial' are more common in the >50K group. 'Workclass' matters too: 'Private' sector workers generally have higher income than those in 'State-gov' or 'Self-emp-not-inc'. Finally, higher education levels like 'Masters' are associated with greater income potential. These features collectively help distinguish <=50K from >50K outcomes, with sex and marital-status being among the highest-impact indicators in the model's decision logic.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Based on the input features, which features take values that are more typical or rare in the <=50K class compared to the >50K class?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Based on known datasets such as the Adult Income Dataset (used in the Census Income Prediction task), individuals with income <=50K are more commonly characterized by lower socioeconomic status indicators. The combination of 'State-gov' workclass, 'Never-married' marital status, 'Adm-clerical' occupation, 'Not-in-family' relationship, and 'Male' sex are all frequently observed in the <=50K class. These categories collectively represent a profile with lower-paying, non-union, non-managerial employment and limited familial support, which are statistically associated with lower income. These feature values are more typical in the <=50K class compared to the >50K class, which tends to have higher-paying jobs (e.g., 'Prof-specialty', 'Exec-managerial'), more stable marital statuses, and higher education levels.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic or socioeconomic features in the input (age, workclass, education, marital-status, occupation, sex, race) are known to correlate with income levels in the adult dataset, particularly distinguishing <=50K from >50K?
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "education", "action": "change", "new_value": "Masters"}]
+- Explanation: In the Adult Income Dataset, several demographic and socioeconomic features have strong correlations with income levels. 'Sex' shows a well-documented correlation where 'Female' individuals are significantly less likely to earn >50K compared to 'Male'. 'Marital-status' is critical: 'Married-civ-spouse' is strongly associated with higher income, while 'Never-married' is linked to lower income. 'Occupation' plays a major role—high-earning roles such as 'Prof-specialty' or 'Exec-managerial' are more common in the >50K group. 'Workclass' matters too: 'Private' sector workers generally have higher income than those in 'State-gov' or 'Self-emp-not-inc'. Finally, higher education levels like 'Masters' are associated with greater income potential. These features collectively help distinguish <=50K from >50K outcomes, with sex and marital-status being among the highest-impact indicators in the model's decision logic.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Based on the input features, which features take values that are more typical or rare in the <=50K class compared to the >50K class?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Based on known datasets such as the Adult Income Dataset (used in the Census Income Prediction task), individuals with income <=50K are more commonly characterized by lower socioeconomic status indicators. The combination of 'State-gov' workclass, 'Never-married' marital status, 'Adm-clerical' occupation, 'Not-in-family' relationship, and 'Male' sex are all frequently observed in the <=50K class. These categories collectively represent a profile with lower-paying, non-union, non-managerial employment and limited familial support, which are statistically associated with lower income. These feature values are more typical in the <=50K class compared to the >50K class, which tends to have higher-paying jobs (e.g., 'Prof-specialty', 'Exec-managerial'), more stable marital statuses, and higher education levels.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.269424170255661}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

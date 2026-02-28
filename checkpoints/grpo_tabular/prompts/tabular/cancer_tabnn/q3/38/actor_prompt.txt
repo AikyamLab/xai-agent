@@ -1,0 +1,130 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the tumor to be benign. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: benign (52.04%)
+- Top-2: {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.4796147346496582}
+
+## Input Data
+Features: mean radius=13.46, mean texture=18.75, mean perimeter=87.44, mean area=551.1, mean smoothness=0.1075, mean compactness=0.1138, mean concavity=0.04201, mean concave points=0.03152, mean symmetry=0.1723, mean fractal dimension=0.06317, radius error=0.1998, texture error=0.6068, perimeter error=1.443, area error=16.07, smoothness error=0.004413, compactness error=0.01443, concavity error=0.01509, concave points error=0.007369, symmetry error=0.01354, fractal dimension error=0.001787, worst radius=15.35, worst texture=25.16, worst perimeter=101.9, worst area=719.8, worst smoothness=0.1624, worst compactness=0.3124, worst concavity=0.2654, worst concave points=0.1427, worst symmetry=0.3518, worst fractal dimension=0.08665
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: smoothness error.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: worst symmetry > 0.45.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst symmetry (prob drop: -0.019877).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - compactness error: +0.0278
+  - area error: +0.0247
+  - worst perimeter: +0.0131
+  - worst concave points: +0.0122
+  - fractal dimension error: +0.0086
+- Top negative features (shap_value):
+  - smoothness error: -0.0278
+  - perimeter error: -0.0247
+  - worst area: -0.0131
+  - worst concavity: -0.0122
+  - symmetry error: -0.0086
+- Max positive: 0.027822  Max negative: -0.027822
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - -0.74 < mean concave points <= -0.40: +0.0579
+  - -0.74 < mean concavity <= -0.34: +0.0499
+  - -0.75 < worst texture <= -0.04: +0.0482
+  - perimeter error <= -0.62: +0.0322
+  - -0.18 < mean fractal dimension <= 0.47: +0.0279
+- Top negative features (weight):
+  - worst symmetry > 0.45: -0.0731
+  - mean smoothness > 0.64: -0.0654
+  - -0.22 < worst concavity <= 0.53: -0.0371
+  - symmetry error <= -0.65: -0.0268
+  - worst smoothness > 0.60: -0.0256
+- Max positive: 0.057948  Max negative: -0.07313
+- Total features: 10
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst symmetry: drop=-0.0199  (orig=0.6272 → mod=0.6471)
+  - mean concavity: drop=+0.0150  (orig=0.6272 → mod=0.6122)
+  - worst concave points: drop=-0.0100  (orig=0.6272 → mod=0.6373)
+  - mean concave points: drop=+0.0087  (orig=0.6272 → mod=0.6185)
+  - texture error: drop=-0.0075  (orig=0.6272 → mod=0.6347)
+  - concavity error: drop=-0.0074  (orig=0.6272 → mod=0.6346)
+  - area error: drop=+0.0068  (orig=0.6272 → mod=0.6204)
+  - fractal dimension error: drop=-0.0064  (orig=0.6272 → mod=0.6336)
+  - worst smoothness: drop=-0.0057  (orig=0.6272 → mod=0.6330)
+  - worst area: drop=+0.0046  (orig=0.6272 → mod=0.6226)
+- Max prob_drop: 0.015015  Max prob_increase: -0.019877
+
+## Autonomous Reasoning Results
+
+### COMPARISON Task
+- Query: Based on known medical interpretation of breast cancer features, identify which of the input features (mean radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, fractal dimension) are typically associated with benign tumors versus malignant tumors.
+- Status: Success
+- findings: ["mean compactness", "mean concavity", "mean concave points", "mean smoothness", "mean symmetry", "mean fractal dimension"]
+- Explanation: In breast cancer diagnosis, benign tumors are typically characterized by lower values in features associated with irregularity and malignancy. Specifically, lower mean compactness, lower mean concavity, fewer concave points, higher smoothness, higher symmetry, and lower fractal dimension are indicators of benignity. These features reflect more regular and well-defined cell structures, which are common in benign tumors. In contrast, malignant tumors tend to exhibit higher values in compactness and concavity, indicating more irregular shapes and invasive behavior. The given prediction of '1' (benign) with moderate confidence (52.04%) suggests that these features are likely driving the model’s decision, especially those with lower values in the input (e.g., mean compactness=0.1138, mean concavity=0.04201, mean symmetry=0.1723).
+- Confidence: 0.85
+
+### GROUNDING Task
+- Query: Map the input values to known thresholds where benign tumors generally fall below certain thresholds (e.g., mean concavity < 0.05, mean compactness < 0.12, mean radius < 14).
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": 0.04201}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1138}, {"feature_key": "mean radius", "action": "change", "new_value": 13.46}, {"feature_key": "mean texture", "action": "change", "new_value": 18.75}, {"feature_key": "mean area", "action": "change", "new_value": 551.1}]
+- Explanation: The model predicted the tumor to be benign (confidence 52.04%), with the highest likelihood based on several features falling within typical benign thresholds. Key features include mean concavity (0.042 < 0.05), mean compactness (0.1138 < 0.12), and mean radius (13.46 < 14). These values suggest low irregularity and compactness, consistent with benign tumors. Mean texture (18.75) and mean area (551.1) also align with benign patterns, though these are less discriminating. The model's confidence is moderate, indicating that while these features support benign classification, they are not definitive.
+- Confidence: 0.72
+
+### REASONING Task
+- Query: Given the top-1 prediction is benign with 0.5204 and top-2 is malignant with 0.4796, identify the most likely features that just barely tipped the decision in favor of benign over malignant.
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.12}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.065}, {"feature_key": "worst concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean perimeter", "action": "change", "new_value": 90.0}]
+- Explanation: The model's prediction of benign (52.04%) over malignant (47.96%) is a narrow margin. Among the features, 'mean concavity' and 'mean compactness' are known to strongly influence malignant classification, as higher values typically indicate irregular, cancerous cell structures. The current values (0.04201 and 0.1138 respectively) are below thresholds that would trigger strong malignant signals, which may have subtly favored benign. Increasing these slightly (e.g., to 0.05 and 0.12) would shift the score toward malignant, indicating their small but critical role. Similarly, 'mean fractal dimension'—which measures irregularity—influences classification; its current low value (0.06317) supports benign. The 'worst' features (e.g., worst concavity) and 'mean perimeter' also contribute—larger values generally increase malignancy likelihood. Thus, the bias in favor of benign likely stems from low values in morphology-related features (concavity, compactness), possibly complemented by marginally low 'worst concavity' and 'mean perimeter'. These marginal differences in logit space are sufficient to tip the balance.
+- Confidence: 0.78
+
+### Autonomous Reasoning Results
+
+### COMPARISON Task
+- Query: Based on known medical interpretation of breast cancer features, identify which of the input features (mean radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, fractal dimension) are typically associated with benign tumors versus malignant tumors.
+- Status: Success
+- findings: ["mean compactness", "mean concavity", "mean concave points", "mean smoothness", "mean symmetry", "mean fractal dimension"]
+- Explanation: In breast cancer diagnosis, benign tumors are typically characterized by lower values in features associated with irregularity and malignancy. Specifically, lower mean compactness, lower mean concavity, fewer concave points, higher smoothness, higher symmetry, and lower fractal dimension are indicators of benignity. These features reflect more regular and well-defined cell structures, which are common in benign tumors. In contrast, malignant tumors tend to exhibit higher values in compactness and concavity, indicating more irregular shapes and invasive behavior. The given prediction of '1' (benign) with moderate confidence (52.04%) suggests that these features are likely driving the model’s decision, especially those with lower values in the input (e.g., mean compactness=0.1138, mean concavity=0.04201, mean symmetry=0.1723).
+- Confidence: 0.85
+
+### GROUNDING Task
+- Query: Map the input values to known thresholds where benign tumors generally fall below certain thresholds (e.g., mean concavity < 0.05, mean compactness < 0.12, mean radius < 14).
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": 0.04201}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1138}, {"feature_key": "mean radius", "action": "change", "new_value": 13.46}, {"feature_key": "mean texture", "action": "change", "new_value": 18.75}, {"feature_key": "mean area", "action": "change", "new_value": 551.1}]
+- Explanation: The model predicted the tumor to be benign (confidence 52.04%), with the highest likelihood based on several features falling within typical benign thresholds. Key features include mean concavity (0.042 < 0.05), mean compactness (0.1138 < 0.12), and mean radius (13.46 < 14). These values suggest low irregularity and compactness, consistent with benign tumors. Mean texture (18.75) and mean area (551.1) also align with benign patterns, though these are less discriminating. The model's confidence is moderate, indicating that while these features support benign classification, they are not definitive.
+- Confidence: 0.72
+
+### REASONING Task
+- Query: Given the top-1 prediction is benign with 0.5204 and top-2 is malignant with 0.4796, identify the most likely features that just barely tipped the decision in favor of benign over malignant.
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.12}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.065}, {"feature_key": "worst concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean perimeter", "action": "change", "new_value": 90.0}]
+- Explanation: The model's prediction of benign (52.04%) over malignant (47.96%) is a narrow margin. Among the features, 'mean concavity' and 'mean compactness' are known to strongly influence malignant classification, as higher values typically indicate irregular, cancerous cell structures. The current values (0.04201 and 0.1138 respectively) are below thresholds that would trigger strong malignant signals, which may have subtly favored benign. Increasing these slightly (e.g., to 0.05 and 0.12) would shift the score toward malignant, indicating their small but critical role. Similarly, 'mean fractal dimension'—which measures irregularity—influences classification; its current low value (0.06317) supports benign. The 'worst' features (e.g., worst concavity) and 'mean perimeter' also contribute—larger values generally increase malignancy likelihood. Thus, the bias in favor of benign likely stems from low values in morphology-related features (concavity, compactness), possibly complemented by marginally low 'worst concavity' and 'mean perimeter'. These marginal differences in logit space are sufficient to tip the balance.
+- Confidence: 0.78
+
+## Your Task
+Identify the part that DISTINGUISHES benign from {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.4796147346496582}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

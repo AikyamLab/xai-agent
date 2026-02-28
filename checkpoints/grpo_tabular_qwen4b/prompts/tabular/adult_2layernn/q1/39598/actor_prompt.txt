@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6000
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=246038, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: education_Preschool <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: relationship_Husband (prob drop: 0.008258).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0235
+  - occupation_Transport-moving: +0.0122
+  - native-country_United-States: +0.0116
+  - occupation_Prof-specialty: +0.0108
+  - race_Asian-Pac-Islander: +0.0098
+- Top negative features (shap_value):
+  - capital-loss: -0.0235
+  - occupation_Tech-support: -0.0122
+  - native-country_Trinadad&Tobago: -0.0116
+  - occupation_Priv-house-serv: -0.0108
+  - race_Amer-Indian-Eskimo: -0.0098
+- Max positive: 0.023453  Max negative: -0.023453
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Guatemala <= 0.00: +0.0598
+  - native-country_South <= 0.00: +0.0502
+  - native-country_Ireland <= 0.00: +0.0441
+  - education_1st-4th <= 0.00: +0.0388
+  - native-country_El-Salvador <= 0.00: +0.0324
+- Top negative features (weight):
+  - education_Preschool <= 0.00: -0.0784
+  - capital-loss <= -0.22: -0.0674
+  - native-country_Hungary <= 0.00: -0.0560
+  - capital-gain <= -0.15: -0.0417
+- Max positive: 0.059803  Max negative: -0.078388
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0075
+  - education-num: +0.0068
+  - relationship_Husband: +0.0062
+  - marital-status_Married-civ-spouse: +0.0045
+  - native-country_United-States: +0.0043
+- Top negative features (attribution_score):
+  - occupation_Prof-specialty: -0.0031
+  - workclass_Private: -0.0026
+  - age: -0.0019
+  - hours-per-week: -0.0007
+  - fnlwgt: -0.0005
+- Max positive: 0.007527  Max negative: -0.003141
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Husband: drop=+0.0083  (orig=0.6457 → mod=0.6374)
+  - marital-status_Married-civ-spouse: drop=+0.0076  (orig=0.6457 → mod=0.6381)
+  - sex_Male: drop=+0.0061  (orig=0.6457 → mod=0.6396)
+  - education_Bachelors: drop=+0.0047  (orig=0.6457 → mod=0.6409)
+  - education-num: drop=+0.0040  (orig=0.6457 → mod=0.6416)
+  - race_White: drop=+0.0039  (orig=0.6457 → mod=0.6417)
+  - native-country_United-States: drop=+0.0029  (orig=0.6457 → mod=0.6427)
+  - age: drop=-0.0011  (orig=0.6457 → mod=0.6468)
+  - workclass_Private: drop=-0.0011  (orig=0.6457 → mod=0.6467)
+  - fnlwgt: drop=-0.0009  (orig=0.6457 → mod=0.6465)
+- Max prob_drop: 0.008258  Max prob_increase: -0.001103
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features are commonly associated with higher income (>50K) in the Adult Income dataset based on domain knowledge?
+- Status: Success
+- findings: ["education-num", "hours-per-week", "occupation", "workclass", "sex"]
+- Explanation: Based on domain knowledge of the Adult Income dataset, several features are strongly correlated with higher income. 'education-num' reflects education level, with higher levels (e.g., Bachelors, Masters) associated with higher income. 'hours-per-week' shows that higher working hours are linked to greater earnings. 'occupation' and 'workclass' indicate job type and employment sector; for example, professionals and executives (like 'Prof-specialty' or 'Exec-managerial') in 'Private' or 'Self-emp-inc' sectors tend to earn more. 'sex' has also been historically shown to correlate with income, though with caution due to potential bias. These features are well-documented in literature on the dataset and are commonly used in income prediction models.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Given the input features, why might 'education=Bachelors' and 'occupation=Prof-specialty' be particularly influential in predicting >50K income?
+- Status: Success
+- Explanation: The features 'education=Bachelors' and 'occupation=Prof-specialty' are strongly associated with higher income probabilities in the context of U.S. labor market dynamics. A 'Bachelors' degree, especially in a field with strong demand and high earning potential, correlates with better job opportunities and higher average salaries. The 'Prof-specialty' occupation—such as a professional in fields like medicine, engineering, or law—typically offers substantial compensation, often exceeding the median income. These categories are consistently linked in socioeconomic datasets to higher income brackets (e.g., >50K) due to both educational attainment and occupational prestige. In combination, these features signal not only access to higher education but also employment in high-skill, high-wage professions, which significantly increases the model’s confidence in predicting income above the 50K threshold.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the importance of 'age=33' versus 'education-num=13' in the context of income prediction—which seems more likely to drive the model toward '>50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 16}]
+- Explanation: In the context of income prediction, 'education-num=13' (Bachelor's degree) is generally more strongly associated with higher income potential than 'age=33'. Educational attainment, especially higher levels such as a Bachelor's or above, is a well-documented predictor of income, particularly in datasets like the Adult Income dataset where formal education correlates with career advancement and salary. While age can influence income due to experience, the effect of education appears more consistent and influential. A person with a Bachelor's degree (education-num=13) is more likely to be in a high-income occupation (e.g., Prof-specialty), which directly contributes to the model predicting income >50K. Age alone, at 33, is not sufficient to ensure high income, especially without supporting factors like education, occupation, or work experience. Changing education-num to 16 (higher education level, such as a Master’s) would further increase the likelihood of being classified as >50K. Thus, education-num has a stronger and more direct impact than age in this context.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

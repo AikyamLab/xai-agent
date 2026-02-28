@@ -1,0 +1,116 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the tumor to be benign. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: benign (82.01%)
+- Top-2: {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.17990577220916748}
+
+## Input Data
+Features: mean radius=11.06, mean texture=17.12, mean perimeter=71.25, mean area=366.5, mean smoothness=0.1194, mean compactness=0.1071, mean concavity=0.04063, mean concave points=0.04268, mean symmetry=0.1954, mean fractal dimension=0.07976, radius error=0.1779, texture error=1.03, perimeter error=1.318, area error=12.3, smoothness error=0.01262, compactness error=0.02348, concavity error=0.018, concave points error=0.01285, symmetry error=0.0222, fractal dimension error=0.008313, worst radius=11.69, worst texture=20.74, worst perimeter=76.08, worst area=411.1, worst smoothness=0.1662, worst compactness=0.2031, worst concavity=0.1256, worst concave points=0.09514, worst symmetry=0.278, worst fractal dimension=0.1168
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: perimeter error.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst radius.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst radius (prob drop: 0.007379).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - area error: +0.0355
+  - mean compactness: +0.0347
+  - fractal dimension error: +0.0305
+  - mean texture: +0.0243
+  - mean concave points: +0.0220
+- Top negative features (shap_value):
+  - perimeter error: -0.0355
+  - mean smoothness: -0.0347
+  - symmetry error: -0.0305
+  - mean radius: -0.0243
+  - mean concavity: -0.0220
+- Max positive: 0.035522  Max negative: -0.035522
+- Total features: 30
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst radius: +0.0098
+  - mean concavity: +0.0081
+  - mean perimeter: +0.0075
+  - worst texture: +0.0057
+  - mean radius: +0.0056
+- Top negative features (attribution_score):
+  - mean smoothness: -0.0066
+  - worst smoothness: -0.0057
+  - worst fractal dimension: -0.0023
+  - smoothness error: -0.0021
+  - fractal dimension error: -0.0019
+- Max positive: 0.009751  Max negative: -0.006565
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst radius: drop=+0.0074  (orig=0.6943 → mod=0.6869)
+  - mean perimeter: drop=+0.0056  (orig=0.6943 → mod=0.6887)
+  - mean concavity: drop=+0.0055  (orig=0.6943 → mod=0.6887)
+  - mean smoothness: drop=-0.0049  (orig=0.6943 → mod=0.6992)
+  - worst perimeter: drop=+0.0049  (orig=0.6943 → mod=0.6894)
+  - mean radius: drop=+0.0049  (orig=0.6943 → mod=0.6894)
+  - mean area: drop=+0.0043  (orig=0.6943 → mod=0.6900)
+  - worst texture: drop=+0.0037  (orig=0.6943 → mod=0.6905)
+  - area error: drop=+0.0031  (orig=0.6943 → mod=0.6912)
+  - worst smoothness: drop=-0.0029  (orig=0.6943 → mod=0.6971)
+- Max prob_drop: 0.007379  Max prob_increase: -0.004904
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of breast cancer, which features are typically lower or more stable in benign tumors compared to malignant ones?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "lower", "new_value": 10.0}, {"feature_key": "mean texture", "action": "lower", "new_value": 15.0}, {"feature_key": "mean perimeter", "action": "lower", "new_value": 65.0}, {"feature_key": "mean area", "action": "lower", "new_value": 300.0}, {"feature_key": "mean smoothness", "action": "higher", "new_value": 0.12}, {"feature_key": "mean compactness", "action": "lower", "new_value": 0.08}, {"feature_key": "mean concavity", "action": "lower", "new_value": 0.03}, {"feature_key": "mean concave points", "action": "lower", "new_value": 0.03}, {"feature_key": "mean fractal dimension", "action": "lower", "new_value": 0.07}, {"feature_key": "worst radius", "action": "lower", "new_value": 12.0}, {"feature_key": "worst texture", "action": "lower", "new_value": 16.0}, {"feature_key": "worst perimeter", "action": "lower", "new_value": 68.0}, {"feature_key": "worst area", "action": "lower", "new_value": 320.0}, {"feature_key": "worst smoothness", "action": "higher", "new_value": 0.13}, {"feature_key": "worst compactness", "action": "lower", "new_value": 0.09}, {"feature_key": "worst concavity", "action": "lower", "new_value": 0.035}, {"feature_key": "worst concave points", "action": "lower", "new_value": 0.035}, {"feature_key": "worst fractal dimension", "action": "lower", "new_value": 0.075}]
+- Explanation: In breast cancer diagnostics, benign tumors typically exhibit more regular, less abnormal growth patterns. This results in smaller average dimensions (e.g., mean and worst radius, perimeter, area), lower compactness, concavity, and concave points, and more stable, less complex boundary features (e.g., lower fractal dimension). Smoothness tends to be higher in benign cases, indicating smoother, more uniform cell textures. These features are well-documented in literature (e.g., from the Wisconsin Breast Cancer Dataset) to differentiate benign from malignant tumors, where malignant tumors usually show higher values in these metrics due to irregular growth and heterogeneity.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: Compare the provided input values for benign vs the malignant-class baseline (e.g., using known malignant patterns) to identify deviations that may favor benign classification.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 11.06}, {"feature_key": "mean texture", "action": "change", "new_value": 17.12}, {"feature_key": "mean perimeter", "action": "change", "new_value": 71.25}, {"feature_key": "mean area", "action": "change", "new_value": 366.5}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.1194}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1071}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.04063}, {"feature_key": "mean concave points", "action": "change", "new_value": 0.04268}, {"feature_key": "mean symmetry", "action": "change", "new_value": 0.1954}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.07976}, {"feature_key": "radius error", "action": "change", "new_value": 0.1779}, {"feature_key": "texture error", "action": "change", "new_value": 1.03}, {"feature_key": "perimeter error", "action": "change", "new_value": 1.318}, {"feature_key": "area error", "action": "change", "new_value": 12.3}, {"feature_key": "smoothness error", "action": "change", "new_value": 0.01262}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher mean values for radius, texture, perimeter, area, compactness, concavity, and concave points, along with higher fractal dimension and greater error margins in these measures. The provided values show low to moderate mean values across all key features, especially in concavity and concave points (0.04063 and 0.04268), which are significantly below typical malignant thresholds. The mean smoothness (0.1194) and fractal dimension (0.07976) are also within benign ranges. These low deviations in shape and structural irregularity metrics strongly support the benign classification. The presence of low error values further indicates consistency and lack of irregular growth patterns, which is characteristic of benign tumors. Thus, these features collectively distinguish the current case from malignant patterns.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of breast cancer, which features are typically lower or more stable in benign tumors compared to malignant ones?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "lower", "new_value": 10.0}, {"feature_key": "mean texture", "action": "lower", "new_value": 15.0}, {"feature_key": "mean perimeter", "action": "lower", "new_value": 65.0}, {"feature_key": "mean area", "action": "lower", "new_value": 300.0}, {"feature_key": "mean smoothness", "action": "higher", "new_value": 0.12}, {"feature_key": "mean compactness", "action": "lower", "new_value": 0.08}, {"feature_key": "mean concavity", "action": "lower", "new_value": 0.03}, {"feature_key": "mean concave points", "action": "lower", "new_value": 0.03}, {"feature_key": "mean fractal dimension", "action": "lower", "new_value": 0.07}, {"feature_key": "worst radius", "action": "lower", "new_value": 12.0}, {"feature_key": "worst texture", "action": "lower", "new_value": 16.0}, {"feature_key": "worst perimeter", "action": "lower", "new_value": 68.0}, {"feature_key": "worst area", "action": "lower", "new_value": 320.0}, {"feature_key": "worst smoothness", "action": "higher", "new_value": 0.13}, {"feature_key": "worst compactness", "action": "lower", "new_value": 0.09}, {"feature_key": "worst concavity", "action": "lower", "new_value": 0.035}, {"feature_key": "worst concave points", "action": "lower", "new_value": 0.035}, {"feature_key": "worst fractal dimension", "action": "lower", "new_value": 0.075}]
+- Explanation: In breast cancer diagnostics, benign tumors typically exhibit more regular, less abnormal growth patterns. This results in smaller average dimensions (e.g., mean and worst radius, perimeter, area), lower compactness, concavity, and concave points, and more stable, less complex boundary features (e.g., lower fractal dimension). Smoothness tends to be higher in benign cases, indicating smoother, more uniform cell textures. These features are well-documented in literature (e.g., from the Wisconsin Breast Cancer Dataset) to differentiate benign from malignant tumors, where malignant tumors usually show higher values in these metrics due to irregular growth and heterogeneity.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: Compare the provided input values for benign vs the malignant-class baseline (e.g., using known malignant patterns) to identify deviations that may favor benign classification.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 11.06}, {"feature_key": "mean texture", "action": "change", "new_value": 17.12}, {"feature_key": "mean perimeter", "action": "change", "new_value": 71.25}, {"feature_key": "mean area", "action": "change", "new_value": 366.5}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.1194}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1071}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.04063}, {"feature_key": "mean concave points", "action": "change", "new_value": 0.04268}, {"feature_key": "mean symmetry", "action": "change", "new_value": 0.1954}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.07976}, {"feature_key": "radius error", "action": "change", "new_value": 0.1779}, {"feature_key": "texture error", "action": "change", "new_value": 1.03}, {"feature_key": "perimeter error", "action": "change", "new_value": 1.318}, {"feature_key": "area error", "action": "change", "new_value": 12.3}, {"feature_key": "smoothness error", "action": "change", "new_value": 0.01262}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher mean values for radius, texture, perimeter, area, compactness, concavity, and concave points, along with higher fractal dimension and greater error margins in these measures. The provided values show low to moderate mean values across all key features, especially in concavity and concave points (0.04063 and 0.04268), which are significantly below typical malignant thresholds. The mean smoothness (0.1194) and fractal dimension (0.07976) are also within benign ranges. These low deviations in shape and structural irregularity metrics strongly support the benign classification. The presence of low error values further indicates consistency and lack of irregular growth patterns, which is characteristic of benign tumors. Thus, these features collectively distinguish the current case from malignant patterns.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES benign from {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.17990577220916748}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

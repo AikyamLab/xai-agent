@@ -1,0 +1,123 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6353
+
+## Input Data
+Features: age=61, workclass=Private, fnlwgt=146788, education=7th-8th, education-num=4, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.044652).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.1483
+  - fnlwgt: +0.0649
+  - native-country_Cambodia: +0.0318
+  - native-country_Taiwan: +0.0220
+  - native-country_United-States: +0.0215
+- Top negative features (shap_value):
+  - hours-per-week: -0.1483
+  - age: -0.0649
+  - sex_Male: -0.0318
+  - native-country_Thailand: -0.0220
+  - native-country_Trinadad&Tobago: -0.0215
+- Max positive: 0.148294  Max negative: -0.148294
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2056
+  - capital-loss <= -0.22: +0.1013
+  - education-num <= -0.44: +0.0887
+  - native-country_Japan <= 0.00: +0.0369
+  - workclass_Without-pay <= 0.00: +0.0054
+- Top negative features (weight):
+  - age > 0.64: -0.0806
+  - native-country_Trinadad&Tobago <= 0.00: -0.0523
+  - native-country_Laos <= 0.00: -0.0496
+  - native-country_Columbia <= 0.00: -0.0494
+  - native-country_Ireland <= 0.00: -0.0139
+- Max positive: 0.205616  Max negative: -0.080581
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0442
+  - education_7th-8th: +0.0063
+  - occupation_Transport-moving: +0.0044
+  - race_White: +0.0037
+  - fnlwgt: +0.0022
+- Top negative features (attribution_score):
+  - age: -0.0178
+  - marital-status_Married-civ-spouse: -0.0169
+  - relationship_Husband: -0.0098
+  - native-country_United-States: -0.0093
+  - sex_Male: -0.0075
+- Max positive: 0.044249  Max negative: -0.017762
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0447  (orig=0.4098 → mod=0.3652)
+  - marital-status_Married-civ-spouse: drop=-0.0146  (orig=0.4098 → mod=0.4244)
+  - age: drop=-0.0141  (orig=0.4098 → mod=0.4239)
+  - sex_Male: drop=-0.0097  (orig=0.4098 → mod=0.4195)
+  - native-country_United-States: drop=-0.0071  (orig=0.4098 → mod=0.4169)
+  - occupation_Transport-moving: drop=+0.0068  (orig=0.4098 → mod=0.4030)
+  - relationship_Husband: drop=-0.0044  (orig=0.4098 → mod=0.4142)
+  - education_7th-8th: drop=+0.0032  (orig=0.4098 → mod=0.4066)
+  - capital-loss: drop=+0.0017  (orig=0.4098 → mod=0.4081)
+  - race_White: drop=+0.0015  (orig=0.4098 → mod=0.4083)
+- Max prob_drop: 0.044652  Max prob_increase: -0.014619
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which of the given input features are known to correlate with income levels in the adult dataset?
+- Status: Success
+- findings: ["age", "education-num", "occupation", "hours-per-week", "relationship"]
+- Explanation: In the Adult Income dataset (also known as the Census Income dataset), domain-level research and statistical analyses have consistently shown that features like 'age', 'education-num', 'occupation', 'hours-per-week', and 'relationship' are strongly correlated with income levels. Age is positively associated with income due to career accumulation; 'education-num' reflects levels of education, which are linked to higher earning potential; 'occupation' categorizes individuals into income-reflective groups (e.g., executives, technical jobs earn more); 'hours-per-week' shows a positive correlation with higher earnings, especially above 40 hours; and 'relationship' (e.g., being married with a partner) is associated with greater financial stability and higher income due to shared responsibilities and economic support structures. While features like 'workclass' or 'race' have shown some correlation, the strongest and most empirically validated relationships are with the above five features. 'Sex' has a weak and debated association, and 'capital-gain' and 'capital-loss' are more noise-prone and not consistently linked to overall income prediction in general population models. Thus, these five features are the most reliable indicators of income levels in the dataset.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: Given that the model predicted <=50K with high confidence, how might features such as age=61, education=7th-8th, and occupation=Transport-moving contribute to this outcome?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "7th-8th"}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "age", "action": "change", "new_value": 61}]
+- Explanation: The model predicted income <=50K with 63.53% confidence. The individual's education level is '7th-8th', which is among the lowest in the dataset and is strongly associated with lower income groups. The occupation 'Transport-moving' typically involves lower wages compared to higher-paying roles like 'Prof-specialty' or 'Exec-managerial'. Additionally, the age of 61 suggests retirement or later career stages, which may correlate with reduced earning potential. Together, these features—especially low education and a low-wage occupation—form a pathway that aligns with the model's prediction of <=50K. While age alone may not directly determine income, in combination with occupational and educational constraints, it reinforces the lower-income classification.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of features in the input that are typically associated with higher income (>50K) versus those associated with lower income (<=50K)
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors", "income_impact": "higher", "reason": "Higher education levels, such as 'Bachelors' or above, are strongly associated with higher income (>50K). The current value '7th-8th' is among the lowest education levels and correlates with lower income."}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial", "income_impact": "higher", "reason": "Occupations like 'Exec-managerial' or 'Prof-specialty' are strongly linked to higher income. 'Transport-moving' is a lower-paying occupation and contributes to the <=50K prediction."}, {"feature_key": "capital-gain", "action": "change", "new_value": "10000", "income_impact": "higher", "reason": "Higher capital gains reflect greater financial investment or earnings, which are associated with higher income. Current value of 0 indicates no gains, aligning with lower income."}, {"feature_key": "hours-per-week", "action": "change", "new_value": "50", "income_impact": "higher", "reason": "Longer weekly hours are associated with higher income potential. 40 hours is typical but below the average for >50K individuals, suggesting marginal influence in this case."}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "income_impact": "higher", "reason": "While 'Private' is common, workclass such as 'Local-gov' or 'Federal-gov' often associates with higher salaries due to public sector stability and benefits. However, variation in impact is moderate compared to education or occupation."}]
+- Explanation: The model predicted <=50K with a 63.53% confidence, which is consistent with the low education level ('7th-8th'), a low-paying occupation ('Transport-moving'), zero capital gains, and standard work hours (40). Features like education, occupation, and capital-gain have the strongest influence on income classification, with education being the most critical. Changing these features to those typically linked with higher income would shift the prediction toward >50K. The analysis reflects typical socioeconomic patterns in the dataset, where higher education, professional occupations, and capital gains are strong indicators of higher earning potential.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

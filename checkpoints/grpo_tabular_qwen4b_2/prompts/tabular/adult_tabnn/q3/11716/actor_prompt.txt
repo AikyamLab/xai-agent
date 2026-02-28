@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (55.19%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.44807130098342896}
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=161631, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.024169).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0597
+  - native-country_Cambodia: +0.0349
+  - native-country_Haiti: +0.0268
+  - native-country_United-States: +0.0251
+  - native-country_Yugoslavia: +0.0124
+- Top negative features (shap_value):
+  - fnlwgt: -0.0597
+  - sex_Male: -0.0349
+  - native-country_Holand-Netherlands: -0.0268
+  - native-country_Trinadad&Tobago: -0.0251
+  - native-country_Vietnam: -0.0124
+- Max positive: 0.059729  Max negative: -0.059729
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2280
+  - capital-loss <= -0.22: +0.1219
+  - age <= -0.80: +0.0832
+  - relationship_Wife <= 0.00: +0.0759
+  - native-country_Ireland <= 0.00: +0.0494
+- Top negative features (weight):
+  - native-country_Dominican-Republic <= 0.00: -0.0890
+  - native-country_Scotland <= 0.00: -0.0563
+  - education_Preschool <= 0.00: -0.0438
+  - native-country_Greece <= 0.00: -0.0286
+  - native-country_South <= 0.00: -0.0224
+- Max positive: 0.227951  Max negative: -0.08897
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0208
+  - occupation_Craft-repair: +0.0062
+  - education_Some-college: +0.0056
+  - workclass_Private: +0.0034
+  - fnlwgt: +0.0024
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0212
+  - relationship_Husband: -0.0184
+  - sex_Male: -0.0135
+  - native-country_United-States: -0.0037
+  - race_White: -0.0011
+- Max positive: 0.020766  Max negative: -0.021244
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=-0.0242  (orig=0.3898 → mod=0.4140)
+  - age: drop=+0.0209  (orig=0.3898 → mod=0.3689)
+  - relationship_Husband: drop=-0.0194  (orig=0.3898 → mod=0.4092)
+  - sex_Male: drop=-0.0146  (orig=0.3898 → mod=0.4045)
+  - occupation_Craft-repair: drop=+0.0072  (orig=0.3898 → mod=0.3826)
+  - native-country_United-States: drop=-0.0071  (orig=0.3898 → mod=0.3969)
+  - education_Some-college: drop=+0.0041  (orig=0.3898 → mod=0.3857)
+  - capital-gain: drop=+0.0022  (orig=0.3898 → mod=0.3877)
+  - race_White: drop=-0.0020  (orig=0.3898 → mod=0.3918)
+  - fnlwgt: drop=+0.0016  (orig=0.3898 → mod=0.3882)
+- Max prob_drop: 0.020893  Max prob_increase: -0.024169
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which socio-economic features (e.g., age, education, workclass, marital-status) are typically associated with income levels ≤50K vs >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "direction": "lower", "reason": "Younger individuals are more likely to have income \u226450K, as older adults tend to have accumulated more work experience and higher earnings over time."}, {"feature_key": "education-num", "direction": "higher", "reason": "Higher education levels (measured numerically) correlate with higher income, as individuals with advanced education are more likely to occupy higher-paying jobs."}, {"feature_key": "workclass", "direction": "higher likely for private sector \u2192 lower income", "reason": "While 'Private' is common, the workclass often reflects job type; for example, 'Federal-gov' or 'Local-gov' may correlate with lower earnings, whereas 'Self-emp-inc' or 'Exec-managerial' show higher income."}, {"feature_key": "marital-status", "direction": "higher for 'Never-married' or 'Divorced' \u2192 lower income", "reason": "Married individuals, particularly with dependents, often have more stable and higher incomes due to combined household earnings."}, {"feature_key": "hours-per-week", "direction": "lower", "reason": "Lower working hours are associated with lower income levels, suggesting reduced labor market engagement or part-time employment."}]
+- Explanation: Based on established patterns in the Adult Income Dataset (Census Income), individuals with lower age, less education, non-management occupations, lower working hours, and non-married status are more frequently predicted to have income ≤50K. Conversely, higher education, longer work hours, and marriage status are consistently linked to higher income. The current case (age=25, education-num=10, private workclass, 40 hours/week, married) aligns with a group that is moderately educated and employed, but still falls in the lower-income bracket—likely due to the absence of high-earning occupation or high education level. The socio-economic features identified reflect patterns observed across similar real-world datasets where labor market outcomes are tied to structural factors like education, work hours, and family status.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Given the input features, which ones are present in the <=50K case but would be more likely to be absent or less common in the >50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Craft-repair"}, {"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: The model predicted income <=50K with high confidence (55.19%) based on the provided input. While the top-5 predictions are not available, the question asks which features are distinctive in the <=50K case relative to the next-best alternative (>50K). In the absence of explicit comparison data, we infer that features commonly associated with lower-income groups (such as younger age, lower education levels, non-management occupations, and limited working hours) are more typical in the <=50K class. The current input values—such as age=25, education='Some-college', occupation='Craft-repair', and hours-per-week=40—are typical of individuals with lower socioeconomic status and are less likely to be present in high-income (>50K) profiles. Features like 'education-num'=10 and 'capital-gain'=0 also support this pattern. Since only one prediction is available, we conclude that the presence of these common lower-income features distinguishes the current case from higher-income alternatives, even without explicit comparison data.
+- Confidence: 0.75
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which socio-economic features (e.g., age, education, workclass, marital-status) are typically associated with income levels ≤50K vs >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "direction": "lower", "reason": "Younger individuals are more likely to have income \u226450K, as older adults tend to have accumulated more work experience and higher earnings over time."}, {"feature_key": "education-num", "direction": "higher", "reason": "Higher education levels (measured numerically) correlate with higher income, as individuals with advanced education are more likely to occupy higher-paying jobs."}, {"feature_key": "workclass", "direction": "higher likely for private sector \u2192 lower income", "reason": "While 'Private' is common, the workclass often reflects job type; for example, 'Federal-gov' or 'Local-gov' may correlate with lower earnings, whereas 'Self-emp-inc' or 'Exec-managerial' show higher income."}, {"feature_key": "marital-status", "direction": "higher for 'Never-married' or 'Divorced' \u2192 lower income", "reason": "Married individuals, particularly with dependents, often have more stable and higher incomes due to combined household earnings."}, {"feature_key": "hours-per-week", "direction": "lower", "reason": "Lower working hours are associated with lower income levels, suggesting reduced labor market engagement or part-time employment."}]
+- Explanation: Based on established patterns in the Adult Income Dataset (Census Income), individuals with lower age, less education, non-management occupations, lower working hours, and non-married status are more frequently predicted to have income ≤50K. Conversely, higher education, longer work hours, and marriage status are consistently linked to higher income. The current case (age=25, education-num=10, private workclass, 40 hours/week, married) aligns with a group that is moderately educated and employed, but still falls in the lower-income bracket—likely due to the absence of high-earning occupation or high education level. The socio-economic features identified reflect patterns observed across similar real-world datasets where labor market outcomes are tied to structural factors like education, work hours, and family status.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Given the input features, which ones are present in the <=50K case but would be more likely to be absent or less common in the >50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Craft-repair"}, {"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: The model predicted income <=50K with high confidence (55.19%) based on the provided input. While the top-5 predictions are not available, the question asks which features are distinctive in the <=50K case relative to the next-best alternative (>50K). In the absence of explicit comparison data, we infer that features commonly associated with lower-income groups (such as younger age, lower education levels, non-management occupations, and limited working hours) are more typical in the <=50K class. The current input values—such as age=25, education='Some-college', occupation='Craft-repair', and hours-per-week=40—are typical of individuals with lower socioeconomic status and are less likely to be present in high-income (>50K) profiles. Features like 'education-num'=10 and 'capital-gain'=0 also support this pattern. Since only one prediction is available, we conclude that the presence of these common lower-income features distinguishes the current case from higher-income alternatives, even without explicit comparison data.
+- Confidence: 0.75
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.44807130098342896}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

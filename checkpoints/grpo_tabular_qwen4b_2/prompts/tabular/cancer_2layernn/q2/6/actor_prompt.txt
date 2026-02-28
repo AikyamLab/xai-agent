@@ -1,0 +1,129 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the tumor to be benign. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: benign
+Confidence: 0.9588
+
+## Input Data
+Features: mean radius=8.878, mean texture=15.49, mean perimeter=56.74, mean area=241.0, mean smoothness=0.08293, mean compactness=0.07698, mean concavity=0.04721, mean concave points=0.02381, mean symmetry=0.193, mean fractal dimension=0.06621, radius error=0.5381, texture error=1.2, perimeter error=4.277, area error=30.18, smoothness error=0.01093, compactness error=0.02899, concavity error=0.03214, concave points error=0.01506, symmetry error=0.02837, fractal dimension error=0.004174, worst radius=9.981, worst texture=17.7, worst perimeter=65.27, worst area=302.0, worst smoothness=0.1015, worst compactness=0.1248, worst concavity=0.09441, worst concave points=0.04762, worst symmetry=0.2434, worst fractal dimension=0.07431
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: mean smoothness.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: worst symmetry <= -0.64.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst perimeter.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst perimeter (prob drop: 0.003135).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean compactness: +0.0573
+  - mean area: +0.0402
+  - mean fractal dimension: +0.0352
+  - mean texture: +0.0290
+  - mean concave points: +0.0218
+- Top negative features (shap_value):
+  - mean smoothness: -0.0573
+  - mean perimeter: -0.0402
+  - mean symmetry: -0.0352
+  - mean radius: -0.0290
+  - mean concavity: -0.0218
+- Max positive: 0.05728  Max negative: -0.05728
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst symmetry <= -0.64: +0.1051
+  - worst concave points <= -0.76: +0.1014
+  - worst perimeter <= -0.69: +0.0859
+  - worst texture <= -0.75: +0.0742
+  - symmetry error > 0.36: +0.0724
+- Top negative features (weight):
+  - perimeter error > 0.24: -0.0989
+  - concave points error > 0.47: -0.0766
+  - radius error > 0.27: -0.0698
+- Max positive: 0.105148  Max negative: -0.098905
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst perimeter: +0.0110
+  - mean perimeter: +0.0106
+  - mean area: +0.0085
+  - worst texture: +0.0079
+  - mean texture: +0.0070
+- Top negative features (attribution_score):
+  - perimeter error: -0.0053
+  - concave points error: -0.0033
+- Max positive: 0.010988  Max negative: -0.005297
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst perimeter: drop=+0.0031  (orig=0.7229 → mod=0.7198)
+  - mean perimeter: drop=+0.0031  (orig=0.7229 → mod=0.7198)
+  - mean area: drop=+0.0024  (orig=0.7229 → mod=0.7205)
+  - worst texture: drop=+0.0019  (orig=0.7229 → mod=0.7209)
+  - mean texture: drop=+0.0018  (orig=0.7229 → mod=0.7211)
+  - worst radius: drop=+0.0015  (orig=0.7229 → mod=0.7214)
+  - mean radius: drop=+0.0015  (orig=0.7229 → mod=0.7214)
+  - mean smoothness: drop=+0.0015  (orig=0.7229 → mod=0.7214)
+  - perimeter error: drop=-0.0012  (orig=0.7229 → mod=0.7241)
+  - mean concavity: drop=+0.0012  (orig=0.7229 → mod=0.7217)
+- Max prob_drop: 0.003135  Max prob_increase: -0.0012
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of tumor diagnosis, which features are less likely to influence benign vs malignant classification?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 10.0}, {"feature_key": "mean texture", "action": "change", "new_value": 15.0}, {"feature_key": "mean perimeter", "action": "change", "new_value": 50.0}, {"feature_key": "mean area", "action": "change", "new_value": 200.0}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.085}]
+- Explanation: In tumor classification, particularly in breast cancer diagnosis, features like mean radius, texture, perimeter, area, and smoothness are strongly correlated with malignancy. Benign tumors tend to have more uniform, regular, and smaller characteristics. However, mean radius and area, while commonly used, are derived from other morphological features and are not uniquely diagnostic on their own. Mean smoothness, although relevant, is often a derived property and less discriminatory than concavity or symmetry. Among the listed features, the error-based features (e.g., texture error, smoothness error) are less biologically meaningful and may reflect noise or measurement variation rather than tumor biology. The 'worst' features (e.g., worst radius, worst concavity) are more indicative of malignancy due to their representation of extreme values, while mean features are less informative. Therefore, the mean features (especially radius, texture, perimeter, area, and smoothness) are least responsible for the benign prediction in this context due to their lower biological specificity and high correlation with overall tumor size, which is not a reliable differentiator between benign and malignant cases in isolation.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the magnitude of mean radius and mean fractal dimension in benign vs malignant cases from domain knowledge; which is more predictive?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "decrease", "new_value": 5.0}, {"feature_key": "mean fractal dimension", "action": "decrease", "new_value": 0.05}]
+- Explanation: Based on domain knowledge of breast cancer diagnosis, mean radius is a highly predictive feature for tumor classification. Benign tumors typically have smaller radii compared to malignant ones, making mean radius a strong indicator of malignancy. In contrast, mean fractal dimension reflects surface complexity and is more associated with malignancy; it shows a weaker correlation with benign cases. Therefore, mean fractal dimension is less predictive in benign tumors and has minimal influence on the model's decision. Reducing the value of mean radius slightly would significantly alter the prediction, whereas a minor change in mean fractal dimension has negligible effect. Thus, mean fractal dimension is the least responsible feature for the prediction of benign tumor.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of tumor diagnosis, which features are less likely to influence benign vs malignant classification?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 10.0}, {"feature_key": "mean texture", "action": "change", "new_value": 15.0}, {"feature_key": "mean perimeter", "action": "change", "new_value": 50.0}, {"feature_key": "mean area", "action": "change", "new_value": 200.0}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.085}]
+- Explanation: In tumor classification, particularly in breast cancer diagnosis, features like mean radius, texture, perimeter, area, and smoothness are strongly correlated with malignancy. Benign tumors tend to have more uniform, regular, and smaller characteristics. However, mean radius and area, while commonly used, are derived from other morphological features and are not uniquely diagnostic on their own. Mean smoothness, although relevant, is often a derived property and less discriminatory than concavity or symmetry. Among the listed features, the error-based features (e.g., texture error, smoothness error) are less biologically meaningful and may reflect noise or measurement variation rather than tumor biology. The 'worst' features (e.g., worst radius, worst concavity) are more indicative of malignancy due to their representation of extreme values, while mean features are less informative. Therefore, the mean features (especially radius, texture, perimeter, area, and smoothness) are least responsible for the benign prediction in this context due to their lower biological specificity and high correlation with overall tumor size, which is not a reliable differentiator between benign and malignant cases in isolation.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the magnitude of mean radius and mean fractal dimension in benign vs malignant cases from domain knowledge; which is more predictive?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "decrease", "new_value": 5.0}, {"feature_key": "mean fractal dimension", "action": "decrease", "new_value": 0.05}]
+- Explanation: Based on domain knowledge of breast cancer diagnosis, mean radius is a highly predictive feature for tumor classification. Benign tumors typically have smaller radii compared to malignant ones, making mean radius a strong indicator of malignancy. In contrast, mean fractal dimension reflects surface complexity and is more associated with malignancy; it shows a weaker correlation with benign cases. Therefore, mean fractal dimension is less predictive in benign tumors and has minimal influence on the model's decision. Reducing the value of mean radius slightly would significantly alter the prediction, whereas a minor change in mean fractal dimension has negligible effect. Thus, mean fractal dimension is the least responsible feature for the prediction of benign tumor.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

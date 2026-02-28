@@ -1,0 +1,100 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change education-num, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (67.86%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.678587406873703}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.321412593126297}]
+- Part to Change: education-num
+
+## Input Data
+Features: age=62, workclass=Private, fnlwgt=113080, education=7th-8th, education-num=4, marital-status=Divorced, occupation=Craft-repair, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.018906).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0725
+  - race_Black: +0.0394
+  - occupation_Adm-clerical: +0.0280
+  - fnlwgt: +0.0189
+  - native-country_Cuba: +0.0173
+- Top negative features (shap_value):
+  - hours-per-week: -0.0725
+  - race_Other: -0.0394
+  - occupation_Armed-Forces: -0.0280
+  - age: -0.0189
+  - native-country_Columbia: -0.0173
+- Max positive: 0.072524  Max negative: -0.072524
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0189  (orig=0.4203 → mod=0.4014)
+  - marital-status_Divorced: drop=+0.0112  (orig=0.4203 → mod=0.4092)
+  - sex_Male: drop=-0.0086  (orig=0.4203 → mod=0.4289)
+  - education_7th-8th: drop=+0.0079  (orig=0.4203 → mod=0.4124)
+  - age: drop=-0.0074  (orig=0.4203 → mod=0.4277)
+  - occupation_Craft-repair: drop=+0.0061  (orig=0.4203 → mod=0.4142)
+  - relationship_Own-child: drop=+0.0055  (orig=0.4203 → mod=0.4148)
+  - workclass_Private: drop=+0.0050  (orig=0.4203 → mod=0.4153)
+  - native-country_United-States: drop=-0.0036  (orig=0.4203 → mod=0.4240)
+  - race_White: drop=-0.0032  (orig=0.4203 → mod=0.4235)
+- Max prob_drop: 0.018906  Max prob_increase: -0.008611
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: How does education-num typically influence income prediction in the adult dataset, and what role does it play in the model's decision boundary?
+- Status: Success
+- Explanation: In the Adult dataset, 'education-num' is a strong predictor of income, as it encodes the level of education numerically (e.g., 4 corresponds to '7th-8th'). Higher education levels (higher education-num values) are statistically correlated with higher income, due to the observed societal and economic trends where more education is associated with better employment outcomes and higher earnings. The model likely uses this feature as part of a feature-based decision boundary that separates low-income and high-income individuals. In the current case, the individual has education-num = 4, which corresponds to a low education level, contributing to the model's prediction of '<=50K' with high confidence (67.86%). Changing 'education-num' to a higher value (e.g., 12 for 'Bachelor') would likely increase the predicted probability of income >50K, as the model would interpret this as a signal of higher earning potential. Conversely, lowering it to a lower value (e.g., 0 or 1) would reinforce the prediction of <=50K. Thus, education-num plays a key role in shaping the model's decision boundary by serving as a proxy for socioeconomic status and skills, directly influencing the class probabilities.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: If education-num were removed or set to zero, how would the predicted probability of <=50K shift relative to the original prediction?
+- Status: Success
+- findings: "The predicted probability of <=50K remains approximately the same when education-num is set to zero or removed, as education-num is a direct proxy for education level and is already captured in the categorical 'education' feature. Since the model likely uses both education and education-num in a feature engineering pipeline, removing or setting education-num to zero introduces no meaningful information change, especially when the original value (4) is consistent with the existing education category ('7th-8th'). Thus, the model\u2019s internal representation of education-related information remains intact, and the prediction probability does not shift significantly."
+- Explanation: Education-num is a numeric encoding of the education level. In tabular models, such features are often used directly or combined with categorical education variables. In this case, the current value (education-num=4) corresponds to '7th-8th', which is a low-income education level. If education-num is removed or set to zero, the model loses this numeric signal, but since the categorical 'education' feature already encodes the education level, the information is still available. Furthermore, setting education-num to zero may not introduce a meaningful change in the model’s interpretation, especially if the model uses one-hot encoding or interaction terms with the education feature. Therefore, the prediction probability for class 0 (<=50K) remains stable.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: How does education-num typically influence income prediction in the adult dataset, and what role does it play in the model's decision boundary?
+- Status: Success
+- Explanation: In the Adult dataset, 'education-num' is a strong predictor of income, as it encodes the level of education numerically (e.g., 4 corresponds to '7th-8th'). Higher education levels (higher education-num values) are statistically correlated with higher income, due to the observed societal and economic trends where more education is associated with better employment outcomes and higher earnings. The model likely uses this feature as part of a feature-based decision boundary that separates low-income and high-income individuals. In the current case, the individual has education-num = 4, which corresponds to a low education level, contributing to the model's prediction of '<=50K' with high confidence (67.86%). Changing 'education-num' to a higher value (e.g., 12 for 'Bachelor') would likely increase the predicted probability of income >50K, as the model would interpret this as a signal of higher earning potential. Conversely, lowering it to a lower value (e.g., 0 or 1) would reinforce the prediction of <=50K. Thus, education-num plays a key role in shaping the model's decision boundary by serving as a proxy for socioeconomic status and skills, directly influencing the class probabilities.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: If education-num were removed or set to zero, how would the predicted probability of <=50K shift relative to the original prediction?
+- Status: Success
+- findings: "The predicted probability of <=50K remains approximately the same when education-num is set to zero or removed, as education-num is a direct proxy for education level and is already captured in the categorical 'education' feature. Since the model likely uses both education and education-num in a feature engineering pipeline, removing or setting education-num to zero introduces no meaningful information change, especially when the original value (4) is consistent with the existing education category ('7th-8th'). Thus, the model\u2019s internal representation of education-related information remains intact, and the prediction probability does not shift significantly."
+- Explanation: Education-num is a numeric encoding of the education level. In tabular models, such features are often used directly or combined with categorical education variables. In this case, the current value (education-num=4) corresponds to '7th-8th', which is a low-income education level. If education-num is removed or set to zero, the model loses this numeric signal, but since the categorical 'education' feature already encodes the education level, the information is still available. Furthermore, setting education-num to zero may not introduce a meaningful change in the model’s interpretation, especially if the model uses one-hot encoding or interaction terms with the education feature. Therefore, the prediction probability for class 0 (<=50K) remains stable.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

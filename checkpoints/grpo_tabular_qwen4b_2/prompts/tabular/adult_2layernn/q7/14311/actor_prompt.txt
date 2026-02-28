@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change sex, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (59.23%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5922917723655701}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.40770822763442993}]
+- Part to Change: sex
+
+## Input Data
+Features: age=28, workclass=Private, fnlwgt=230997, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Sales, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.008874).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0358
+  - occupation_Tech-support: +0.0171
+  - native-country_Columbia: +0.0154
+  - native-country_Trinadad&Tobago: +0.0118
+  - capital-loss: +0.0088
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0358
+  - occupation_Transport-moving: -0.0171
+  - native-country_Cuba: -0.0154
+  - native-country_United-States: -0.0118
+  - hours-per-week: -0.0088
+- Max positive: 0.035751  Max negative: -0.035751
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0089  (orig=0.3995 → mod=0.3906)
+  - education_HS-grad: drop=+0.0066  (orig=0.3995 → mod=0.3929)
+  - sex_Female: drop=+0.0052  (orig=0.3995 → mod=0.3942)
+  - relationship_Own-child: drop=+0.0050  (orig=0.3995 → mod=0.3945)
+  - hours-per-week: drop=-0.0049  (orig=0.3995 → mod=0.4044)
+  - workclass_Private: drop=+0.0048  (orig=0.3995 → mod=0.3946)
+  - race_White: drop=-0.0044  (orig=0.3995 → mod=0.4039)
+  - occupation_Sales: drop=-0.0041  (orig=0.3995 → mod=0.4035)
+  - education-num: drop=+0.0016  (orig=0.3995 → mod=0.3979)
+  - fnlwgt: drop=+0.0014  (orig=0.3995 → mod=0.3981)
+- Max prob_drop: 0.008874  Max prob_increase: -0.004939
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and model architecture, how might removing the 'sex' feature affect the model's class decision when the current prediction is <=50K with 0.5923 confidence?
+- Status: Success
+- findings: {"alternative_prediction": "<=50K", "justification": "The 'sex' feature is one of the more influential categorical variables in this dataset, particularly in the context of income prediction. In the US census-based models (e.g., the well-known Adult Income dataset), 'sex' has been shown to have a strong association with income levels, with males historically being more likely to earn over $50K. However, in this specific case, the current model already predicts <=50K with moderate confidence (59.23%). Removing or changing 'sex' from 'Female' to another value (e.g., 'Male') may not necessarily change the prediction significantly if the model has learned that the combination of other features (e.g., age=28, occupation='Sales', hours-per-week=60) already strongly leans toward lower income. The model likely uses 'sex' as a feature in interaction terms with other variables (like occupation or workclass), but given that the current prediction is already <=50K and the individual's profile (e.g., young, low education, own-child, private sector) suggests a lower-income trajectory, changing 'sex' to 'Male' would only marginally alter the probability\u2014possibly increasing it slightly due to the male bias in higher-income groupings\u2014but not enough to shift the prediction to >50K. Therefore, the prediction remains <=50K."}
+- Explanation: The 'sex' feature has domain-relevant and historically significant correlations with income levels. However, in this instance, the individual’s characteristics—such as being in 'Sales', being a 'Never-married' 'Own-child', having only a 'HS-grad' education, and working 60 hours per week—typically correlate with lower income tiers. The model, even with moderate confidence, appears to have inferred a low-income outcome independently of sex. While changing 'sex' could influence the prediction, the decision boundary is likely determined by a combination of features, and the other features dominate the prediction in this context. Thus, removing or changing 'sex' does not fundamentally alter the class decision.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a hypothetical scenario where 'sex' is removed or set to a neutral value (e.g., missing or average), assuming other features remain unchanged.
+- Status: Success
+- findings: {"original_prediction": "<=50K", "confidence": 0.5923, "hypothetical_prediction": "<=50K", "hypothetical_confidence": 0.5876}
+- Explanation: The model's prediction is based on the current 'sex' feature value being 'Female'. In the hypothetical scenario where 'sex' is removed or replaced with a neutral value (e.g., missing or average), the model retains the same class prediction (<=50K), as the influence of 'sex' on the outcome is not decisive in this particular data configuration. The confidence slightly decreases (from 59.23% to 58.76%) due to reduced feature specificity, indicating marginal uncertainty in the absence of a clear categorical signal from sex. However, since the model does not show strong sensitivity to sex changes under the current feature set, the overall class prediction remains unchanged.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and model architecture, how might removing the 'sex' feature affect the model's class decision when the current prediction is <=50K with 0.5923 confidence?
+- Status: Success
+- findings: {"alternative_prediction": "<=50K", "justification": "The 'sex' feature is one of the more influential categorical variables in this dataset, particularly in the context of income prediction. In the US census-based models (e.g., the well-known Adult Income dataset), 'sex' has been shown to have a strong association with income levels, with males historically being more likely to earn over $50K. However, in this specific case, the current model already predicts <=50K with moderate confidence (59.23%). Removing or changing 'sex' from 'Female' to another value (e.g., 'Male') may not necessarily change the prediction significantly if the model has learned that the combination of other features (e.g., age=28, occupation='Sales', hours-per-week=60) already strongly leans toward lower income. The model likely uses 'sex' as a feature in interaction terms with other variables (like occupation or workclass), but given that the current prediction is already <=50K and the individual's profile (e.g., young, low education, own-child, private sector) suggests a lower-income trajectory, changing 'sex' to 'Male' would only marginally alter the probability\u2014possibly increasing it slightly due to the male bias in higher-income groupings\u2014but not enough to shift the prediction to >50K. Therefore, the prediction remains <=50K."}
+- Explanation: The 'sex' feature has domain-relevant and historically significant correlations with income levels. However, in this instance, the individual’s characteristics—such as being in 'Sales', being a 'Never-married' 'Own-child', having only a 'HS-grad' education, and working 60 hours per week—typically correlate with lower income tiers. The model, even with moderate confidence, appears to have inferred a low-income outcome independently of sex. While changing 'sex' could influence the prediction, the decision boundary is likely determined by a combination of features, and the other features dominate the prediction in this context. Thus, removing or changing 'sex' does not fundamentally alter the class decision.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a hypothetical scenario where 'sex' is removed or set to a neutral value (e.g., missing or average), assuming other features remain unchanged.
+- Status: Success
+- findings: {"original_prediction": "<=50K", "confidence": 0.5923, "hypothetical_prediction": "<=50K", "hypothetical_confidence": 0.5876}
+- Explanation: The model's prediction is based on the current 'sex' feature value being 'Female'. In the hypothetical scenario where 'sex' is removed or replaced with a neutral value (e.g., missing or average), the model retains the same class prediction (<=50K), as the influence of 'sex' on the outcome is not decisive in this particular data configuration. The confidence slightly decreases (from 59.23% to 58.76%) due to reduced feature specificity, indicating marginal uncertainty in the absence of a clear categorical signal from sex. However, since the model does not show strong sensitivity to sex changes under the current feature set, the overall class prediction remains unchanged.
+- Confidence: 0.94
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

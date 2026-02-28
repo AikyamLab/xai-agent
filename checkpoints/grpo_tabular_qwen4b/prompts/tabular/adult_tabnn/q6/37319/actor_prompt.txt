@@ -1,0 +1,144 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. How should the instance change to flip the model into less than or equal to 50K?
+
+## Current State
+- Current Prediction: >50K (64.24%)
+- Target Prediction: less than or equal to 50K
+
+## Input Data
+Features: age=34, workclass=Private, fnlwgt=163110, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.013805).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cambodia: +0.0626
+  - hours-per-week: +0.0625
+  - native-country_United-States: +0.0339
+  - occupation_Prof-specialty: +0.0220
+  - native-country_Cuba: +0.0187
+- Top negative features (shap_value):
+  - sex_Male: -0.0626
+  - capital-loss: -0.0625
+  - native-country_Trinadad&Tobago: -0.0339
+  - occupation_Priv-house-serv: -0.0220
+  - native-country_Columbia: -0.0187
+- Max positive: 0.062584  Max negative: -0.062584
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Poland <= 0.00: +0.0481
+  - native-country_Guatemala <= 0.00: +0.0144
+  - native-country_Haiti <= 0.00: +0.0076
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2155
+  - native-country_Cambodia <= 0.00: -0.1574
+  - capital-loss <= -0.22: -0.1373
+  - native-country_Canada <= 0.00: -0.1092
+  - native-country_Japan <= 0.00: -0.0840
+- Max positive: 0.048129  Max negative: -0.215517
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0169
+  - relationship_Husband: +0.0154
+  - education-num: +0.0142
+  - sex_Male: +0.0126
+  - education_Bachelors: +0.0091
+- Top negative features (attribution_score):
+  - age: -0.0061
+  - occupation_Craft-repair: -0.0045
+  - fnlwgt: -0.0020
+  - capital-gain: -0.0017
+  - workclass_Private: -0.0012
+- Max positive: 0.016866  Max negative: -0.006069
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0138  (orig=0.6553 → mod=0.6415)
+  - relationship_Husband: drop=+0.0128  (orig=0.6553 → mod=0.6425)
+  - education-num: drop=+0.0115  (orig=0.6553 → mod=0.6438)
+  - sex_Male: drop=+0.0081  (orig=0.6553 → mod=0.6472)
+  - native-country_United-States: drop=+0.0061  (orig=0.6553 → mod=0.6492)
+  - occupation_Craft-repair: drop=-0.0047  (orig=0.6553 → mod=0.6600)
+  - education_Bachelors: drop=+0.0045  (orig=0.6553 → mod=0.6508)
+  - race_White: drop=+0.0039  (orig=0.6553 → mod=0.6514)
+  - workclass_Private: drop=+0.0038  (orig=0.6553 → mod=0.6515)
+  - age: drop=-0.0028  (orig=0.6553 → mod=0.6581)
+- Max prob_drop: 0.013805  Max prob_increase: -0.0047
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to contribute to the model predicting '>'50K, given the current feature values and known risk factors for income level?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "capital-gain", "action": "change", "new_value": -1000}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model predicts '>50K' with 64.24% confidence, suggesting that the current feature values align with patterns associated with higher income. Key predictive features in income classification include work hours (higher hours correlate with higher earnings), education level (more education often correlates with higher income), age (older individuals may have more experience and earnings), capital gains (positive gains increase income likelihood), and sex (historical data shows gender-based disparities in income, though this must be analyzed cautiously). Reducing hours-per-week, lowering age, decreasing education level, introducing negative capital gain (indicating possible financial losses or non-income-generating activity), and changing sex to female—while contextually sensitive—would shift the feature profile toward a lower-income prediction. These changes directly counteract known income-influencing patterns in the dataset. Importantly, features like 'workclass' and 'occupation' are not altered due to their stability and low variability in the current setup. The changes are plausible and within the observation space of the dataset to be valid transformations.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How would modifying key features such as age, education-num, or workclass affect the model's probability shift from '>50K' to '<=50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 5}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: The model currently predicts '>50K' with 64.24% confidence, likely due to features associated with higher income such as higher education level (education-num=13), middle to upper age groups, and high work hours. Reducing age, lowering education level, decreasing work hours, and changing sex from male to female (a known demographic predictor in income models) would reduce the model's propensity to assign high income. Workclass 'Local-gov' is typically associated with lower income than 'Private' or 'Exec-managerial', thus shifting the prediction toward '<=50K'. These changes are grounded in pattern correlations observed in income datasets and known model biases. Each change targets a dimension where lower-income individuals are more commonly represented.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to contribute to the model predicting '>'50K, given the current feature values and known risk factors for income level?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "capital-gain", "action": "change", "new_value": -1000}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model predicts '>50K' with 64.24% confidence, suggesting that the current feature values align with patterns associated with higher income. Key predictive features in income classification include work hours (higher hours correlate with higher earnings), education level (more education often correlates with higher income), age (older individuals may have more experience and earnings), capital gains (positive gains increase income likelihood), and sex (historical data shows gender-based disparities in income, though this must be analyzed cautiously). Reducing hours-per-week, lowering age, decreasing education level, introducing negative capital gain (indicating possible financial losses or non-income-generating activity), and changing sex to female—while contextually sensitive—would shift the feature profile toward a lower-income prediction. These changes directly counteract known income-influencing patterns in the dataset. Importantly, features like 'workclass' and 'occupation' are not altered due to their stability and low variability in the current setup. The changes are plausible and within the observation space of the dataset to be valid transformations.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How would modifying key features such as age, education-num, or workclass affect the model's probability shift from '>50K' to '<=50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 5}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: The model currently predicts '>50K' with 64.24% confidence, likely due to features associated with higher income such as higher education level (education-num=13), middle to upper age groups, and high work hours. Reducing age, lowering education level, decreasing work hours, and changing sex from male to female (a known demographic predictor in income models) would reduce the model's propensity to assign high income. Workclass 'Local-gov' is typically associated with lower income than 'Private' or 'Exec-managerial', thus shifting the prediction toward '<=50K'. These changes are grounded in pattern correlations observed in income datasets and known model biases. Each change targets a dimension where lower-income individuals are more commonly represented.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "less than or equal to 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=34, workclass='Private', fnlwgt=163110, education='Bachelors', education-num=13, marital-status='Married-civ-spouse', occupation='Craft-repair', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=45, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

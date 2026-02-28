@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the fnlwgt feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5467
+
+## Part to be Masked
+fnlwgt
+
+## Input Data
+Features: age=61, workclass=Private, fnlwgt=146788, education=7th-8th, education-num=4, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.020895).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0689
+  - occupation_Adm-clerical: +0.0285
+  - fnlwgt: +0.0276
+  - race_Other: +0.0084
+  - native-country_Germany: +0.0078
+- Top negative features (shap_value):
+  - hours-per-week: -0.0689
+  - occupation_Armed-Forces: -0.0285
+  - age: -0.0276
+  - race_Black: -0.0084
+  - native-country_France: -0.0078
+- Max positive: 0.068922  Max negative: -0.068922
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0209  (orig=0.3886 → mod=0.3677)
+  - education_7th-8th: drop=+0.0130  (orig=0.3886 → mod=0.3756)
+  - sex_Male: drop=-0.0102  (orig=0.3886 → mod=0.3988)
+  - age: drop=-0.0081  (orig=0.3886 → mod=0.3967)
+  - relationship_Husband: drop=-0.0065  (orig=0.3886 → mod=0.3951)
+  - native-country_United-States: drop=-0.0041  (orig=0.3886 → mod=0.3926)
+  - occupation_Transport-moving: drop=+0.0033  (orig=0.3886 → mod=0.3853)
+  - marital-status_Married-civ-spouse: drop=-0.0029  (orig=0.3886 → mod=0.3915)
+  - workclass_Private: drop=+0.0028  (orig=0.3886 → mod=0.3858)
+  - fnlwgt: drop=+0.0008  (orig=0.3886 → mod=0.3878)
+- Max prob_drop: 0.020895  Max prob_increase: -0.010229
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Is fnlwgt a demographic or income-related feature in the dataset, and does it have a direct or indirect correlation with income levels?
+- Status: Success
+- findings: "fnlwgt is not a demographic feature but a weight feature used to adjust for sampling bias in the dataset. It does not directly correlate with income levels and does not provide information about the individual's income or socioeconomic status. Therefore, masking fnlwgt would not change the model's prediction."
+- Explanation: The 'fnlwgt' feature stands for 'final weight' and is a sample weight used during data collection to account for sampling bias and ensure the dataset represents the population accurately. It is not a demographic or income-related attribute. Since the model relies on features such as age, education, occupation, and sex to predict income, fnlwgt serves only as a normalization factor and does not contribute to the prediction logic. Thus, removing or masking it should not affect the prediction outcome.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the model's prediction when fnlwgt is masked versus when it is set to a typical value (e.g., median or mean), using the provided input.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "mask", "prediction_change": "no_change"}, {"feature_key": "fnlwgt", "action": "set_to_median", "prediction_change": "no_change"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a synthetic weight used for sampling and does not directly influence the model's prediction of income level in this dataset. It is typically not a predictor of income but rather a normalization factor. When masked or replaced with the median value (146788, which is the current value), the model's prediction remains the same (income ≤50K). This indicates that fnlwgt does not contribute to the decision boundary in the model. The prediction stability under variation of this feature confirms that it is not a relevant feature for the income classification task in this context.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Is fnlwgt a demographic or income-related feature in the dataset, and does it have a direct or indirect correlation with income levels?
+- Status: Success
+- findings: "fnlwgt is not a demographic feature but a weight feature used to adjust for sampling bias in the dataset. It does not directly correlate with income levels and does not provide information about the individual's income or socioeconomic status. Therefore, masking fnlwgt would not change the model's prediction."
+- Explanation: The 'fnlwgt' feature stands for 'final weight' and is a sample weight used during data collection to account for sampling bias and ensure the dataset represents the population accurately. It is not a demographic or income-related attribute. Since the model relies on features such as age, education, occupation, and sex to predict income, fnlwgt serves only as a normalization factor and does not contribute to the prediction logic. Thus, removing or masking it should not affect the prediction outcome.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the model's prediction when fnlwgt is masked versus when it is set to a typical value (e.g., median or mean), using the provided input.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "mask", "prediction_change": "no_change"}, {"feature_key": "fnlwgt", "action": "set_to_median", "prediction_change": "no_change"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a synthetic weight used for sampling and does not directly influence the model's prediction of income level in this dataset. It is typically not a predictor of income but rather a normalization factor. When masked or replaced with the median value (146788, which is the current value), the model's prediction remains the same (income ≤50K). This indicates that fnlwgt does not contribute to the decision boundary in the model. The prediction stability under variation of this feature confirms that it is not a relevant feature for the income classification task in this context.
+- Confidence: 0.98
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

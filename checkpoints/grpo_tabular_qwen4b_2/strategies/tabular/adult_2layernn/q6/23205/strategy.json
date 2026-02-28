@@ -1,0 +1,50 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external explainability tools to ensure both domain-informed intuition and data-driven attribution. Autonomous analysis helps identify high-impact, interpretable features tied to income predictions, while external tools like SHAP and sensitivity analysis provide rigorous, model-agnostic feature importance and impact measurements to validate and refine the counterfactual changes.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Which features in the input are most likely to influence the prediction class from '>50K' to '<=50K' based on known socioeconomic patterns and model behavior?",
+      "expected_output": "A list of prioritized features with explanations of how changing them might flip the prediction"
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the current prediction confidence and class probabilities for the given instance versus a modified version with key features adjusted (e.g., age, education-num, fnlwgt) to assess the sensitivity of the model output to changes.",
+      "expected_output": "A list of feature-value combinations that reduce the '>50K' probability and increase the '<=50K' probability"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP provides a global, game-theoretic view of feature contributions, helping identify which features most strongly push the prediction toward '>50K', thus guiding targeted changes. Sensitivity analysis directly measures how altering each feature affects the class probability, offering empirical validation of counterfactual impact. These tools are especially effective for tabular data with complex interactions and are more reliable than LIME or Integrated Gradients in this context due to their stability and interpretability in classification tasks."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a global, game-theoretic view of feature contributions, helping identify which features most strongly push the prediction toward '>50K', thus guiding targeted changes. Sensitivity analysis directly measures how altering each feature affects the class probability, offering empirical validation of counterfactual impact. These tools are especially effective for tabular data with complex interactions and are more reliable than LIME or Integrated Gradients in this context due to their stability and interpretability in classification tasks.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides a global, game-theoretic view of feature contributions, helping identify which features most strongly push the prediction toward '>50K', thus guiding targeted changes. Sensitivity analysis directly measures how altering each feature affects the class probability, offering empirical validation of counterfactual impact. These tools are especially effective for tabular data with complex interactions and are more reliable than LIME or Integrated Gradients in this context due to their stability and interpretability in classification tasks.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

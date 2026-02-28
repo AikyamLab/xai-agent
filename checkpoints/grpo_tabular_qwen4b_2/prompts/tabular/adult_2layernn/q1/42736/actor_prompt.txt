@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5147
+
+## Input Data
+Features: age=29, workclass=Private, fnlwgt=202878, education=7th-8th, education-num=4, marital-status=Married-civ-spouse, occupation=Farming-fishing, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=2042, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.027981).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0881
+  - workclass_Self-emp-inc: +0.0829
+  - occupation_Adm-clerical: +0.0262
+  - workclass_State-gov: +0.0118
+  - native-country_United-States: +0.0101
+- Top negative features (shap_value):
+  - hours-per-week: -0.0881
+  - workclass_Private: -0.0829
+  - occupation_Armed-Forces: -0.0262
+  - workclass_Self-emp-not-inc: -0.0118
+  - native-country_Trinadad&Tobago: -0.0101
+- Max positive: 0.088097  Max negative: -0.088097
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0783
+  - education-num <= -0.44: +0.0568
+  - hours-per-week <= -0.08: +0.0427
+- Top negative features (weight):
+  - capital-loss > -0.22: -0.0765
+  - native-country_Ireland <= 0.00: -0.0721
+  - marital-status_Divorced <= 0.00: -0.0493
+  - native-country_Puerto-Rico <= 0.00: -0.0455
+  - native-country_South <= 0.00: -0.0454
+- Max positive: 0.078321  Max negative: -0.076488
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0349
+  - education_7th-8th: +0.0100
+  - occupation_Farming-fishing: +0.0061
+  - age: +0.0036
+  - workclass_Private: +0.0032
+- Top negative features (attribution_score):
+  - capital-loss: -0.0294
+  - sex_Male: -0.0115
+  - relationship_Husband: -0.0058
+  - native-country_United-States: -0.0055
+  - marital-status_Married-civ-spouse: -0.0043
+- Max positive: 0.034883  Max negative: -0.029381
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0280  (orig=0.3810 → mod=0.3530)
+  - capital-loss: drop=-0.0205  (orig=0.3810 → mod=0.4015)
+  - sex_Male: drop=-0.0121  (orig=0.3810 → mod=0.3931)
+  - education_7th-8th: drop=+0.0099  (orig=0.3810 → mod=0.3711)
+  - relationship_Husband: drop=-0.0065  (orig=0.3810 → mod=0.3875)
+  - occupation_Farming-fishing: drop=+0.0058  (orig=0.3810 → mod=0.3752)
+  - native-country_United-States: drop=-0.0056  (orig=0.3810 → mod=0.3866)
+  - marital-status_Married-civ-spouse: drop=-0.0051  (orig=0.3810 → mod=0.3861)
+  - age: drop=+0.0035  (orig=0.3810 → mod=0.3775)
+  - workclass_Private: drop=+0.0007  (orig=0.3810 → mod=0.3803)
+- Max prob_drop: 0.027981  Max prob_increase: -0.020548
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Map the input features to known domains in the adult income dataset: are any features like 'education-num' or 'age' strongly associated with income levels in the dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": "age"}, {"feature_key": "education-num", "action": "relevant", "new_value": "education-num"}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": "hours-per-week"}, {"feature_key": "workclass", "action": "relevant", "new_value": "workclass"}, {"feature_key": "occupation", "action": "relevant", "new_value": "occupation"}]
+- Explanation: In the Adult Income Dataset (also known as the Census Income Dataset), several features are well-documented as strongly associated with income levels. 'age' shows a positive correlation with higher income, particularly above 50 years, though lower education and lower hours-per-week also contribute to lower earnings. 'education-num' is a strong predictor: higher levels (e.g., 10+ years) correlate with higher income. 'hours-per-week' has a known positive relationship with income, especially in higher-income brackets. 'workclass' and 'occupation' are categorical features where 'Private' and 'Farming-fishing' reflect different employment types with varying income potentials; for example, managerial or professional occupations are more likely to be high-income. The current values—such as '7th-8th' education (education-num=4), age=29, and occupation='Farming-fishing'—align with lower-income profiles in domain knowledge. Thus, these features are grounded in established domain associations and are most responsible for the model's prediction of income ≤50K.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Based on the input values, evaluate whether low education-num (4), private workclass, and husband marital status align with the likelihood of earning <=50K, considering societal and economic patterns in the dataset.
+- Status: Success
+- Explanation: The model predicted an income of <=50K with 51.47% confidence. Among the key features, low education-num (4, corresponding to '7th-8th' education) is strongly associated with lower income levels in this dataset, as higher education levels typically correlate with higher earnings. The workclass 'Private' is common among individuals earning <=50K, especially when paired with limited educational attainment. The marital status 'Married-civ-spouse' (as 'Husband') suggests stability, but in this dataset, married individuals with lower education and employment in non-management roles still tend to fall below the 50K threshold. Capital-loss of 2042 indicates financial strain, which may further reduce income potential. The combination of low education, private employment, and limited capital gains suggests a socioeconomic profile typical of those earning below the 50K income threshold. Thus, these features collectively contribute to the model’s prediction of <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the input feature values (e.g., age=29, education-num=4) to the mean or median values of the dataset for each feature, and assess if they trend toward the lower income group.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": 29, "comparison": "The average age in the dataset is approximately 39 years. The input age of 29 is below the median, which suggests a younger individual. Younger individuals are generally associated with lower income levels, especially in the absence of high-education or high-paying occupations."}, {"feature_key": "education-num", "action": "compare", "new_value": 4, "comparison": "The median education-num is around 10. An education-num of 4 (corresponding to '7th-8th grade') is significantly below the median, indicating low educational attainment. This is a strong predictor of lower income in the dataset."}, {"feature_key": "workclass", "action": "compare", "new_value": "Private", "comparison": "The majority of individuals in the 'Private' workclass earn above 50K. However, the lack of a high-paying job or occupation type suggests limited upward mobility. While 'Private' is common, the combination with low education and low capital gains points toward lower income."}, {"feature_key": "occupation", "action": "compare", "new_value": "Farming-fishing", "comparison": "The occupation 'Farming-fishing' is rare and typically associated with low income. It is far below the median wage-earning occupation (e.g., 'Exec-managerial', 'Prof-specialty'). This contributes strongly to the prediction of \u226450K."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 40, "comparison": "The median hours-per-week is around 40, so this value is typical. No strong deviation from the average, suggesting that work hours alone do not explain the prediction."}, {"feature_key": "capital-gain", "action": "compare", "new_value": 0, "comparison": "Capital gains are typically higher for individuals earning above 50K. A value of 0 indicates no investment returns or business profits, which is common in lower-income groups."}, {"feature_key": "capital-loss", "action": "compare", "new_value": 2042, "comparison": "Capital losses are uncommon and generally not correlated with higher income. A loss of $2042 may indicate financial instability, reinforcing the lower-income prediction."}, {"feature_key": "sex", "action": "compare", "new_value": "Male", "comparison": "Male sex does not strongly correlate with income level in this dataset; the prediction is not influenced by sex alone, so this feature is neutral."}, {"feature_key": "race", "action": "compare", "new_value": "White", "comparison": "Race is not strongly predictive in this dataset. White individuals are equally represented across income levels, so this feature does not contribute to the prediction."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Married-civ-spouse", "comparison": "Being married is associated with higher income in the dataset. This feature actually leans toward higher income, suggesting a counterpoint to the prediction. However, the combination with low education and low occupation outweighs this positive signal."}]
+- Explanation: The individual's features show a strong trend toward lower income: low education level (education-num=4), occupation in 'Farming-fishing' (low-wage), no capital gains, and a capital loss. These factors deviate significantly from the median or mean values of higher-income groups. While marital status and age are moderately aligned with lower income trends, the primary drivers are educational attainment and occupation. The combination of low education and low-paying work strongly supports the model's prediction of income ≤50K.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

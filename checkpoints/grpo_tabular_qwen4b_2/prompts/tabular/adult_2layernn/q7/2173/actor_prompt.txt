@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (71.15%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7115186154842377}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.28848138451576233}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=26, workclass=Private, fnlwgt=86483, education=10th, education-num=6, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.013857).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0469
+  - capital-loss: +0.0418
+  - native-country_Vietnam: +0.0194
+  - education_Preschool: +0.0142
+  - native-country_Japan: +0.0128
+- Top negative features (shap_value):
+  - race_Other: -0.0469
+  - hours-per-week: -0.0418
+  - native-country_Yugoslavia: -0.0194
+  - education_Prof-school: -0.0142
+  - native-country_Laos: -0.0128
+- Max positive: 0.046872  Max negative: -0.046872
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0139  (orig=0.4284 → mod=0.4145)
+  - marital-status_Divorced: drop=+0.0119  (orig=0.4284 → mod=0.4165)
+  - relationship_Not-in-family: drop=+0.0083  (orig=0.4284 → mod=0.4201)
+  - occupation_Other-service: drop=+0.0059  (orig=0.4284 → mod=0.4225)
+  - workclass_Private: drop=+0.0036  (orig=0.4284 → mod=0.4247)
+  - sex_Female: drop=+0.0024  (orig=0.4284 → mod=0.4260)
+  - education_10th: drop=+0.0023  (orig=0.4284 → mod=0.4261)
+  - native-country_United-States: drop=-0.0019  (orig=0.4284 → mod=0.4302)
+  - fnlwgt: drop=+0.0012  (orig=0.4284 → mod=0.4272)
+  - capital-gain: drop=+0.0010  (orig=0.4284 → mod=0.4274)
+- Max prob_drop: 0.013857  Max prob_increase: -0.001862
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with 71% confidence, and marital-status is 'Divorced', how might changing this to 'Married-civ-spouse' or 'Never-married' affect the model's probability of predicting >50K?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: In the dataset, marital status is strongly correlated with income level. Individuals who are 'Married-civ-spouse' are more likely to have higher incomes, as marriage is often associated with greater financial stability, shared resources, and access to better employment opportunities. Conversely, 'Never-married' individuals tend to have lower income levels, often reflecting limited social or economic support structures. The current prediction of <=50K with 'Divorced' marital status aligns with this pattern, as 'Divorced' individuals may face economic instability post-separation. Changing to 'Married-civ-spouse' would likely increase the probability of predicting >50K due to the positive association with higher earnings. 'Never-married' would likely maintain or slightly decrease the probability of predicting >50K, possibly keeping the prediction near <=50K. Therefore, the model’s confidence in predicting >50K would increase with 'Married-civ-spouse' and remain low or decrease with 'Never-married'.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the expected prediction under 'Divorced' vs. 'Never-married' or 'Married-civ-spouse' in terms of income class likelihood, using known demographic patterns in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "prediction_change": "slight increase in likelihood of income >50K", "reason": "In the Adult dataset, 'Never-married' individuals are more likely to earn >50K compared to 'Divorced' individuals, despite similar education and age profiles. This is attributed to higher occupational and labor market participation rates among never-married persons, especially in higher-paying sectors."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "prediction_change": "significant decrease in likelihood of income >50K", "reason": "Individuals in 'Married-civ-spouse' relationships are more likely to be in lower-income brackets due to shared household responsibilities and lower labor market participation. Historical data shows a strong correlation between marriage status and income levels, where married individuals often have lower individual earnings compared to single or never-married counterparts."}]
+- Explanation: Marital status is a strong demographic predictor in the Adult dataset. 'Never-married' individuals tend to have higher income probabilities (>50K) due to greater workforce engagement and higher earnings potential. In contrast, 'Married-civ-spouse' individuals are typically associated with lower income levels due to household dynamics and employment patterns. The current prediction (≤50K) under 'Divorced' is consistent with the data, and changing to 'Never-married' may slightly improve the prediction to >50K, while switching to 'Married-civ-spouse' would make the prediction more likely to remain ≤50K. These shifts align with known demographic and socioeconomic patterns in the dataset.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with 71% confidence, and marital-status is 'Divorced', how might changing this to 'Married-civ-spouse' or 'Never-married' affect the model's probability of predicting >50K?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: In the dataset, marital status is strongly correlated with income level. Individuals who are 'Married-civ-spouse' are more likely to have higher incomes, as marriage is often associated with greater financial stability, shared resources, and access to better employment opportunities. Conversely, 'Never-married' individuals tend to have lower income levels, often reflecting limited social or economic support structures. The current prediction of <=50K with 'Divorced' marital status aligns with this pattern, as 'Divorced' individuals may face economic instability post-separation. Changing to 'Married-civ-spouse' would likely increase the probability of predicting >50K due to the positive association with higher earnings. 'Never-married' would likely maintain or slightly decrease the probability of predicting >50K, possibly keeping the prediction near <=50K. Therefore, the model’s confidence in predicting >50K would increase with 'Married-civ-spouse' and remain low or decrease with 'Never-married'.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the expected prediction under 'Divorced' vs. 'Never-married' or 'Married-civ-spouse' in terms of income class likelihood, using known demographic patterns in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "prediction_change": "slight increase in likelihood of income >50K", "reason": "In the Adult dataset, 'Never-married' individuals are more likely to earn >50K compared to 'Divorced' individuals, despite similar education and age profiles. This is attributed to higher occupational and labor market participation rates among never-married persons, especially in higher-paying sectors."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "prediction_change": "significant decrease in likelihood of income >50K", "reason": "Individuals in 'Married-civ-spouse' relationships are more likely to be in lower-income brackets due to shared household responsibilities and lower labor market participation. Historical data shows a strong correlation between marriage status and income levels, where married individuals often have lower individual earnings compared to single or never-married counterparts."}]
+- Explanation: Marital status is a strong demographic predictor in the Adult dataset. 'Never-married' individuals tend to have higher income probabilities (>50K) due to greater workforce engagement and higher earnings potential. In contrast, 'Married-civ-spouse' individuals are typically associated with lower income levels due to household dynamics and employment patterns. The current prediction (≤50K) under 'Divorced' is consistent with the data, and changing to 'Never-married' may slightly improve the prediction to >50K, while switching to 'Married-civ-spouse' would make the prediction more likely to remain ≤50K. These shifts align with known demographic and socioeconomic patterns in the dataset.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

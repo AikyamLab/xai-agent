@@ -1,0 +1,150 @@
+You are an XAI expert. Find the SHARED feature causing all misclassifications.
+
+## Question
+The misclassified instances with row numbers 13590, 21096 have been misclassified.What shared feature makes the misclassified inputs (13590, 21096) difficult for the model?
+
+## Context
+Multiple instances (2) are all misclassified.
+Find what COMMON feature they share that confuses the model.
+
+## Instance Data
+
+### Instance A (index 13590) — true: <=50K, predicted: >50K
+Features: age=53, workclass=Local-gov, fnlwgt=175897, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+
+### Instance B (index 21096) — true: <=50K, predicted: >50K
+Features: age=31, workclass=Local-gov, fnlwgt=168906, education=Assoc-acdm, education-num=12, marital-status=Married-civ-spouse, occupation=Adm-clerical, relationship=Wife, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+
+## XAI Analysis
+### XAI Tool Results Summary
+
+**instance_0:**
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.009593).
+
+**instance_1:**
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: relationship_Wife (prob drop: 0.00709).
+
+### Detailed Statistics
+
+## instance_0
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_United-States: +0.0113
+  - native-country_Cuba: +0.0110
+  - education_5th-6th: +0.0088
+  - race_Other: +0.0073
+  - education_12th: +0.0066
+- Top negative features (shap_value):
+  - native-country_Trinadad&Tobago: -0.0113
+  - native-country_Columbia: -0.0110
+  - education_1st-4th: -0.0088
+  - race_Black: -0.0073
+  - education_11th: -0.0066
+- Max positive: 0.011275  Max negative: -0.011275
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0096  (orig=0.6307 → mod=0.6212)
+  - education_HS-grad: drop=-0.0060  (orig=0.6307 → mod=0.6368)
+  - native-country_United-States: drop=+0.0059  (orig=0.6307 → mod=0.6249)
+  - relationship_Husband: drop=+0.0053  (orig=0.6307 → mod=0.6254)
+  - occupation_Craft-repair: drop=-0.0041  (orig=0.6307 → mod=0.6348)
+  - age: drop=+0.0039  (orig=0.6307 → mod=0.6268)
+  - workclass_Local-gov: drop=+0.0027  (orig=0.6307 → mod=0.6280)
+  - education-num: drop=-0.0019  (orig=0.6307 → mod=0.6327)
+  - marital-status_Married-civ-spouse: drop=+0.0016  (orig=0.6307 → mod=0.6291)
+  - capital-gain: drop=-0.0008  (orig=0.6307 → mod=0.6316)
+- Max prob_drop: 0.009593  Max prob_increase: -0.006025
+
+## instance_1
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0169
+  - occupation_Farming-fishing: +0.0114
+  - occupation_Transport-moving: +0.0100
+  - education_5th-6th: +0.0092
+  - native-country_Cuba: +0.0070
+- Top negative features (shap_value):
+  - capital-loss: -0.0169
+  - occupation_Handlers-cleaners: -0.0114
+  - occupation_Tech-support: -0.0100
+  - education_1st-4th: -0.0092
+  - native-country_Columbia: -0.0070
+- Max positive: 0.016858  Max negative: -0.016858
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Wife: drop=+0.0071  (orig=0.6253 → mod=0.6182)
+  - education_Assoc-acdm: drop=-0.0066  (orig=0.6253 → mod=0.6319)
+  - hours-per-week: drop=-0.0047  (orig=0.6253 → mod=0.6300)
+  - sex_Female: drop=-0.0045  (orig=0.6253 → mod=0.6298)
+  - native-country_United-States: drop=+0.0042  (orig=0.6253 → mod=0.6211)
+  - race_White: drop=+0.0041  (orig=0.6253 → mod=0.6213)
+  - education-num: drop=+0.0033  (orig=0.6253 → mod=0.6220)
+  - workclass_Local-gov: drop=+0.0028  (orig=0.6253 → mod=0.6226)
+  - marital-status_Married-civ-spouse: drop=-0.0013  (orig=0.6253 → mod=0.6266)
+  - occupation_Adm-clerical: drop=-0.0012  (orig=0.6253 → mod=0.6266)
+- Max prob_drop: 0.00709  Max prob_increase: -0.006579
+
+## Autonomous Reasoning Results
+
+### COMPARISON Task
+- Query: Identify which features are common across all misclassified instances (e.g., row 13590 and 21096) and check for any feature that appears in every instance despite being semantically unrelated to income prediction.
+- Status: Success
+- findings: [{"feature_key": "workclass", "feature_value": "Local-gov", "is_spurious": true, "reason": "Both instances have workclass=Local-gov, which is not strongly correlated with income. This feature is common but semantically weak in predicting income, suggesting it may be a spurious predictor."}, {"feature_key": "marital-status", "feature_value": "Married-civ-spouse", "is_spurious": true, "reason": "Both instances have marital-status=Married-civ-spouse. While marital status is generally associated with income, this specific category is common across misclassified cases and may not be the primary driver of misclassification. Its presence in both instances suggests it could be a confounding or spurious feature."}]
+- Explanation: The two misclassified instances (13590 and 21096) share two key features: workclass=Local-gov and marital-status=Married-civ-spouse. These features are present in both cases and are not directly predictive of income. Workclass is a categorical variable with limited variation in income outcomes, and marital status, while somewhat correlated, does not strongly differentiate income levels in this specific context. The shared presence of these features suggests they may be acting as spurious or confounding variables that the model has learned to associate with the incorrect prediction (>50K), despite the true labels being <=50K. No other features are common across both instances. Therefore, these two features are the most likely candidates for being spurious and contributing to the misclassification.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Evaluate whether the shared features (e.g., workclass=Local-gov, marital-status=Married-civ-spouse) are likely to be spurious by considering their known semantic relevance to income and whether they correlate with the target class in a non-causal way.
+- Status: Success
+- findings: ["workclass=Local-gov", "marital-status=Married-civ-spouse"]
+- Explanation: The shared features 'workclass=Local-gov' and 'marital-status=Married-civ-spouse' are both semantically relevant to income in the context of the Adult Income dataset. 'Married-civ-spouse' is strongly associated with higher income, as married individuals often have greater financial stability and access to combined household income. 'Local-gov' workclass, while less directly linked than others (e.g., private sector), still represents a public-sector employment type that may correlate with lower income due to typically lower wages compared to private sector jobs. However, the correlation is not causal and may be driven by demographic or socioeconomic factors (e.g., age, education, or region). Importantly, these features are not spurious in the sense of being unrelated to income; rather, they are correlated due to underlying social and economic patterns. Thus, while they may be non-causal, they are semantically relevant and not spurious in a meaningful sense.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### COMPARISON Task
+- Query: Identify which features are common across all misclassified instances (e.g., row 13590 and 21096) and check for any feature that appears in every instance despite being semantically unrelated to income prediction.
+- Status: Success
+- findings: [{"feature_key": "workclass", "feature_value": "Local-gov", "is_spurious": true, "reason": "Both instances have workclass=Local-gov, which is not strongly correlated with income. This feature is common but semantically weak in predicting income, suggesting it may be a spurious predictor."}, {"feature_key": "marital-status", "feature_value": "Married-civ-spouse", "is_spurious": true, "reason": "Both instances have marital-status=Married-civ-spouse. While marital status is generally associated with income, this specific category is common across misclassified cases and may not be the primary driver of misclassification. Its presence in both instances suggests it could be a confounding or spurious feature."}]
+- Explanation: The two misclassified instances (13590 and 21096) share two key features: workclass=Local-gov and marital-status=Married-civ-spouse. These features are present in both cases and are not directly predictive of income. Workclass is a categorical variable with limited variation in income outcomes, and marital status, while somewhat correlated, does not strongly differentiate income levels in this specific context. The shared presence of these features suggests they may be acting as spurious or confounding variables that the model has learned to associate with the incorrect prediction (>50K), despite the true labels being <=50K. No other features are common across both instances. Therefore, these two features are the most likely candidates for being spurious and contributing to the misclassification.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Evaluate whether the shared features (e.g., workclass=Local-gov, marital-status=Married-civ-spouse) are likely to be spurious by considering their known semantic relevance to income and whether they correlate with the target class in a non-causal way.
+- Status: Success
+- findings: ["workclass=Local-gov", "marital-status=Married-civ-spouse"]
+- Explanation: The shared features 'workclass=Local-gov' and 'marital-status=Married-civ-spouse' are both semantically relevant to income in the context of the Adult Income dataset. 'Married-civ-spouse' is strongly associated with higher income, as married individuals often have greater financial stability and access to combined household income. 'Local-gov' workclass, while less directly linked than others (e.g., private sector), still represents a public-sector employment type that may correlate with lower income due to typically lower wages compared to private sector jobs. However, the correlation is not causal and may be driven by demographic or socioeconomic factors (e.g., age, education, or region). Importantly, these features are not spurious in the sense of being unrelated to income; rather, they are correlated due to underlying social and economic patterns. Thus, while they may be non-causal, they are semantically relevant and not spurious in a meaningful sense.
+- Confidence: 0.92
+
+## Your Task
+Identify the SHARED spurious feature and its location in EACH of the 2 instances.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "instances": [
+            {"feature_keys": ["feature_name"]  // column/feature names; list one or more features},
+            {"feature_keys": ["feature_name"]  // column/feature names; list one or more features}
+        ]
+    },
+    "shared_feature_description": "Description of the common feature across all inputs",
+    "explanation": "2-3 sentences explaining how this shared feature confuses the model",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- "instances" MUST contain exactly 2 entries (one per misclassified input, in order)
+- Identify the SAME type of feature in EACH entry
+- This shared feature should be SPURIOUS (not truly relevant to classification)
+- Examples: common background, similar texture, shared artifact
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+
+Respond with ONLY JSON:

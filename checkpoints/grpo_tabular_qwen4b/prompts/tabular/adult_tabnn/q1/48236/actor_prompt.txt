@@ -1,0 +1,115 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6826
+
+## Input Data
+Features: age=46, workclass=Local-gov, fnlwgt=267952, education=Assoc-voc, education-num=11, marital-status=Divorced, occupation=Exec-managerial, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=36, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Not-in-family.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.016737).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0520
+  - native-country_Hong: +0.0335
+  - native-country_Vietnam: +0.0330
+  - fnlwgt: +0.0314
+  - sex_Male: +0.0251
+- Top negative features (shap_value):
+  - race_Other: -0.0520
+  - native-country_Honduras: -0.0335
+  - native-country_Yugoslavia: -0.0330
+  - age: -0.0314
+  - native-country_Cambodia: -0.0251
+- Max positive: 0.051971  Max negative: -0.051971
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2357
+  - native-country_England <= 0.00: +0.1273
+  - capital-loss <= -0.22: +0.1040
+  - native-country_Portugal <= 0.00: +0.0341
+  - native-country_Puerto-Rico <= 0.00: +0.0197
+- Top negative features (weight):
+  - native-country_South <= 0.00: -0.1060
+  - -0.05 < education-num <= 1.13: -0.0729
+  - native-country_Mexico <= 0.00: -0.0633
+  - native-country_Italy <= 0.00: -0.0515
+  - education_1st-4th <= 0.00: -0.0078
+- Max positive: 0.23568  Max negative: -0.105983
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0186
+  - marital-status_Divorced: +0.0178
+  - race_White: +0.0061
+  - education_Assoc-voc: +0.0033
+  - capital-gain: +0.0021
+- Top negative features (attribution_score):
+  - occupation_Exec-managerial: -0.0151
+  - age: -0.0069
+  - workclass_Local-gov: -0.0048
+  - education-num: -0.0038
+  - native-country_United-States: -0.0031
+- Max positive: 0.018644  Max negative: -0.015087
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0167  (orig=0.4213 → mod=0.4046)
+  - marital-status_Divorced: drop=+0.0162  (orig=0.4213 → mod=0.4051)
+  - occupation_Exec-managerial: drop=-0.0136  (orig=0.4213 → mod=0.4349)
+  - age: drop=-0.0072  (orig=0.4213 → mod=0.4285)
+  - race_White: drop=+0.0062  (orig=0.4213 → mod=0.4151)
+  - education_Assoc-voc: drop=+0.0048  (orig=0.4213 → mod=0.4165)
+  - capital-loss: drop=+0.0021  (orig=0.4213 → mod=0.4192)
+  - education-num: drop=-0.0020  (orig=0.4213 → mod=0.4233)
+  - capital-gain: drop=+0.0020  (orig=0.4213 → mod=0.4193)
+  - workclass_Local-gov: drop=-0.0017  (orig=0.4213 → mod=0.4230)
+- Max prob_drop: 0.016737  Max prob_increase: -0.013625
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which features in the input are known to be strong predictors of <=50K income in the Adult Income dataset based on domain knowledge.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "40"}, {"feature_key": "education-num", "action": "change", "new_value": "10"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "30"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "relationship", "action": "change", "new_value": "Wife"}]
+- Explanation: In the Adult Income dataset, features such as age, education level (via education-num), hours per week, sex, and relationship are well-documented as strong predictors of income class. Specifically, individuals with lower education-num and fewer hours per week are more likely to earn <=50K. Sex has shown strong correlation in studies, with males historically having higher income likelihoods than females in this dataset. However, due to the model's prediction of <=50K for a female with above-average age and education, the model may be sensitive to such features. The grounded changes reflect known patterns where reducing education level, work hours, or changing sex or relationship to lower-earning profiles increases the likelihood of predicting <=50K. These adjustments align with domain knowledge from prior analyses of the Adult dataset.
+- Confidence: 0.94
+
+### REASONING Task
+- Query: Analyze how the combination of features (e.g., low education-num, divorced marital status, female sex) may contribute to the model predicting <=50K.
+- Status: Success
+- Explanation: The model predicted income <=50K with 68.26% confidence, and the individual's profile includes several features that align with lower-income predictions. While the person has a relatively moderate age (46), holds an 'Assoc-voc' education (education-num=11), and works in an executive managerial role (a high-paying occupation), several contextual features may downweight this potential for higher income. Key factors include marital status ('Divorced'), sex ('Female'), and lack of capital gains or losses. Studies and datasets like the Adult Income dataset show that, historically, female workers, especially those who are divorced, may be underrepresented in higher-income categories, even with high-paying occupations like 'Exec-managerial'. Additionally, while 'Local-gov' workclass and 'White' race are not strongly correlated with low income, the combination of female sex and divorced marital status together may signal lower socioeconomic stability or reduced access to upward mobility pathways. The absence of capital gains or losses (both zero) further supports a lower-income trajectory. Although occupation is high-paying, the model may prioritize background features such as sex and marital status in its decision logic, leading to a cautious prediction of <=50K despite the executive role. Thus, the prediction is likely driven by a combination of demographic and socio-structural features rather than solely by job title or education level.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

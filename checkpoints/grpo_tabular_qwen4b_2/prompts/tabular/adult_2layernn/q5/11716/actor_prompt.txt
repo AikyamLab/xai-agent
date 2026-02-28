@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the workclass feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5244
+
+## Part to be Masked
+workclass
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=161631, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.008602).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0187
+  - native-country_Haiti: +0.0167
+  - race_Amer-Indian-Eskimo: +0.0122
+  - native-country_Cuba: +0.0111
+  - native-country_United-States: +0.0096
+- Top negative features (shap_value):
+  - fnlwgt: -0.0187
+  - native-country_Holand-Netherlands: -0.0167
+  - race_Asian-Pac-Islander: -0.0122
+  - native-country_Columbia: -0.0111
+  - native-country_Trinadad&Tobago: -0.0096
+- Max positive: 0.018652  Max negative: -0.018652
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0086  (orig=0.3833 → mod=0.3747)
+  - education_Some-college: drop=+0.0085  (orig=0.3833 → mod=0.3748)
+  - occupation_Craft-repair: drop=+0.0061  (orig=0.3833 → mod=0.3772)
+  - sex_Male: drop=-0.0055  (orig=0.3833 → mod=0.3888)
+  - race_White: drop=+0.0054  (orig=0.3833 → mod=0.3779)
+  - marital-status_Married-civ-spouse: drop=-0.0034  (orig=0.3833 → mod=0.3867)
+  - native-country_United-States: drop=-0.0027  (orig=0.3833 → mod=0.3860)
+  - relationship_Husband: drop=-0.0015  (orig=0.3833 → mod=0.3848)
+  - workclass_Private: drop=+0.0012  (orig=0.3833 → mod=0.3821)
+  - fnlwgt: drop=+0.0011  (orig=0.3833 → mod=0.3822)
+- Max prob_drop: 0.008602  Max prob_increase: -0.005515
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model outputs a prediction of <=50K with moderate confidence (0.524), and workclass is 'Private', evaluate whether private workclass is likely to be a dominant or secondary driver in this prediction.
+- Status: Success
+- findings: {"workclass_contribution": "secondary", "reasoning": "In the Adult Income Dataset, the 'workclass' feature is one of several categorical predictors that contributes to income classification, but its influence is generally weaker compared to features like 'age', 'education-num', 'hours-per-week', and 'sex'. The majority of individuals in the dataset fall into 'Private' workclass, which is the most common category and is associated with average income outcomes. Since the prediction is <=50K with moderate confidence (52.44%), and the individual has a relatively low age (25), limited education (Some-college), and 40 hours per week\u2014factors more strongly correlated with lower income\u2014the model likely relies more on these features than on 'workclass'. Masking 'workclass' would therefore not substantially alter the prediction because the model's decision boundary is primarily shaped by demographic and socioeconomic factors rather than workclass alone. Thus, 'workclass' acts as a secondary driver at best."}
+- Explanation: In the Adult Income Dataset, the 'workclass' feature is one of several categorical predictors that contributes to income classification, but its influence is generally weaker compared to features like 'age', 'education-num', 'hours-per-week', and 'sex'. The majority of individuals in the dataset fall into 'Private' workclass, which is the most common category and is associated with average income outcomes. Since the prediction is <=50K with moderate confidence (52.44%), and the individual has a relatively low age (25), limited education (Some-college), and 40 hours per week—factors more strongly correlated with lower income—the model likely relies more on these features than on 'workclass'. Masking 'workclass' would therefore not substantially alter the prediction because the model's decision boundary is primarily shaped by demographic and socioeconomic factors rather than workclass alone. Thus, 'workclass' acts as a secondary driver at best.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the baseline prediction (with workclass=Private) to what might be expected if workclass were replaced with common alternatives like Self-emp-not-inc or Federal-gov.
+- Status: Success
+- findings: ["The baseline prediction is 0 (income \u226450K) with 52.44% confidence when workclass is 'Private'.", "Replacing 'workclass' with 'Self-emp-not-inc' (self-employed, not in a business) may increase the predicted income, as self-employed individuals tend to have higher incomes in real-world data. This would likely shift the prediction toward 1 (income >50K), potentially increasing confidence in that class.", "Replacing 'workclass' with 'Federal-gov' (government employment) may result in a modest increase in income due to stable employment and higher salaries in certain federal roles, though likely less than self-employment. This could slightly increase the probability of predicting income >50K, though the shift remains moderate.", "Workclass is a significant feature in income prediction models, especially in tabular datasets like the Census Income dataset. It captures employment type, which is strongly correlated with income levels.", "The model is likely sensitive to workclass changes, as other features (e.g., occupation, hours-per-week, sex) are interdependent with employment type. However, no strong evidence suggests that the model is overfitting on this feature; rather, it appears to have learned meaningful patterns."]
+- Explanation: Workclass is a strong predictor of income in this dataset due to its direct relation to employment type and earnings potential. 'Private' employment has historically been associated with lower average incomes compared to self-employment or government roles. Therefore, replacing 'Private' with 'Self-emp-not-inc' or 'Federal-gov' would likely push the model toward predicting higher income (>50K), given that these categories are statistically associated with higher earnings. The magnitude of change in prediction probability is expected to be moderate to high, indicating sensitivity to this feature. Without access to the full model weights or feature importance scores, the analysis is based on domain knowledge of the dataset and causal logic of employment types on income.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model outputs a prediction of <=50K with moderate confidence (0.524), and workclass is 'Private', evaluate whether private workclass is likely to be a dominant or secondary driver in this prediction.
+- Status: Success
+- findings: {"workclass_contribution": "secondary", "reasoning": "In the Adult Income Dataset, the 'workclass' feature is one of several categorical predictors that contributes to income classification, but its influence is generally weaker compared to features like 'age', 'education-num', 'hours-per-week', and 'sex'. The majority of individuals in the dataset fall into 'Private' workclass, which is the most common category and is associated with average income outcomes. Since the prediction is <=50K with moderate confidence (52.44%), and the individual has a relatively low age (25), limited education (Some-college), and 40 hours per week\u2014factors more strongly correlated with lower income\u2014the model likely relies more on these features than on 'workclass'. Masking 'workclass' would therefore not substantially alter the prediction because the model's decision boundary is primarily shaped by demographic and socioeconomic factors rather than workclass alone. Thus, 'workclass' acts as a secondary driver at best."}
+- Explanation: In the Adult Income Dataset, the 'workclass' feature is one of several categorical predictors that contributes to income classification, but its influence is generally weaker compared to features like 'age', 'education-num', 'hours-per-week', and 'sex'. The majority of individuals in the dataset fall into 'Private' workclass, which is the most common category and is associated with average income outcomes. Since the prediction is <=50K with moderate confidence (52.44%), and the individual has a relatively low age (25), limited education (Some-college), and 40 hours per week—factors more strongly correlated with lower income—the model likely relies more on these features than on 'workclass'. Masking 'workclass' would therefore not substantially alter the prediction because the model's decision boundary is primarily shaped by demographic and socioeconomic factors rather than workclass alone. Thus, 'workclass' acts as a secondary driver at best.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the baseline prediction (with workclass=Private) to what might be expected if workclass were replaced with common alternatives like Self-emp-not-inc or Federal-gov.
+- Status: Success
+- findings: ["The baseline prediction is 0 (income \u226450K) with 52.44% confidence when workclass is 'Private'.", "Replacing 'workclass' with 'Self-emp-not-inc' (self-employed, not in a business) may increase the predicted income, as self-employed individuals tend to have higher incomes in real-world data. This would likely shift the prediction toward 1 (income >50K), potentially increasing confidence in that class.", "Replacing 'workclass' with 'Federal-gov' (government employment) may result in a modest increase in income due to stable employment and higher salaries in certain federal roles, though likely less than self-employment. This could slightly increase the probability of predicting income >50K, though the shift remains moderate.", "Workclass is a significant feature in income prediction models, especially in tabular datasets like the Census Income dataset. It captures employment type, which is strongly correlated with income levels.", "The model is likely sensitive to workclass changes, as other features (e.g., occupation, hours-per-week, sex) are interdependent with employment type. However, no strong evidence suggests that the model is overfitting on this feature; rather, it appears to have learned meaningful patterns."]
+- Explanation: Workclass is a strong predictor of income in this dataset due to its direct relation to employment type and earnings potential. 'Private' employment has historically been associated with lower average incomes compared to self-employment or government roles. Therefore, replacing 'Private' with 'Self-emp-not-inc' or 'Federal-gov' would likely push the model toward predicting higher income (>50K), given that these categories are statistically associated with higher earnings. The magnitude of change in prediction probability is expected to be moderate to high, indicating sensitivity to this feature. Without access to the full model weights or feature importance scores, the analysis is based on domain knowledge of the dataset and causal logic of employment types on income.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

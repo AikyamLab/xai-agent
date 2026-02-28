@@ -1,0 +1,125 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7820
+
+## Input Data
+Features: age=49, workclass=Private, fnlwgt=118520, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.015885).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0423
+  - fnlwgt: +0.0384
+  - native-country_Vietnam: +0.0320
+  - sex_Male: +0.0318
+  - capital-loss: +0.0197
+- Top negative features (shap_value):
+  - race_Other: -0.0423
+  - age: -0.0384
+  - native-country_Yugoslavia: -0.0320
+  - native-country_Cambodia: -0.0318
+  - hours-per-week: -0.0197
+- Max positive: 0.042273  Max negative: -0.042273
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2161
+  - capital-loss <= -0.22: +0.0967
+  - native-country_Japan <= 0.00: +0.0953
+  - education-num <= -0.44: +0.0938
+  - native-country_England <= 0.00: +0.0755
+- Top negative features (weight):
+  - age > 0.64: -0.0834
+  - education_1st-4th <= 0.00: -0.0782
+  - native-country_South <= 0.00: -0.0623
+- Max positive: 0.21613  Max negative: -0.083444
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0157
+  - relationship_Not-in-family: +0.0137
+  - education_HS-grad: +0.0056
+  - education-num: +0.0046
+  - race_White: +0.0040
+- Top negative features (attribution_score):
+  - age: -0.0101
+  - sex_Female: -0.0018
+  - native-country_United-States: -0.0013
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.015696  Max negative: -0.010092
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0159  (orig=0.4457 → mod=0.4298)
+  - relationship_Not-in-family: drop=+0.0113  (orig=0.4457 → mod=0.4344)
+  - age: drop=-0.0070  (orig=0.4457 → mod=0.4527)
+  - education_HS-grad: drop=+0.0061  (orig=0.4457 → mod=0.4396)
+  - education-num: drop=+0.0045  (orig=0.4457 → mod=0.4412)
+  - race_White: drop=+0.0024  (orig=0.4457 → mod=0.4433)
+  - capital-loss: drop=+0.0017  (orig=0.4457 → mod=0.4440)
+  - capital-gain: drop=+0.0016  (orig=0.4457 → mod=0.4441)
+  - hours-per-week: drop=+0.0011  (orig=0.4457 → mod=0.4446)
+  - workclass_Private: drop=+0.0002  (orig=0.4457 → mod=0.4455)
+- Max prob_drop: 0.015885  Max prob_increase: -0.006957
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are commonly associated with income levels ≤50K in the adult dataset based on known knowledge of the dataset?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "HS-grad"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 45}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the Adult Income dataset, individuals with lower education levels (e.g., HS-grad), non-professional occupations (e.g., Adm-clerical), divorced marital status, lower working hours (e.g., 45 hours per week), and female sex are statistically more likely to have income ≤50K. These features are well-documented as correlates of low income in dataset analyses and real-world labor market studies. The current values reflect such patterns, and thus are grounded in known correlations from the dataset.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: How might the feature 'education-num=9' (HS-grad) and 'workclass=Private' influence the prediction of income ≤50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: In the dataset, individuals with an 'education-num' of 9 (HS-grad) typically have lower educational attainment compared to those with higher levels like Bachelor's or above, which are often associated with higher income levels. Additionally, individuals in the 'Private' workclass are frequently employed in standard corporate or business jobs, which generally have moderate income potential. These features, when combined with other low-income indicators such as 'Divorced' marital status, 'Female' sex, and no capital gains, contribute to a higher probability of being classified as income ≤50K. The model's 78.20% confidence further supports that this combination is consistent with known patterns in the dataset where lower education and private-sector employment correlate with lower earnings.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the impact of demographic features (e.g., sex=Female, race=White) versus socioeconomic features (e.g., education, occupation) on income prediction in the adult dataset.
+- Status: Success
+- findings: [{"feature_type": "demographic", "features": ["sex", "race"], "influence": "High", "reason": "In the adult dataset, demographic features such as sex and race are strongly correlated with income classification, particularly in historical models where biases in data have led to systematic differences in predictions. The current values \u2014 sex='Female' and race='White' \u2014 are both associated with lower income probability in baseline models. While 'White' is typically linked to a higher probability of being in the <=50K group in some analyses, female individuals are often penalized in income predictions, especially in older versions of the model. This demographic bias is a key factor in the prediction of <=50K despite the individual's age and education level."}, {"feature_type": "socioeconomic", "features": ["education", "occupation", "hours-per-week", "capital-gain", "capital-loss", "fnlwgt"], "influence": "Moderate to High", "reason": "Education and occupation are strong socioeconomic predictors. Here, 'HS-grad' (education-num=9) and 'Adm-clerical' (occupation) represent stable, non-advanced employment pathways typically associated with lower-income outcomes. While 'hours-per-week=45' suggests a work commitment, it does not significantly shift the prediction upward due to the lack of high-skill or high-wage occupations. Capital gain and loss are zero, which further limits upward income potential. fnlwgt is non-zero but not a direct predictor of income level; however, it can influence model weights in some implementations. Overall, socioeconomic features support the <=50K prediction but do not override demographic bias."}]
+- Explanation: The model's prediction of <=50K is primarily driven by demographic factors such as sex='Female' and race='White'. Although female workers in the U.S. are often represented in lower-income brackets in historical datasets, race may show a less pronounced effect. Nonetheless, the combination of 'Female' and 'White' together contributes to a neutral-to-low-income profile. Socioeconomic features like education and occupation (HS-grad, Adm-clerical) reinforce this prediction, as they signal low-income functional roles. However, age=49 and hours-per-week=45 suggest some economic viability, but these are outweighed by the structural weight of demographic biases in the model. Thus, demographic features have the highest influence, followed by socioeconomic indicators.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

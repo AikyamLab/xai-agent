@@ -1,0 +1,119 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.5334
+
+## Input Data
+Features: age=50, workclass=State-gov, fnlwgt=229272, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: education_Bachelors.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008679).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education_Doctorate: +0.0090
+  - native-country_United-States: +0.0085
+  - native-country_Yugoslavia: +0.0064
+  - fnlwgt: +0.0064
+  - education_5th-6th: +0.0059
+- Top negative features (shap_value):
+  - education_Bachelors: -0.0090
+  - native-country_Trinadad&Tobago: -0.0085
+  - native-country_Vietnam: -0.0064
+  - age: -0.0064
+  - education_1st-4th: -0.0059
+- Max positive: 0.008975  Max negative: -0.008975
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0584
+  - native-country_South <= 0.00: +0.0348
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0743
+  - capital-gain <= -0.15: -0.0736
+  - native-country_France <= 0.00: -0.0706
+  - education-num <= -0.44: -0.0533
+  - hours-per-week <= -0.08: -0.0429
+- Max positive: 0.058381  Max negative: -0.074254
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0079
+  - native-country_United-States: +0.0046
+  - age: +0.0031
+  - marital-status_Married-civ-spouse: +0.0025
+  - relationship_Husband: +0.0018
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0066
+  - education-num: -0.0031
+  - race_Black: -0.0016
+  - hours-per-week: -0.0010
+  - capital-gain: -0.0004
+- Max positive: 0.007925  Max negative: -0.006566
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0087  (orig=0.6303 → mod=0.6216)
+  - workclass_State-gov: drop=+0.0053  (orig=0.6303 → mod=0.6250)
+  - marital-status_Married-civ-spouse: drop=+0.0050  (orig=0.6303 → mod=0.6253)
+  - education_HS-grad: drop=-0.0050  (orig=0.6303 → mod=0.6353)
+  - relationship_Husband: drop=+0.0048  (orig=0.6303 → mod=0.6255)
+  - native-country_United-States: drop=+0.0037  (orig=0.6303 → mod=0.6266)
+  - age: drop=+0.0029  (orig=0.6303 → mod=0.6273)
+  - education-num: drop=-0.0022  (orig=0.6303 → mod=0.6324)
+  - fnlwgt: drop=+0.0019  (orig=0.6303 → mod=0.6283)
+  - occupation_Craft-repair: drop=-0.0013  (orig=0.6303 → mod=0.6316)
+- Max prob_drop: 0.008679  Max prob_increase: -0.00497
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income >50K in the adult dataset?
+- Status: Success
+- findings: ["hours-per-week", "age", "education-num", "capital-gain", "occupation"]
+- Explanation: In the Adult Income Dataset (used in the classic UCI Adult dataset), several features are known from domain studies and statistical analyses to have strong positive associations with income >50K. 'hours-per-week' shows a well-documented positive correlation—higher hours are associated with higher income. 'age' also correlates positively, as older individuals often have more work experience and higher earnings. 'education-num' (a numeric version of education level) is strongly linked to income, as higher education levels correlate with better-paying jobs. 'capital-gain' has a known positive association, with individuals who have significant capital gains typically earning more. 'occupation' can also be influential—occupations like 'Exec-managerial' or 'Prof-specialty' are frequently associated with high income. While 'workclass' and 'sex' show some associations, the strongest and most consistently observed correlations are with the above features.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: How does the value of 'age=50' and 'workclass=State-gov' align with known patterns in the adult income dataset for '>50K' predictions?
+- Status: Success
+- Explanation: In the Adult Income Dataset, individuals earning more than $50K are typically associated with higher education levels, stable employment, and specific occupational categories. The feature 'age=50' is moderately aligned with higher income potential, as older individuals (especially those in their 50s) often have more work experience and may occupy higher-paying positions. However, age alone is not a strong predictor. The feature 'workclass=State-gov' is particularly notable: individuals in the 'State-gov' category are more likely to be public sector employees, which often have lower average incomes compared to private sector or self-employed workers. In contrast, higher income earners are more commonly associated with 'Private' sector jobs, especially in high-paying occupations like 'Prof-specialty' or 'Exec-managerial'. Therefore, 'State-gov' is a relatively weak signal for 'greater than 50K' and may partially explain the model's lower confidence (53.34%). The combination of age=50 and workclass=State-gov suggests a lesser-than-expected likelihood of earning over $50K, especially when considered alongside lower values in education-num (9, which is below the average for high-income earners) and capital gains (0). While these features do not strongly drive the prediction toward '>50K', other features such as occupation, hours-per-week, or race may play a more significant role. The model's prediction may be influenced by other under-identified features that are not explicitly highlighted here.
+- Confidence: 0.82
+
+### COMPARISON Task
+- Query: Compare the influence of 'education-num=9' (HS-grad) and 'fnlwgt=229272' in relation to typical thresholds for income classification.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "fnlwgt", "action": "change", "new_value": 300000}]
+- Explanation: In the context of income classification, 'education-num' is a strong predictor of income level. A value of 9 (HS-grad) is below the typical threshold (often 10 or higher, such as 'Some-college' or 'Bachelors') associated with higher income brackets. Increasing 'education-num' to 12 (e.g., 'Some-college' or 'Associates') would more likely push the prediction toward class 1. Similarly, 'fnlwgt' (final weight) is a proxy for household income and often correlates with economic status; values above 200,000 are more frequently associated with higher income. Increasing 'fnlwgt' to 300,000 strengthens the model's confidence in predicting income >50K. However, 'education-num' has a more direct and interpretable impact on income classification than 'fnlwgt', which is more of a normalization factor. Therefore, education-num is prioritized as the higher-influence feature.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

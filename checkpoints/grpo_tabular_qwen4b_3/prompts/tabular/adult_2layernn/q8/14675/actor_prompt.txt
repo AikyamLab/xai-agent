@@ -1,0 +1,120 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (52.07%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=42, workclass=State-gov, fnlwgt=191814, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: race_Amer-Indian-Eskimo.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008775).
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Asian-Pac-Islander: +0.0088
+  - education_5th-6th: +0.0056
+  - native-country_United-States: +0.0049
+  - native-country_Yugoslavia: +0.0048
+  - native-country_Hong: +0.0038
+- Top negative features (shap_value):
+  - race_Amer-Indian-Eskimo: -0.0088
+  - education_1st-4th: -0.0056
+  - native-country_Trinadad&Tobago: -0.0049
+  - native-country_Vietnam: -0.0048
+  - native-country_Honduras: -0.0038
+- Max positive: 0.008768  Max negative: -0.008768
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0088  (orig=0.6273 → mod=0.6185)
+  - education_HS-grad: drop=-0.0073  (orig=0.6273 → mod=0.6346)
+  - occupation_Craft-repair: drop=-0.0060  (orig=0.6273 → mod=0.6333)
+  - marital-status_Married-civ-spouse: drop=+0.0042  (orig=0.6273 → mod=0.6231)
+  - relationship_Husband: drop=+0.0042  (orig=0.6273 → mod=0.6231)
+  - native-country_United-States: drop=+0.0035  (orig=0.6273 → mod=0.6238)
+  - education-num: drop=-0.0027  (orig=0.6273 → mod=0.6300)
+  - workclass_State-gov: drop=+0.0019  (orig=0.6273 → mod=0.6254)
+  - age: drop=+0.0012  (orig=0.6273 → mod=0.6261)
+  - capital-loss: drop=-0.0009  (orig=0.6273 → mod=0.6282)
+- Max prob_drop: 0.008775  Max prob_increase: -0.007314
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0073
+  - native-country_United-States: +0.0047
+  - marital-status_Married-civ-spouse: +0.0035
+  - race_White: +0.0013
+  - relationship_Husband: +0.0013
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0061
+  - education-num: -0.0032
+  - occupation_Craft-repair: -0.0014
+  - hours-per-week: -0.0009
+  - capital-gain: -0.0003
+- Max positive: 0.007254  Max negative: -0.006134
+- Total features: 104
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'workclass=State-gov' or 'fnlwgt=191814' when these features are not semantically linked to income level <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 0}]
+- Explanation: In the Adult Income dataset, 'workclass' and 'fnlwgt' are known to be correlated with income, not because they directly determine income, but due to data collection biases and demographic distributions. 'State-gov' individuals are often associated with lower income, and this class tends to co-occur with lower income groups. However, the feature 'fnlwgt' (final weight) is a synthetic measure used for sampling and does not represent actual income. It is not semantically linked to income level, and its presence can introduce noise or spurious correlations due to its correlation with sample representation. The model may learn these features as proxies for income based on historical patterns in training data, leading to spurious associations. Changing 'workclass' to 'Private' and setting 'fnlwgt' to 0 removes these potentially misleading features, helping to isolate true income-related signals.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model’s confidence in predicting >50K with the semantic relevance of features like 'education-num=9' or 'age=42' to the true class <=50K.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "12"}, {"feature_key": "age", "action": "change", "new_value": "55"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "50"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "race", "action": "change", "new_value": "Black"}]
+- Explanation: The true label is <=50K, but the model predicted >50K with only 52.07% confidence. Key features that typically correlate with higher income (>50K) include high education level (education-num ≥ 12), older age, higher work hours, and male sex. In this case, the individual has education-num=9 (typical of HS-grad), age=42 (moderate), hours-per-week=40 (average), and male sex. These values are more aligned with lower income brackets. Changing education-num to 12 increases the signal of higher socioeconomic status, which may have influenced the model. Increasing age and hours-per-week further strengthens the income signal. Changing sex to female and race to Black introduces demographic factors that historically correlate with lower income in this dataset. Thus, these features are semantically relevant and could have contributed to the incorrect prediction. The model likely overestimated the income due to an underweighting of demographic and education signals that are more predictive of ≤50K in reality.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'workclass=State-gov' or 'fnlwgt=191814' when these features are not semantically linked to income level <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 0}]
+- Explanation: In the Adult Income dataset, 'workclass' and 'fnlwgt' are known to be correlated with income, not because they directly determine income, but due to data collection biases and demographic distributions. 'State-gov' individuals are often associated with lower income, and this class tends to co-occur with lower income groups. However, the feature 'fnlwgt' (final weight) is a synthetic measure used for sampling and does not represent actual income. It is not semantically linked to income level, and its presence can introduce noise or spurious correlations due to its correlation with sample representation. The model may learn these features as proxies for income based on historical patterns in training data, leading to spurious associations. Changing 'workclass' to 'Private' and setting 'fnlwgt' to 0 removes these potentially misleading features, helping to isolate true income-related signals.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model’s confidence in predicting >50K with the semantic relevance of features like 'education-num=9' or 'age=42' to the true class <=50K.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "12"}, {"feature_key": "age", "action": "change", "new_value": "55"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "50"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "race", "action": "change", "new_value": "Black"}]
+- Explanation: The true label is <=50K, but the model predicted >50K with only 52.07% confidence. Key features that typically correlate with higher income (>50K) include high education level (education-num ≥ 12), older age, higher work hours, and male sex. In this case, the individual has education-num=9 (typical of HS-grad), age=42 (moderate), hours-per-week=40 (average), and male sex. These values are more aligned with lower income brackets. Changing education-num to 12 increases the signal of higher socioeconomic status, which may have influenced the model. Increasing age and hours-per-week further strengthens the income signal. Changing sex to female and race to Black introduces demographic factors that historically correlate with lower income in this dataset. Thus, these features are semantically relevant and could have contributed to the incorrect prediction. The model likely overestimated the income due to an underweighting of demographic and education signals that are more predictive of ≤50K in reality.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

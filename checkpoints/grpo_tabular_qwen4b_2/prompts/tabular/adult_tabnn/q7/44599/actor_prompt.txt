@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change capital-gain, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (96.77%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.9676645994186401}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.03233540058135986}]
+- Part to Change: capital-gain
+
+## Input Data
+Features: age=38, workclass=Self-emp-not-inc, fnlwgt=194534, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=Black, sex=Male, capital-gain=99999, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-gain (prob drop: 0.057698).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.4126
+  - hours-per-week: +0.0556
+  - relationship_Not-in-family: +0.0229
+  - workclass_State-gov: +0.0228
+  - education_10th: +0.0142
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.4126
+  - capital-loss: -0.0556
+  - relationship_Husband: -0.0229
+  - workclass_Self-emp-not-inc: -0.0228
+  - workclass_Without-pay: -0.0142
+- Max positive: 0.412581  Max negative: -0.412581
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=+0.0577  (orig=0.7247 → mod=0.6670)
+  - education-num: drop=+0.0016  (orig=0.7247 → mod=0.7231)
+  - sex_Male: drop=+0.0008  (orig=0.7247 → mod=0.7238)
+  - relationship_Husband: drop=+0.0007  (orig=0.7247 → mod=0.7239)
+  - education_Masters: drop=+0.0006  (orig=0.7247 → mod=0.7240)
+  - marital-status_Married-civ-spouse: drop=+0.0005  (orig=0.7247 → mod=0.7242)
+  - hours-per-week: drop=+0.0005  (orig=0.7247 → mod=0.7242)
+  - native-country_United-States: drop=+0.0004  (orig=0.7247 → mod=0.7242)
+  - occupation_Prof-specialty: drop=+0.0003  (orig=0.7247 → mod=0.7243)
+  - workclass_Self-emp-not-inc: drop=+0.0001  (orig=0.7247 → mod=0.7246)
+- Max prob_drop: 0.057698  Max prob_increase: -6.7e-05
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the prior importance of capital-gain in the model's decision-making for predicting income >50K?
+- Status: Success
+- findings: "Capital-gain has a moderate to high influence on the model's prediction of income >50K, particularly given that the current value (99999) is unusually high and lies in the upper tail of the distribution. Removing or changing this feature would significantly shift the prediction probability, especially in models that use non-linear or gradient-boosted architectures where high capital gains are associated with higher income likelihoods. The model's high confidence (96.77%) in predicting 'greater than 50K' suggests that capital-gain, along with other features, is a strong contributor to the decision. Altering it \u2014 even to a lower value \u2014 would likely reduce the prediction confidence, and in extreme cases, possibly reverse the prediction to \u226450K if the change undermines the feature's contribution to the income signal."
+- Explanation: The current value of capital-gain is set at 99999, which is numerically large and likely contributes positively to the prediction of income >50K. Since the model is confident (96.77%) in the prediction, and given that capital-gain is a feature known to correlate with higher income in real-world data, it plays a significant role in the decision chain. Removing or reducing capital-gain would decrease the model's expected income score, potentially leading to a downgrade in the prediction. In a tabular model with feature engineering, such features are often incorporated through interaction terms or weighted features, enhancing their predictive power. Thus, capital-gain is not a minor or redundant feature but a key contributor to the final outcome.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: If capital-gain is removed, how would the model's feature space shift in terms of weight distribution for classifying income as >50K?
+- Status: Success
+- findings: "The probability of income >50K would decrease if capital-gain is removed."
+- Explanation: The current model prediction of >50K is highly confident (96.77%), and capital-gain is a key feature in this prediction. The individual has a very high capital-gain value of 99999, which is significantly above typical levels in the dataset. In many income prediction models, high capital gains are positively correlated with higher income, especially in the context of U.S. census data where capital gains serve as a proxy for financial success. Removing or changing capital-gain would reduce the feature's influence on the model, particularly if the model learned that high capital-gain values strongly contribute to the >50K class. Without this positive signal, the model's confidence in the >50K prediction would diminish, leading to a lower probability of classifying the individual as earning over 50K. Even though the individual's other features (e.g., education, occupation, hours-per-week) are favorable, the high capital-gain mitigates uncertainty. Therefore, removing capital-gain reduces the model's weight on favorable income indicators, shifting the classification toward the baseline or lower-income class.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the original prediction probability (0.9677) with a scenario where capital-gain is set to zero; what is the expected change in class probability?
+- Status: Success
+- predicted_probability_change: -0.12
+- Explanation: The original model predicted a probability of 0.9677 for the individual's income being greater than 50K. Capital-gain is a feature that positively correlates with higher income in this dataset. When capital-gain is removed (set to 0), the model loses a strong signal of financial success, which reduces the confidence in the 'greater than 50K' prediction. Based on feature importance analysis and historical correlations in similar datasets (e.g., Census Income), a reduction of approximately 12% in prediction probability is expected when capital-gain is reduced to zero. This reflects a moderate decrease in confidence due to the loss of a key income-related feature.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the prior importance of capital-gain in the model's decision-making for predicting income >50K?
+- Status: Success
+- findings: "Capital-gain has a moderate to high influence on the model's prediction of income >50K, particularly given that the current value (99999) is unusually high and lies in the upper tail of the distribution. Removing or changing this feature would significantly shift the prediction probability, especially in models that use non-linear or gradient-boosted architectures where high capital gains are associated with higher income likelihoods. The model's high confidence (96.77%) in predicting 'greater than 50K' suggests that capital-gain, along with other features, is a strong contributor to the decision. Altering it \u2014 even to a lower value \u2014 would likely reduce the prediction confidence, and in extreme cases, possibly reverse the prediction to \u226450K if the change undermines the feature's contribution to the income signal."
+- Explanation: The current value of capital-gain is set at 99999, which is numerically large and likely contributes positively to the prediction of income >50K. Since the model is confident (96.77%) in the prediction, and given that capital-gain is a feature known to correlate with higher income in real-world data, it plays a significant role in the decision chain. Removing or reducing capital-gain would decrease the model's expected income score, potentially leading to a downgrade in the prediction. In a tabular model with feature engineering, such features are often incorporated through interaction terms or weighted features, enhancing their predictive power. Thus, capital-gain is not a minor or redundant feature but a key contributor to the final outcome.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: If capital-gain is removed, how would the model's feature space shift in terms of weight distribution for classifying income as >50K?
+- Status: Success
+- findings: "The probability of income >50K would decrease if capital-gain is removed."
+- Explanation: The current model prediction of >50K is highly confident (96.77%), and capital-gain is a key feature in this prediction. The individual has a very high capital-gain value of 99999, which is significantly above typical levels in the dataset. In many income prediction models, high capital gains are positively correlated with higher income, especially in the context of U.S. census data where capital gains serve as a proxy for financial success. Removing or changing capital-gain would reduce the feature's influence on the model, particularly if the model learned that high capital-gain values strongly contribute to the >50K class. Without this positive signal, the model's confidence in the >50K prediction would diminish, leading to a lower probability of classifying the individual as earning over 50K. Even though the individual's other features (e.g., education, occupation, hours-per-week) are favorable, the high capital-gain mitigates uncertainty. Therefore, removing capital-gain reduces the model's weight on favorable income indicators, shifting the classification toward the baseline or lower-income class.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the original prediction probability (0.9677) with a scenario where capital-gain is set to zero; what is the expected change in class probability?
+- Status: Success
+- predicted_probability_change: -0.12
+- Explanation: The original model predicted a probability of 0.9677 for the individual's income being greater than 50K. Capital-gain is a feature that positively correlates with higher income in this dataset. When capital-gain is removed (set to 0), the model loses a strong signal of financial success, which reduces the confidence in the 'greater than 50K' prediction. Based on feature importance analysis and historical correlations in similar datasets (e.g., Census Income), a reduction of approximately 12% in prediction probability is expected when capital-gain is reduced to zero. This reflects a moderate decrease in confidence due to the loss of a key income-related feature.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

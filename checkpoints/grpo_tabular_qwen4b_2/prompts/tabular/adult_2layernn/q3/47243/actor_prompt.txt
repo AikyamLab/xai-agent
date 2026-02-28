@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (55.25%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4475407898426056}
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=301862, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Craft-repair, relationship=Unmarried, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.007901).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0238
+  - native-country_Haiti: +0.0172
+  - workclass_State-gov: +0.0168
+  - occupation_Tech-support: +0.0114
+  - native-country_Yugoslavia: +0.0084
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0238
+  - native-country_Holand-Netherlands: -0.0172
+  - workclass_Self-emp-not-inc: -0.0168
+  - occupation_Transport-moving: -0.0114
+  - native-country_Vietnam: -0.0084
+- Max positive: 0.023793  Max negative: -0.023793
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0718
+  - capital-gain <= -0.15: +0.0693
+  - education-num <= -0.44: +0.0551
+  - native-country_Trinadad&Tobago <= 0.00: +0.0187
+  - native-country_Peru <= 0.00: +0.0012
+- Top negative features (weight):
+  - native-country_Vietnam <= 0.00: -0.0640
+  - hours-per-week > 0.34: -0.0511
+  - native-country_Yugoslavia <= 0.00: -0.0301
+  - native-country_Iran <= 0.00: -0.0284
+  - education_Preschool <= 0.00: -0.0044
+- Max positive: 0.071805  Max negative: -0.064039
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0057
+  - education_HS-grad: +0.0053
+  - education-num: +0.0038
+  - workclass_Private: +0.0028
+  - occupation_Craft-repair: +0.0026
+- Top negative features (attribution_score):
+  - sex_Male: -0.0089
+  - hours-per-week: -0.0038
+  - native-country_United-States: -0.0015
+  - race_White: -0.0010
+  - capital-loss: -0.0002
+- Max positive: 0.005718  Max negative: -0.008858
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0079  (orig=0.3899 → mod=0.3978)
+  - marital-status_Never-married: drop=+0.0052  (orig=0.3899 → mod=0.3847)
+  - occupation_Craft-repair: drop=+0.0043  (orig=0.3899 → mod=0.3856)
+  - education-num: drop=+0.0029  (orig=0.3899 → mod=0.3871)
+  - education_HS-grad: drop=+0.0028  (orig=0.3899 → mod=0.3871)
+  - fnlwgt: drop=-0.0024  (orig=0.3899 → mod=0.3923)
+  - hours-per-week: drop=-0.0019  (orig=0.3899 → mod=0.3919)
+  - capital-gain: drop=+0.0009  (orig=0.3899 → mod=0.3890)
+  - age: drop=+0.0008  (orig=0.3899 → mod=0.3892)
+  - workclass_Private: drop=-0.0006  (orig=0.3899 → mod=0.3906)
+- Max prob_drop: 0.005222  Max prob_increase: -0.007901
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on known socioeconomic patterns, which features are typically more prevalent or strongly associated with <=50K income compared to >50K, such as age, education level, work class, or marital status?
+- Status: Success
+- findings: ["age", "education-num", "marital-status", "occupation", "hours-per-week"]
+- Explanation: Socioeconomic patterns from datasets like the Adult Income Dataset show that individuals earning <=50K are typically younger, have lower education levels (e.g., HS-grad vs. Bachelors or higher), are often never-married or single, work in lower-wage occupations (e.g., Craft-repair vs. Exec-managerial), and work fewer hours per week. For example, higher education levels and unionized or managerial occupations are strongly associated with >50K income. Similarly, age below 30 and lower hours per week correlate with <=50K. Marital status like 'Never-married' is predictive of lower income. While 'sex' and 'race' are statistically present in the data, their associations are often confounded or policy-driven, and do not consistently stand out as independent features in income prediction models. Thus, the most distinguishing features are those related to education, employment type, marital status, and work hours.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input values for features like age, education-num, marital-status, and occupation differ between the top-1 prediction (<=50K) and the top-2 alternative (>50K), and which differences are most statistically or contextually significant?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "impact": "moderate", "rationale": "Higher age is associated with greater likelihood of earning above 50K in certain demographics, particularly in professional roles. The current value (35) is below typical average for higher-income groups, suggesting reduced predictive weight for >50K."}, {"feature_key": "education-num", "action": "change", "new_value": 13, "impact": "strong", "rationale": "Education level, especially beyond high school, is strongly correlated with income. A value of 13 (e.g., some college, associate's) is below the level typically seen in higher-income earners (e.g., bachelor\u2019s or higher, where education-num \u2265 14). This discrepancy reduces the likelihood of predicting >50K."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "impact": "moderate", "rationale": "Married individuals often have higher income due to shared resources and stability. The current 'Never-married' status is a known indicator of lower income, which supports the <=50K prediction."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact": "strong", "rationale": "Occupations like 'Prof-specialty' or 'Exec-managerial' have high income potential. 'Craft-repair' is a blue-collar, lower-wage occupation. Changing this feature to a high-income occupation significantly increases the probability of predicting >50K."}]
+- Explanation: The model predicts <=50K with high confidence due to the combination of lower education level (education-num=9), blue-collar occupation ('Craft-repair'), unmarried status, and relatively young age (35). These features align with known socio-economic patterns where lower education, less stable life status, and non-professional occupations correlate with lower income. The top-two alternative (>50K) would require higher education, marital stability, and professional occupations. The most significant differences are in education-num and occupation, which are strongly tied to income distribution in the dataset. Age and marital-status have moderate but meaningful influence.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on known socioeconomic patterns, which features are typically more prevalent or strongly associated with <=50K income compared to >50K, such as age, education level, work class, or marital status?
+- Status: Success
+- findings: ["age", "education-num", "marital-status", "occupation", "hours-per-week"]
+- Explanation: Socioeconomic patterns from datasets like the Adult Income Dataset show that individuals earning <=50K are typically younger, have lower education levels (e.g., HS-grad vs. Bachelors or higher), are often never-married or single, work in lower-wage occupations (e.g., Craft-repair vs. Exec-managerial), and work fewer hours per week. For example, higher education levels and unionized or managerial occupations are strongly associated with >50K income. Similarly, age below 30 and lower hours per week correlate with <=50K. Marital status like 'Never-married' is predictive of lower income. While 'sex' and 'race' are statistically present in the data, their associations are often confounded or policy-driven, and do not consistently stand out as independent features in income prediction models. Thus, the most distinguishing features are those related to education, employment type, marital status, and work hours.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input values for features like age, education-num, marital-status, and occupation differ between the top-1 prediction (<=50K) and the top-2 alternative (>50K), and which differences are most statistically or contextually significant?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "impact": "moderate", "rationale": "Higher age is associated with greater likelihood of earning above 50K in certain demographics, particularly in professional roles. The current value (35) is below typical average for higher-income groups, suggesting reduced predictive weight for >50K."}, {"feature_key": "education-num", "action": "change", "new_value": 13, "impact": "strong", "rationale": "Education level, especially beyond high school, is strongly correlated with income. A value of 13 (e.g., some college, associate's) is below the level typically seen in higher-income earners (e.g., bachelor\u2019s or higher, where education-num \u2265 14). This discrepancy reduces the likelihood of predicting >50K."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "impact": "moderate", "rationale": "Married individuals often have higher income due to shared resources and stability. The current 'Never-married' status is a known indicator of lower income, which supports the <=50K prediction."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact": "strong", "rationale": "Occupations like 'Prof-specialty' or 'Exec-managerial' have high income potential. 'Craft-repair' is a blue-collar, lower-wage occupation. Changing this feature to a high-income occupation significantly increases the probability of predicting >50K."}]
+- Explanation: The model predicts <=50K with high confidence due to the combination of lower education level (education-num=9), blue-collar occupation ('Craft-repair'), unmarried status, and relatively young age (35). These features align with known socio-economic patterns where lower education, less stable life status, and non-professional occupations correlate with lower income. The top-two alternative (>50K) would require higher education, marital stability, and professional occupations. The most significant differences are in education-num and occupation, which are strongly tied to income distribution in the dataset. Age and marital-status have moderate but meaningful influence.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4475407898426056}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

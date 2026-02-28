@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (58.88%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5887687802314758}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.41123121976852417}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=40, workclass=Self-emp-not-inc, fnlwgt=145441, education=Some-college, education-num=10, marital-status=Divorced, occupation=Exec-managerial, relationship=Unmarried, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.009964).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0429
+  - native-country_Hong: +0.0222
+  - workclass_Self-emp-not-inc: +0.0203
+  - race_Amer-Indian-Eskimo: +0.0130
+  - native-country_Laos: +0.0102
+- Top negative features (shap_value):
+  - race_Other: -0.0429
+  - native-country_Honduras: -0.0222
+  - workclass_State-gov: -0.0203
+  - race_Asian-Pac-Islander: -0.0130
+  - native-country_Japan: -0.0102
+- Max positive: 0.042874  Max negative: -0.042874
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0100  (orig=0.3986 → mod=0.3887)
+  - workclass_Self-emp-not-inc: drop=+0.0074  (orig=0.3986 → mod=0.3912)
+  - occupation_Exec-managerial: drop=-0.0072  (orig=0.3986 → mod=0.4058)
+  - sex_Male: drop=-0.0067  (orig=0.3986 → mod=0.4053)
+  - relationship_Unmarried: drop=+0.0066  (orig=0.3986 → mod=0.3920)
+  - hours-per-week: drop=+0.0064  (orig=0.3986 → mod=0.3922)
+  - education_Some-college: drop=+0.0053  (orig=0.3986 → mod=0.3933)
+  - fnlwgt: drop=+0.0029  (orig=0.3986 → mod=0.3957)
+  - native-country_United-States: drop=-0.0018  (orig=0.3986 → mod=0.4004)
+  - race_White: drop=+0.0015  (orig=0.3986 → mod=0.3971)
+- Max prob_drop: 0.009964  Max prob_increase: -0.007195
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Divorced', how might this value influence the model's decision between <=50K and >50K income categories, based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: In the context of the Adult Income Dataset (used in the classic 'Adult' or 'Census Income' task), marital status is a significant predictor of income level. Individuals who are 'Married-civ-spouse' or 'Married-spouse-absent' are more likely to earn above $50K compared to those who are 'Divorced' or 'Never-married'. This is supported by domain knowledge and historical model patterns: married individuals, especially those with household or spousal support, tend to have higher income stability and earning potential. In contrast, 'Divorced' individuals are more likely to fall into the <=50K category due to potential financial instability or reduced access to income-support systems. Changing 'Divorced' to 'Married-civ-spouse' would likely increase the model's prediction probability of >50K, while changing it to 'Never-married' may slightly reduce the chance of exceeding $50K. Since the current model predicts <=50K with 58.88% confidence, modifying marital status to a married category would likely push the prediction toward >50K, demonstrating the feature's influence on the decision boundary.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the baseline prediction (<=50K with confidence 0.5888) compare to a hypothetical scenario where marital-status is removed and replaced with a neutral or default value (e.g., Never-married)?
+- Status: Success
+- findings: {"baseline_prediction": "<=50K", "baseline_confidence": 0.5888, "modified_prediction": "<=50K", "modified_confidence": 0.5723}
+- Explanation: The baseline prediction is that the individual's income is <=50K with a confidence of 58.88%. In the hypothetical scenario where marital-status is changed from 'Divorced' to 'Never-married' (a neutral/default category commonly used in such datasets), the model's prediction remains <=50K. However, the confidence slightly decreases to 57.23%, indicating that the model is slightly less certain about the prediction when the marital-status feature is replaced with a default value. This suggests that marital-status carries some informative signal—the specific value 'Divorced' contributes marginally to the model's confidence, and replacing it with a more neutral value reduces the model's trust in its output.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Divorced', how might this value influence the model's decision between <=50K and >50K income categories, based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: In the context of the Adult Income Dataset (used in the classic 'Adult' or 'Census Income' task), marital status is a significant predictor of income level. Individuals who are 'Married-civ-spouse' or 'Married-spouse-absent' are more likely to earn above $50K compared to those who are 'Divorced' or 'Never-married'. This is supported by domain knowledge and historical model patterns: married individuals, especially those with household or spousal support, tend to have higher income stability and earning potential. In contrast, 'Divorced' individuals are more likely to fall into the <=50K category due to potential financial instability or reduced access to income-support systems. Changing 'Divorced' to 'Married-civ-spouse' would likely increase the model's prediction probability of >50K, while changing it to 'Never-married' may slightly reduce the chance of exceeding $50K. Since the current model predicts <=50K with 58.88% confidence, modifying marital status to a married category would likely push the prediction toward >50K, demonstrating the feature's influence on the decision boundary.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the baseline prediction (<=50K with confidence 0.5888) compare to a hypothetical scenario where marital-status is removed and replaced with a neutral or default value (e.g., Never-married)?
+- Status: Success
+- findings: {"baseline_prediction": "<=50K", "baseline_confidence": 0.5888, "modified_prediction": "<=50K", "modified_confidence": 0.5723}
+- Explanation: The baseline prediction is that the individual's income is <=50K with a confidence of 58.88%. In the hypothetical scenario where marital-status is changed from 'Divorced' to 'Never-married' (a neutral/default category commonly used in such datasets), the model's prediction remains <=50K. However, the confidence slightly decreases to 57.23%, indicating that the model is slightly less certain about the prediction when the marital-status feature is replaced with a default value. This suggests that marital-status carries some informative signal—the specific value 'Divorced' contributes marginally to the model's confidence, and replacing it with a more neutral value reduces the model's trust in its output.
+- Confidence: 0.94
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

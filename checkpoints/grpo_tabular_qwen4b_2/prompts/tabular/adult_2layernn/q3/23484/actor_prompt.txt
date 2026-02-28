@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (64.50%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.3550373315811157}
+
+## Input Data
+Features: age=40, workclass=Self-emp-not-inc, fnlwgt=238574, education=Prof-school, education-num=15, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.007206).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0358
+  - relationship_Wife: +0.0278
+  - workclass_State-gov: +0.0251
+  - native-country_United-States: +0.0144
+  - capital-gain: +0.0113
+- Top negative features (shap_value):
+  - capital-loss: -0.0358
+  - relationship_Unmarried: -0.0278
+  - workclass_Self-emp-not-inc: -0.0251
+  - native-country_Trinadad&Tobago: -0.0144
+  - education-num: -0.0113
+- Max positive: 0.035841  Max negative: -0.035841
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - hours-per-week > 0.34: +0.0561
+  - marital-status_Divorced <= 0.00: +0.0531
+  - education-num > 1.13: +0.0526
+  - native-country_Columbia <= 0.00: +0.0315
+  - native-country_Yugoslavia <= 0.00: +0.0300
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0751
+  - capital-gain <= -0.15: -0.0508
+  - native-country_Italy <= 0.00: -0.0466
+  - native-country_Trinadad&Tobago <= 0.00: -0.0325
+  - native-country_Japan <= 0.00: -0.0063
+- Max positive: 0.056088  Max negative: -0.07511
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0092
+  - marital-status_Married-civ-spouse: +0.0059
+  - hours-per-week: +0.0054
+  - sex_Male: +0.0053
+  - education_Prof-school: +0.0042
+- Top negative features (attribution_score):
+  - occupation_Prof-specialty: -0.0009
+  - fnlwgt: -0.0008
+  - capital-gain: -0.0003
+  - workclass_Federal-gov: +0.0000
+  - workclass_Local-gov: +0.0000
+- Max positive: 0.009168  Max negative: -0.000862
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0072  (orig=0.6559 → mod=0.6487)
+  - education-num: drop=+0.0055  (orig=0.6559 → mod=0.6503)
+  - education_Prof-school: drop=+0.0038  (orig=0.6559 → mod=0.6520)
+  - sex_Male: drop=+0.0036  (orig=0.6559 → mod=0.6523)
+  - relationship_Husband: drop=+0.0033  (orig=0.6559 → mod=0.6525)
+  - hours-per-week: drop=+0.0029  (orig=0.6559 → mod=0.6530)
+  - occupation_Prof-specialty: drop=+0.0020  (orig=0.6559 → mod=0.6539)
+  - race_White: drop=+0.0018  (orig=0.6559 → mod=0.6541)
+  - workclass_Self-emp-not-inc: drop=+0.0010  (orig=0.6559 → mod=0.6549)
+  - fnlwgt: drop=-0.0007  (orig=0.6559 → mod=0.6565)
+- Max prob_drop: 0.007206  Max prob_increase: -0.000668
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income groups (>50K) in the adult dataset based on known domain knowledge?
+- Status: Success
+- findings: ["occupation", "education-num", "workclass", "hours-per-week", "marital-status"]
+- Explanation: Based on domain knowledge from the Adult Income Dataset (also known as the Census Income Dataset), several features are strongly correlated with higher income (>50K). 'occupation' shows strong positive association with high-income groups, particularly in managerial or professional roles like 'Prof-specialty' or 'Exec-managerial'. 'education-num' correlates positively with income, as higher education levels (e.g., collegegraduate or higher) are linked to better-paying jobs. 'workclass' such as 'Private' or 'Self-emp-not-inc' is associated with higher income, though 'Self-emp-not-inc' in this case may be neutral to moderately positive. 'hours-per-week' shows a clear positive trend—higher hours are linked to higher income. 'marital-status' like 'Married-civ-spouse' often correlates with higher income due to stability and household income dynamics. While 'race' and 'sex' are often cited in analysis, their correlation is confounded by demographic bias and typically not used as direct predictive features. Thus, the most reliably positive and domain-known features are occupation, education-num, workclass, hours-per-week, and marital-status.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, how do the values of features differ between the top-1 (>50K) and top-2 (<=50K) predictions in a way that might influence the outcome?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 40}, {"feature_key": "education-num", "action": "change", "new_value": 15}, {"feature_key": "hours-per-week", "action": "change", "new_value": 55}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: The provided input has a predicted income >50K with confidence 64.50%, and the top-2 alternative (<=50K) is not explicitly provided. However, since the top-2 prediction is not available in the dataset, a direct comparison cannot be made between actual top-1 and top-2 instances. Therefore, the analysis is constrained by the absence of the second-best prediction. The features listed in the findings are from the current input and represent typical categories that correlate with higher income (e.g., 'Prof-specialty' occupation, 'Male' sex, high 'hours-per-week', and 'Prof-school' education). Without the corresponding values of the top-2 prediction, we cannot determine how these values differ. Thus, the findings are inferred based on known income-influencing patterns in similar datasets (e.g., Adult Income Dataset), but no actual comparison to the top-2 can be made. This limits actionable insight into the discriminative difference between the two predictions.
+- Confidence: 0.45
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income groups (>50K) in the adult dataset based on known domain knowledge?
+- Status: Success
+- findings: ["occupation", "education-num", "workclass", "hours-per-week", "marital-status"]
+- Explanation: Based on domain knowledge from the Adult Income Dataset (also known as the Census Income Dataset), several features are strongly correlated with higher income (>50K). 'occupation' shows strong positive association with high-income groups, particularly in managerial or professional roles like 'Prof-specialty' or 'Exec-managerial'. 'education-num' correlates positively with income, as higher education levels (e.g., collegegraduate or higher) are linked to better-paying jobs. 'workclass' such as 'Private' or 'Self-emp-not-inc' is associated with higher income, though 'Self-emp-not-inc' in this case may be neutral to moderately positive. 'hours-per-week' shows a clear positive trend—higher hours are linked to higher income. 'marital-status' like 'Married-civ-spouse' often correlates with higher income due to stability and household income dynamics. While 'race' and 'sex' are often cited in analysis, their correlation is confounded by demographic bias and typically not used as direct predictive features. Thus, the most reliably positive and domain-known features are occupation, education-num, workclass, hours-per-week, and marital-status.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, how do the values of features differ between the top-1 (>50K) and top-2 (<=50K) predictions in a way that might influence the outcome?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 40}, {"feature_key": "education-num", "action": "change", "new_value": 15}, {"feature_key": "hours-per-week", "action": "change", "new_value": 55}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: The provided input has a predicted income >50K with confidence 64.50%, and the top-2 alternative (<=50K) is not explicitly provided. However, since the top-2 prediction is not available in the dataset, a direct comparison cannot be made between actual top-1 and top-2 instances. Therefore, the analysis is constrained by the absence of the second-best prediction. The features listed in the findings are from the current input and represent typical categories that correlate with higher income (e.g., 'Prof-specialty' occupation, 'Male' sex, high 'hours-per-week', and 'Prof-school' education). Without the corresponding values of the top-2 prediction, we cannot determine how these values differ. Thus, the findings are inferred based on known income-influencing patterns in similar datasets (e.g., Adult Income Dataset), but no actual comparison to the top-2 can be made. This limits actionable insight into the discriminative difference between the two predictions.
+- Confidence: 0.45
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.3550373315811157}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,100 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (76.84%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7684462666511536}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.23155373334884644}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=57, workclass=Private, fnlwgt=266189, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.017962).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0490
+  - sex_Male: +0.0315
+  - native-country_Trinadad&Tobago: +0.0183
+  - occupation_Priv-house-serv: +0.0090
+  - occupation_Machine-op-inspct: +0.0084
+- Top negative features (shap_value):
+  - race_Other: -0.0490
+  - native-country_Cambodia: -0.0315
+  - native-country_United-States: -0.0183
+  - occupation_Prof-specialty: -0.0090
+  - occupation_Other-service: -0.0084
+- Max positive: 0.048986  Max negative: -0.048986
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0180  (orig=0.4424 → mod=0.4244)
+  - relationship_Unmarried: drop=+0.0116  (orig=0.4424 → mod=0.4307)
+  - age: drop=-0.0081  (orig=0.4424 → mod=0.4504)
+  - sex_Female: drop=+0.0068  (orig=0.4424 → mod=0.4356)
+  - education_HS-grad: drop=+0.0051  (orig=0.4424 → mod=0.4373)
+  - race_White: drop=+0.0049  (orig=0.4424 → mod=0.4375)
+  - occupation_Adm-clerical: drop=+0.0043  (orig=0.4424 → mod=0.4381)
+  - education-num: drop=+0.0035  (orig=0.4424 → mod=0.4389)
+  - workclass_Private: drop=+0.0035  (orig=0.4424 → mod=0.4389)
+  - fnlwgt: drop=+0.0026  (orig=0.4424 → mod=0.4398)
+- Max prob_drop: 0.017962  Max prob_increase: -0.008073
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the individual is 'Divorced' and the model currently predicts <=50K with 76.8% confidence, how might the absence of marital-status influence the model's interpretation of socioeconomic status or relationship-based risk factors?
+- Status: Success
+- Explanation: Marital status can act as a proxy for socioeconomic stability and access to resources, which may indirectly influence income predictions. In the context of the dataset, individuals with certain marital statuses—such as 'Married-civ-spouse' or 'Married-spouse-absent'—are more likely to have stable employment and higher income levels, possibly due to shared financial responsibilities, access to housing, or social networks. The current prediction of <=50K for a 'Divorced' individual may reflect the socioeconomic challenges associated with post-divorce life, including reduced household income, increased financial burden, or lower occupational advancement. Additionally, 'Divorced' individuals are more likely to be 'Unmarried' (as in the relationship field), which could reduce access to work stability or networking opportunities. While direct evidence of marital status as a predictor of income is not present in the model's feature set, the combination of marital status and relationship status may indicate a lower socioeconomic trajectory. Changing 'Divorced' to 'Married-civ-spouse' might increase the predicted income due to stabilization effects, while changing it to 'Never-married' or 'Widowed' may maintain or slightly decrease income predictions. Thus, the absence or alteration of marital-status introduces a latent demographic constraint that the model may not fully capture, especially if it's modeled on historical or biased data where marital status correlates with social mobility.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the model's output change if we compare the current prediction (marital-status=Divorced) to a hypothetical case where marital-status is missing or set to 'Never-married' or 'Married'?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married"}, {"feature_key": "marital-status", "action": "remove", "new_value": null}]
+- Explanation: Based on observed patterns in the dataset, marital status is a significant predictor of income level. In the training data, individuals who are 'Married' are more likely to have income >50K, while 'Never-married' individuals show a higher frequency of being predicted as ≤50K. The current prediction (Divorced) is classified as ≤50K with 76.84% confidence. Changing marital-status to 'Married' increases the likelihood of predicting >50K due to the strong association between marital status and higher income. Conversely, setting marital-status to 'Never-married' maintains or slightly reduces the probability of a high income, leading to a stable or decreased prediction of ≤50K. Removing marital-status (i.e., missing value) introduces uncertainty, and the model may default to a probabilistic estimate relying on other features, which could shift the prediction slightly, but is less stable than using a defined category. Thus, the prediction is most sensitive to changes toward 'Married', with 'Never-married' preserving the current ≤50K outcome.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the individual is 'Divorced' and the model currently predicts <=50K with 76.8% confidence, how might the absence of marital-status influence the model's interpretation of socioeconomic status or relationship-based risk factors?
+- Status: Success
+- Explanation: Marital status can act as a proxy for socioeconomic stability and access to resources, which may indirectly influence income predictions. In the context of the dataset, individuals with certain marital statuses—such as 'Married-civ-spouse' or 'Married-spouse-absent'—are more likely to have stable employment and higher income levels, possibly due to shared financial responsibilities, access to housing, or social networks. The current prediction of <=50K for a 'Divorced' individual may reflect the socioeconomic challenges associated with post-divorce life, including reduced household income, increased financial burden, or lower occupational advancement. Additionally, 'Divorced' individuals are more likely to be 'Unmarried' (as in the relationship field), which could reduce access to work stability or networking opportunities. While direct evidence of marital status as a predictor of income is not present in the model's feature set, the combination of marital status and relationship status may indicate a lower socioeconomic trajectory. Changing 'Divorced' to 'Married-civ-spouse' might increase the predicted income due to stabilization effects, while changing it to 'Never-married' or 'Widowed' may maintain or slightly decrease income predictions. Thus, the absence or alteration of marital-status introduces a latent demographic constraint that the model may not fully capture, especially if it's modeled on historical or biased data where marital status correlates with social mobility.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the model's output change if we compare the current prediction (marital-status=Divorced) to a hypothetical case where marital-status is missing or set to 'Never-married' or 'Married'?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married"}, {"feature_key": "marital-status", "action": "remove", "new_value": null}]
+- Explanation: Based on observed patterns in the dataset, marital status is a significant predictor of income level. In the training data, individuals who are 'Married' are more likely to have income >50K, while 'Never-married' individuals show a higher frequency of being predicted as ≤50K. The current prediction (Divorced) is classified as ≤50K with 76.84% confidence. Changing marital-status to 'Married' increases the likelihood of predicting >50K due to the strong association between marital status and higher income. Conversely, setting marital-status to 'Never-married' maintains or slightly reduces the probability of a high income, leading to a stable or decreased prediction of ≤50K. Removing marital-status (i.e., missing value) introduces uncertainty, and the model may default to a probabilistic estimate relying on other features, which could shift the prediction slightly, but is less stable than using a defined category. Thus, the prediction is most sensitive to changes toward 'Married', with 'Never-married' preserving the current ≤50K outcome.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

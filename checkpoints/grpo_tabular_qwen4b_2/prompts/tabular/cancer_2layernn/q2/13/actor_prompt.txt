@@ -1,0 +1,127 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the tumor to be malignant. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: malignant
+Confidence: 0.9441
+
+## Input Data
+Features: mean radius=18.66, mean texture=17.12, mean perimeter=121.4, mean area=1077.0, mean smoothness=0.1054, mean compactness=0.11, mean concavity=0.1457, mean concave points=0.08665, mean symmetry=0.1966, mean fractal dimension=0.06213, radius error=0.7128, texture error=1.581, perimeter error=4.895, area error=90.47, smoothness error=0.008102, compactness error=0.02101, concavity error=0.03342, concave points error=0.01601, symmetry error=0.02045, fractal dimension error=0.00457, worst radius=22.25, worst texture=24.9, worst perimeter=145.4, worst area=1549.0, worst smoothness=0.1503, worst compactness=0.2291, worst concavity=0.3272, worst concave points=0.1674, worst symmetry=0.2894, worst fractal dimension=0.08456
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean concavity.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: mean area > 0.36.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: worst radius.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst radius (prob drop: 0.004092).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean concavity: +0.0663
+  - mean smoothness: +0.0613
+  - mean radius: +0.0589
+  - worst concavity: +0.0571
+  - symmetry error: +0.0492
+- Top negative features (shap_value):
+  - mean concave points: -0.0663
+  - mean compactness: -0.0613
+  - mean texture: -0.0589
+  - worst concave points: -0.0571
+  - fractal dimension error: -0.0492
+- Max positive: 0.066344  Max negative: -0.066344
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - mean area > 0.36: +0.1169
+  - area error > 0.11: +0.1150
+  - worst radius > 0.52: +0.0989
+  - perimeter error > 0.24: +0.0882
+  - worst concave points > 0.71: +0.0869
+- Max positive: 0.116858  Max negative: 0
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst radius: +0.0116
+  - worst perimeter: +0.0104
+  - mean area: +0.0104
+  - area error: +0.0102
+  - mean radius: +0.0098
+- Top negative features (attribution_score):
+  - mean texture: -0.0050
+  - texture error: -0.0040
+  - worst texture: -0.0014
+  - fractal dimension error: -0.0013
+- Max positive: 0.01159  Max negative: -0.005001
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst radius: drop=+0.0041  (orig=0.4860 → mod=0.4819)
+  - radius error: drop=+0.0036  (orig=0.4860 → mod=0.4824)
+  - mean area: drop=+0.0036  (orig=0.4860 → mod=0.4825)
+  - worst concave points: drop=+0.0034  (orig=0.4860 → mod=0.4826)
+  - mean radius: drop=+0.0034  (orig=0.4860 → mod=0.4826)
+  - worst perimeter: drop=+0.0033  (orig=0.4860 → mod=0.4827)
+  - area error: drop=+0.0033  (orig=0.4860 → mod=0.4827)
+  - mean perimeter: drop=+0.0032  (orig=0.4860 → mod=0.4828)
+  - perimeter error: drop=+0.0032  (orig=0.4860 → mod=0.4829)
+  - worst area: drop=+0.0019  (orig=0.4860 → mod=0.4841)
+- Max prob_drop: 0.004092  Max prob_increase: -0.001542
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that malignant tumors typically exhibit higher texture, concavity, and irregularity, which features in the input are most likely to be biologically insignificant or correlated with benign cases?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 10}, {"feature_key": "mean texture", "action": "change", "new_value": 12}, {"feature_key": "mean perimeter", "action": "change", "new_value": 80}, {"feature_key": "mean area", "action": "change", "new_value": 500}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.04}]
+- Explanation: Malignant tumors are generally characterized by higher texture, concavity, and irregularity, which are captured in features like 'mean texture', 'mean concavity', 'mean concave points', and 'mean fractal dimension'. Features such as 'mean radius', 'mean perimeter', and 'mean area' are often correlated with tumor size and may appear more stable across benign and malignant cases. In benign tumors, these features tend to be lower, but they are not uniquely indicative of malignancy. Moreover, 'mean fractal dimension' is more relevant to surface complexity and is typically higher in malignant cases, so low values may not be significant. Given the model predicted malignancy with high confidence, features that are not strong discriminators — such as those reflecting general size or smoothness — may have had minimal impact. Thus, these features are suspected to have minimal biological significance in distinguishing malignancy.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the magnitude of the mean fractal dimension (0.06213) and mean smoothness (0.1054) in known malignant vs benign tumor profiles; which is more likely to influence malignancy?
+- Status: Success
+- findings: {"more_influential_feature": "mean smoothness", "reasoning": "In known malignant vs benign tumor profiles, mean smoothness is consistently more correlated with malignancy than mean fractal dimension. Malignant tumors typically exhibit higher irregularity and surface complexity, which translates into lower mean smoothness values. For example, in the Breast Cancer Wisconsin (Diagnostic) dataset, mean smoothness has a strong inverse relationship with malignancy \u2014 values below 0.11 are more frequently observed in malignant cases. In contrast, mean fractal dimension, while associated with surface complexity, shows a more subtle and less consistent signal across datasets. Specifically, mean smoothness has been statistically validated in multiple studies as a key differentiator in malignancy prediction, with higher predictive power in logistic regression and decision tree models. The current value of mean smoothness (0.1054) is on the lower end of the malignant spectrum, reinforcing its relevance. Meanwhile, mean fractal dimension (0.06213) is within the typical benign range and shows less discriminative power in clinical models."}
+- Explanation: Mean smoothness is more likely to influence the model's prediction of malignancy because it has a stronger and more consistent correlation with malignant tumor profiles in medical literature and model validation studies. Its value (0.1054) falls within a range that is more indicative of malignancy compared to the mean fractal dimension (0.06213), which is more neutral and less discriminative.
+- Confidence: 0.97
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that malignant tumors typically exhibit higher texture, concavity, and irregularity, which features in the input are most likely to be biologically insignificant or correlated with benign cases?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 10}, {"feature_key": "mean texture", "action": "change", "new_value": 12}, {"feature_key": "mean perimeter", "action": "change", "new_value": 80}, {"feature_key": "mean area", "action": "change", "new_value": 500}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.04}]
+- Explanation: Malignant tumors are generally characterized by higher texture, concavity, and irregularity, which are captured in features like 'mean texture', 'mean concavity', 'mean concave points', and 'mean fractal dimension'. Features such as 'mean radius', 'mean perimeter', and 'mean area' are often correlated with tumor size and may appear more stable across benign and malignant cases. In benign tumors, these features tend to be lower, but they are not uniquely indicative of malignancy. Moreover, 'mean fractal dimension' is more relevant to surface complexity and is typically higher in malignant cases, so low values may not be significant. Given the model predicted malignancy with high confidence, features that are not strong discriminators — such as those reflecting general size or smoothness — may have had minimal impact. Thus, these features are suspected to have minimal biological significance in distinguishing malignancy.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the magnitude of the mean fractal dimension (0.06213) and mean smoothness (0.1054) in known malignant vs benign tumor profiles; which is more likely to influence malignancy?
+- Status: Success
+- findings: {"more_influential_feature": "mean smoothness", "reasoning": "In known malignant vs benign tumor profiles, mean smoothness is consistently more correlated with malignancy than mean fractal dimension. Malignant tumors typically exhibit higher irregularity and surface complexity, which translates into lower mean smoothness values. For example, in the Breast Cancer Wisconsin (Diagnostic) dataset, mean smoothness has a strong inverse relationship with malignancy \u2014 values below 0.11 are more frequently observed in malignant cases. In contrast, mean fractal dimension, while associated with surface complexity, shows a more subtle and less consistent signal across datasets. Specifically, mean smoothness has been statistically validated in multiple studies as a key differentiator in malignancy prediction, with higher predictive power in logistic regression and decision tree models. The current value of mean smoothness (0.1054) is on the lower end of the malignant spectrum, reinforcing its relevance. Meanwhile, mean fractal dimension (0.06213) is within the typical benign range and shows less discriminative power in clinical models."}
+- Explanation: Mean smoothness is more likely to influence the model's prediction of malignancy because it has a stronger and more consistent correlation with malignant tumor profiles in medical literature and model validation studies. Its value (0.1054) falls within a range that is more indicative of malignancy compared to the mean fractal dimension (0.06213), which is more neutral and less discriminative.
+- Confidence: 0.97
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

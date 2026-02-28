@@ -1,0 +1,123 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6642
+
+## Input Data
+Features: age=42, workclass=Private, fnlwgt=22831, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.009265).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0195
+  - occupation_Tech-support: +0.0194
+  - native-country_Vietnam: +0.0192
+  - capital-loss: +0.0162
+  - native-country_Japan: +0.0120
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0195
+  - occupation_Transport-moving: -0.0194
+  - native-country_Yugoslavia: -0.0192
+  - hours-per-week: -0.0162
+  - native-country_Laos: -0.0120
+- Max positive: 0.019463  Max negative: -0.019463
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0769
+  - native-country_Greece <= 0.00: +0.0755
+  - capital-gain <= -0.15: +0.0720
+  - native-country_Italy <= 0.00: +0.0590
+  - education-num <= -0.44: +0.0548
+- Top negative features (weight):
+  - native-country_Guatemala <= 0.00: -0.0551
+  - marital-status_Divorced <= 0.00: -0.0518
+  - native-country_Vietnam <= 0.00: -0.0505
+  - native-country_South <= 0.00: -0.0481
+  - native-country_Peru <= 0.00: -0.0313
+- Max positive: 0.076898  Max negative: -0.055087
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0093
+  - relationship_Not-in-family: +0.0076
+  - education_HS-grad: +0.0074
+  - education-num: +0.0049
+  - fnlwgt: +0.0042
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0042
+  - race_White: -0.0030
+  - age: -0.0005
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.00928  Max negative: -0.004223
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0093  (orig=0.4168 → mod=0.4076)
+  - marital-status_Never-married: drop=+0.0090  (orig=0.4168 → mod=0.4079)
+  - education_HS-grad: drop=+0.0085  (orig=0.4168 → mod=0.4083)
+  - education-num: drop=+0.0045  (orig=0.4168 → mod=0.4123)
+  - sex_Female: drop=+0.0037  (orig=0.4168 → mod=0.4132)
+  - occupation_Other-service: drop=+0.0030  (orig=0.4168 → mod=0.4138)
+  - fnlwgt: drop=+0.0025  (orig=0.4168 → mod=0.4143)
+  - native-country_United-States: drop=-0.0024  (orig=0.4168 → mod=0.4193)
+  - race_White: drop=-0.0022  (orig=0.4168 → mod=0.4191)
+  - workclass_Private: drop=+0.0021  (orig=0.4168 → mod=0.4147)
+- Max prob_drop: 0.009265  Max prob_increase: -0.00243
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Based on domain knowledge, which features in the adult income dataset are historically known to be strong predictors of income level (<=50K vs >50K)?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 42}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult Income dataset, features such as age, education level (via education-num), workclass, marital status, and hours-per-week are historically strong predictors of income. Higher education levels (e.g., education-num > 12) and above-average hours per week are associated with higher income, while 'Never-married' and 'Private' workclass are often correlated with lower income brackets. The current values indicate a younger individual with only a high school education (HS-grad), no capital gains, and modest work hours—factors consistently linked to income ≤50K in research and datasets. These features are therefore central to the model's prediction of ≤50K.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Given the input features (age=42, workclass=Private, education=HS-grad, etc.), why might these values lead to a prediction of <=50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 42}, {"feature_key": "education", "action": "change", "new_value": "HS-grad"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: The model predicted an income of <=50K based on a combination of features that are commonly associated with lower-income groups. The individual is 42 years old, which is within a typical working-age range but not indicative of high income. Their education level is 'HS-grad', which is below the median education level often linked to higher earnings. The marital status 'Never-married' may correlate with lower income, as married individuals tend to have slightly higher average incomes. The occupation 'Other-service' is generally associated with mid-to-low wage sectors, and working 40 hours per week is standard but not a strong indicator of high income. Together, these features collectively represent a profile typical of individuals earning below $50K, consistent with the model's prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How do the values of 'age', 'education-num', and 'sex' in this case compare to typical patterns in the training data for <=50K vs >50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": "42"}, {"feature_key": "education-num", "action": "compare", "new_value": "9"}, {"feature_key": "sex", "action": "compare", "new_value": "Female"}]
+- Explanation: In the training data, individuals with 'age' around 42 are typically associated with a higher likelihood of earning >50K, especially when combined with higher education levels. However, the 'education-num' value of 9 (HS-grad) is relatively low compared to the typical education levels (e.g., Bachelors, Masters) seen in the >50K class, which may reduce the predicted income. The 'sex' feature is particularly significant in the dataset: females are underrepresented in the >50K group, and in the training data, females with similar education and age profiles are more likely to be predicted as <=50K. Thus, the combination of moderate age, lower education level, and female sex aligns strongly with the typical patterns observed in the <=50K class, contributing to the model's prediction of <=50K.
+- Confidence: 0.93
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

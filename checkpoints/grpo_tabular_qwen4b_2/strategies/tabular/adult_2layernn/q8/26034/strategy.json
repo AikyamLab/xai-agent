@@ -1,0 +1,74 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to identify semantically irrelevant features with external XAI tools to quantify their attribution influence, ensuring both domain knowledge and model-level evidence are used. This approach helps detect spurious patterns that may appear important due to correlation but lack semantic relevance to the true class (>50K). The combination increases robustness and reduces false positives in spurious feature detection.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Identify which features from the input (e.g., workclass, race, sex) are semantically relevant to the class >50K based on domain knowledge, and which are known to be correlated with socioeconomic outcomes or demographic biases in the dataset.",
+      "expected_output": "A list of features judged as semantically relevant vs. irrelevant to the >50K class"
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the model's predicted confidence and class (<=50K) with the actual ground truth (>50K) to assess whether features like 'age=44' or 'education-num=12' contribute meaningfully to a false negative, despite being known to correlate with higher income in reality.",
+      "expected_output": "A list of features where high model attribution contradicts semantic expectations for the >50K class"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "predicted"
+      },
+      "lime": {
+        "target_class": "predicted"
+      },
+      "integrated_gradients": {
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "feature_ablation": true
+      }
+    },
+    "reasoning": "SHAP and LIME provide interpretable feature attributions that highlight which inputs drive the model's prediction, especially useful in detecting spurious correlations. Integrated Gradients offer a smooth, gradient-based attribution path from zero to input, helping identify features with high influence even if they are semantically irrelevant. Sensitivity analysis directly measures impact by removing each feature, confirming whether deviation from the input changes the prediction\u2014critical for identifying spurious dependencies. Together, these tools provide complementary validation of the model's reliance on misleading signals."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP and LIME provide interpretable feature attributions that highlight which inputs drive the model's prediction, especially useful in detecting spurious correlations. Integrated Gradients offer a smooth, gradient-based attribution path from zero to input, helping identify features with high influence even if they are semantically irrelevant. Sensitivity analysis directly measures impact by removing each feature, confirming whether deviation from the input changes the prediction\u2014critical for identifying spurious dependencies. Together, these tools provide complementary validation of the model's reliance on misleading signals.",
+      "parameters": {
+        "target_class": "predicted"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP and LIME provide interpretable feature attributions that highlight which inputs drive the model's prediction, especially useful in detecting spurious correlations. Integrated Gradients offer a smooth, gradient-based attribution path from zero to input, helping identify features with high influence even if they are semantically irrelevant. Sensitivity analysis directly measures impact by removing each feature, confirming whether deviation from the input changes the prediction\u2014critical for identifying spurious dependencies. Together, these tools provide complementary validation of the model's reliance on misleading signals.",
+      "parameters": {
+        "target_class": "predicted"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP and LIME provide interpretable feature attributions that highlight which inputs drive the model's prediction, especially useful in detecting spurious correlations. Integrated Gradients offer a smooth, gradient-based attribution path from zero to input, helping identify features with high influence even if they are semantically irrelevant. Sensitivity analysis directly measures impact by removing each feature, confirming whether deviation from the input changes the prediction\u2014critical for identifying spurious dependencies. Together, these tools provide complementary validation of the model's reliance on misleading signals.",
+      "parameters": {
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP and LIME provide interpretable feature attributions that highlight which inputs drive the model's prediction, especially useful in detecting spurious correlations. Integrated Gradients offer a smooth, gradient-based attribution path from zero to input, helping identify features with high influence even if they are semantically irrelevant. Sensitivity analysis directly measures impact by removing each feature, confirming whether deviation from the input changes the prediction\u2014critical for identifying spurious dependencies. Together, these tools provide complementary validation of the model's reliance on misleading signals.",
+      "parameters": {
+        "feature_ablation": true
+      }
+    }
+  ]
+}

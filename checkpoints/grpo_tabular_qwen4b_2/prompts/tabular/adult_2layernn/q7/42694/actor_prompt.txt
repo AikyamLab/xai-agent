@@ -1,0 +1,100 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change age, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (58.76%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5875692367553711}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4124307632446289}]
+- Part to Change: age
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=45713, education=Some-college, education-num=10, marital-status=Never-married, occupation=Craft-repair, relationship=Other-relative, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.008347).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0170
+  - race_Amer-Indian-Eskimo: +0.0153
+  - native-country_Columbia: +0.0126
+  - native-country_Haiti: +0.0111
+  - education-num: +0.0098
+- Top negative features (shap_value):
+  - fnlwgt: -0.0170
+  - race_Asian-Pac-Islander: -0.0153
+  - native-country_Cuba: -0.0126
+  - native-country_Holand-Netherlands: -0.0111
+  - capital-gain: -0.0098
+- Max positive: 0.017011  Max negative: -0.017011
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0083  (orig=0.3983 → mod=0.4067)
+  - education_Some-college: drop=+0.0069  (orig=0.3983 → mod=0.3915)
+  - age: drop=+0.0066  (orig=0.3983 → mod=0.3917)
+  - native-country_United-States: drop=-0.0059  (orig=0.3983 → mod=0.4042)
+  - occupation_Craft-repair: drop=+0.0031  (orig=0.3983 → mod=0.3952)
+  - relationship_Other-relative: drop=+0.0023  (orig=0.3983 → mod=0.3960)
+  - marital-status_Never-married: drop=+0.0021  (orig=0.3983 → mod=0.3962)
+  - fnlwgt: drop=+0.0011  (orig=0.3983 → mod=0.3972)
+  - hours-per-week: drop=+0.0008  (orig=0.3983 → mod=0.3975)
+  - race_White: drop=+0.0006  (orig=0.3983 → mod=0.3977)
+- Max prob_drop: 0.006871  Max prob_increase: -0.008347
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with 58.76% confidence and the individual is 23 years old, how does age typically influence income classification in this dataset? What would happen to the prediction if age were removed or set to an arbitrary value like 0 or missing?
+- Status: Success
+- Explanation: Age is a known feature in the dataset that often shows a positive correlation with income, particularly in the context of the adult income prediction problem. Generally, older individuals are more likely to earn above $50K, with a noticeable increase in the probability of >50K income as age rises, especially beyond the age of 30. This pattern is consistent across many studies of the Adult Income dataset. In this specific case, the individual is 23 years old, which is relatively young, and is predicted to earn <=50K with 58.76% confidence. If age were removed or set to an arbitrary value like 0 or missing, the model would lose one of the key demographic signals associated with income. Setting age to 0 (invalid or nonsensical) would introduce inconsistencies and likely increase model uncertainty. However, since the original model was trained on real-world data where age is a meaningful feature, removing or altering it without replacement could cause a shift in prediction confidence. Specifically, removing or forcing age to an extreme value (e.g., 0) would likely reduce the model's confidence and possibly result in a reclassification toward >50K if the model has learned a non-linear age-related pattern, though this is not guaranteed. In practice, age is not strongly dominant over other features like education, occupation, or hours-per-week, but it does contribute to income classification as a moderating factor. Thus, removing age would decrease predictive power and may cause the model to default to a more uncertain or neutral prediction, rather than shifting class decisively.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction to a hypothetical scenario where age is removed (set to null or zero) and the model re-predicts with only the remaining features. What is the expected shift in class probability?
+- Status: Success
+- findings: {"class_probability_shift": "increase", "shift_toward": ">50K"}
+- Explanation: The current model predicts income <=50K with a 58.76% confidence, based on the individual's age=23. Age is a feature that often correlates with income, and younger individuals (especially in the 20s) are historically more likely to have lower earnings. However, in this scenario, removing age (setting it to null/zero) removes a feature that may have contributed a positive signal toward lower-income prediction. In many real-world income datasets (e.g., Census Income), age typically has a weak to moderate positive correlation with income, meaning higher age is associated with higher earnings. Thus, removing a relatively low-age value (age=23) eliminates a feature that slightly supports the <=50K outcome. As a result, the model may reassign more weight to other features (e.g., education, occupation, hours-per-week) that might not strongly favor the <=50K group. Without the age signal, the prediction may shift slightly toward >50K. Given that the original prediction was already favorable for <=50K, removing a feature that modestly supports that outcome leads to a modest increase in the probability of >50K, hence a net increase in class probability for >50K and a decrease in the probability for <=50K. Therefore, the class probability for <=50K is expected to decrease, and the model would shift toward >50K.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with 58.76% confidence and the individual is 23 years old, how does age typically influence income classification in this dataset? What would happen to the prediction if age were removed or set to an arbitrary value like 0 or missing?
+- Status: Success
+- Explanation: Age is a known feature in the dataset that often shows a positive correlation with income, particularly in the context of the adult income prediction problem. Generally, older individuals are more likely to earn above $50K, with a noticeable increase in the probability of >50K income as age rises, especially beyond the age of 30. This pattern is consistent across many studies of the Adult Income dataset. In this specific case, the individual is 23 years old, which is relatively young, and is predicted to earn <=50K with 58.76% confidence. If age were removed or set to an arbitrary value like 0 or missing, the model would lose one of the key demographic signals associated with income. Setting age to 0 (invalid or nonsensical) would introduce inconsistencies and likely increase model uncertainty. However, since the original model was trained on real-world data where age is a meaningful feature, removing or altering it without replacement could cause a shift in prediction confidence. Specifically, removing or forcing age to an extreme value (e.g., 0) would likely reduce the model's confidence and possibly result in a reclassification toward >50K if the model has learned a non-linear age-related pattern, though this is not guaranteed. In practice, age is not strongly dominant over other features like education, occupation, or hours-per-week, but it does contribute to income classification as a moderating factor. Thus, removing age would decrease predictive power and may cause the model to default to a more uncertain or neutral prediction, rather than shifting class decisively.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction to a hypothetical scenario where age is removed (set to null or zero) and the model re-predicts with only the remaining features. What is the expected shift in class probability?
+- Status: Success
+- findings: {"class_probability_shift": "increase", "shift_toward": ">50K"}
+- Explanation: The current model predicts income <=50K with a 58.76% confidence, based on the individual's age=23. Age is a feature that often correlates with income, and younger individuals (especially in the 20s) are historically more likely to have lower earnings. However, in this scenario, removing age (setting it to null/zero) removes a feature that may have contributed a positive signal toward lower-income prediction. In many real-world income datasets (e.g., Census Income), age typically has a weak to moderate positive correlation with income, meaning higher age is associated with higher earnings. Thus, removing a relatively low-age value (age=23) eliminates a feature that slightly supports the <=50K outcome. As a result, the model may reassign more weight to other features (e.g., education, occupation, hours-per-week) that might not strongly favor the <=50K group. Without the age signal, the prediction may shift slightly toward >50K. Given that the original prediction was already favorable for <=50K, removing a feature that modestly supports that outcome leads to a modest increase in the probability of >50K, hence a net increase in class probability for >50K and a decrease in the probability for <=50K. Therefore, the class probability for <=50K is expected to decrease, and the model would shift toward >50K.
+- Confidence: 0.87
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

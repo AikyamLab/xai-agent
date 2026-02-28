@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (65.88%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=29, workclass=Private, fnlwgt=71067, education=Prof-school, education-num=15, marital-status=Never-married, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.022269).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0720
+  - native-country_Columbia: +0.0407
+  - relationship_Wife: +0.0389
+  - native-country_Peru: +0.0365
+  - native-country_Vietnam: +0.0324
+- Top negative features (shap_value):
+  - capital-loss: -0.0720
+  - native-country_Cuba: -0.0407
+  - relationship_Unmarried: -0.0389
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0365
+  - native-country_Yugoslavia: -0.0324
+- Max positive: 0.071962  Max negative: -0.071962
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2324
+  - capital-loss <= -0.22: +0.1271
+  - native-country_Japan <= 0.00: +0.1005
+  - marital-status_Married-civ-spouse <= 0.00: +0.0711
+  - native-country_Greece <= 0.00: +0.0692
+- Top negative features (weight):
+  - education-num > 1.13: -0.1040
+  - native-country_Italy <= 0.00: -0.0507
+  - education_Prof-school > 0.00: -0.0298
+  - native-country_Scotland <= 0.00: -0.0096
+- Max positive: 0.232378  Max negative: -0.104049
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0204
+  - relationship_Not-in-family: +0.0146
+  - age: +0.0128
+  - workclass_Private: +0.0051
+  - capital-gain: +0.0024
+- Top negative features (attribution_score):
+  - education-num: -0.0149
+  - education_Prof-school: -0.0128
+  - occupation_Prof-specialty: -0.0124
+  - native-country_United-States: -0.0041
+  - hours-per-week: -0.0028
+- Max positive: 0.020428  Max negative: -0.014943
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0223  (orig=0.4155 → mod=0.3932)
+  - education-num: drop=-0.0174  (orig=0.4155 → mod=0.4330)
+  - relationship_Not-in-family: drop=+0.0168  (orig=0.4155 → mod=0.3987)
+  - age: drop=+0.0140  (orig=0.4155 → mod=0.4015)
+  - education_Prof-school: drop=-0.0134  (orig=0.4155 → mod=0.4289)
+  - occupation_Prof-specialty: drop=-0.0127  (orig=0.4155 → mod=0.4282)
+  - capital-loss: drop=+0.0022  (orig=0.4155 → mod=0.4133)
+  - capital-gain: drop=+0.0022  (orig=0.4155 → mod=0.4133)
+  - native-country_United-States: drop=-0.0019  (orig=0.4155 → mod=0.4175)
+  - hours-per-week: drop=+0.0016  (orig=0.4155 → mod=0.4139)
+- Max prob_drop: 0.022269  Max prob_increase: -0.017445
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Prof-specialty' be semantically irrelevant to income level (<=50K) even though they are high-impact in the model’s prediction?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction (<=50K), 'workclass' and 'occupation' are often highly correlated with income in training data due to historical biases or domain-specific patterns (e.g., higher wages in managerial or executive roles). However, in this case, the individual has 'Private' workclass and 'Prof-specialty' occupation, both of which are common across income levels. The model may have overfitted to these features due to their high frequency or correlation in training data, treating them as predictive even when they are semantically irrelevant to income levels for this specific individual. For example, 'Private' is the most common workclass and is present across both high and low income groups, and 'Prof-specialty' is a high-earning occupation but not reliably predictive of income in isolation. Thus, despite appearing important in the prediction, they are semantically irrelevant given the true label (<=50K) and the specific context of the individual's profile.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the target class (<=50K) with the model's predicted confidence and attribution pattern.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "Age is typically negatively correlated with income in this dataset; higher age is associated with higher chance of earning >50K. The model predicted 0 (<=50K) for age=29, which is relatively young and often associated with lower income. Increasing age to 50 might improve the prediction toward >50K, suggesting the model underweights age despite its known relevance."}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Education level strongly correlates with income. 'Prof-school' is a lower education category than 'Bachelors'. Changing to 'Bachelors' would increase the likelihood of earning >50K. The model predicted <=50K despite moderate education, indicating insufficient attribution to education's predictive power."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80, "relevance_mismatch": "Higher hours-per-week are consistently associated with higher income. 55 hours is already high, but the model still predicts <=50K. Increasing to 80 hours would likely shift prediction to >50K, signaling that the model underutilizes this strong positive signal."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "relevance_mismatch": "In this dataset, race and sex are known to have strong disparities. 'Female' is historically associated with lower income, especially in non-advantaged groups. The model predicts <=50K for a female individual, which is expected, but the prediction has low confidence (65.88%) \u2014 suggesting it may be relying on irrelevant or noisy features while underweighting sex as a relevant signal."}, {"feature_key": "workclass", "action": "change", "new_value": "Government", "relevance_mismatch": "Private workclass is common and has mixed income outcomes. Government jobs are often associated with lower income. Changing to 'Government' would likely reduce predicted income, further supporting that the model does not correctly interpret workclass as a relevant predictor. The prediction being <=50K despite strong education and high hours suggests workclass may be irrelevant or being misattributed."}]
+- Explanation: The model predicts <=50K with only 65.88% confidence, despite the individual having high hours-per-week, a college-level education (Prof-school), and working in a specialty occupation. These features are semantically strongly linked to higher income. The mismatch lies in the model's underweighting of education, age, and hours, which are established predictors. Features like sex and workclass, while present, do not align with the expected income trend. The model appears to over-rely on low-impact or irrelevant features, possibly due to poor feature attribution or bias in training data. Changing key features to more income-advantaged values would shift prediction toward >50K, confirming semantic relevance gaps.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Prof-specialty' be semantically irrelevant to income level (<=50K) even though they are high-impact in the model’s prediction?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction (<=50K), 'workclass' and 'occupation' are often highly correlated with income in training data due to historical biases or domain-specific patterns (e.g., higher wages in managerial or executive roles). However, in this case, the individual has 'Private' workclass and 'Prof-specialty' occupation, both of which are common across income levels. The model may have overfitted to these features due to their high frequency or correlation in training data, treating them as predictive even when they are semantically irrelevant to income levels for this specific individual. For example, 'Private' is the most common workclass and is present across both high and low income groups, and 'Prof-specialty' is a high-earning occupation but not reliably predictive of income in isolation. Thus, despite appearing important in the prediction, they are semantically irrelevant given the true label (<=50K) and the specific context of the individual's profile.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the target class (<=50K) with the model's predicted confidence and attribution pattern.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "Age is typically negatively correlated with income in this dataset; higher age is associated with higher chance of earning >50K. The model predicted 0 (<=50K) for age=29, which is relatively young and often associated with lower income. Increasing age to 50 might improve the prediction toward >50K, suggesting the model underweights age despite its known relevance."}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Education level strongly correlates with income. 'Prof-school' is a lower education category than 'Bachelors'. Changing to 'Bachelors' would increase the likelihood of earning >50K. The model predicted <=50K despite moderate education, indicating insufficient attribution to education's predictive power."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80, "relevance_mismatch": "Higher hours-per-week are consistently associated with higher income. 55 hours is already high, but the model still predicts <=50K. Increasing to 80 hours would likely shift prediction to >50K, signaling that the model underutilizes this strong positive signal."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "relevance_mismatch": "In this dataset, race and sex are known to have strong disparities. 'Female' is historically associated with lower income, especially in non-advantaged groups. The model predicts <=50K for a female individual, which is expected, but the prediction has low confidence (65.88%) \u2014 suggesting it may be relying on irrelevant or noisy features while underweighting sex as a relevant signal."}, {"feature_key": "workclass", "action": "change", "new_value": "Government", "relevance_mismatch": "Private workclass is common and has mixed income outcomes. Government jobs are often associated with lower income. Changing to 'Government' would likely reduce predicted income, further supporting that the model does not correctly interpret workclass as a relevant predictor. The prediction being <=50K despite strong education and high hours suggests workclass may be irrelevant or being misattributed."}]
+- Explanation: The model predicts <=50K with only 65.88% confidence, despite the individual having high hours-per-week, a college-level education (Prof-school), and working in a specialty occupation. These features are semantically strongly linked to higher income. The mismatch lies in the model's underweighting of education, age, and hours, which are established predictors. Features like sex and workclass, while present, do not align with the expected income trend. The model appears to over-rely on low-impact or irrelevant features, possibly due to poor feature attribution or bias in training data. Changing key features to more income-advantaged values would shift prediction toward >50K, confirming semantic relevance gaps.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,79 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to detect initial patterns in the misclassified instances with external XAI tools to quantify feature attributions and validate spurious correlations. This approach leverages both domain-level insight and model-level explanation to ensure that shared features are both present across instances and actually drive misclassification through high attribution, even if semantically unrelated.",
+  "confidence": 0.93,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the mean radius, texture, perimeter, area, smoothness, compactness, concavity, and concave points across all misclassified instances (537, 291, 128) to identify any consistent pattern or shared outlier value in feature magnitudes.",
+      "expected_output": "A list of features that have consistent or extreme values across all three instances"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any of the shared feature values (e.g., high radius, high area, high compactness) correlate with known spurious patterns in cancer classification datasets, such as correlations with data preprocessing artifacts or scale-based biases.",
+      "expected_output": "A hypothesis about whether the shared feature behavior is due to spurious correlations or data scaling issues"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP identifies feature importance across predictions, allowing detection of shared high-attribution features in misclassified cases. Integrated Gradients provide gradient-based attribution, enhancing detection of spurious influences. Sensitivity analysis isolates how removing each feature affects prediction, confirming whether a feature's impact is due to spurious correlation rather than true relevance."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP identifies feature importance across predictions, allowing detection of shared high-attribution features in misclassified cases. Integrated Gradients provide gradient-based attribution, enhancing detection of spurious influences. Sensitivity analysis isolates how removing each feature affects prediction, confirming whether a feature's impact is due to spurious correlation rather than true relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP identifies feature importance across predictions, allowing detection of shared high-attribution features in misclassified cases. Integrated Gradients provide gradient-based attribution, enhancing detection of spurious influences. Sensitivity analysis isolates how removing each feature affects prediction, confirming whether a feature's impact is due to spurious correlation rather than true relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP identifies feature importance across predictions, allowing detection of shared high-attribution features in misclassified cases. Integrated Gradients provide gradient-based attribution, enhancing detection of spurious influences. Sensitivity analysis isolates how removing each feature affects prediction, confirming whether a feature's impact is due to spurious correlation rather than true relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}ature affects predictions, helping verify whether a feature's importance is truly meaningful or spurious. Together, these tools offer both credibility and precision in detecting shared, non-semantic features driving misclassification.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

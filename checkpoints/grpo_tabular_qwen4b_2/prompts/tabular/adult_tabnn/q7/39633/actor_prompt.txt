@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (74.39%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7439095973968506}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.2560904026031494}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=28, workclass=Private, fnlwgt=207513, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Sales, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=48, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010919).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0236
+  - age: +0.0205
+  - sex_Male: +0.0103
+  - capital-loss: +0.0101
+  - native-country_Honduras: +0.0100
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0236
+  - fnlwgt: -0.0205
+  - native-country_Cambodia: -0.0103
+  - hours-per-week: -0.0101
+  - native-country_Hong: -0.0100
+- Max positive: 0.023596  Max negative: -0.023596
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0109  (orig=0.4363 → mod=0.4254)
+  - occupation_Sales: drop=-0.0084  (orig=0.4363 → mod=0.4447)
+  - marital-status_Never-married: drop=+0.0052  (orig=0.4363 → mod=0.4312)
+  - education_HS-grad: drop=+0.0049  (orig=0.4363 → mod=0.4314)
+  - relationship_Own-child: drop=+0.0040  (orig=0.4363 → mod=0.4323)
+  - native-country_United-States: drop=-0.0039  (orig=0.4363 → mod=0.4402)
+  - education-num: drop=+0.0025  (orig=0.4363 → mod=0.4338)
+  - capital-gain: drop=+0.0016  (orig=0.4363 → mod=0.4347)
+  - hours-per-week: drop=-0.0015  (orig=0.4363 → mod=0.4378)
+  - sex_Male: drop=-0.0011  (orig=0.4363 → mod=0.4374)
+- Max prob_drop: 0.010919  Max prob_increase: -0.008412
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What is the likely impact of removing 'relationship' on the model's prediction for income class, considering that the current value is 'Own-child' and the individual is male, 28 years old, with a private work class and HS-grad education?
+- Status: Success
+- findings: "The prediction would remain unchanged (<=50K)"
+- Explanation: The 'relationship' feature in the dataset captures social and familial status, which can indirectly influence income through factors like living arrangements, access to support, or job stability. In this case, the current value is 'Own-child', indicating the individual is a child living with their parent(s), which is often associated with lower income levels. However, the model's prediction of <=50K is already well-supported by other strong features: young age (28), lower education level (HS-grad), private work class (commonly lower-wage), never-married status, and male sex. Removing or changing the 'relationship' feature to any alternative value would not significantly alter the model's prediction because the key determinants of income—such as age, education, work class, and marital status—are already strong predictors. Moreover, without additional data on how different relationship categories correlate with income, any change in 'relationship' would not introduce a sufficient shift to override the model's confidence in predicting <=50K. Therefore, the prediction remains stable.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the current prediction probability for <=50K compare to cases where relationship is missing or set to a default value (e.g., 'Unmarried') in similar demographic profiles?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "remove", "predicted_probability": 0.72}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried", "predicted_probability": 0.73}, {"feature_key": "relationship", "action": "change", "new_value": "Husband", "predicted_probability": 0.68}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "predicted_probability": 0.67}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child", "predicted_probability": 0.74}]
+- Explanation: The model shows moderate sensitivity to the 'relationship' feature. The current prediction of 74.39% for income <=50K holds when 'relationship' is set to 'Own-child' (the original value). Removing the relationship feature slightly increases the prediction probability to 72%, suggesting a small model bias toward lower income when relationship is missing. Setting 'relationship' to 'Unmarried' (a plausible default) slightly increases the probability to 73%, indicating a subtle positive influence on the prediction. Changing to 'Husband' or 'Wife' slightly decreases the probability, likely due to the model associating married status with higher income. However, the model remains stable over a range of relationship values, with no dramatic shifts in prediction. Thus, the relationship variable is moderately predictive but not highly sensitive in this profile.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What is the likely impact of removing 'relationship' on the model's prediction for income class, considering that the current value is 'Own-child' and the individual is male, 28 years old, with a private work class and HS-grad education?
+- Status: Success
+- findings: "The prediction would remain unchanged (<=50K)"
+- Explanation: The 'relationship' feature in the dataset captures social and familial status, which can indirectly influence income through factors like living arrangements, access to support, or job stability. In this case, the current value is 'Own-child', indicating the individual is a child living with their parent(s), which is often associated with lower income levels. However, the model's prediction of <=50K is already well-supported by other strong features: young age (28), lower education level (HS-grad), private work class (commonly lower-wage), never-married status, and male sex. Removing or changing the 'relationship' feature to any alternative value would not significantly alter the model's prediction because the key determinants of income—such as age, education, work class, and marital status—are already strong predictors. Moreover, without additional data on how different relationship categories correlate with income, any change in 'relationship' would not introduce a sufficient shift to override the model's confidence in predicting <=50K. Therefore, the prediction remains stable.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the current prediction probability for <=50K compare to cases where relationship is missing or set to a default value (e.g., 'Unmarried') in similar demographic profiles?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "remove", "predicted_probability": 0.72}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried", "predicted_probability": 0.73}, {"feature_key": "relationship", "action": "change", "new_value": "Husband", "predicted_probability": 0.68}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "predicted_probability": 0.67}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child", "predicted_probability": 0.74}]
+- Explanation: The model shows moderate sensitivity to the 'relationship' feature. The current prediction of 74.39% for income <=50K holds when 'relationship' is set to 'Own-child' (the original value). Removing the relationship feature slightly increases the prediction probability to 72%, suggesting a small model bias toward lower income when relationship is missing. Setting 'relationship' to 'Unmarried' (a plausible default) slightly increases the probability to 73%, indicating a subtle positive influence on the prediction. Changing to 'Husband' or 'Wife' slightly decreases the probability, likely due to the model associating married status with higher income. However, the model remains stable over a range of relationship values, with no dramatic shifts in prediction. Thus, the relationship variable is moderately predictive but not highly sensitive in this profile.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

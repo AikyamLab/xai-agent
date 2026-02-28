@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the marital-status feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5340
+
+## Part to be Masked
+marital-status
+
+## Input Data
+Features: age=21, workclass=Private, fnlwgt=44793, education=Some-college, education-num=10, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=65, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: -0.014232).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0518
+  - native-country_Vietnam: +0.0210
+  - native-country_Columbia: +0.0199
+  - age: +0.0137
+  - race_Amer-Indian-Eskimo: +0.0073
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0518
+  - native-country_Yugoslavia: -0.0210
+  - native-country_Cuba: -0.0199
+  - fnlwgt: -0.0137
+  - race_Asian-Pac-Islander: -0.0073
+- Max positive: 0.051839  Max negative: -0.051839
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=-0.0142  (orig=0.3856 → mod=0.3998)
+  - marital-status_Never-married: drop=+0.0077  (orig=0.3856 → mod=0.3778)
+  - relationship_Not-in-family: drop=+0.0072  (orig=0.3856 → mod=0.3784)
+  - sex_Male: drop=-0.0065  (orig=0.3856 → mod=0.3920)
+  - age: drop=+0.0057  (orig=0.3856 → mod=0.3798)
+  - education_Some-college: drop=+0.0040  (orig=0.3856 → mod=0.3816)
+  - occupation_Adm-clerical: drop=+0.0034  (orig=0.3856 → mod=0.3821)
+  - race_White: drop=-0.0018  (orig=0.3856 → mod=0.3874)
+  - workclass_Private: drop=+0.0017  (orig=0.3856 → mod=0.3838)
+  - fnlwgt: drop=-0.0014  (orig=0.3856 → mod=0.3870)
+- Max prob_drop: 0.007737  Max prob_increase: -0.014232
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and model output, assess whether marital-status is a likely driver of the prediction that income <=50K.
+- Status: Success
+- findings: "Marital-status is a plausible driver of the prediction that income <= 50K, given its known role in income classification in similar datasets. In the provided context, the individual's marital status is 'Never-married', which has been statistically associated with lower income levels in historical datasets like the Census Income dataset. When the marital-status feature is masked, the model may rely on other features such as age, education, occupation, and hours-per-week to make a prediction. However, since 'Never-married' is a categorical feature that often correlates with lower income, its absence could lead to a prediction shift depending on the relative weights assigned to other features. Without top-5 predictions, we cannot definitively confirm whether the prediction would change, but the feature is structurally relevant and thus a likely contributor to the original prediction."
+- Explanation: Marital-status is a known influential feature in income prediction models, particularly in datasets where marital status correlates with employment stability, access to resources, and socioeconomic outcomes. In this case, the individual is 'Never-married', which historically aligns with a lower income prediction. While the model's confidence (53.40%) suggests moderate certainty, the feature is not dominant—its impact is contextual. Masking it would likely alter the prediction, especially if the model heavily weights marital-status in its decision logic. However, the absence of top-5 predictions or feature importance scores limits definitive validation. Still, based on domain knowledge and available data, marital-status is a plausible and meaningful factor.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the prediction stability when marital-status is replaced with common alternative values (e.g., Married-civ-spouse, Divorced).
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-spouse-absent", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Widowed", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "prediction_change": "no_change"}]
+- Explanation: Marital status is a significant feature in income prediction models, particularly in datasets like the Adult Income Dataset where family structure often correlates with socioeconomic status. Changing marital status from 'Never-married' to other categories (e.g., 'Married-civ-spouse', 'Divorced') alters the perceived stability, household responsibilities, and potentially income potential. The model's prediction shifts from 0 (≤50K) to 1 (>50K) in most cases, indicating reduced income likelihood in married or divorced scenarios compared to never-married. Only when the marital status remains as 'Never-married' does the prediction stay unchanged. This suggests that marital status has a strong influence on income prediction, and masking or altering it leads to significant variation in output.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and model output, assess whether marital-status is a likely driver of the prediction that income <=50K.
+- Status: Success
+- findings: "Marital-status is a plausible driver of the prediction that income <= 50K, given its known role in income classification in similar datasets. In the provided context, the individual's marital status is 'Never-married', which has been statistically associated with lower income levels in historical datasets like the Census Income dataset. When the marital-status feature is masked, the model may rely on other features such as age, education, occupation, and hours-per-week to make a prediction. However, since 'Never-married' is a categorical feature that often correlates with lower income, its absence could lead to a prediction shift depending on the relative weights assigned to other features. Without top-5 predictions, we cannot definitively confirm whether the prediction would change, but the feature is structurally relevant and thus a likely contributor to the original prediction."
+- Explanation: Marital-status is a known influential feature in income prediction models, particularly in datasets where marital status correlates with employment stability, access to resources, and socioeconomic outcomes. In this case, the individual is 'Never-married', which historically aligns with a lower income prediction. While the model's confidence (53.40%) suggests moderate certainty, the feature is not dominant—its impact is contextual. Masking it would likely alter the prediction, especially if the model heavily weights marital-status in its decision logic. However, the absence of top-5 predictions or feature importance scores limits definitive validation. Still, based on domain knowledge and available data, marital-status is a plausible and meaningful factor.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the prediction stability when marital-status is replaced with common alternative values (e.g., Married-civ-spouse, Divorced).
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-spouse-absent", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Widowed", "prediction_change": "change"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "prediction_change": "no_change"}]
+- Explanation: Marital status is a significant feature in income prediction models, particularly in datasets like the Adult Income Dataset where family structure often correlates with socioeconomic status. Changing marital status from 'Never-married' to other categories (e.g., 'Married-civ-spouse', 'Divorced') alters the perceived stability, household responsibilities, and potentially income potential. The model's prediction shifts from 0 (≤50K) to 1 (>50K) in most cases, indicating reduced income likelihood in married or divorced scenarios compared to never-married. Only when the marital status remains as 'Never-married' does the prediction stay unchanged. This suggests that marital status has a strong influence on income prediction, and masking or altering it leads to significant variation in output.
+- Confidence: 0.96
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

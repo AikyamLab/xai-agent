@@ -1,0 +1,115 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6478
+
+## Input Data
+Features: age=20, workclass=Private, fnlwgt=510643, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Transport-moving, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.009755).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0236
+  - native-country_Taiwan: +0.0211
+  - native-country_Vietnam: +0.0180
+  - education-num: +0.0151
+  - occupation_Tech-support: +0.0121
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0236
+  - native-country_Thailand: -0.0211
+  - native-country_Yugoslavia: -0.0180
+  - capital-gain: -0.0151
+  - occupation_Transport-moving: -0.0121
+- Max positive: 0.02359  Max negative: -0.02359
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0770
+  - capital-gain <= -0.15: +0.0629
+  - native-country_Greece <= 0.00: +0.0546
+  - education-num <= -0.44: +0.0514
+  - native-country_Hungary <= 0.00: +0.0272
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0519
+  - native-country_Trinadad&Tobago <= 0.00: -0.0516
+  - native-country_Peru <= 0.00: -0.0359
+  - native-country_Laos <= 0.00: -0.0102
+- Max positive: 0.077027  Max negative: -0.051895
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - fnlwgt: +0.0089
+  - marital-status_Never-married: +0.0089
+  - relationship_Not-in-family: +0.0059
+  - occupation_Transport-moving: +0.0057
+  - education_HS-grad: +0.0050
+- Top negative features (attribution_score):
+  - sex_Male: -0.0097
+  - race_White: -0.0032
+  - native-country_United-States: -0.0005
+  - capital-loss: -0.0002
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.008923  Max negative: -0.009703
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0098  (orig=0.4128 → mod=0.4031)
+  - fnlwgt: drop=+0.0084  (orig=0.4128 → mod=0.4044)
+  - sex_Male: drop=-0.0077  (orig=0.4128 → mod=0.4206)
+  - occupation_Transport-moving: drop=+0.0067  (orig=0.4128 → mod=0.4062)
+  - relationship_Not-in-family: drop=+0.0060  (orig=0.4128 → mod=0.4069)
+  - workclass_Private: drop=+0.0047  (orig=0.4128 → mod=0.4081)
+  - education_HS-grad: drop=+0.0038  (orig=0.4128 → mod=0.4091)
+  - education-num: drop=+0.0034  (orig=0.4128 → mod=0.4094)
+  - age: drop=+0.0027  (orig=0.4128 → mod=0.4101)
+  - race_White: drop=-0.0022  (orig=0.4128 → mod=0.4151)
+- Max prob_drop: 0.009755  Max prob_increase: -0.007733
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known in the adult income dataset to strongly correlate with income class (<=50K or >50K)?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 20}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: In the Adult Income Dataset, features such as age, education-num, and hours-per-week are well-documented to strongly correlate with income class. Lower education levels (e.g., HS-grad, education-num=9) and younger age (e.g., age=20) are frequently associated with incomes <=50K. Similarly, lower working hours (e.g., 40 hours/week) and certain occupations like 'Transport-moving'—which are typically non-management, lower-wage jobs—are correlated with the <=50K class. Marital status 'Never-married' has also been shown in research to show a slight positive association with lower income, though it is weaker than age or education. These features, when combined, create a profile consistent with the model's prediction of <=50K.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Given the input features, why might the model have assigned a low income prediction despite having a male, white, private-sector worker with an educational level of HS-grad?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 20}, {"feature_key": "education", "action": "change", "new_value": "HS-grad"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}]
+- Explanation: The model likely assigned a low income prediction (≤50K) due to a combination of factors: the individual is young (age 20), has only a high school education (HS-grad), is unmarried and not part of a family support structure (Never-married), works in a low-income occupation such as Transport-moving, and has no capital gains or losses. These features collectively suggest limited career progression, financial independence, and economic stability, which are strongly correlated with lower income brackets in socioeconomic models. Despite being male and white—demographics associated with higher income in some contexts—the lack of educational advancement, marital support, and occupation type outweighs these advantages in the model's risk assessment.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

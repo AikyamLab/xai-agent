@@ -1,0 +1,551 @@
+{
+  "question_id": "39",
+  "question": {
+    "model": [
+      "TwoLayerNN",
+      "TabNN"
+    ],
+    "dataset": "Breast Cancer",
+    "row_no": 111,
+    "features": {
+      "mean radius": 15.32,
+      "mean texture": 17.27,
+      "mean perimeter": 103.2,
+      "mean area": 713.3,
+      "mean smoothness": 0.1335,
+      "mean compactness": 0.2284,
+      "mean concavity": 0.2448,
+      "mean concave points": 0.1242,
+      "mean symmetry": 0.2398,
+      "mean fractal dimension": 0.07596,
+      "radius error": 0.6592,
+      "texture error": 1.059,
+      "perimeter error": 4.061,
+      "area error": 59.46,
+      "smoothness error": 0.01015,
+      "compactness error": 0.04588,
+      "concavity error": 0.04983,
+      "concave points error": 0.02127,
+      "symmetry error": 0.01884,
+      "fractal dimension error": 0.00866,
+      "worst radius": 17.73,
+      "worst texture": 22.66,
+      "worst perimeter": 119.8,
+      "worst area": 928.8,
+      "worst smoothness": 0.1765,
+      "worst compactness": 0.4503,
+      "worst concavity": 0.4429,
+      "worst concave points": 0.2229,
+      "worst symmetry": 0.3258,
+      "worst fractal dimension": 0.1191
+    },
+    "target": {
+      "value": 0,
+      "label": "malignant"
+    },
+    "predicted": {
+      "value": 0,
+      "label": "malignant"
+    },
+    "example": "The model predicted the tumor to be malignant. If we mask the worst symmetry feature of this input, would the prediction change?",
+    "q_type": 5,
+    "q": "If we mask the {certain} part of this input, would the prediction change?",
+    "question": "The model predicted the tumor to be malignant. If we mask the worst symmetry feature of this input, would the prediction change?",
+    "question_id": "q39",
+    "modality": "tabular",
+    "is_multi_instance": false,
+    "num_instances": 1,
+    "dataset_base_name": "cancer_2layernn_q5",
+    "feature_names": [
+      "mean radius",
+      "mean texture",
+      "mean perimeter",
+      "mean area",
+      "mean smoothness",
+      "mean compactness",
+      "mean concavity",
+      "mean concave points",
+      "mean symmetry",
+      "mean fractal dimension",
+      "radius error",
+      "texture error",
+      "perimeter error",
+      "area error",
+      "smoothness error",
+      "compactness error",
+      "concavity error",
+      "concave points error",
+      "symmetry error",
+      "fractal dimension error",
+      "worst radius",
+      "worst texture",
+      "worst perimeter",
+      "worst area",
+      "worst smoothness",
+      "worst compactness",
+      "worst concavity",
+      "worst concave points",
+      "worst symmetry",
+      "worst fractal dimension"
+    ]
+  },
+  "template": {
+    "q_type": 5,
+    "category": "counterfactual",
+    "template_text": "If we mask a certain part, would the prediction change?"
+  },
+  "strategy": {
+    "strategy_type": "hybrid",
+    "reasoning": "A hybrid approach combines autonomous reasoning about feature relevance with empirical validation from explainability tools to provide a robust assessment of whether masking the worst symmetry feature would alter the model's prediction. The autonomous analysis helps establish initial intuition about symmetry's role in malignancy classification, while the XAI tools quantify its actual impact using data-driven attribution methods.",
+    "confidence": 0.92,
+    "autonomous_tasks": [
+      {
+        "task_type": "reasoning",
+        "query": "Given that symmetry is a critical biological property in tumor morphology, and the model predicts malignancy with high confidence, how might masking the worst symmetry value affect the prediction?",
+        "expected_output": "An assessment of whether symmetry contributes significantly to the model\u2019s confidence in classifying the tumor as malignant"
+      },
+      {
+        "task_type": "comparison",
+        "query": "Compare the baseline prediction (malignant, 0.941) to what might happen if worst symmetry is masked (set to 0 or mean value), based on biological and clinical plausibility.",
+        "expected_output": "An informed estimate of the likelihood of prediction change due to masking"
+      }
+    ],
+    "tool_selection": {
+      "selected_tools": [
+        "shap",
+        "sensitivity_analysis"
+      ],
+      "tool_params": {
+        "shap": {
+          "focus_feature": "worst symmetry"
+        },
+        "sensitivity_analysis": {
+          "focus_feature": "worst symmetry"
+        }
+      },
+      "reasoning": "SHAP provides a clear, game-theoretic interpretation of feature importance, capturing how much each feature (including worst symmetry) contributes to the prediction. Sensitivity analysis directly measures the impact of ablating the feature by evaluating prediction changes when it is set to zero or baseline\u2014making it ideal for assessing whether masking would change the class output. These tools are both well-suited for tabular data and provide complementary evidence: SHAP for attribution and sensitivity analysis for causal impact."
+    },
+    "selected_tools": [
+      {
+        "tool_name": "shap",
+        "priority": 1,
+        "reasoning": "SHAP provides a clear, game-theoretic interpretation of feature importance, capturing how much each feature (including worst symmetry) contributes to the prediction. Sensitivity analysis directly measures the impact of ablating the feature by evaluating prediction changes when it is set to zero or baseline\u2014making it ideal for assessing whether masking would change the class output. These tools are both well-suited for tabular data and provide complementary evidence: SHAP for attribution and sensitivity analysis for causal impact.",
+        "parameters": {
+          "focus_feature": "worst symmetry"
+        }
+      },
+      {
+        "tool_name": "sensitivity_analysis",
+        "priority": 2,
+        "reasoning": "SHAP provides a clear, game-theoretic interpretation of feature importance, capturing how much each feature (including worst symmetry) contributes to the prediction. Sensitivity analysis directly measures the impact of ablating the feature by evaluating prediction changes when it is set to zero or baseline\u2014making it ideal for assessing whether masking would change the class output. These tools are both well-suited for tabular data and provide complementary evidence: SHAP for attribution and sensitivity analysis for causal impact.",
+        "parameters": {
+          "focus_feature": "worst symmetry"
+        }
+      }
+    ]
+  },
+  "results": {
+    "output": {
+      "prediction_changes": 0
+    },
+    "explanation": "The sensitivity analysis shows that worst symmetry has a small probability drop (0.0033) when ablated, indicating low sensitivity compared to other features like worst concave points or concavity. Additionally, the COMPARISON task concludes that worst symmetry is a secondary indicator in tumor classification and its contribution is weaker than key features like concavity or texture. Given the model's high confidence in malignancy driven by other strong features, masking worst symmetry is unlikely to alter the prediction.",
+    "confidence": 0.85,
+    "tool_results": {
+      "shap": {
+        "success": true,
+        "method": "SHAP (Tabular)",
+        "target_class": 0,
+        "statistics": {
+          "num_features": 30,
+          "feature_importance": [
+            {
+              "feature": "perimeter error",
+              "feature_index": 12,
+              "shap_value": 0.0661,
+              "direction": "positive"
+            },
+            {
+              "feature": "area error",
+              "feature_index": 13,
+              "shap_value": -0.0661,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean symmetry",
+              "feature_index": 8,
+              "shap_value": 0.05602,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean fractal dimension",
+              "feature_index": 9,
+              "shap_value": -0.05602,
+              "direction": "negative"
+            },
+            {
+              "feature": "concavity error",
+              "feature_index": 16,
+              "shap_value": 0.050261,
+              "direction": "positive"
+            },
+            {
+              "feature": "concave points error",
+              "feature_index": 17,
+              "shap_value": -0.050261,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean radius",
+              "feature_index": 0,
+              "shap_value": 0.042482,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean texture",
+              "feature_index": 1,
+              "shap_value": -0.042482,
+              "direction": "negative"
+            },
+            {
+              "feature": "worst smoothness",
+              "feature_index": 24,
+              "shap_value": 0.039127,
+              "direction": "positive"
+            },
+            {
+              "feature": "worst compactness",
+              "feature_index": 25,
+              "shap_value": -0.039127,
+              "direction": "negative"
+            },
+            {
+              "feature": "smoothness error",
+              "feature_index": 14,
+              "shap_value": 0.03544,
+              "direction": "positive"
+            },
+            {
+              "feature": "compactness error",
+              "feature_index": 15,
+              "shap_value": -0.03544,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean perimeter",
+              "feature_index": 2,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean area",
+              "feature_index": 3,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean smoothness",
+              "feature_index": 4,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean compactness",
+              "feature_index": 5,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean concavity",
+              "feature_index": 6,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean concave points",
+              "feature_index": 7,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "radius error",
+              "feature_index": 10,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "texture error",
+              "feature_index": 11,
+              "shap_value": 0.0,
+              "direction": "negative"
+            }
+          ],
+          "top_positive": 0.0661,
+          "top_negative": -0.0661
+        },
+        "description": "SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: perimeter error."
+      },
+      "sensitivity_analysis": {
+        "success": true,
+        "method": "Sensitivity Analysis (Tabular)",
+        "target_class": 0,
+        "original_prob": 0.485246,
+        "statistics": {
+          "num_features": 30,
+          "feature_sensitivity": [
+            {
+              "feature": "worst concave points",
+              "feature_index": 27,
+              "original_prob": 0.485246,
+              "modified_prob": 0.478086,
+              "prob_drop": 0.007159
+            },
+            {
+              "feature": "mean symmetry",
+              "feature_index": 8,
+              "original_prob": 0.485246,
+              "modified_prob": 0.478338,
+              "prob_drop": 0.006908
+            },
+            {
+              "feature": "mean fractal dimension",
+              "feature_index": 9,
+              "original_prob": 0.485246,
+              "modified_prob": 0.490892,
+              "prob_drop": -0.005646
+            },
+            {
+              "feature": "mean smoothness",
+              "feature_index": 4,
+              "original_prob": 0.485246,
+              "modified_prob": 0.480927,
+              "prob_drop": 0.004318
+            },
+            {
+              "feature": "worst smoothness",
+              "feature_index": 24,
+              "original_prob": 0.485246,
+              "modified_prob": 0.481305,
+              "prob_drop": 0.003941
+            },
+            {
+              "feature": "concave points error",
+              "feature_index": 17,
+              "original_prob": 0.485246,
+              "modified_prob": 0.481457,
+              "prob_drop": 0.003788
+            },
+            {
+              "feature": "mean concavity",
+              "feature_index": 6,
+              "original_prob": 0.485246,
+              "modified_prob": 0.481573,
+              "prob_drop": 0.003673
+            },
+            {
+              "feature": "worst symmetry",
+              "feature_index": 28,
+              "original_prob": 0.485246,
+              "modified_prob": 0.481928,
+              "prob_drop": 0.003318
+            },
+            {
+              "feature": "radius error",
+              "feature_index": 10,
+              "original_prob": 0.485246,
+              "modified_prob": 0.481951,
+              "prob_drop": 0.003295
+            },
+            {
+              "feature": "fractal dimension error",
+              "feature_index": 19,
+              "original_prob": 0.485246,
+              "modified_prob": 0.488221,
+              "prob_drop": -0.002976
+            },
+            {
+              "feature": "worst fractal dimension",
+              "feature_index": 29,
+              "original_prob": 0.485246,
+              "modified_prob": 0.482283,
+              "prob_drop": 0.002962
+            },
+            {
+              "feature": "mean concave points",
+              "feature_index": 7,
+              "original_prob": 0.485246,
+              "modified_prob": 0.482428,
+              "prob_drop": 0.002817
+            },
+            {
+              "feature": "worst compactness",
+              "feature_index": 25,
+              "original_prob": 0.485246,
+              "modified_prob": 0.482596,
+              "prob_drop": 0.00265
+            },
+            {
+              "feature": "worst texture",
+              "feature_index": 21,
+              "original_prob": 0.485246,
+              "modified_prob": 0.487118,
+              "prob_drop": -0.001872
+            },
+            {
+              "feature": "perimeter error",
+              "feature_index": 12,
+              "original_prob": 0.485246,
+              "modified_prob": 0.483471,
+              "prob_drop": 0.001774
+            },
+            {
+              "feature": "mean texture",
+              "feature_index": 1,
+              "original_prob": 0.485246,
+              "modified_prob": 0.486676,
+              "prob_drop": -0.00143
+            },
+            {
+              "feature": "mean perimeter",
+              "feature_index": 2,
+              "original_prob": 0.485246,
+              "modified_prob": 0.483948,
+              "prob_drop": 0.001298
+            },
+            {
+              "feature": "compactness error",
+              "feature_index": 15,
+              "original_prob": 0.485246,
+              "modified_prob": 0.486434,
+              "prob_drop": -0.001188
+            },
+            {
+              "feature": "area error",
+              "feature_index": 13,
+              "original_prob": 0.485246,
+              "modified_prob": 0.48407,
+              "prob_drop": 0.001176
+            },
+            {
+              "feature": "worst perimeter",
+              "feature_index": 22,
+              "original_prob": 0.485246,
+              "modified_prob": 0.484102,
+              "prob_drop": 0.001143
+            }
+          ],
+          "max_prob_drop": 0.007159,
+          "max_prob_increase": -0.005646
+        },
+        "description": "Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst concave points (prob drop: 0.007159)."
+      },
+      "autonomous_tasks": {
+        "reasoning": {
+          "success": true,
+          "task_type": "reasoning",
+          "query": "Given that symmetry is a critical biological property in tumor morphology, and the model predicts malignancy with high confidence, how might masking the worst symmetry value affect the prediction?",
+          "result": {
+            "findings": {
+              "symmetry_contribution": "high",
+              "prediction_change_likelihood": "likely",
+              "reason": "The model predicts malignancy with 94.10% confidence, and symmetry is a well-documented biological feature in tumor morphology. Among the available features, 'worst symmetry' is one of the most critical discriminative variables, especially in distinguishing malignant from benign tumors. Given that the model already has high confidence, and symmetry is a key attribute in tumor classification, masking the worst symmetry value would likely reduce the model's confidence in the malignant prediction, as symmetry is a primary indicator of malignant morphology. Thus, altering this feature could significantly impact the decision boundary."
+            },
+            "explanation": "Symmetry is a key morphological feature in tumor analysis\u2014malignant tumors typically exhibit lower symmetry compared to benign ones. The model's high confidence (94.10%) in predicting malignancy suggests that symmetry has a strong influence on its decision. Since the worst symmetry value is directly available and is part of the input, masking it (i.e., removing or altering its contribution) would disrupt a critical feature in the model\u2019s reasoning path. This would likely lead to a reduction in prediction confidence, possibly shifting the classification toward benign if the value is set to a more symmetric or benign-like value. Therefore, symmetry contributes significantly to the model's confidence in classifying the tumor as malignant.",
+            "confidence": 0.95
+          },
+          "raw_response": "{'findings': {'symmetry_contribution': 'high', 'prediction_change_likelihood': 'likely', 'reason': \"The model predicts malignancy with 94.10% confidence, and symmetry is a well-documented biological feature in tumor morphology. Among the available features, 'worst symmetry' is one of the most critical discriminative variables, especially in distinguishing malignant from benign tumors. Given that the model already has high confidence, and symmetry is a key attribute in tumor classification, masking the worst symmetry value would likely reduce the model's confidence in the malignant prediction, as symmetry is a primary indicator of malignant morphology. Thus, altering this feature could significantly impact the decision boundary.\"}, 'explanation': \"Symmetry is a key morphological feature in tumor analysis\u2014malignant tumors typically exhibit lower symmetry compared to benign ones. The model's high confidence (94.10%) in predicting malignancy suggests that symmetry has a strong influence on"
+        },
+        "comparison": {
+          "success": true,
+          "task_type": "comparison",
+          "query": "Compare the baseline prediction (malignant, 0.941) to what might happen if worst symmetry is masked (set to 0 or mean value), based on biological and clinical plausibility.",
+          "result": {
+            "findings": {
+              "prediction_change_likelihood": "low",
+              "reasoning": "Worst symmetry is one of the less critical features in breast cancer classification models, especially when compared to mean symmetry, texture, or size-related features. In clinical practice, symmetry of tumor appearance is a known but secondary indicator in malignancy assessment. The feature 'worst symmetry' reflects the most severe deviation from normal symmetry in the tumor, but its contribution to the final prediction is typically weaker than other morphological features like concavity, texture, or radius. The model already has high confidence (94.1%) in predicting malignancy, suggesting that other features\u2014such as high concavity, high compactness, or irregular shape\u2014are already strongly driving the decision. Masking worst symmetry (e.g., by setting it to 0 or the mean value) is unlikely to significantly alter this dominant signal. Therefore, the prediction is expected to remain unchanged."
+            },
+            "explanation": "Worst symmetry is a secondary feature in tumor classification models. In clinical oncology, while asymmetry is a potential sign of malignancy, it is often overshadowed by more robust biomarkers like concavity, texture irregularity, and size variation. The model's high confidence in malignancy (94.1%) indicates that other features already strongly support the diagnosis. Biologically, symmetry loss is subtle and often reflects a minor component of tumor growth rather than a primary driver. Thus, masking this specific feature has low plausibility of altering the prediction.",
+            "confidence": 0.92
+          },
+          "raw_response": "{'findings': {'prediction_change_likelihood': 'low', 'reasoning': \"Worst symmetry is one of the less critical features in breast cancer classification models, especially when compared to mean symmetry, texture, or size-related features. In clinical practice, symmetry of tumor appearance is a known but secondary indicator in malignancy assessment. The feature 'worst symmetry' reflects the most severe deviation from normal symmetry in the tumor, but its contribution to the final prediction is typically weaker than other morphological features like concavity, texture, or radius. The model already has high confidence (94.1%) in predicting malignancy, suggesting that other features\u2014such as high concavity, high compactness, or irregular shape\u2014are already strongly driving the decision. Masking worst symmetry (e.g., by setting it to 0 or the mean value) is unlikely to significantly alter this dominant signal. Therefore, the prediction is expected to remain unchanged.\"}, 'explanation': \"Worst s"
+        }
+      }
+    },
+    "visualization_paths": [],
+    "question_id": "q39",
+    "question_type": 5,
+    "autonomous_results": {
+      "reasoning": {
+        "success": true,
+        "task_type": "reasoning",
+        "query": "Given that symmetry is a critical biological property in tumor morphology, and the model predicts malignancy with high confidence, how might masking the worst symmetry value affect the prediction?",
+        "result": {
+          "findings": {
+            "symmetry_contribution": "high",
+            "prediction_change_likelihood": "likely",
+            "reason": "The model predicts malignancy with 94.10% confidence, and symmetry is a well-documented biological feature in tumor morphology. Among the available features, 'worst symmetry' is one of the most critical discriminative variables, especially in distinguishing malignant from benign tumors. Given that the model already has high confidence, and symmetry is a key attribute in tumor classification, masking the worst symmetry value would likely reduce the model's confidence in the malignant prediction, as symmetry is a primary indicator of malignant morphology. Thus, altering this feature could significantly impact the decision boundary."
+          },
+          "explanation": "Symmetry is a key morphological feature in tumor analysis\u2014malignant tumors typically exhibit lower symmetry compared to benign ones. The model's high confidence (94.10%) in predicting malignancy suggests that symmetry has a strong influence on its decision. Since the worst symmetry value is directly available and is part of the input, masking it (i.e., removing or altering its contribution) would disrupt a critical feature in the model\u2019s reasoning path. This would likely lead to a reduction in prediction confidence, possibly shifting the classification toward benign if the value is set to a more symmetric or benign-like value. Therefore, symmetry contributes significantly to the model's confidence in classifying the tumor as malignant.",
+          "confidence": 0.95
+        },
+        "raw_response": "{'findings': {'symmetry_contribution': 'high', 'prediction_change_likelihood': 'likely', 'reason': \"The model predicts malignancy with 94.10% confidence, and symmetry is a well-documented biological feature in tumor morphology. Among the available features, 'worst symmetry' is one of the most critical discriminative variables, especially in distinguishing malignant from benign tumors. Given that the model already has high confidence, and symmetry is a key attribute in tumor classification, masking the worst symmetry value would likely reduce the model's confidence in the malignant prediction, as symmetry is a primary indicator of malignant morphology. Thus, altering this feature could significantly impact the decision boundary.\"}, 'explanation': \"Symmetry is a key morphological feature in tumor analysis\u2014malignant tumors typically exhibit lower symmetry compared to benign ones. The model's high confidence (94.10%) in predicting malignancy suggests that symmetry has a strong influence on"
+      },
+      "comparison": {
+        "success": true,
+        "task_type": "comparison",
+        "query": "Compare the baseline prediction (malignant, 0.941) to what might happen if worst symmetry is masked (set to 0 or mean value), based on biological and clinical plausibility.",
+        "result": {
+          "findings": {
+            "prediction_change_likelihood": "low",
+            "reasoning": "Worst symmetry is one of the less critical features in breast cancer classification models, especially when compared to mean symmetry, texture, or size-related features. In clinical practice, symmetry of tumor appearance is a known but secondary indicator in malignancy assessment. The feature 'worst symmetry' reflects the most severe deviation from normal symmetry in the tumor, but its contribution to the final prediction is typically weaker than other morphological features like concavity, texture, or radius. The model already has high confidence (94.1%) in predicting malignancy, suggesting that other features\u2014such as high concavity, high compactness, or irregular shape\u2014are already strongly driving the decision. Masking worst symmetry (e.g., by setting it to 0 or the mean value) is unlikely to significantly alter this dominant signal. Therefore, the prediction is expected to remain unchanged."
+          },
+          "explanation": "Worst symmetry is a secondary feature in tumor classification models. In clinical oncology, while asymmetry is a potential sign of malignancy, it is often overshadowed by more robust biomarkers like concavity, texture irregularity, and size variation. The model's high confidence in malignancy (94.1%) indicates that other features already strongly support the diagnosis. Biologically, symmetry loss is subtle and often reflects a minor component of tumor growth rather than a primary driver. Thus, masking this specific feature has low plausibility of altering the prediction.",
+          "confidence": 0.92
+        },
+        "raw_response": "{'findings': {'prediction_change_likelihood': 'low', 'reasoning': \"Worst symmetry is one of the less critical features in breast cancer classification models, especially when compared to mean symmetry, texture, or size-related features. In clinical practice, symmetry of tumor appearance is a known but secondary indicator in malignancy assessment. The feature 'worst symmetry' reflects the most severe deviation from normal symmetry in the tumor, but its contribution to the final prediction is typically weaker than other morphological features like concavity, texture, or radius. The model already has high confidence (94.1%) in predicting malignancy, suggesting that other features\u2014such as high concavity, high compactness, or irregular shape\u2014are already strongly driving the decision. Masking worst symmetry (e.g., by setting it to 0 or the mean value) is unlikely to significantly alter this dominant signal. Therefore, the prediction is expected to remain unchanged.\"}, 'explanation': \"Worst s"
+      }
+    }
+  },
+  "output_validation": {
+    "is_valid": true,
+    "errors": []
+  },
+  "evaluation": {
+    "question_id": "q39",
+    "question_type": 5,
+    "modality": "tabular",
+    "quality_score": 1.0,
+    "completeness": 1.0,
+    "overall_score": 1.0,
+    "overall_rating": "Excellent",
+    "execution_metrics": {
+      "successful_tools": 4,
+      "total_tools": 4,
+      "has_output": true,
+      "has_explanation": true
+    },
+    "faithfulness": {
+      "score": 0.9867149256169796,
+      "passed": true,
+      "metric_name": "Prediction Accuracy",
+      "metric_formula": "1 if agent_prediction == actual_outcome else 0",
+      "p_original": null,
+      "p_modified": null,
+      "original_class": "0",
+      "modified_class": "0",
+      "details": {
+        "soft_score": 0.9867149256169796,
+        "queried_region": {
+          "feature_key": "worst symmetry"
+        },
+        "agent_says_changes": 0,
+        "actually_changed": 0,
+        "p_original_class_before_mask": 0.9409655667841434,
+        "p_original_class_after_mask": 0.927680492401123,
+        "prob_drop": 0.013285074383020401,
+        "binary_correct": true,
+        "interpretation": "Soft score: agent says changes -> prob drop; agent says stable -> 1-|drop|"
+      },
+      "errors": []
+    }
+  }
+}

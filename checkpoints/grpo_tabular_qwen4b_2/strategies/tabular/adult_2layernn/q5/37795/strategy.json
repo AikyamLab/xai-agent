@@ -1,0 +1,50 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy leverages both autonomous reasoning to assess the feature's potential influence and external XAI tools to quantify its impact with empirical evidence. This approach balances interpretability with robustness, especially for a tabular model where feature importance can be context-dependent.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Given the model's prediction of '>50K' with 60.5% confidence and the input containing 'Private' workclass, assess whether workclass is likely to be a key driver of this prediction based on domain knowledge and feature patterns in adult income data.",
+      "expected_output": "A rationale for whether workclass is likely to influence income prediction, such as its known correlation with higher earnings or its categorical dominance in the dataset."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the probability of '>50K' when workclass is Private versus when it is absent or masked (e.g., set to missing or random category), using general knowledge of workclass distributions in the dataset.",
+      "expected_output": "An estimate of how likely the prediction would shift if workclass were masked, based on plausible distributional behavior."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "focus_feature": "workclass"
+      },
+      "sensitivity_analysis": {
+        "focus_feature": "workclass"
+      }
+    },
+    "reasoning": "SHAP provides a game-theoretic attribution of workclass's contribution to the prediction, showing how much it shifts the outcome when masked. Sensitivity analysis directly evaluates the prediction change when workclass is ablated, offering a causal measure of impact. These tools are most reliable for tabular data, especially when assessing feature masking effects in a real-world context."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a game-theoretic attribution of workclass's contribution to the prediction, showing how much it shifts the outcome when masked. Sensitivity analysis directly evaluates the prediction change when workclass is ablated, offering a causal measure of impact. These tools are most reliable for tabular data, especially when assessing feature masking effects in a real-world context.",
+      "parameters": {
+        "focus_feature": "workclass"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides a game-theoretic attribution of workclass's contribution to the prediction, showing how much it shifts the outcome when masked. Sensitivity analysis directly evaluates the prediction change when workclass is ablated, offering a causal measure of impact. These tools are most reliable for tabular data, especially when assessing feature masking effects in a real-world context.",
+      "parameters": {
+        "focus_feature": "workclass"
+      }
+    }
+  ]
+}

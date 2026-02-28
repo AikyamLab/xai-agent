@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (65.27%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=44, workclass=Local-gov, fnlwgt=183850, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Protective-serv, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=56, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.00775).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0427
+  - hours-per-week: +0.0258
+  - education_5th-6th: +0.0210
+  - native-country_United-States: +0.0185
+  - occupation_Prof-specialty: +0.0171
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0427
+  - capital-loss: -0.0258
+  - education_1st-4th: -0.0210
+  - native-country_Trinadad&Tobago: -0.0185
+  - occupation_Priv-house-serv: -0.0171
+- Max positive: 0.042696  Max negative: -0.042696
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education_7th-8th <= 0.00: +0.0640
+  - marital-status_Divorced <= 0.00: +0.0583
+  - native-country_Poland <= 0.00: +0.0459
+  - education_Preschool <= 0.00: +0.0424
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0728
+  - capital-loss <= -0.22: -0.0687
+  - native-country_Ireland <= 0.00: -0.0616
+  - native-country_Japan <= 0.00: -0.0535
+  - native-country_Germany <= 0.00: -0.0248
+- Max positive: 0.064033  Max negative: -0.072802
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0086
+  - sex_Male: +0.0079
+  - education-num: +0.0050
+  - native-country_United-States: +0.0042
+  - marital-status_Married-civ-spouse: +0.0039
+- Top negative features (attribution_score):
+  - capital-gain: -0.0004
+  - workclass_Local-gov: -0.0003
+  - fnlwgt: -0.0000
+  - workclass_Federal-gov: +0.0000
+  - workclass_Private: -0.0000
+- Max positive: 0.008649  Max negative: -0.000364
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0077  (orig=0.6576 → mod=0.6499)
+  - marital-status_Married-civ-spouse: drop=+0.0062  (orig=0.6576 → mod=0.6514)
+  - hours-per-week: drop=+0.0058  (orig=0.6576 → mod=0.6518)
+  - education_Bachelors: drop=+0.0036  (orig=0.6576 → mod=0.6540)
+  - relationship_Husband: drop=+0.0036  (orig=0.6576 → mod=0.6540)
+  - education-num: drop=+0.0034  (orig=0.6576 → mod=0.6542)
+  - native-country_United-States: drop=+0.0031  (orig=0.6576 → mod=0.6545)
+  - workclass_Local-gov: drop=+0.0022  (orig=0.6576 → mod=0.6554)
+  - race_White: drop=+0.0020  (orig=0.6576 → mod=0.6556)
+  - occupation_Protective-serv: drop=+0.0015  (orig=0.6576 → mod=0.6561)
+- Max prob_drop: 0.00775  Max prob_increase: -0.000609
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Analyze the semantic relationship between each feature in the input and the target label (<=50K), particularly focusing on whether features like workclass=Local-gov, occupation=Protective-serv, or relationship=Husband have structural or contextual relevance to income levels.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Unknown"}, {"feature_key": "occupation", "action": "change", "new_value": "Unknown"}, {"feature_key": "relationship", "action": "change", "new_value": "Unknown"}, {"feature_key": "race", "action": "change", "new_value": "Unknown"}, {"feature_key": "sex", "action": "change", "new_value": "Unknown"}]
+- Explanation: In the context of income prediction (<=50K), domain knowledge indicates that workclass, occupation, and relationship have potential contextual associations with income levels. However, workclass='Local-gov' and occupation='Protective-serv' are not strongly correlated with income in the standard dataset (Census Income), where income is primarily a function of education, age, hours-per-week, and capital gains. Similarly, relationship='Husband' is a demographic attribute tied to family structure, not income directly. Race and sex, though historically correlated with income in certain societal contexts, are often considered sensitive or confounded by bias and not directly predictive. Based on standard feature relevance in the adult income dataset, features like workclass, occupation, relationship, race, and sex are semantically less relevant than features like age, education-num, and hours-per-week. Therefore, these features are deemed semantically irrelevant to the <=50K classification task when considered in isolation or without confounding factors. Changing them to 'Unknown' removes their potential to introduce misleading or biased signal in the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence (0.6527) with the influence of features such as workclass, occupation, and marital-status to determine if any feature with high attribution appears semantically disconnected from income outcomes.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private", "reason": "The current 'Local-gov' workclass has a moderate influence on the model's prediction, but it is semantically less directly tied to income outcomes compared to occupation or education. 'Local-gov' is a category with limited documented income correlation in datasets, and its influence appears to be artificially inflated due to data imbalance or sparsity."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "reason": "The model assigns high confidence to 'Protective-serv' (a lower-income occupational category), which is semantically relevant to income. However, the prediction being >50K despite this suggests a misalignment. The semantic relevance is present, so it does not qualify as irrelevant."}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "reason": "The current 'Married-civ-spouse' has a strong positive predictive influence, but marital status is inherently semantically linked to income through household stability and financial support. Thus, it maintains semantic relevance and should not be flagged as irrelevant."}]
+- Explanation: The model's high confidence (65.27%) in predicting >50K despite the true label being <=50K suggests a potential over-reliance on features with weak or indirect income associations. Among the top features, 'workclass' ('Local-gov') shows notable attribution but has minimal documented correlation to income levels compared to education, occupation, or hours-per-week. While 'workclass' is technically a demographic category, its specific subtypes (like Local-gov) are rarely associated with high income in historical income data. This semantic disconnect raises the possibility that the model is being misled by feature regularization or class imbalance. No other features (like occupation or marital-status) exhibit significant semantic disconnection from income outcomes. Thus, 'workclass' is the only feature with high attribution and low semantic relevance to the <=50K class.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Analyze the semantic relationship between each feature in the input and the target label (<=50K), particularly focusing on whether features like workclass=Local-gov, occupation=Protective-serv, or relationship=Husband have structural or contextual relevance to income levels.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Unknown"}, {"feature_key": "occupation", "action": "change", "new_value": "Unknown"}, {"feature_key": "relationship", "action": "change", "new_value": "Unknown"}, {"feature_key": "race", "action": "change", "new_value": "Unknown"}, {"feature_key": "sex", "action": "change", "new_value": "Unknown"}]
+- Explanation: In the context of income prediction (<=50K), domain knowledge indicates that workclass, occupation, and relationship have potential contextual associations with income levels. However, workclass='Local-gov' and occupation='Protective-serv' are not strongly correlated with income in the standard dataset (Census Income), where income is primarily a function of education, age, hours-per-week, and capital gains. Similarly, relationship='Husband' is a demographic attribute tied to family structure, not income directly. Race and sex, though historically correlated with income in certain societal contexts, are often considered sensitive or confounded by bias and not directly predictive. Based on standard feature relevance in the adult income dataset, features like workclass, occupation, relationship, race, and sex are semantically less relevant than features like age, education-num, and hours-per-week. Therefore, these features are deemed semantically irrelevant to the <=50K classification task when considered in isolation or without confounding factors. Changing them to 'Unknown' removes their potential to introduce misleading or biased signal in the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence (0.6527) with the influence of features such as workclass, occupation, and marital-status to determine if any feature with high attribution appears semantically disconnected from income outcomes.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private", "reason": "The current 'Local-gov' workclass has a moderate influence on the model's prediction, but it is semantically less directly tied to income outcomes compared to occupation or education. 'Local-gov' is a category with limited documented income correlation in datasets, and its influence appears to be artificially inflated due to data imbalance or sparsity."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "reason": "The model assigns high confidence to 'Protective-serv' (a lower-income occupational category), which is semantically relevant to income. However, the prediction being >50K despite this suggests a misalignment. The semantic relevance is present, so it does not qualify as irrelevant."}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "reason": "The current 'Married-civ-spouse' has a strong positive predictive influence, but marital status is inherently semantically linked to income through household stability and financial support. Thus, it maintains semantic relevance and should not be flagged as irrelevant."}]
+- Explanation: The model's high confidence (65.27%) in predicting >50K despite the true label being <=50K suggests a potential over-reliance on features with weak or indirect income associations. Among the top features, 'workclass' ('Local-gov') shows notable attribution but has minimal documented correlation to income levels compared to education, occupation, or hours-per-week. While 'workclass' is technically a demographic category, its specific subtypes (like Local-gov) are rarely associated with high income in historical income data. This semantic disconnect raises the possibility that the model is being misled by feature regularization or class imbalance. No other features (like occupation or marital-status) exhibit significant semantic disconnection from income outcomes. Thus, 'workclass' is the only feature with high attribution and low semantic relevance to the <=50K class.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

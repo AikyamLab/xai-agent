@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change education, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (60.64%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6064181625843048}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3935818374156952}]
+- Part to Change: education
+
+## Input Data
+Features: age=41, workclass=State-gov, fnlwgt=180272, education=Masters, education-num=14, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: -0.021968).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0787
+  - relationship_Not-in-family: +0.0389
+  - native-country_Columbia: +0.0332
+  - sex_Male: +0.0280
+  - native-country_Trinadad&Tobago: +0.0220
+- Top negative features (shap_value):
+  - capital-loss: -0.0787
+  - relationship_Husband: -0.0389
+  - native-country_Cuba: -0.0332
+  - native-country_Cambodia: -0.0280
+  - native-country_United-States: -0.0220
+- Max positive: 0.07871  Max negative: -0.07871
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=-0.0220  (orig=0.4029 → mod=0.4248)
+  - marital-status_Never-married: drop=+0.0173  (orig=0.4029 → mod=0.3856)
+  - relationship_Own-child: drop=+0.0114  (orig=0.4029 → mod=0.3915)
+  - occupation_Prof-specialty: drop=-0.0090  (orig=0.4029 → mod=0.4119)
+  - education_Masters: drop=-0.0078  (orig=0.4029 → mod=0.4107)
+  - hours-per-week: drop=+0.0035  (orig=0.4029 → mod=0.3993)
+  - sex_Female: drop=+0.0034  (orig=0.4029 → mod=0.3995)
+  - age: drop=-0.0030  (orig=0.4029 → mod=0.4059)
+  - race_White: drop=-0.0021  (orig=0.4029 → mod=0.4050)
+  - native-country_United-States: drop=-0.0020  (orig=0.4029 → mod=0.4049)
+- Max prob_drop: 0.017261  Max prob_increase: -0.021968
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently classifies as <=50K with confidence 0.606 and education is 'Masters' (education-num=14), assess how removing education might alter the feature space and thus the prediction logic.
+- Status: Success
+- findings: {"would_prediction_shift_towards_gt50k": true}
+- Explanation: The current model predicts <=50K with 60.64% confidence, and the individual has 'Masters' education (education-num=14), which is associated with higher income potential in datasets like the Census Income dataset. Education is a strong predictor of income level, especially in categorical or ordinal form. Removing the 'education' feature (and implicitly the 'education-num' feature) would eliminate this key signal. Without this feature, the model would have to rely on other variables such as age, hours-per-week, occupation, and workclass—some of which are less strongly correlated with income for this individual's profile. In particular, 'Never-married', 'Own-child', and 'State-gov' workclass may be associated with lower income, and without the education signal, the model may default to more conservative or risk-averse predictions. As a result, the absence of education introduces uncertainty but more likely shifts the prediction toward '>50K' due to a loss of confidence in the income-education positive association, leading to a less certain, potentially upward-shifted classification in the absence of that feature.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the predicted class distribution with and without the education feature in a baseline model trained on the same dataset, assuming education is set to null.
+- Status: Success
+- findings: {"original_prediction": "\u226450K", "prediction_with_education_removal": "\u226450K", "change_in_class_probabilities": {"\u226450K": 0.6064, ">50K": 0.3936}, "estimated_change": {"\u226450K": 0.0, ">50K": 0.0}}
+- Explanation: The model's prediction is based on a trained model that includes the 'education' feature in its feature space. When education is removed or set to null, the model must rely on other features to make its classification. However, since 'education' is a strong predictor in this dataset (e.g., higher education levels are correlated with higher income), removing it reduces the model's ability to capture income trends. In this specific case, the prediction remains at '≤50K' with no significant shift in class probabilities. The confidence of the original prediction (60.64%) is maintained, suggesting that the model's reliance on other features (such as 'hours-per-week', 'age', and 'occupation') compensates partially for the absence of 'education'. However, without access to the full model's sensitivity analysis or feature importance, we cannot definitively quantify a shift. Thus, the estimated change in class probabilities is negligible.
+- Confidence: 0.75
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently classifies as <=50K with confidence 0.606 and education is 'Masters' (education-num=14), assess how removing education might alter the feature space and thus the prediction logic.
+- Status: Success
+- findings: {"would_prediction_shift_towards_gt50k": true}
+- Explanation: The current model predicts <=50K with 60.64% confidence, and the individual has 'Masters' education (education-num=14), which is associated with higher income potential in datasets like the Census Income dataset. Education is a strong predictor of income level, especially in categorical or ordinal form. Removing the 'education' feature (and implicitly the 'education-num' feature) would eliminate this key signal. Without this feature, the model would have to rely on other variables such as age, hours-per-week, occupation, and workclass—some of which are less strongly correlated with income for this individual's profile. In particular, 'Never-married', 'Own-child', and 'State-gov' workclass may be associated with lower income, and without the education signal, the model may default to more conservative or risk-averse predictions. As a result, the absence of education introduces uncertainty but more likely shifts the prediction toward '>50K' due to a loss of confidence in the income-education positive association, leading to a less certain, potentially upward-shifted classification in the absence of that feature.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the predicted class distribution with and without the education feature in a baseline model trained on the same dataset, assuming education is set to null.
+- Status: Success
+- findings: {"original_prediction": "\u226450K", "prediction_with_education_removal": "\u226450K", "change_in_class_probabilities": {"\u226450K": 0.6064, ">50K": 0.3936}, "estimated_change": {"\u226450K": 0.0, ">50K": 0.0}}
+- Explanation: The model's prediction is based on a trained model that includes the 'education' feature in its feature space. When education is removed or set to null, the model must rely on other features to make its classification. However, since 'education' is a strong predictor in this dataset (e.g., higher education levels are correlated with higher income), removing it reduces the model's ability to capture income trends. In this specific case, the prediction remains at '≤50K' with no significant shift in class probabilities. The confidence of the original prediction (60.64%) is maintained, suggesting that the model's reliance on other features (such as 'hours-per-week', 'age', and 'occupation') compensates partially for the absence of 'education'. However, without access to the full model's sensitivity analysis or feature importance, we cannot definitively quantify a shift. Thus, the estimated change in class probabilities is negligible.
+- Confidence: 0.75
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

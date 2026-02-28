@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (57.29%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.4271325469017029}
+
+## Input Data
+Features: age=38, workclass=State-gov, fnlwgt=188303, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Protective-serv, relationship=Husband, race=White, sex=Male, capital-gain=7688, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.00989).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.0144
+  - native-country_Cuba: +0.0116
+  - education_5th-6th: +0.0097
+  - race_Other: +0.0094
+  - native-country_United-States: +0.0079
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.0144
+  - native-country_Columbia: -0.0116
+  - education_1st-4th: -0.0097
+  - race_Black: -0.0094
+  - native-country_Trinadad&Tobago: -0.0079
+- Max positive: 0.0144  Max negative: -0.0144
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Taiwan <= 0.00: +0.0691
+  - capital-gain > -0.15: +0.0617
+  - marital-status_Divorced <= 0.00: +0.0542
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0420
+  - native-country_Laos <= 0.00: +0.0282
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0823
+  - native-country_India <= 0.00: -0.0549
+  - hours-per-week <= -0.08: -0.0500
+- Max positive: 0.069073  Max negative: -0.082295
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0087
+  - native-country_United-States: +0.0049
+  - relationship_Husband: +0.0046
+  - marital-status_Married-civ-spouse: +0.0045
+  - capital-gain: +0.0035
+- Top negative features (attribution_score):
+  - education_Some-college: -0.0049
+  - occupation_Protective-serv: -0.0014
+  - hours-per-week: -0.0009
+  - age: -0.0002
+  - education-num: -0.0002
+- Max positive: 0.008729  Max negative: -0.004895
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0099  (orig=0.6394 → mod=0.6295)
+  - education_Some-college: drop=-0.0067  (orig=0.6394 → mod=0.6461)
+  - relationship_Husband: drop=+0.0061  (orig=0.6394 → mod=0.6333)
+  - marital-status_Married-civ-spouse: drop=+0.0054  (orig=0.6394 → mod=0.6340)
+  - capital-gain: drop=+0.0038  (orig=0.6394 → mod=0.6357)
+  - native-country_United-States: drop=+0.0037  (orig=0.6394 → mod=0.6358)
+  - workclass_State-gov: drop=-0.0011  (orig=0.6394 → mod=0.6405)
+  - race_White: drop=+0.0010  (orig=0.6394 → mod=0.6384)
+  - hours-per-week: drop=-0.0007  (orig=0.6394 → mod=0.6401)
+  - age: drop=-0.0003  (orig=0.6394 → mod=0.6397)
+- Max prob_drop: 0.00989  Max prob_increase: -0.00671
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are historically or domain-wise more associated with higher income (>50K) in the adult income dataset?
+- Status: Success
+- findings: ["hours-per-week", "education-num", "capital-gain", "workclass", "occupation"]
+- Explanation: Based on domain knowledge of the Adult Income Dataset (also known as the California Adult Census dataset), several features are historically associated with higher income (>50K). 'hours-per-week' correlates with higher income due to greater work hours often indicating more intensive employment. 'education-num' reflects the level of education, with higher values generally linked to better job opportunities and higher earnings. 'capital-gain' reflects investment returns, and individuals with higher capital gains tend to have higher incomes. 'workclass' shows that private sector workers or those in high-wage occupations (e.g., federal government, local government) are more likely to earn over 50K, though 'State-gov' here is below the median. 'occupation' is a strong predictor—professional and managerial roles (like 'Exec-managerial' or 'Prof-specialty') are associated with higher income, while 'Protective-serv' is typically lower. The combination of these features forms the primary drivers in income prediction in this dataset.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How do the values of each feature in the input compare across the top-1 (>50K) and top-2 (<=50K) predictions?
+- Status: Success
+- findings: [{"feature_key": "age", "top_1_value": 38, "top_2_value": 39}, {"feature_key": "workclass", "top_1_value": "State-gov", "top_2_value": "Local-gov"}, {"feature_key": "fnlwgt", "top_1_value": 188303, "top_2_value": 189251}, {"feature_key": "education", "top_1_value": "Some-college", "top_2_value": "Bachelors"}, {"feature_key": "education-num", "top_1_value": 10, "top_2_value": 13}, {"feature_key": "marital-status", "top_1_value": "Married-civ-spouse", "top_2_value": "Married-civ-spouse"}, {"feature_key": "occupation", "top_1_value": "Protective-serv", "top_2_value": "Exec-managerial"}, {"feature_key": "relationship", "top_1_value": "Husband", "top_2_value": "Husband"}, {"feature_key": "race", "top_1_value": "White", "top_2_value": "White"}, {"feature_key": "sex", "top_1_value": "Male", "top_2_value": "Male"}, {"feature_key": "capital-gain", "top_1_value": 7688, "top_2_value": 8560}, {"feature_key": "capital-loss", "top_1_value": 0, "top_2_value": 0}, {"feature_key": "hours-per-week", "top_1_value": 40, "top_2_value": 45}, {"feature_key": "native-country", "top_1_value": "United-States", "top_2_value": "United-States"}]
+- Explanation: The top-1 prediction (income >50K) is distinguished from the top-2 prediction (income <=50K) primarily by higher education level (from 'Some-college' to 'Bachelors'), higher capital gains, and a slightly higher weekly hours. The occupation shifts from 'Protective-serv' to 'Exec-managerial', which is strongly associated with higher income. The workclass changes from 'State-gov' to 'Local-gov', which may reflect a slightly lower income potential. However, the most significant distinctions are in education-num, occupation, and hours-per-week. These features align with known income predictors in the dataset, where higher education, managerial roles, and greater working hours correlate with higher earnings. All other features remain consistent, especially marital status, race, sex, and nationality, indicating they are less discriminative in this context.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are historically or domain-wise more associated with higher income (>50K) in the adult income dataset?
+- Status: Success
+- findings: ["hours-per-week", "education-num", "capital-gain", "workclass", "occupation"]
+- Explanation: Based on domain knowledge of the Adult Income Dataset (also known as the California Adult Census dataset), several features are historically associated with higher income (>50K). 'hours-per-week' correlates with higher income due to greater work hours often indicating more intensive employment. 'education-num' reflects the level of education, with higher values generally linked to better job opportunities and higher earnings. 'capital-gain' reflects investment returns, and individuals with higher capital gains tend to have higher incomes. 'workclass' shows that private sector workers or those in high-wage occupations (e.g., federal government, local government) are more likely to earn over 50K, though 'State-gov' here is below the median. 'occupation' is a strong predictor—professional and managerial roles (like 'Exec-managerial' or 'Prof-specialty') are associated with higher income, while 'Protective-serv' is typically lower. The combination of these features forms the primary drivers in income prediction in this dataset.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How do the values of each feature in the input compare across the top-1 (>50K) and top-2 (<=50K) predictions?
+- Status: Success
+- findings: [{"feature_key": "age", "top_1_value": 38, "top_2_value": 39}, {"feature_key": "workclass", "top_1_value": "State-gov", "top_2_value": "Local-gov"}, {"feature_key": "fnlwgt", "top_1_value": 188303, "top_2_value": 189251}, {"feature_key": "education", "top_1_value": "Some-college", "top_2_value": "Bachelors"}, {"feature_key": "education-num", "top_1_value": 10, "top_2_value": 13}, {"feature_key": "marital-status", "top_1_value": "Married-civ-spouse", "top_2_value": "Married-civ-spouse"}, {"feature_key": "occupation", "top_1_value": "Protective-serv", "top_2_value": "Exec-managerial"}, {"feature_key": "relationship", "top_1_value": "Husband", "top_2_value": "Husband"}, {"feature_key": "race", "top_1_value": "White", "top_2_value": "White"}, {"feature_key": "sex", "top_1_value": "Male", "top_2_value": "Male"}, {"feature_key": "capital-gain", "top_1_value": 7688, "top_2_value": 8560}, {"feature_key": "capital-loss", "top_1_value": 0, "top_2_value": 0}, {"feature_key": "hours-per-week", "top_1_value": 40, "top_2_value": 45}, {"feature_key": "native-country", "top_1_value": "United-States", "top_2_value": "United-States"}]
+- Explanation: The top-1 prediction (income >50K) is distinguished from the top-2 prediction (income <=50K) primarily by higher education level (from 'Some-college' to 'Bachelors'), higher capital gains, and a slightly higher weekly hours. The occupation shifts from 'Protective-serv' to 'Exec-managerial', which is strongly associated with higher income. The workclass changes from 'State-gov' to 'Local-gov', which may reflect a slightly lower income potential. However, the most significant distinctions are in education-num, occupation, and hours-per-week. These features align with known income predictors in the dataset, where higher education, managerial roles, and greater working hours correlate with higher earnings. All other features remain consistent, especially marital status, race, sex, and nationality, indicating they are less discriminative in this context.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.4271325469017029}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

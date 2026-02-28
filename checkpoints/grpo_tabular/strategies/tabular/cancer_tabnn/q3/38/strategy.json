@@ -1,0 +1,67 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external XAI tools to ensure both domain-informed feature interpretation and data-driven contrastive analysis. Autonomous methods offer interpretability grounded in known tumor feature patterns (e.g., benign tumors tend to have lower scale and regularity values), while tools like SHAP and LIME provide model-agnostic quantification of feature contributions for contrastive decision boundaries between benign and malignant classes.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Based on known medical interpretation of breast cancer features, identify which of the input features (mean radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, fractal dimension) are typically associated with benign tumors versus malignant tumors.",
+      "expected_output": "List of features likely to distinguish benign from malignant tumors based on clinical knowledge, such as lower compactness, lower concavity, and higher symmetry for benign cases."
+    },
+    {
+      "task_type": "grounding",
+      "query": "Map the input values to known thresholds where benign tumors generally fall below certain thresholds (e.g., mean concavity < 0.05, mean compactness < 0.12, mean radius < 14).",
+      "expected_output": "Features falling within benign-associated ranges based on domain knowledge, with indication of how they contribute to favoring benign prediction."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given the top-1 prediction is benign with 0.5204 and top-2 is malignant with 0.4796, identify the most likely features that just barely tipped the decision in favor of benign over malignant.",
+      "expected_output": "Feature rankings based on minimal marginal difference in prediction logits, highlighting small but decisive differences."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "lime": {
+        "target_class": "top1"
+      },
+      "sensitivity_analysis": {
+        "mode": "contrastive"
+      }
+    },
+    "reasoning": "SHAP (contrastive) offers a game-theoretic decomposition of feature contributions specifically for differentiating top-1 and top-2 predictions, making it ideal for contrastive analysis. LIME locally approximates the model to identify features that drive the top-1 prediction, providing a model-agnostic interpretation. Sensitivity analysis (leave-one-out) validates the impact of each feature on the vote difference between benign and malignant classes, helping confirm which features are most decisive in the marginal decision boundary."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP (contrastive) offers a game-theoretic decomposition of feature contributions specifically for differentiating top-1 and top-2 predictions, making it ideal for contrastive analysis. LIME locally approximates the model to identify features that drive the top-1 prediction, providing a model-agnostic interpretation. Sensitivity analysis (leave-one-out) validates the impact of each feature on the vote difference between benign and malignant classes, helping confirm which features are most decisive in the marginal decision boundary.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP (contrastive) offers a game-theoretic decomposition of feature contributions specifically for differentiating top-1 and top-2 predictions, making it ideal for contrastive analysis. LIME locally approximates the model to identify features that drive the top-1 prediction, providing a model-agnostic interpretation. Sensitivity analysis (leave-one-out) validates the impact of each feature on the vote difference between benign and malignant classes, helping confirm which features are most decisive in the marginal decision boundary.",
+      "parameters": {
+        "target_class": "top1"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP (contrastive) offers a game-theoretic decomposition of feature contributions specifically for differentiating top-1 and top-2 predictions, making it ideal for contrastive analysis. LIME locally approximates the model to identify features that drive the top-1 prediction, providing a model-agnostic interpretation. Sensitivity analysis (leave-one-out) validates the impact of each feature on the vote difference between benign and malignant classes, helping confirm which features are most decisive in the marginal decision boundary.",
+      "parameters": {
+        "mode": "contrastive"
+      }
+    }
+  ]
+}

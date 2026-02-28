@@ -1,0 +1,145 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. How should the instance change to flip the model into less than or equal to 50K?
+
+## Current State
+- Current Prediction: >50K (76.87%)
+- Target Prediction: less than or equal to 50K
+
+## Input Data
+Features: age=42, workclass=Self-emp-inc, fnlwgt=130126, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=1977, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.01751).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1182
+  - hours-per-week: +0.0439
+  - native-country_Peru: +0.0358
+  - native-country_United-States: +0.0315
+  - native-country_Cambodia: +0.0283
+- Top negative features (shap_value):
+  - workclass_Private: -0.1182
+  - capital-loss: -0.0439
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0358
+  - native-country_Trinadad&Tobago: -0.0315
+  - sex_Male: -0.0283
+- Max positive: 0.118175  Max negative: -0.118175
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss > -0.22: +0.1202
+  - native-country_South <= 0.00: +0.1097
+  - native-country_Jamaica <= 0.00: +0.0632
+  - native-country_Trinadad&Tobago <= 0.00: +0.0426
+  - native-country_El-Salvador <= 0.00: +0.0075
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2061
+  - native-country_Laos <= 0.00: -0.0429
+  - native-country_Italy <= 0.00: -0.0153
+  - native-country_Peru <= 0.00: -0.0025
+- Max positive: 0.120182  Max negative: -0.206085
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0201
+  - marital-status_Married-civ-spouse: +0.0146
+  - education-num: +0.0116
+  - occupation_Prof-specialty: +0.0110
+  - relationship_Husband: +0.0110
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0033
+  - capital-gain: -0.0012
+  - hours-per-week: -0.0004
+  - workclass_Federal-gov: +0.0000
+  - workclass_Local-gov: +0.0000
+- Max positive: 0.020081  Max negative: -0.003272
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0175  (orig=0.6832 → mod=0.6657)
+  - marital-status_Married-civ-spouse: drop=+0.0078  (orig=0.6832 → mod=0.6755)
+  - occupation_Prof-specialty: drop=+0.0066  (orig=0.6832 → mod=0.6767)
+  - education-num: drop=+0.0064  (orig=0.6832 → mod=0.6769)
+  - relationship_Husband: drop=+0.0062  (orig=0.6832 → mod=0.6771)
+  - sex_Male: drop=+0.0051  (orig=0.6832 → mod=0.6781)
+  - native-country_United-States: drop=+0.0040  (orig=0.6832 → mod=0.6793)
+  - education_Bachelors: drop=+0.0025  (orig=0.6832 → mod=0.6807)
+  - race_White: drop=+0.0024  (orig=0.6832 → mod=0.6809)
+  - fnlwgt: drop=-0.0017  (orig=0.6832 → mod=0.6850)
+- Max prob_drop: 0.01751  Max prob_increase: -0.001727
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to drive the current '>50K' prediction based on known socioeconomic patterns and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "decrease", "new_value": 30}, {"feature_key": "education-num", "action": "decrease", "new_value": 9}, {"feature_key": "hours-per-week", "action": "decrease", "new_value": 30}, {"feature_key": "capital-gain", "action": "increase", "new_value": 0}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: The model predicts '>50K' with high confidence, and socioeconomic patterns show that higher income is strongly correlated with higher education, work hours, and professional status. Reducing 'age' and 'education-num' weakens the individual's credential and experience profile. Lower 'hours-per-week' reduces labor intensity, which correlates with lower earnings. Changing 'workclass' from 'Self-emp-inc' (self-employed, often higher income) to 'Local-gov' (public sector, typically lower income) shifts the income profile. Increasing 'capital-gain' is not feasible here as it is already 0; thus, leaving it unchanged is optimal. The most impactful changes are reducing education, hours, and switching workclass to a lower-income category.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative impact of education-num, age, and fnlwgt on class 1 (>50K) versus class 0 (<=50K) by using domain knowledge and model intuition.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "decrease", "new_value": 12}, {"feature_key": "age", "action": "decrease", "new_value": 40}, {"feature_key": "fnlwgt", "action": "decrease", "new_value": 100000}]
+- Explanation: Based on domain knowledge and model intuition in income prediction tasks, 'education-num' has a strong association with income potential—higher levels of education are generally correlated with higher earnings. Reducing it from 13 (Bachelors) to 12 (some lower education level) decreases the likelihood of predicting >50K. 'Age' also plays a role, as older individuals may have more experience but in this dataset, a younger age can signal lower income potential. Decreasing age from 42 to 40 has a moderate but realistic impact. 'fnlwgt' (final weight) is a surrogate for income and often correlates with earnings; reducing it from 130,126 to 100,000 signals a lower household or economic weight, which can shift prediction toward <=50K. Among these, education-num has the strongest impact due to its direct link to skill and earning capacity. Thus, it is prioritized over age and fnlwgt.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to drive the current '>50K' prediction based on known socioeconomic patterns and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "decrease", "new_value": 30}, {"feature_key": "education-num", "action": "decrease", "new_value": 9}, {"feature_key": "hours-per-week", "action": "decrease", "new_value": 30}, {"feature_key": "capital-gain", "action": "increase", "new_value": 0}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: The model predicts '>50K' with high confidence, and socioeconomic patterns show that higher income is strongly correlated with higher education, work hours, and professional status. Reducing 'age' and 'education-num' weakens the individual's credential and experience profile. Lower 'hours-per-week' reduces labor intensity, which correlates with lower earnings. Changing 'workclass' from 'Self-emp-inc' (self-employed, often higher income) to 'Local-gov' (public sector, typically lower income) shifts the income profile. Increasing 'capital-gain' is not feasible here as it is already 0; thus, leaving it unchanged is optimal. The most impactful changes are reducing education, hours, and switching workclass to a lower-income category.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative impact of education-num, age, and fnlwgt on class 1 (>50K) versus class 0 (<=50K) by using domain knowledge and model intuition.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "decrease", "new_value": 12}, {"feature_key": "age", "action": "decrease", "new_value": 40}, {"feature_key": "fnlwgt", "action": "decrease", "new_value": 100000}]
+- Explanation: Based on domain knowledge and model intuition in income prediction tasks, 'education-num' has a strong association with income potential—higher levels of education are generally correlated with higher earnings. Reducing it from 13 (Bachelors) to 12 (some lower education level) decreases the likelihood of predicting >50K. 'Age' also plays a role, as older individuals may have more experience but in this dataset, a younger age can signal lower income potential. Decreasing age from 42 to 40 has a moderate but realistic impact. 'fnlwgt' (final weight) is a surrogate for income and often correlates with earnings; reducing it from 130,126 to 100,000 signals a lower household or economic weight, which can shift prediction toward <=50K. Among these, education-num has the strongest impact due to its direct link to skill and earning capacity. Thus, it is prioritized over age and fnlwgt.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "less than or equal to 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=42, workclass='Self-emp-inc', fnlwgt=130126, education='Bachelors', education-num=13, marital-status='Married-civ-spouse', occupation='Prof-specialty', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=1977, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

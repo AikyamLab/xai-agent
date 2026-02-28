@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (60.74%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=30, workclass=Private, fnlwgt=262092, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.005046).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0283
+  - workclass_State-gov: +0.0234
+  - occupation_Prof-specialty: +0.0187
+  - native-country_Cambodia: +0.0124
+  - occupation_Transport-moving: +0.0115
+- Top negative features (shap_value):
+  - capital-loss: -0.0283
+  - workclass_Self-emp-not-inc: -0.0234
+  - occupation_Priv-house-serv: -0.0187
+  - sex_Male: -0.0124
+  - occupation_Tech-support: -0.0115
+- Max positive: 0.02825  Max negative: -0.02825
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Dominican-Republic <= 0.00: +0.0505
+  - hours-per-week > 0.34: +0.0484
+  - native-country_Guatemala <= 0.00: +0.0467
+  - native-country_Jamaica <= 0.00: +0.0392
+  - native-country_Peru <= 0.00: +0.0098
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0726
+  - native-country_Hong <= 0.00: -0.0663
+  - capital-loss <= -0.22: -0.0600
+  - native-country_Italy <= 0.00: -0.0591
+  - native-country_France <= 0.00: -0.0227
+- Max positive: 0.050496  Max negative: -0.072641
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0061
+  - hours-per-week: +0.0056
+  - education-num: +0.0054
+  - relationship_Husband: +0.0048
+  - marital-status_Married-civ-spouse: +0.0042
+- Top negative features (attribution_score):
+  - workclass_Private: -0.0027
+  - age: -0.0022
+  - fnlwgt: -0.0006
+  - capital-gain: -0.0003
+  - workclass_Federal-gov: +0.0000
+- Max positive: 0.006132  Max negative: -0.002663
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0050  (orig=0.6474 → mod=0.6423)
+  - sex_Male: drop=+0.0041  (orig=0.6474 → mod=0.6432)
+  - relationship_Husband: drop=+0.0041  (orig=0.6474 → mod=0.6433)
+  - workclass_Private: drop=-0.0029  (orig=0.6474 → mod=0.6503)
+  - education_Bachelors: drop=+0.0027  (orig=0.6474 → mod=0.6447)
+  - education-num: drop=+0.0023  (orig=0.6474 → mod=0.6451)
+  - fnlwgt: drop=-0.0016  (orig=0.6474 → mod=0.6490)
+  - occupation_Sales: drop=+0.0014  (orig=0.6474 → mod=0.6460)
+  - hours-per-week: drop=+0.0013  (orig=0.6474 → mod=0.6461)
+  - native-country_United-States: drop=-0.0009  (orig=0.6474 → mod=0.6482)
+- Max prob_drop: 0.005046  Max prob_increase: -0.002928
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighted count) be misleadingly influential in predicting income class when it is not semantically related to actual earning capacity?
+- Status: Success
+- findings: ["fnlwgt is a potentially spurious feature due to its statistical weighting rather than direct relevance to salary"]
+- Explanation: fnlwgt (final weight) is a statistical construct used to adjust for sampling weights in surveys, not a measure of individual income or earning capacity. Its value represents a weighted count of the individual's record in the dataset, not actual income. Because it does not reflect real-world earning behavior, relying on it for income prediction introduces spurious correlations. In this case, the model may have learned that higher fnlwgt values are associated with the >50K class due to dataset-level weighting patterns, rather than any causal or semantic relationship. This can lead to incorrect predictions even when the true income is <=50K, especially in cases like the given example where the individual has a moderate age, education, and work history, but a high fnlwgt value.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true class (<=50K) against the model's predicted class (>50K). Are any features like 'workclass', 'occupation', or 'race' semantically aligned with the ground truth?
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "high_relevance", "new_value": "Female", "relevance": "High", "reason": "The true label is <=50K, and in the dataset, 'Male' is strongly associated with higher income (>50K) in historical patterns. Changing 'sex' to 'Female' aligns with the lower-income group (<=50K), suggesting semantic misalignment in the model's prediction."}, {"feature_key": "occupation", "action": "high_relevance", "new_value": "Farming-forest", "relevance": "High", "reason": "Occupations like 'Sales' are often correlated with moderate income, while lower-income roles like 'Farming-forest' are more aligned with <=50K. The model likely overestimated income due to assuming higher-income occupations like 'Sales' as typical for >50K."}, {"feature_key": "hours-per-week", "action": "medium_relevance", "relevance": "Medium", "reason": "High hours (55) are typically associated with higher income, but not deterministically. While this may contribute to the model's over-prediction, it is less semantically decisive than sex or occupation."}, {"feature_key": "workclass", "action": "medium_relevance", "relevance": "Medium", "reason": "Private workclass is common across income groups. While private sector employment is not inherently linked to income, it does not strongly favor >50K. This feature has limited semantic relevance in distinguishing <=50K vs >50K compared to sex or occupation."}, {"feature_key": "education", "action": "medium_relevance", "relevance": "Medium", "reason": "Bachelors degree is associated with higher income, but not exclusively. While education-num=13 supports higher earnings, it does not strongly bias toward >50K; thus, the model may have incorrectly attributed higher income without sufficient confidence in this feature."}]
+- Explanation: The model incorrectly predicted a person with a Bachelors degree, 55 hours per week, and male sex as >50K when the true label is <=50K. Semantic analysis reveals that 'sex' (Male) and 'occupation' (Sales) are particularly misaligned with the true class. Male individuals historically have a higher probability of earning >50K, and 'Sales' is a moderately high-income job but not one that guarantees >50K. Thus, the model's over-prediction is likely driven by a fixation on these features rather than contextual income patterns. Changing 'sex' to 'Female' or 'occupation' to lower-income roles would better align with the ground truth. These features exhibit strong semantic misalignment, while others are only weakly or moderately relevant.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighted count) be misleadingly influential in predicting income class when it is not semantically related to actual earning capacity?
+- Status: Success
+- findings: ["fnlwgt is a potentially spurious feature due to its statistical weighting rather than direct relevance to salary"]
+- Explanation: fnlwgt (final weight) is a statistical construct used to adjust for sampling weights in surveys, not a measure of individual income or earning capacity. Its value represents a weighted count of the individual's record in the dataset, not actual income. Because it does not reflect real-world earning behavior, relying on it for income prediction introduces spurious correlations. In this case, the model may have learned that higher fnlwgt values are associated with the >50K class due to dataset-level weighting patterns, rather than any causal or semantic relationship. This can lead to incorrect predictions even when the true income is <=50K, especially in cases like the given example where the individual has a moderate age, education, and work history, but a high fnlwgt value.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true class (<=50K) against the model's predicted class (>50K). Are any features like 'workclass', 'occupation', or 'race' semantically aligned with the ground truth?
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "high_relevance", "new_value": "Female", "relevance": "High", "reason": "The true label is <=50K, and in the dataset, 'Male' is strongly associated with higher income (>50K) in historical patterns. Changing 'sex' to 'Female' aligns with the lower-income group (<=50K), suggesting semantic misalignment in the model's prediction."}, {"feature_key": "occupation", "action": "high_relevance", "new_value": "Farming-forest", "relevance": "High", "reason": "Occupations like 'Sales' are often correlated with moderate income, while lower-income roles like 'Farming-forest' are more aligned with <=50K. The model likely overestimated income due to assuming higher-income occupations like 'Sales' as typical for >50K."}, {"feature_key": "hours-per-week", "action": "medium_relevance", "relevance": "Medium", "reason": "High hours (55) are typically associated with higher income, but not deterministically. While this may contribute to the model's over-prediction, it is less semantically decisive than sex or occupation."}, {"feature_key": "workclass", "action": "medium_relevance", "relevance": "Medium", "reason": "Private workclass is common across income groups. While private sector employment is not inherently linked to income, it does not strongly favor >50K. This feature has limited semantic relevance in distinguishing <=50K vs >50K compared to sex or occupation."}, {"feature_key": "education", "action": "medium_relevance", "relevance": "Medium", "reason": "Bachelors degree is associated with higher income, but not exclusively. While education-num=13 supports higher earnings, it does not strongly bias toward >50K; thus, the model may have incorrectly attributed higher income without sufficient confidence in this feature."}]
+- Explanation: The model incorrectly predicted a person with a Bachelors degree, 55 hours per week, and male sex as >50K when the true label is <=50K. Semantic analysis reveals that 'sex' (Male) and 'occupation' (Sales) are particularly misaligned with the true class. Male individuals historically have a higher probability of earning >50K, and 'Sales' is a moderately high-income job but not one that guarantees >50K. Thus, the model's over-prediction is likely driven by a fixation on these features rather than contextual income patterns. Changing 'sex' to 'Female' or 'occupation' to lower-income roles would better align with the ground truth. These features exhibit strong semantic misalignment, while others are only weakly or moderately relevant.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

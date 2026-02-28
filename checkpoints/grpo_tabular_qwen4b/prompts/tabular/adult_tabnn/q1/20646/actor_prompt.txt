@@ -1,0 +1,114 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6543
+
+## Input Data
+Features: age=32, workclass=Private, fnlwgt=180603, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: relationship_Husband.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.015129).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0640
+  - native-country_Cambodia: +0.0450
+  - native-country_United-States: +0.0356
+  - occupation_Prof-specialty: +0.0290
+  - native-country_Cuba: +0.0229
+- Top negative features (shap_value):
+  - capital-loss: -0.0640
+  - sex_Male: -0.0450
+  - native-country_Trinadad&Tobago: -0.0356
+  - occupation_Priv-house-serv: -0.0290
+  - native-country_Columbia: -0.0229
+- Max positive: 0.063969  Max negative: -0.063969
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - -0.05 < education-num <= 1.13: +0.0816
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0795
+  - education_1st-4th <= 0.00: +0.0584
+  - marital-status_Married-AF-spouse <= 0.00: +0.0498
+  - native-country_Italy <= 0.00: +0.0464
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2253
+  - capital-loss <= -0.22: -0.1295
+  - native-country_Iran <= 0.00: -0.0755
+  - native-country_China <= 0.00: -0.0317
+- Max positive: 0.081566  Max negative: -0.225298
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Husband: +0.0173
+  - marital-status_Married-civ-spouse: +0.0166
+  - education-num: +0.0146
+  - education_Bachelors: +0.0115
+  - sex_Male: +0.0109
+- Top negative features (attribution_score):
+  - age: -0.0098
+  - workclass_Private: -0.0020
+  - capital-gain: -0.0017
+  - fnlwgt: -0.0008
+  - hours-per-week: -0.0007
+- Max positive: 0.017272  Max negative: -0.009799
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0151  (orig=0.6580 → mod=0.6429)
+  - marital-status_Married-civ-spouse: drop=+0.0147  (orig=0.6580 → mod=0.6433)
+  - relationship_Husband: drop=+0.0125  (orig=0.6580 → mod=0.6455)
+  - education_Bachelors: drop=+0.0087  (orig=0.6580 → mod=0.6492)
+  - sex_Male: drop=+0.0053  (orig=0.6580 → mod=0.6527)
+  - race_White: drop=+0.0049  (orig=0.6580 → mod=0.6531)
+  - native-country_United-States: drop=+0.0048  (orig=0.6580 → mod=0.6532)
+  - age: drop=-0.0034  (orig=0.6580 → mod=0.6614)
+  - workclass_Private: drop=+0.0026  (orig=0.6580 → mod=0.6553)
+  - capital-loss: drop=-0.0009  (orig=0.6580 → mod=0.6589)
+- Max prob_drop: 0.015129  Max prob_increase: -0.003394
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known in the Adult Income dataset to have strong historical or domain-based associations with income >50K?
+- Status: Success
+- findings: ["education-num", "hours-per-week", "workclass", "occupation", "sex"]
+- Explanation: In the Adult Income dataset, several features have strong historical and domain-based associations with income >50K. 'education-num' is strongly correlated with higher income, as individuals with higher education levels (e.g., Bachelors, Masters, Prof-school) are more likely to earn over 50K. 'hours-per-week' shows a clear positive association with higher income, as those working longer hours are more likely to be in higher-paying professions. 'workclass' matters significantly—private sector employees often have higher income than others, especially in high-paying industries. 'occupation' is a key predictor, with roles like 'Exec-managerial' or 'Prof-specialty' being strongly linked to high income. 'sex' also shows a well-documented bias, where males are disproportionately represented in high-income groups. These features are consistently supported by domain knowledge and historical analysis in the dataset (e.g., UCI Adult Income Study).
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Given the model's prediction of '>50K' with confidence 0.65, how might features like 'education', 'occupation', or 'workclass' contribute to this outcome? Why might a male with a bachelor's degree in sales and private work be more likely to earn above 50K?
+- Status: Success
+- Explanation: The model predicted '>50K' with 65.43% confidence, and key features such as 'education', 'occupation', and 'workclass' play a pivotal role in driving this outcome. The individual has 'Bachelors' education (education-num=13), which is associated with higher earning potential due to increased access to higher-paying professional roles. The occupation 'Sales' is typically correlated with moderate to high income, especially when combined with a stable workclass like 'Private', which often represents full-time, well-compensated employment. 'Private' workclass is frequently linked to better economic outcomes than government or self-employed work, offering greater job stability and salary structure. Additionally, the individual is a 'Male' with a 'Married-civ-spouse' status and 'Husband' relationship, which may reflect stronger socioeconomic support and workforce participation. While 'age' (32) and 'hours-per-week' (40) are within average ranges, the combination of a bachelor's degree, private sector employment in a sales role, and male gender aligns well with historical and modeled patterns of higher income. These features collectively contribute to the model’s belief that the individual has a high probability of earning above $50K.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

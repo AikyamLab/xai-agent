@@ -1,0 +1,145 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (52.99%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=38, workclass=Private, fnlwgt=35890, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: occupation_Tech-support.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.010508).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - occupation_Tech-support: +0.0214
+  - native-country_United-States: +0.0203
+  - capital-loss: +0.0140
+  - native-country_Yugoslavia: +0.0118
+  - education-num: +0.0094
+- Top negative features (shap_value):
+  - occupation_Transport-moving: -0.0214
+  - native-country_Trinadad&Tobago: -0.0203
+  - hours-per-week: -0.0140
+  - native-country_Vietnam: -0.0118
+  - capital-gain: -0.0094
+- Max positive: 0.021438  Max negative: -0.021438
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0792
+  - capital-loss <= -0.22: +0.0707
+  - education-num <= -0.44: +0.0479
+  - native-country_China <= 0.00: +0.0385
+  - native-country_Cambodia <= 0.00: +0.0241
+- Top negative features (weight):
+  - native-country_England <= 0.00: -0.0612
+  - native-country_Peru <= 0.00: -0.0571
+  - marital-status_Divorced <= 0.00: -0.0423
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0231
+- Max positive: 0.079203  Max negative: -0.061198
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - fnlwgt: +0.0073
+  - education_HS-grad: +0.0067
+  - workclass_Private: +0.0035
+  - education-num: +0.0032
+  - occupation_Transport-moving: +0.0021
+- Top negative features (attribution_score):
+  - sex_Male: -0.0097
+  - native-country_United-States: -0.0056
+  - relationship_Husband: -0.0028
+  - marital-status_Married-civ-spouse: -0.0013
+  - race_White: -0.0007
+- Max positive: 0.007323  Max negative: -0.009666
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0105  (orig=0.3846 → mod=0.3951)
+  - education_HS-grad: drop=+0.0100  (orig=0.3846 → mod=0.3746)
+  - fnlwgt: drop=+0.0086  (orig=0.3846 → mod=0.3760)
+  - relationship_Husband: drop=-0.0059  (orig=0.3846 → mod=0.3905)
+  - workclass_Private: drop=+0.0052  (orig=0.3846 → mod=0.3794)
+  - native-country_United-States: drop=-0.0037  (orig=0.3846 → mod=0.3883)
+  - education-num: drop=+0.0034  (orig=0.3846 → mod=0.3811)
+  - occupation_Transport-moving: drop=+0.0024  (orig=0.3846 → mod=0.3822)
+  - race_White: drop=+0.0017  (orig=0.3846 → mod=0.3829)
+  - marital-status_Married-civ-spouse: drop=-0.0016  (orig=0.3846 → mod=0.3862)
+- Max prob_drop: 0.009969  Max prob_increase: -0.010508
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current features, what real-world changes (e.g., higher education, income-related features) would realistically increase the likelihood of earning over 50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 10000}]
+- Explanation: The model predicts an income ≤50K with moderate confidence (52.99%). Real-world factors known to increase earning potential include higher education levels (e.g., Bachelors vs HS-grad), longer weekly work hours (e.g., 50+ hours), higher occupational prestige (e.g., Prof-specialty vs Transport-moving), and greater capital gains (indicating prior income or investment success). These changes align with empirical income distributions in datasets like the Census Income dataset, where higher education, professional occupations, and increased work hours are strongly correlated with >50K earnings. Changing 'education' and 'education-num' consistently improves classification, as education level is a key predictor. Increasing hours-per-week directly correlates with income potential. Upgrading occupation to a higher-paying category and adding capital gain reflect real-world income accumulation paths. These modifications are semantically valid and grounded in socioeconomic reality.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the contribution of 'education-num' versus 'capital-gain' or 'hours-per-week' to the current probability distribution of the two classes.
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "increase", "new_value": 80}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "capital-gain", "action": "increase", "new_value": 2000}]
+- Explanation: In the context of income prediction models (such as the Adult Income Dataset), 'hours-per-week' and 'education-num' are strongly correlated with income levels. Higher hours worked and higher education levels are typically associated with greater income. 'hours-per-week' has a particularly strong linear effect on income prediction, with a known positive monotonic relationship in the dataset. 'education-num' shows a strong non-linear but positive trend, where higher levels (e.g., beyond 9) correlate with higher income. 'capital-gain' also contributes positively, though it is less frequently observed and has a weaker marginal impact compared to the other two. Among the three, 'hours-per-week' has the highest potential to flip the prediction due to its strong, visible effect in the model's decision boundaries. Therefore, increasing hours-per-week to 80 (a realistic increase from 40) is the most effective and interpretable change to achieve a class flip from ≤50K to >50K.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current features, what real-world changes (e.g., higher education, income-related features) would realistically increase the likelihood of earning over 50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 10000}]
+- Explanation: The model predicts an income ≤50K with moderate confidence (52.99%). Real-world factors known to increase earning potential include higher education levels (e.g., Bachelors vs HS-grad), longer weekly work hours (e.g., 50+ hours), higher occupational prestige (e.g., Prof-specialty vs Transport-moving), and greater capital gains (indicating prior income or investment success). These changes align with empirical income distributions in datasets like the Census Income dataset, where higher education, professional occupations, and increased work hours are strongly correlated with >50K earnings. Changing 'education' and 'education-num' consistently improves classification, as education level is a key predictor. Increasing hours-per-week directly correlates with income potential. Upgrading occupation to a higher-paying category and adding capital gain reflect real-world income accumulation paths. These modifications are semantically valid and grounded in socioeconomic reality.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the contribution of 'education-num' versus 'capital-gain' or 'hours-per-week' to the current probability distribution of the two classes.
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "increase", "new_value": 80}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "capital-gain", "action": "increase", "new_value": 2000}]
+- Explanation: In the context of income prediction models (such as the Adult Income Dataset), 'hours-per-week' and 'education-num' are strongly correlated with income levels. Higher hours worked and higher education levels are typically associated with greater income. 'hours-per-week' has a particularly strong linear effect on income prediction, with a known positive monotonic relationship in the dataset. 'education-num' shows a strong non-linear but positive trend, where higher levels (e.g., beyond 9) correlate with higher income. 'capital-gain' also contributes positively, though it is less frequently observed and has a weaker marginal impact compared to the other two. Among the three, 'hours-per-week' has the highest potential to flip the prediction due to its strong, visible effect in the model's decision boundaries. Therefore, increasing hours-per-week to 80 (a realistic increase from 40) is the most effective and interpretable change to achieve a class flip from ≤50K to >50K.
+- Confidence: 0.94
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=38, workclass='Private', fnlwgt=35890, education='HS-grad', education-num=9, marital-status='Married-civ-spouse', occupation='Transport-moving', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

@@ -1,0 +1,130 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (74.39%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.2560904026031494}
+
+## Input Data
+Features: age=28, workclass=Private, fnlwgt=207513, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Sales, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=48, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010919).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0222
+  - workclass_Federal-gov: +0.0201
+  - native-country_Trinadad&Tobago: +0.0131
+  - sex_Male: +0.0129
+  - native-country_Columbia: +0.0124
+- Top negative features (shap_value):
+  - hours-per-week: -0.0222
+  - workclass_Local-gov: -0.0201
+  - native-country_United-States: -0.0131
+  - native-country_Cambodia: -0.0129
+  - native-country_Cuba: -0.0124
+- Max positive: 0.022161  Max negative: -0.022161
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.1996
+  - capital-loss <= -0.22: +0.1053
+  - native-country_El-Salvador <= 0.00: +0.0982
+  - education-num <= -0.44: +0.0917
+  - age <= -0.80: +0.0869
+- Top negative features (weight):
+  - native-country_Honduras <= 0.00: -0.1018
+  - native-country_South <= 0.00: -0.0466
+- Max positive: 0.199608  Max negative: -0.101765
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0104
+  - relationship_Own-child: +0.0088
+  - age: +0.0082
+  - education_HS-grad: +0.0066
+  - education-num: +0.0044
+- Top negative features (attribution_score):
+  - occupation_Sales: -0.0043
+  - native-country_United-States: -0.0033
+  - sex_Male: -0.0026
+  - hours-per-week: -0.0024
+  - fnlwgt: -0.0008
+- Max positive: 0.010384  Max negative: -0.004337
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0109  (orig=0.4363 → mod=0.4254)
+  - occupation_Sales: drop=-0.0084  (orig=0.4363 → mod=0.4447)
+  - marital-status_Never-married: drop=+0.0052  (orig=0.4363 → mod=0.4312)
+  - education_HS-grad: drop=+0.0049  (orig=0.4363 → mod=0.4314)
+  - relationship_Own-child: drop=+0.0040  (orig=0.4363 → mod=0.4323)
+  - native-country_United-States: drop=-0.0039  (orig=0.4363 → mod=0.4402)
+  - education-num: drop=+0.0025  (orig=0.4363 → mod=0.4338)
+  - capital-gain: drop=+0.0016  (orig=0.4363 → mod=0.4347)
+  - hours-per-week: drop=-0.0015  (orig=0.4363 → mod=0.4378)
+  - sex_Male: drop=-0.0011  (orig=0.4363 → mod=0.4374)
+- Max prob_drop: 0.010919  Max prob_increase: -0.008412
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and known socioeconomic patterns, identify which features are typically associated with <=50K versus >50K income in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: In the Adult income dataset, individuals with higher education levels (e.g., education-num > 10), older ages, higher weekly hours, and higher-paying occupations (e.g., Prof-specialty, Exec-managerial) are statistically more likely to earn >50K. The current input shows a younger age (28), a basic HS-grad level (education-num=9), 48 hours per week, and a 'Sales' occupation—commonly linked to lower income brackets. For instance, 'Private' workclass is common across income groups, but jobs like 'Prof-specialty' or 'Exec-managerial' correlate strongly with higher income. Increasing education-num to 13 (e.g., some college or higher) and age to 39 would align with higher-income profiles. Boosting hours-per-week to 50 and changing occupation to a high-paying role directly increases predicted income. Thus, these changes best distinguish the <=50K prediction from the >50K alternative based on known socioeconomic trends in the dataset.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the input feature values for <=50K and >50K predictions to identify which features differ in a way that could shift the prediction toward >50K, given the known patterns in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 40}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: In the Adult dataset, individuals earning >50K are more likely to have higher education levels (higher education-num), older age, higher hours per week, and occupations in specialized/professional roles. Marital status of 'Married-civ-spouse' is associated with higher income compared to 'Never-married'. The current input shows a young age (28), lower education (HS-grad, education-num=9), and moderate hours (48), all of which are more typical of the <=50K group. Increasing these features—especially education-num, age, and hours-per-week—shifts the profile toward higher-income individuals. Occupation change from 'Sales' to 'Prof-specialty' also strongly correlates with higher income. These changes reflect known patterns from the dataset's demographic and socioeconomic clustering.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and known socioeconomic patterns, identify which features are typically associated with <=50K versus >50K income in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: In the Adult income dataset, individuals with higher education levels (e.g., education-num > 10), older ages, higher weekly hours, and higher-paying occupations (e.g., Prof-specialty, Exec-managerial) are statistically more likely to earn >50K. The current input shows a younger age (28), a basic HS-grad level (education-num=9), 48 hours per week, and a 'Sales' occupation—commonly linked to lower income brackets. For instance, 'Private' workclass is common across income groups, but jobs like 'Prof-specialty' or 'Exec-managerial' correlate strongly with higher income. Increasing education-num to 13 (e.g., some college or higher) and age to 39 would align with higher-income profiles. Boosting hours-per-week to 50 and changing occupation to a high-paying role directly increases predicted income. Thus, these changes best distinguish the <=50K prediction from the >50K alternative based on known socioeconomic trends in the dataset.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the input feature values for <=50K and >50K predictions to identify which features differ in a way that could shift the prediction toward >50K, given the known patterns in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 40}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: In the Adult dataset, individuals earning >50K are more likely to have higher education levels (higher education-num), older age, higher hours per week, and occupations in specialized/professional roles. Marital status of 'Married-civ-spouse' is associated with higher income compared to 'Never-married'. The current input shows a young age (28), lower education (HS-grad, education-num=9), and moderate hours (48), all of which are more typical of the <=50K group. Increasing these features—especially education-num, age, and hours-per-week—shifts the profile toward higher-income individuals. Occupation change from 'Sales' to 'Prof-specialty' also strongly correlates with higher income. These changes reflect known patterns from the dataset's demographic and socioeconomic clustering.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.2560904026031494}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

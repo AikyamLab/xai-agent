@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (79.71%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.20290978252887726}
+
+## Input Data
+Features: age=22, workclass=Private, fnlwgt=191324, education=Some-college, education-num=10, marital-status=Never-married, occupation=Protective-serv, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=25, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.0126).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0519
+  - native-country_Columbia: +0.0239
+  - native-country_Trinadad&Tobago: +0.0238
+  - workclass_Self-emp-not-inc: +0.0218
+  - sex_Male: +0.0191
+- Top negative features (shap_value):
+  - fnlwgt: -0.0519
+  - native-country_Cuba: -0.0239
+  - native-country_United-States: -0.0238
+  - workclass_State-gov: -0.0218
+  - native-country_Cambodia: -0.0191
+- Max positive: 0.051878  Max negative: -0.051878
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2185
+  - capital-loss <= -0.22: +0.1204
+  - native-country_Cuba <= 0.00: +0.0930
+  - age <= -0.80: +0.0833
+  - marital-status_Married-civ-spouse <= 0.00: +0.0630
+- Top negative features (weight):
+  - native-country_Guatemala <= 0.00: -0.0822
+  - native-country_China <= 0.00: -0.0771
+  - native-country_Hungary <= 0.00: -0.0708
+  - native-country_Italy <= 0.00: -0.0509
+  - native-country_Japan <= 0.00: -0.0391
+- Max positive: 0.218485  Max negative: -0.082229
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0140
+  - marital-status_Never-married: +0.0130
+  - education_Some-college: +0.0074
+  - relationship_Own-child: +0.0066
+  - hours-per-week: +0.0052
+- Top negative features (attribution_score):
+  - sex_Male: -0.0052
+  - workclass_Private: -0.0018
+  - race_White: -0.0018
+  - fnlwgt: -0.0000
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.013976  Max negative: -0.005241
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0126  (orig=0.4494 → mod=0.4368)
+  - marital-status_Never-married: drop=+0.0099  (orig=0.4494 → mod=0.4396)
+  - education_Some-college: drop=+0.0073  (orig=0.4494 → mod=0.4421)
+  - workclass_Private: drop=-0.0068  (orig=0.4494 → mod=0.4563)
+  - relationship_Own-child: drop=+0.0049  (orig=0.4494 → mod=0.4445)
+  - sex_Male: drop=-0.0039  (orig=0.4494 → mod=0.4533)
+  - native-country_United-States: drop=+0.0034  (orig=0.4494 → mod=0.4461)
+  - hours-per-week: drop=+0.0028  (orig=0.4494 → mod=0.4466)
+  - race_White: drop=-0.0020  (orig=0.4494 → mod=0.4515)
+  - capital-loss: drop=+0.0014  (orig=0.4494 → mod=0.4481)
+- Max prob_drop: 0.0126  Max prob_increase: -0.00681
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input data are commonly associated with income ≤50K versus >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "association": "Individuals with lower age (under 30) are more commonly associated with income \u226450K, while higher age groups (especially 50+) are more frequently linked to income >50K.", "class_link": "\u226450K"}, {"feature_key": "education-num", "association": "Higher education-num (e.g., 12 or above) correlates strongly with income >50K, whereas lower education-num (e.g., 10 or below) is often observed in \u226450K income groups.", "class_link": "\u226450K"}, {"feature_key": "occupation", "association": "Occupations like 'Protective-serv' or 'Farming-fishing' are more commonly linked to \u226450K, while 'Exec-managerial' or 'Prof-specialty' are strongly associated with >50K.", "class_link": "\u226450K"}, {"feature_key": "relationship", "association": "Individuals in 'Own-child' or 'Not-in-family' relationships are more common in \u226450K groups. Marital status like 'Married-civ-spouse' or 'Widowed' is more frequently seen in >50K categories.", "class_link": "\u226450K"}, {"feature_key": "hours-per-week", "association": "Low hours-per-week (e.g., <40) are strongly associated with \u226450K, while working more than 40\u201350 hours per week is a significant predictor of >50K income.", "class_link": "\u226450K"}]
+- Explanation: Based on established patterns in the Adult Income Dataset (Census), individuals with lower education levels, younger age, limited work hours, and specific occupational and relationship statuses (e.g., 'Own-child') are significantly more likely to have income ≤50K. These features are consistently observed in features of low-income populations. The high confidence in the model's prediction (79.71%) suggests that the input profile aligns well with the known demographic trends associated with lower-income outcomes. The current input has age=22, education-num=10, occupation='Protective-serv', relationship='Own-child', and hours-per-week=25—all of which map strongly to the ≤50K class.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do features such as age, education-num, and relationship modify the likelihood of predicting >50K vs <=50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 40}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}]
+- Explanation: The model predicts <=50K for the current individual with age=22, education-num=10, and relationship='Own-child'. Increasing age to 40, raising education-num to 14 (indicative of higher education such as Bachelor's or higher), and changing relationship from 'Own-child' to 'Unmarried' would shift the feature profile toward higher-income demographics. These changes align with established patterns in the dataset where older individuals, those with higher education levels, and non-dependency relationships (e.g., married or not with stable employment) are more likely to earn >50K. The current values reflect a younger, lower-education, dependent profile, which is strongly associated with the <=50K class. Thus, these modifications increase the likelihood of predicting >50K.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input data are commonly associated with income ≤50K versus >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "association": "Individuals with lower age (under 30) are more commonly associated with income \u226450K, while higher age groups (especially 50+) are more frequently linked to income >50K.", "class_link": "\u226450K"}, {"feature_key": "education-num", "association": "Higher education-num (e.g., 12 or above) correlates strongly with income >50K, whereas lower education-num (e.g., 10 or below) is often observed in \u226450K income groups.", "class_link": "\u226450K"}, {"feature_key": "occupation", "association": "Occupations like 'Protective-serv' or 'Farming-fishing' are more commonly linked to \u226450K, while 'Exec-managerial' or 'Prof-specialty' are strongly associated with >50K.", "class_link": "\u226450K"}, {"feature_key": "relationship", "association": "Individuals in 'Own-child' or 'Not-in-family' relationships are more common in \u226450K groups. Marital status like 'Married-civ-spouse' or 'Widowed' is more frequently seen in >50K categories.", "class_link": "\u226450K"}, {"feature_key": "hours-per-week", "association": "Low hours-per-week (e.g., <40) are strongly associated with \u226450K, while working more than 40\u201350 hours per week is a significant predictor of >50K income.", "class_link": "\u226450K"}]
+- Explanation: Based on established patterns in the Adult Income Dataset (Census), individuals with lower education levels, younger age, limited work hours, and specific occupational and relationship statuses (e.g., 'Own-child') are significantly more likely to have income ≤50K. These features are consistently observed in features of low-income populations. The high confidence in the model's prediction (79.71%) suggests that the input profile aligns well with the known demographic trends associated with lower-income outcomes. The current input has age=22, education-num=10, occupation='Protective-serv', relationship='Own-child', and hours-per-week=25—all of which map strongly to the ≤50K class.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do features such as age, education-num, and relationship modify the likelihood of predicting >50K vs <=50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 40}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}]
+- Explanation: The model predicts <=50K for the current individual with age=22, education-num=10, and relationship='Own-child'. Increasing age to 40, raising education-num to 14 (indicative of higher education such as Bachelor's or higher), and changing relationship from 'Own-child' to 'Unmarried' would shift the feature profile toward higher-income demographics. These changes align with established patterns in the dataset where older individuals, those with higher education levels, and non-dependency relationships (e.g., married or not with stable employment) are more likely to earn >50K. The current values reflect a younger, lower-education, dependent profile, which is strongly associated with the <=50K class. Thus, these modifications increase the likelihood of predicting >50K.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.20290978252887726}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

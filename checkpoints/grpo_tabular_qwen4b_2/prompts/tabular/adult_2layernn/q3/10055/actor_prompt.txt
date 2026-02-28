@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (56.12%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4388308525085449}
+
+## Input Data
+Features: age=71, workclass=Private, fnlwgt=211707, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=4, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: native-country_Guatemala <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.034481).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.1035
+  - native-country_Puerto-Rico: +0.0119
+  - native-country_Cuba: +0.0111
+  - race_Other: +0.0111
+  - occupation_Armed-Forces: +0.0110
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.1035
+  - native-country_Portugal: -0.0119
+  - native-country_Columbia: -0.0111
+  - race_Black: -0.0111
+  - occupation_Adm-clerical: -0.0110
+- Max positive: 0.10352  Max negative: -0.10352
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0652
+  - capital-loss <= -0.22: +0.0641
+  - native-country_Hungary <= 0.00: +0.0448
+  - native-country_Germany <= 0.00: +0.0416
+- Top negative features (weight):
+  - native-country_Guatemala <= 0.00: -0.0739
+  - education_7th-8th <= 0.00: -0.0735
+  - marital-status_Divorced <= 0.00: -0.0549
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0343
+  - native-country_Jamaica <= 0.00: -0.0279
+- Max positive: 0.065152  Max negative: -0.073929
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0347
+  - workclass_Private: +0.0043
+  - education_Some-college: +0.0020
+  - capital-gain: +0.0005
+  - education-num: +0.0002
+- Top negative features (attribution_score):
+  - sex_Male: -0.0078
+  - native-country_United-States: -0.0068
+  - relationship_Husband: -0.0061
+  - marital-status_Married-civ-spouse: -0.0036
+  - race_White: -0.0029
+- Max positive: 0.034711  Max negative: -0.007828
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0345  (orig=0.3920 → mod=0.3575)
+  - sex_Male: drop=-0.0084  (orig=0.3920 → mod=0.4004)
+  - relationship_Husband: drop=-0.0077  (orig=0.3920 → mod=0.3997)
+  - native-country_United-States: drop=-0.0056  (orig=0.3920 → mod=0.3977)
+  - workclass_Private: drop=+0.0048  (orig=0.3920 → mod=0.3872)
+  - marital-status_Married-civ-spouse: drop=-0.0043  (orig=0.3920 → mod=0.3963)
+  - education_Some-college: drop=+0.0034  (orig=0.3920 → mod=0.3886)
+  - age: drop=-0.0020  (orig=0.3920 → mod=0.3940)
+  - race_White: drop=-0.0019  (orig=0.3920 → mod=0.3939)
+  - occupation_Sales: drop=-0.0014  (orig=0.3920 → mod=0.3934)
+- Max prob_drop: 0.034481  Max prob_increase: -0.008367
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which socio-demographic features (e.g., age, education, occupation, sex) are known to be strongly associated with income levels in the Adult dataset, and how might they differentiate <=50K from >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher age is generally associated with higher income, especially in experienced workers. Older adults may have more accumulated work experience and stability, which correlate with higher earnings."}, {"feature_key": "education-num", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher education level (measured as numerics) is strongly correlated with higher income. Individuals with more education often have access to better-paying jobs and greater occupational mobility."}, {"feature_key": "occupation", "category": "socio-demographic", "directional_influence": "positive", "description": "Occupations such as 'Prof-specialty', 'Exec-managerial', or 'Prof-school' are strongly associated with higher income. In contrast, 'Sales', 'Craft-repair', or 'Farming-forest' are more commonly linked to lower earnings."}, {"feature_key": "sex", "category": "socio-demographic", "directional_influence": "positive", "description": "Male sex is associated with higher income in the Adult dataset, though this is a known demographic bias and may reflect historical labor market patterns. However, it is not universally predictive without considering other features."}, {"feature_key": "hours-per-week", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher working hours are correlated with increased income, especially when combined with occupation or education. Long hours may reflect higher-demand jobs or income-earning pressure."}]
+- Explanation: In the Adult Income dataset, socio-demographic features such as age, education level, occupation, and sex have well-documented associations with income outcomes. Evidence from statistical analyses and model studies shows that higher education and specialized occupations are strongly predictive of income above $50K. Age and work hours also show positive correlations, as experienced individuals with longer work hours tend to earn more. The model's prediction of <=50K for this individual (age=71, education='Some-college', occupation='Sales') is consistent with lower-income patterns, as 'Some-college' education and 'Sales' occupation are more commonly linked to lower earnings compared to managerial or professional roles. Sex ('Male') shows a marginal positive influence, but its effect is often confounded by other factors like occupation and education.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Given the input features, which features are more typical of individuals earning <=50K versus >50K? Specifically, evaluate age, education-num, occupation, and sex in this context.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 71, "justification": "Higher age is generally associated with lower income potential, especially in older cohorts where employment rates decline. Individuals earning below $50K are more likely to be older retirees or have limited work hours, making age a strong indicator of income level. The current value of 71 years suggests a high likelihood of being in the <=50K category."}, {"feature_key": "education-num", "action": "decrease", "new_value": 10, "justification": "Education level is a strong predictor of income. 'Some-college' (education-num=10) indicates limited formal education compared to higher levels such as 'Bachelors' or 'Masters'. Individuals with lower education levels are statistically more likely to earn <=50K. Thus, reducing education-num would increase the likelihood of the <=50K prediction."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "justification": "Occupation significantly influences income. 'Sales' is typically associated with lower median earnings compared to higher-paying roles like 'Exec-managerial' or 'Prof-specialty'. 'Sales' is more typical of individuals earning <=50K, especially when paired with lower education and age. Changing occupation to a lower-paying category reinforces the <=50K prediction."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "justification": "Historical and demographic data show that, in many datasets, females are more likely to earn <=50K than males, especially in lower-income occupational settings. While the current sex is 'Male', changing it to 'Female' would more closely align with the statistical profile of individuals earning below $50K, suggesting a strong influence of gender on income prediction in this context."}]
+- Explanation: The analysis identifies key features that are statistically and domain-wise linked to individuals earning ≤50K. Age, education level, occupation, and sex are all connected to income distribution. Higher age and lower education levels are correlated with reduced earning potential. 'Sales' occupation and female sex are more representative of lower-income groups in historical datasets. These features, when adjusted, shift the profile toward the <=50K prediction with strong domain-based justification.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which socio-demographic features (e.g., age, education, occupation, sex) are known to be strongly associated with income levels in the Adult dataset, and how might they differentiate <=50K from >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher age is generally associated with higher income, especially in experienced workers. Older adults may have more accumulated work experience and stability, which correlate with higher earnings."}, {"feature_key": "education-num", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher education level (measured as numerics) is strongly correlated with higher income. Individuals with more education often have access to better-paying jobs and greater occupational mobility."}, {"feature_key": "occupation", "category": "socio-demographic", "directional_influence": "positive", "description": "Occupations such as 'Prof-specialty', 'Exec-managerial', or 'Prof-school' are strongly associated with higher income. In contrast, 'Sales', 'Craft-repair', or 'Farming-forest' are more commonly linked to lower earnings."}, {"feature_key": "sex", "category": "socio-demographic", "directional_influence": "positive", "description": "Male sex is associated with higher income in the Adult dataset, though this is a known demographic bias and may reflect historical labor market patterns. However, it is not universally predictive without considering other features."}, {"feature_key": "hours-per-week", "category": "socio-demographic", "directional_influence": "positive", "description": "Higher working hours are correlated with increased income, especially when combined with occupation or education. Long hours may reflect higher-demand jobs or income-earning pressure."}]
+- Explanation: In the Adult Income dataset, socio-demographic features such as age, education level, occupation, and sex have well-documented associations with income outcomes. Evidence from statistical analyses and model studies shows that higher education and specialized occupations are strongly predictive of income above $50K. Age and work hours also show positive correlations, as experienced individuals with longer work hours tend to earn more. The model's prediction of <=50K for this individual (age=71, education='Some-college', occupation='Sales') is consistent with lower-income patterns, as 'Some-college' education and 'Sales' occupation are more commonly linked to lower earnings compared to managerial or professional roles. Sex ('Male') shows a marginal positive influence, but its effect is often confounded by other factors like occupation and education.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Given the input features, which features are more typical of individuals earning <=50K versus >50K? Specifically, evaluate age, education-num, occupation, and sex in this context.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 71, "justification": "Higher age is generally associated with lower income potential, especially in older cohorts where employment rates decline. Individuals earning below $50K are more likely to be older retirees or have limited work hours, making age a strong indicator of income level. The current value of 71 years suggests a high likelihood of being in the <=50K category."}, {"feature_key": "education-num", "action": "decrease", "new_value": 10, "justification": "Education level is a strong predictor of income. 'Some-college' (education-num=10) indicates limited formal education compared to higher levels such as 'Bachelors' or 'Masters'. Individuals with lower education levels are statistically more likely to earn <=50K. Thus, reducing education-num would increase the likelihood of the <=50K prediction."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "justification": "Occupation significantly influences income. 'Sales' is typically associated with lower median earnings compared to higher-paying roles like 'Exec-managerial' or 'Prof-specialty'. 'Sales' is more typical of individuals earning <=50K, especially when paired with lower education and age. Changing occupation to a lower-paying category reinforces the <=50K prediction."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "justification": "Historical and demographic data show that, in many datasets, females are more likely to earn <=50K than males, especially in lower-income occupational settings. While the current sex is 'Male', changing it to 'Female' would more closely align with the statistical profile of individuals earning below $50K, suggesting a strong influence of gender on income prediction in this context."}]
+- Explanation: The analysis identifies key features that are statistically and domain-wise linked to individuals earning ≤50K. Age, education level, occupation, and sex are all connected to income distribution. Higher age and lower education levels are correlated with reduced earning potential. 'Sales' occupation and female sex are more representative of lower-income groups in historical datasets. These features, when adjusted, shift the profile toward the <=50K prediction with strong domain-based justification.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4388308525085449}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the tumor to be benign. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: benign (52.04%)
+- Top-2: {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.4796147346496582}
+
+## Input Data
+Features: mean radius=13.46, mean texture=18.75, mean perimeter=87.44, mean area=551.1, mean smoothness=0.1075, mean compactness=0.1138, mean concavity=0.04201, mean concave points=0.03152, mean symmetry=0.1723, mean fractal dimension=0.06317, radius error=0.1998, texture error=0.6068, perimeter error=1.443, area error=16.07, smoothness error=0.004413, compactness error=0.01443, concavity error=0.01509, concave points error=0.007369, symmetry error=0.01354, fractal dimension error=0.001787, worst radius=15.35, worst texture=25.16, worst perimeter=101.9, worst area=719.8, worst smoothness=0.1624, worst compactness=0.3124, worst concavity=0.2654, worst concave points=0.1427, worst symmetry=0.3518, worst fractal dimension=0.08665
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: perimeter error.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: worst symmetry > 0.45.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst symmetry.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst symmetry (prob drop: -0.019877).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - area error: +0.0333
+  - compactness error: +0.0302
+  - mean compactness: +0.0208
+  - worst perimeter: +0.0099
+- Top negative features (shap_value):
+  - perimeter error: -0.0333
+  - smoothness error: -0.0302
+  - mean smoothness: -0.0208
+  - worst area: -0.0099
+  - mean radius: +0.0000
+- Max positive: 0.033306  Max negative: -0.033306
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - -0.74 < mean concavity <= -0.34: +0.0454
+  - -0.74 < mean concave points <= -0.40: +0.0380
+  - area error <= -0.49: +0.0375
+  - -0.75 < worst texture <= -0.04: +0.0351
+  - -0.18 < mean fractal dimension <= 0.47: +0.0300
+- Top negative features (weight):
+  - worst symmetry > 0.45: -0.0689
+  - mean smoothness > 0.64: -0.0651
+  - texture error <= -0.69: -0.0223
+  - worst smoothness > 0.60: -0.0220
+- Max positive: 0.045365  Max negative: -0.068899
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - mean concavity: +0.0147
+  - mean concave points: +0.0089
+  - area error: +0.0069
+  - worst area: +0.0048
+  - mean area: +0.0045
+- Top negative features (attribution_score):
+  - worst symmetry: -0.0221
+  - worst concave points: -0.0112
+  - concavity error: -0.0095
+  - worst smoothness: -0.0074
+  - texture error: -0.0074
+- Max positive: 0.014695  Max negative: -0.022135
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst symmetry: drop=-0.0199  (orig=0.6272 → mod=0.6471)
+  - mean concavity: drop=+0.0150  (orig=0.6272 → mod=0.6122)
+  - worst concave points: drop=-0.0100  (orig=0.6272 → mod=0.6373)
+  - mean concave points: drop=+0.0087  (orig=0.6272 → mod=0.6185)
+  - texture error: drop=-0.0075  (orig=0.6272 → mod=0.6347)
+  - concavity error: drop=-0.0074  (orig=0.6272 → mod=0.6346)
+  - area error: drop=+0.0068  (orig=0.6272 → mod=0.6204)
+  - fractal dimension error: drop=-0.0064  (orig=0.6272 → mod=0.6336)
+  - worst smoothness: drop=-0.0057  (orig=0.6272 → mod=0.6330)
+  - worst area: drop=+0.0046  (orig=0.6272 → mod=0.6226)
+- Max prob_drop: 0.015015  Max prob_increase: -0.019877
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of breast cancer, which features are typically more pronounced in benign versus malignant tumors?
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": "0.04201"}, {"feature_key": "mean concave points", "action": "change", "new_value": "0.03152"}, {"feature_key": "mean compactness", "action": "change", "new_value": "0.1138"}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": "0.06317"}, {"feature_key": "mean smoothness", "action": "change", "new_value": "0.1075"}]
+- Explanation: In breast cancer diagnostics, benign tumors typically exhibit smoother, more regular shapes with lower concavity and concave points, lower compactness, and smaller fractal dimensions compared to malignant tumors. Features like mean concavity and mean concave points are especially sensitive indicators of tumor irregularity—higher values are more common in malignant cases. Benign tumors tend to have moderate to low values in these features, which aligns with the model's prediction of benignity. The observed values in this case (e.g., mean concavity = 0.04201) are within the typical benign range, supporting the prediction.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: For the given input, compare the values of each feature between the benign (top-1) and malignant (top-2) predictions. Identify any large deviations or outliers.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "decrease", "new_value": 13.46, "difference": -2.41}, {"feature_key": "mean texture", "action": "decrease", "new_value": 18.75, "difference": -10.2}, {"feature_key": "mean perimeter", "action": "decrease", "new_value": 87.44, "difference": -23.92}, {"feature_key": "mean area", "action": "decrease", "new_value": 551.1, "difference": -147.7}, {"feature_key": "mean smoothness", "action": "decrease", "new_value": 0.1075, "difference": -0.0501}, {"feature_key": "mean compactness", "action": "decrease", "new_value": 0.1138, "difference": -0.0459}, {"feature_key": "mean concavity", "action": "decrease", "new_value": 0.04201, "difference": -0.0469}, {"feature_key": "mean concave points", "action": "decrease", "new_value": 0.03152, "difference": -0.0458}, {"feature_key": "mean symmetry", "action": "decrease", "new_value": 0.1723, "difference": -0.055}, {"feature_key": "mean fractal dimension", "action": "decrease", "new_value": 0.06317, "difference": -0.0268}, {"feature_key": "radius error", "action": "decrease", "new_value": 0.1998, "difference": -0.223}, {"feature_key": "texture error", "action": "decrease", "new_value": 0.6068, "difference": -0.57}, {"feature_key": "perimeter error", "action": "decrease", "new_value": 1.443, "difference": -0.699}, {"feature_key": "area error", "action": "decrease", "new_value": 16.07, "difference": -10.56}, {"feature_key": "smoothness error", "action": "decrease", "new_value": 0.004413, "difference": -0.00698}, {"feature_key": "compactness error", "action": "decrease", "new_value": 0.008481, "difference": -0.00208}, {"feature_key": "concavity error", "action": "decrease", "new_value": 0.005919, "difference": -0.00051}, {"feature_key": "concave points error", "action": "decrease", "new_value": 0.003124, "difference": -0.00093}, {"feature_key": "symmetry error", "action": "decrease", "new_value": 0.007994, "difference": -4e-05}, {"feature_key": "fractal dimension error", "action": "decrease", "new_value": 0.001501, "difference": -0.00089}, {"feature_key": "worst radius", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst texture", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst perimeter", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst area", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst smoothness", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst compactness", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst concavity", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst concave points", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst symmetry", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst fractal dimension", "action": "not available", "new_value": null, "difference": null}]
+- Explanation: The model predicted a benign tumor with a confidence of 52.04%. Since the top-2 prediction (malignant) is not available, the analysis is based only on the benign prediction and inferred differences from typical malignant patterns in breast cancer datasets. In general, malignant tumors exhibit larger values in mean and worst dimensions (e.g., radius, perimeter, area), which are significantly higher than in benign cases. The current values show clearly reduced mean values across multiple dimensions, indicating a less aggressive tumor. Features like mean area, mean perimeter, and mean texture show the largest deviations (differences > 100 units), suggesting they are the most discriminative between benign and malignant cases. However, since the malignancy class values are not provided, this comparison is strictly based on known patterns and the absence of worst features. Thus, the observed reductions in mean dimensions in this case strongly support the benign classification.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge of breast cancer, which features are typically more pronounced in benign versus malignant tumors?
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "change", "new_value": "0.04201"}, {"feature_key": "mean concave points", "action": "change", "new_value": "0.03152"}, {"feature_key": "mean compactness", "action": "change", "new_value": "0.1138"}, {"feature_key": "mean fractal dimension", "action": "change", "new_value": "0.06317"}, {"feature_key": "mean smoothness", "action": "change", "new_value": "0.1075"}]
+- Explanation: In breast cancer diagnostics, benign tumors typically exhibit smoother, more regular shapes with lower concavity and concave points, lower compactness, and smaller fractal dimensions compared to malignant tumors. Features like mean concavity and mean concave points are especially sensitive indicators of tumor irregularity—higher values are more common in malignant cases. Benign tumors tend to have moderate to low values in these features, which aligns with the model's prediction of benignity. The observed values in this case (e.g., mean concavity = 0.04201) are within the typical benign range, supporting the prediction.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: For the given input, compare the values of each feature between the benign (top-1) and malignant (top-2) predictions. Identify any large deviations or outliers.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "decrease", "new_value": 13.46, "difference": -2.41}, {"feature_key": "mean texture", "action": "decrease", "new_value": 18.75, "difference": -10.2}, {"feature_key": "mean perimeter", "action": "decrease", "new_value": 87.44, "difference": -23.92}, {"feature_key": "mean area", "action": "decrease", "new_value": 551.1, "difference": -147.7}, {"feature_key": "mean smoothness", "action": "decrease", "new_value": 0.1075, "difference": -0.0501}, {"feature_key": "mean compactness", "action": "decrease", "new_value": 0.1138, "difference": -0.0459}, {"feature_key": "mean concavity", "action": "decrease", "new_value": 0.04201, "difference": -0.0469}, {"feature_key": "mean concave points", "action": "decrease", "new_value": 0.03152, "difference": -0.0458}, {"feature_key": "mean symmetry", "action": "decrease", "new_value": 0.1723, "difference": -0.055}, {"feature_key": "mean fractal dimension", "action": "decrease", "new_value": 0.06317, "difference": -0.0268}, {"feature_key": "radius error", "action": "decrease", "new_value": 0.1998, "difference": -0.223}, {"feature_key": "texture error", "action": "decrease", "new_value": 0.6068, "difference": -0.57}, {"feature_key": "perimeter error", "action": "decrease", "new_value": 1.443, "difference": -0.699}, {"feature_key": "area error", "action": "decrease", "new_value": 16.07, "difference": -10.56}, {"feature_key": "smoothness error", "action": "decrease", "new_value": 0.004413, "difference": -0.00698}, {"feature_key": "compactness error", "action": "decrease", "new_value": 0.008481, "difference": -0.00208}, {"feature_key": "concavity error", "action": "decrease", "new_value": 0.005919, "difference": -0.00051}, {"feature_key": "concave points error", "action": "decrease", "new_value": 0.003124, "difference": -0.00093}, {"feature_key": "symmetry error", "action": "decrease", "new_value": 0.007994, "difference": -4e-05}, {"feature_key": "fractal dimension error", "action": "decrease", "new_value": 0.001501, "difference": -0.00089}, {"feature_key": "worst radius", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst texture", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst perimeter", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst area", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst smoothness", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst compactness", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst concavity", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst concave points", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst symmetry", "action": "not available", "new_value": null, "difference": null}, {"feature_key": "worst fractal dimension", "action": "not available", "new_value": null, "difference": null}]
+- Explanation: The model predicted a benign tumor with a confidence of 52.04%. Since the top-2 prediction (malignant) is not available, the analysis is based only on the benign prediction and inferred differences from typical malignant patterns in breast cancer datasets. In general, malignant tumors exhibit larger values in mean and worst dimensions (e.g., radius, perimeter, area), which are significantly higher than in benign cases. The current values show clearly reduced mean values across multiple dimensions, indicating a less aggressive tumor. Features like mean area, mean perimeter, and mean texture show the largest deviations (differences > 100 units), suggesting they are the most discriminative between benign and malignant cases. However, since the malignancy class values are not provided, this comparison is strictly based on known patterns and the absence of worst features. Thus, the observed reductions in mean dimensions in this case strongly support the benign classification.
+- Confidence: 0.87
+
+## Your Task
+Identify the part that DISTINGUISHES benign from {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.4796147346496582}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

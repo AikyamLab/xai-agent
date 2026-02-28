@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.5650
+
+## Input Data
+Features: age=44, workclass=State-gov, fnlwgt=691903, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: fnlwgt.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: fnlwgt (prob drop: -0.020873).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0300
+  - education_Doctorate: +0.0173
+  - race_Other: +0.0157
+  - relationship_Not-in-family: +0.0137
+  - native-country_United-States: +0.0061
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0300
+  - education_Bachelors: -0.0173
+  - race_Black: -0.0157
+  - relationship_Husband: -0.0137
+  - native-country_Trinadad&Tobago: -0.0061
+- Max positive: 0.02999  Max negative: -0.02999
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education-num > 1.13: +0.0602
+  - native-country_South <= 0.00: +0.0523
+  - native-country_Columbia <= 0.00: +0.0446
+  - native-country_Scotland <= 0.00: +0.0395
+  - native-country_Jamaica <= 0.00: +0.0290
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0769
+  - capital-loss <= -0.22: -0.0722
+  - native-country_Taiwan <= 0.00: -0.0541
+  - native-country_Ireland <= 0.00: -0.0209
+- Max positive: 0.060238  Max negative: -0.076923
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0095
+  - education_Masters: +0.0068
+  - relationship_Husband: +0.0066
+  - education-num: +0.0058
+  - sex_Male: +0.0058
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0200
+  - race_Black: -0.0058
+  - occupation_Prof-specialty: -0.0033
+  - capital-gain: -0.0003
+  - workclass_Federal-gov: +0.0000
+- Max positive: 0.009506  Max negative: -0.019965
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - fnlwgt: drop=-0.0209  (orig=0.6376 → mod=0.6585)
+  - education_Masters: drop=+0.0070  (orig=0.6376 → mod=0.6306)
+  - relationship_Husband: drop=+0.0068  (orig=0.6376 → mod=0.6308)
+  - race_Black: drop=-0.0066  (orig=0.6376 → mod=0.6442)
+  - marital-status_Married-civ-spouse: drop=+0.0066  (orig=0.6376 → mod=0.6310)
+  - workclass_State-gov: drop=+0.0064  (orig=0.6376 → mod=0.6312)
+  - hours-per-week: drop=+0.0055  (orig=0.6376 → mod=0.6321)
+  - sex_Male: drop=+0.0035  (orig=0.6376 → mod=0.6341)
+  - occupation_Prof-specialty: drop=-0.0027  (orig=0.6376 → mod=0.6403)
+  - education-num: drop=+0.0015  (orig=0.6376 → mod=0.6361)
+- Max prob_drop: 0.006984  Max prob_increase: -0.020873
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model's prediction of '>50K' for a male, Black individual with a Master's degree and a 'State-gov' workclass, which features are traditionally less correlated with higher income in public datasets?
+- Status: Success
+- findings: ["workclass", "race", "sex", "capital-gain", "capital-loss"]
+- Explanation: Based on domain knowledge from public datasets like the Adult Income Dataset, features such as 'workclass' (especially 'State-gov' vs. higher-earning sectors), 'race', and 'sex' are often correlated with income, though the relationship is complex and sometimes biased. However, 'capital-gain' and 'capital-loss' typically show minimal correlation with income in standard modeling contexts, as they represent financial gains and losses from investments, not labor income. Similarly, 'race' and 'sex' have strong societal and historical contextual influences, but when controlling for education and work experience, they often contribute less direct predictive power. 'Workclass' has a moderate influence, but in this case, 'State-gov' is not typically associated with high income. Thus, 'capital-gain', 'capital-loss', 'race', and 'sex' are traditionally less directly linked to income compared to education, hours-per-week, or occupation. Among the list, 'capital-gain' and 'capital-loss' are most likely to have minimal influence as they are often zero and not strongly predictive in the majority of models.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative importance of 'sex' and 'race' in income prediction in the context of the given input and known socio-demographic patterns.
+- Status: Success
+- findings: {"least_responsible_feature": "race", "reason": "Among the two features 'sex' and 'race', 'race' is less responsible for the model's prediction of income >50K in this context. While the individual is identified as 'Male' (a category historically associated with higher income in socio-demographic patterns), the feature 'race' (Black) is associated in historical datasets with lower income prediction, particularly when combined with other features such as 'workclass', 'occupation', and 'hours-per-week'. In this case, the individual has a high 'hours-per-week' (60), a 'Prof-specialty' occupation, and is employed in 'State-gov' \u2014 all of which are positively correlated with higher income. However, the racial category 'Black' does not drive the income prediction strongly when these other high-income indicators are present. In contrast, the 'sex' feature ('Male') is consistently associated with higher income in the dataset, and thus contributes more to the prediction than 'race'. Hence, 'race' is least responsible."}
+- Explanation: Despite being present in the input, 'race' contributes minimally to the model's prediction of income >50K in this instance. This is because the individual has strong socioeconomic indicators—such as high work hours, a professional occupation, and a 'Male' sex—that are robustly correlated with higher income. In the context of known socio-demographic patterns, 'sex' is more positively predictive of income than 'race', especially when controlling for work class and occupation. Therefore, even though 'race' is a categorical feature included in the model, it does not significantly influence the prediction outcome relative to 'sex' or other key features like occupation or hours-per-week.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model's prediction of '>50K' for a male, Black individual with a Master's degree and a 'State-gov' workclass, which features are traditionally less correlated with higher income in public datasets?
+- Status: Success
+- findings: ["workclass", "race", "sex", "capital-gain", "capital-loss"]
+- Explanation: Based on domain knowledge from public datasets like the Adult Income Dataset, features such as 'workclass' (especially 'State-gov' vs. higher-earning sectors), 'race', and 'sex' are often correlated with income, though the relationship is complex and sometimes biased. However, 'capital-gain' and 'capital-loss' typically show minimal correlation with income in standard modeling contexts, as they represent financial gains and losses from investments, not labor income. Similarly, 'race' and 'sex' have strong societal and historical contextual influences, but when controlling for education and work experience, they often contribute less direct predictive power. 'Workclass' has a moderate influence, but in this case, 'State-gov' is not typically associated with high income. Thus, 'capital-gain', 'capital-loss', 'race', and 'sex' are traditionally less directly linked to income compared to education, hours-per-week, or occupation. Among the list, 'capital-gain' and 'capital-loss' are most likely to have minimal influence as they are often zero and not strongly predictive in the majority of models.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative importance of 'sex' and 'race' in income prediction in the context of the given input and known socio-demographic patterns.
+- Status: Success
+- findings: {"least_responsible_feature": "race", "reason": "Among the two features 'sex' and 'race', 'race' is less responsible for the model's prediction of income >50K in this context. While the individual is identified as 'Male' (a category historically associated with higher income in socio-demographic patterns), the feature 'race' (Black) is associated in historical datasets with lower income prediction, particularly when combined with other features such as 'workclass', 'occupation', and 'hours-per-week'. In this case, the individual has a high 'hours-per-week' (60), a 'Prof-specialty' occupation, and is employed in 'State-gov' \u2014 all of which are positively correlated with higher income. However, the racial category 'Black' does not drive the income prediction strongly when these other high-income indicators are present. In contrast, the 'sex' feature ('Male') is consistently associated with higher income in the dataset, and thus contributes more to the prediction than 'race'. Hence, 'race' is least responsible."}
+- Explanation: Despite being present in the input, 'race' contributes minimally to the model's prediction of income >50K in this instance. This is because the individual has strong socioeconomic indicators—such as high work hours, a professional occupation, and a 'Male' sex—that are robustly correlated with higher income. In the context of known socio-demographic patterns, 'sex' is more positively predictive of income than 'race', especially when controlling for work class and occupation. Therefore, even though 'race' is a categorical feature included in the model, it does not significantly influence the prediction outcome relative to 'sex' or other key features like occupation or hours-per-week.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

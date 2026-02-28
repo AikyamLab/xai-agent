@@ -1,0 +1,119 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5917
+
+## Input Data
+Features: age=53, workclass=Private, fnlwgt=104258, education=10th, education-num=6, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.032208).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.1043
+  - fnlwgt: +0.0490
+  - native-country_Cambodia: +0.0297
+  - native-country_Haiti: +0.0257
+  - native-country_United-States: +0.0254
+- Top negative features (shap_value):
+  - hours-per-week: -0.1043
+  - age: -0.0490
+  - sex_Male: -0.0297
+  - native-country_Holand-Netherlands: -0.0257
+  - native-country_Trinadad&Tobago: -0.0254
+- Max positive: 0.104314  Max negative: -0.104314
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2145
+  - capital-loss <= -0.22: +0.0980
+  - native-country_Germany <= 0.00: +0.0882
+  - education-num <= -0.44: +0.0872
+  - education_Preschool <= 0.00: +0.0737
+- Top negative features (weight):
+  - age > 0.64: -0.0834
+  - workclass_Without-pay <= 0.00: -0.0314
+- Max positive: 0.214505  Max negative: -0.083398
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0305
+  - education_10th: +0.0083
+  - occupation_Craft-repair: +0.0072
+  - fnlwgt: +0.0039
+  - race_White: +0.0036
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0182
+  - age: -0.0142
+  - relationship_Husband: -0.0138
+  - native-country_United-States: -0.0076
+  - sex_Male: -0.0071
+- Max positive: 0.030547  Max negative: -0.018214
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0322  (orig=0.3993 → mod=0.3671)
+  - marital-status_Married-civ-spouse: drop=-0.0173  (orig=0.3993 → mod=0.4166)
+  - age: drop=-0.0115  (orig=0.3993 → mod=0.4108)
+  - native-country_United-States: drop=-0.0077  (orig=0.3993 → mod=0.4070)
+  - occupation_Craft-repair: drop=+0.0071  (orig=0.3993 → mod=0.3922)
+  - relationship_Husband: drop=-0.0068  (orig=0.3993 → mod=0.4061)
+  - sex_Male: drop=-0.0063  (orig=0.3993 → mod=0.4056)
+  - workclass_Private: drop=-0.0049  (orig=0.3993 → mod=0.4043)
+  - education_10th: drop=+0.0047  (orig=0.3993 → mod=0.3946)
+  - capital-gain: drop=+0.0014  (orig=0.3993 → mod=0.3980)
+- Max prob_drop: 0.032208  Max prob_increase: -0.01729
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are strongly associated with the '<=50K' class in the Adult Income dataset based on known domain knowledge?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 6, "association": "correlates with lower income due to low education level (10th grade is below average for higher income)"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "association": "correlates with lower income as lower weekly hours are typically associated with lower earnings"}, {"feature_key": "sex", "action": "change", "new_value": "Male", "association": "in the Adult dataset, males are more likely to have higher income, so 'Male' is associated with higher income; thus, 'Male' being present may suggest deviation from <=50K prediction"}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "association": "Private workclass is common and not strongly discriminatory; however, it is not associated with high income as strongly as 'Prof-specialty' or 'Exec-managerial'"}, {"feature_key": "race", "action": "change", "new_value": "White", "association": "White individuals are generally more likely to have higher incomes; thus, 'White' is associated with higher income, making it less likely to predict <=50K"}]
+- Explanation: Based on domain knowledge from the Adult Income dataset, features such as 'education-num' and 'hours-per-week' are strong predictors of income level. A low education level (e.g., 10th grade, education-num=6) and moderate working hours (40 hours/week) are associated with lower income. Conversely, features like 'sex' and 'race' have known demographic biases in the dataset, where White males tend to have higher incomes. However, since the model predicted <=50K, the combination of low education and moderate hours likely outweighs the positive influences of sex and race. The workclass 'Private' is neutral but not a strong driver of high income. Therefore, the most influential features pointing toward <=50K are education-num and hours-per-week.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: How might 'age=53', 'workclass=Private', and 'sex=Male' influence the model's confidence in predicting '<=50K'?
+- Status: Success
+- Explanation: The model's prediction of '<=50K' with 59.17% confidence is influenced by several input features. The value 'age=53' falls within the middle range of the dataset, and while higher ages are often associated with higher income, this individual is not in the high-age bracket (e.g., 60+), so it does not strongly favor the '>50K' class. 'workclass=Private' is common among individuals with lower to middle incomes, and in the training data, private sector workers are more frequently predicted to have '<=50K' income. 'sex=Male' is not strongly correlated with income in the model—however, in certain historical datasets, male workers in lower education categories may be associated with lower income, which is consistent with this case. The combination of 'education='10th' (education-num=6)', indicating limited education, and 'hours-per-week=40' (moderate work hours) contributes to a lower-than-expected income prediction. While these features alone do not guarantee the prediction, they collectively align with the model's learned patterns of income distribution, reinforcing the confidence in predicting '<=50K'.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the domain-expected impact of 'education-num=6' versus 'marital-status=Married-civ-spouse' on income prediction.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 6, "influence": "low", "reason": "An education level of '10th' (education-num=6) is below the average for higher income groups. However, in the dataset, education-num is typically correlated with income, with higher values (e.g., 12 or above) associated with greater earnings. The current value of 6 is relatively low, but it may not be the dominant driver compared to marital or employment status. Given that the model assigns a strong weight to 'workclass' and 'hours-per-week' and that 'education-num' has moderate predictive power, its influence is limited compared to other factors."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "influence": "high", "reason": "The 'Married-civ-spouse' marital status is strongly associated with higher income in domain-expected patterns. In many socioeconomic models, married individuals (especially with dependents or stable households) have higher average incomes than single or divorced individuals. This status is often correlated with greater household stability, better access to networks, and reduced financial volatility. In the context of this model, marital status is frequently a top predictor of income, especially when combined with occupation and workclass. Therefore, maintaining or changing to 'Married-civ-spouse' has a significant expected impact on the model's prediction of '\u226450K'."}]
+- Explanation: In domain knowledge, marital status is a more robust and consistent predictor of income than education level, particularly when 'education-num' is at a low value (6). While a lower education level may contribute to lower income, 'Married-civ-spouse' is more likely to be linked to higher income due to socioeconomic advantages. Thus, changing to this marital status would more likely shift the prediction toward 'greater than 50K' if it were to have a stronger effect. In contrast, education-num=6 is a relatively weak driver in the presence of other stronger socioeconomic indicators like marital status and workclass.
+- Confidence: 0.93
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

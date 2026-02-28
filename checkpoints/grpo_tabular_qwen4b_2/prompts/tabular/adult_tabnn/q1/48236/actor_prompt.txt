@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6826
+
+## Input Data
+Features: age=46, workclass=Local-gov, fnlwgt=267952, education=Assoc-voc, education-num=11, marital-status=Divorced, occupation=Exec-managerial, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=36, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Not-in-family.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.016737).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0496
+  - native-country_Hong: +0.0394
+  - fnlwgt: +0.0328
+  - native-country_Vietnam: +0.0297
+  - native-country_Cuba: +0.0205
+- Top negative features (shap_value):
+  - race_Other: -0.0496
+  - native-country_Honduras: -0.0394
+  - age: -0.0328
+  - native-country_Yugoslavia: -0.0297
+  - native-country_Columbia: -0.0205
+- Max positive: 0.049584  Max negative: -0.049584
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2041
+  - capital-loss <= -0.22: +0.1332
+  - native-country_Japan <= 0.00: +0.1041
+  - workclass_Without-pay <= 0.00: +0.0681
+  - native-country_Cuba <= 0.00: +0.0492
+- Top negative features (weight):
+  - native-country_Dominican-Republic <= 0.00: -0.0800
+  - native-country_Ecuador <= 0.00: -0.0510
+  - native-country_Hong <= 0.00: -0.0487
+  - native-country_Portugal <= 0.00: -0.0474
+  - native-country_El-Salvador <= 0.00: -0.0283
+- Max positive: 0.204082  Max negative: -0.080015
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0186
+  - marital-status_Divorced: +0.0178
+  - race_White: +0.0061
+  - education_Assoc-voc: +0.0033
+  - capital-gain: +0.0021
+- Top negative features (attribution_score):
+  - occupation_Exec-managerial: -0.0151
+  - age: -0.0069
+  - workclass_Local-gov: -0.0048
+  - education-num: -0.0038
+  - native-country_United-States: -0.0031
+- Max positive: 0.018644  Max negative: -0.015087
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0167  (orig=0.4213 → mod=0.4046)
+  - marital-status_Divorced: drop=+0.0162  (orig=0.4213 → mod=0.4051)
+  - occupation_Exec-managerial: drop=-0.0136  (orig=0.4213 → mod=0.4349)
+  - age: drop=-0.0072  (orig=0.4213 → mod=0.4285)
+  - race_White: drop=+0.0062  (orig=0.4213 → mod=0.4151)
+  - education_Assoc-voc: drop=+0.0048  (orig=0.4213 → mod=0.4165)
+  - capital-loss: drop=+0.0021  (orig=0.4213 → mod=0.4192)
+  - education-num: drop=-0.0020  (orig=0.4213 → mod=0.4233)
+  - capital-gain: drop=+0.0020  (orig=0.4213 → mod=0.4193)
+  - workclass_Local-gov: drop=-0.0017  (orig=0.4213 → mod=0.4230)
+- Max prob_drop: 0.016737  Max prob_increase: -0.013625
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income levels in the Adult dataset?
+- Status: Success
+- findings: ["education-num", "hours-per-week", "workclass", "occupation", "sex"]
+- Explanation: Based on domain knowledge from the Adult dataset (also known as the Census Income dataset), several features are well-documented to have strong correlations with income levels. 'education-num' is highly correlated because higher education levels are generally associated with higher income. 'hours-per-week' shows a positive relationship with income, especially beyond 40 hours. 'workclass' reflects the employment sector and has been shown to correlate with income (e.g., private sector often has higher income than government). 'occupation' is important as managerial and professional roles are typically associated with higher earnings. 'sex' has been shown in analysis to have a notable, though debated, correlation due to demographic differences in income distribution. These features have been consistently identified in literature and model studies as being among the most predictive for income classification.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: Based on the input values, how might the combination of 'education=Assoc-voc' and 'occupation=Exec-managerial' influence the prediction of income?
+- Status: Success
+- Explanation: The model predicted an income of '<=50K' with 68.26% confidence. The combination of 'education=Assoc-voc' and 'occupation=Exec-managerial' presents a potential contradiction in the income prediction. 'Exec-managerial' is a high-skill, high-income occupation typically associated with earnings above $50K, strongly suggesting a higher income prediction. However, 'education=Assoc-voc' (associate vocational) indicates a lower level of formal education compared to degrees such as Bachelor's or Master's, which may limit the model's expectation of high income. The model may therefore rely on the educational level to temper the high-income signal from occupation. Additionally, other features like 'age=46' (mid-career), 'hours-per-week=36' (moderate work hours), and 'sex=Female' (a known demographic factor in historical datasets) further support a lower-income prediction. These factors collectively suggest the model is balancing a high-earning occupation with lower educational attainment and other socioeconomic constraints, ultimately leaning toward the '<=50K' threshold. The feature interaction indicates that while 'Exec-managerial' would normally promote a higher income, the model may downweight this due to the lack of higher education, leading to a cautious prediction of '<=50K'.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the standard feature values (e.g., education-num=11, age=46) with known thresholds in the Adult dataset for income classification.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": 46, "analysis": "The age of 46 is within the typical range for the dataset. Most individuals in the higher-income group (>=50K) are aged between 25 and 65, with a median around 39. This age is not an outlier and does not strongly favor either income bracket."}, {"feature_key": "education-num", "action": "compare", "new_value": 11, "analysis": "Education level 'Assoc-voc' corresponds to education-num=11. The median education-num for those earning >50K is typically around 10 or higher, with higher education levels (e.g., Bachelors, Masters, Prof-school) more common in higher-income groups. While 11 is a moderate level, it is not sufficient to strongly predict high income on its own."}, {"feature_key": "workclass", "action": "compare", "new_value": "Local-gov", "analysis": "Local-gov is associated with a lower likelihood of earning >50K compared to private or self-employed workclasses. Workclass significantly influences income, with private sector and self-employment being more commonly linked to higher income levels."}, {"feature_key": "occupation", "action": "compare", "new_value": "Exec-managerial", "analysis": "Exec-managerial is one of the strongest predictors of high income (>50K). This occupation is strongly associated with higher salaries and is typically above the 50K threshold. The presence of this value should increase the likelihood of >50K income, but the model still predicts <=50K \u2014 suggesting other compensating factors may be driving the prediction."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 36, "analysis": "Hours-per-week of 36 are below the typical threshold for high earners. The median for >50K individuals is often above 40 hours per week. Lower working hours are more commonly associated with lower income, making this a contributing factor toward the <=50K prediction."}]
+- Explanation: While the individual holds a high-earning occupation (Exec-managerial), which is strong evidence for a higher income, several other features suggest a lower income trajectory. Specifically, the workclass (Local-gov), moderate education level (education-num=11), and below-average hours per week (36) are all below typical thresholds observed in the Adult dataset for individuals earning more than $50K. These features outweigh the positive influence of occupation in this case, leading to a classification of <=50K, despite the occupation being a strong predictor.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

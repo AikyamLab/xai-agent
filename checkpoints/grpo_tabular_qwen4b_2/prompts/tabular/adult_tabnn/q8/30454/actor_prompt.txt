@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (54.59%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=40, workclass=Self-emp-inc, fnlwgt=102226, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Honduras.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: workclass_Self-emp-inc (prob drop: 0.01229).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Hong: +0.0302
+  - education_9th: +0.0296
+  - native-country_Cambodia: +0.0262
+  - native-country_United-States: +0.0228
+  - native-country_Cuba: +0.0152
+- Top negative features (shap_value):
+  - native-country_Honduras: -0.0302
+  - education_7th-8th: -0.0296
+  - sex_Male: -0.0262
+  - native-country_Trinadad&Tobago: -0.0228
+  - native-country_Columbia: -0.0152
+- Max positive: 0.030229  Max negative: -0.030229
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - workclass_Without-pay <= 0.00: +0.0940
+  - native-country_South <= 0.00: +0.0429
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2206
+  - capital-loss <= -0.22: -0.1105
+  - occupation_Priv-house-serv <= 0.00: -0.0946
+  - native-country_Greece <= 0.00: -0.0942
+  - education-num <= -0.44: -0.0846
+- Max positive: 0.094036  Max negative: -0.220597
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0149
+  - relationship_Husband: +0.0139
+  - occupation_Exec-managerial: +0.0131
+  - workclass_Self-emp-inc: +0.0102
+  - sex_Male: +0.0090
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0127
+  - fnlwgt: -0.0086
+  - education-num: -0.0073
+  - capital-gain: -0.0015
+  - capital-loss: -0.0004
+- Max positive: 0.014924  Max negative: -0.012732
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - workclass_Self-emp-inc: drop=+0.0123  (orig=0.6332 → mod=0.6209)
+  - occupation_Exec-managerial: drop=+0.0119  (orig=0.6332 → mod=0.6213)
+  - marital-status_Married-civ-spouse: drop=+0.0113  (orig=0.6332 → mod=0.6219)
+  - education_HS-grad: drop=-0.0112  (orig=0.6332 → mod=0.6443)
+  - relationship_Husband: drop=+0.0080  (orig=0.6332 → mod=0.6252)
+  - sex_Male: drop=+0.0073  (orig=0.6332 → mod=0.6259)
+  - education-num: drop=-0.0070  (orig=0.6332 → mod=0.6401)
+  - native-country_United-States: drop=+0.0058  (orig=0.6332 → mod=0.6274)
+  - fnlwgt: drop=-0.0058  (orig=0.6332 → mod=0.6390)
+  - race_White: drop=+0.0039  (orig=0.6332 → mod=0.6293)
+- Max prob_drop: 0.01229  Max prob_increase: -0.011162
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Exec-managerial' or 'workclass=Self-emp-inc' be misleading in a context where the true label is <=50K?
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: The features 'occupation=Exec-managerial' and 'workclass=Self-emp-inc' are semantically associated with higher income levels. In the context of the Adult Income dataset, 'Exec-managerial' occupations typically involve high salaries, and 'Self-emp-inc' (self-employed with income) often correlates with above-average earnings. Since the true label is <=50K, these high-income indicators may have introduced a spurious signal that the model misinterpreted as evidence of high income. This could lead to overconfidence in predicting '>'50K, even when the actual income is below that threshold. Changing these values to more commonly associated with lower income groups (e.g., 'Other-service' for occupation and 'Private' for workclass) would reduce this spurious signal and align the input more closely with the true label.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the significance of 'education-num=9' and 'age=40' to known class-relevant features like 'sex=Male' or 'race=White' in the context of <=50K.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "high_relevance", "new_value": "Female", "reason": "Sex='Male' is strongly associated with higher income (>50K) in the dataset, and in the context of the model's prediction, this feature has direct, well-documented class-relevance. The model incorrectly predicting >50K when the true label is <=50K suggests that the model may be overemphasizing sex='Male' despite the actual outcome being <=50K."}, {"feature_key": "race", "action": "high_relevance", "new_value": "Black", "reason": "Race='White' is correlated with higher income, and is a known class-relevant feature. However, in this instance, the true label is <=50K, and the model predicts >50K despite these features. This indicates that the model may be incorrectly attributing high income potential to White males, leading to a misclassification."}, {"feature_key": "education-num", "action": "moderate_relevance", "new_value": 12, "reason": "Education level (education-num=9) corresponds to 'HS-grad', which is generally associated with lower income. However, the model's prediction of >50K is not directly explained by this feature. A higher education-num (e.g., 12 for Bachelor's) would be more predictive of >50K. Therefore, the current value (9) is insufficient to justify the prediction, suggesting it lacks high attribution in this context."}, {"feature_key": "age", "action": "low_relevance", "new_value": 60, "reason": "Age=40 is below the median age associated with higher income, and there's limited evidence that age alone drives the >50K class. In contrast, features like sex and race have stronger known associations. Thus, age contributes little to the current misprediction."}, {"feature_key": "hours-per-week", "action": "high_relevance_potential", "new_value": 80, "reason": "Hours-per-week is a strong predictor of income, but it is not provided in this input. Since it is missing, its absence may have caused the model to rely more on sex and race \u2014 which are also high-relevance features \u2014 thereby contributing to the misprediction due to overfitting on demographic bias."}]
+- Explanation: The model incorrectly predicts >50K when the true label is <=50K. While features like 'sex=Male' and 'race=White' are known to have strong semantic relevance to higher income (and thus are highly predictive of >50K), their presence in the input may have led the model to over-estimate income potential. In contrast, 'education-num=9' (HS-grad) and 'age=40' are not strongly predictive of >50K and, therefore, do not contribute significantly to the incorrect prediction. The misprediction is more likely due to the model's over-reliance on binary demographic features known to correlate with higher income, especially in the absence of strong labor-market or earnings signals like high hours-per-week. This suggests the model may be biased toward demographic cues rather than actual income-earning behavior.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Exec-managerial' or 'workclass=Self-emp-inc' be misleading in a context where the true label is <=50K?
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: The features 'occupation=Exec-managerial' and 'workclass=Self-emp-inc' are semantically associated with higher income levels. In the context of the Adult Income dataset, 'Exec-managerial' occupations typically involve high salaries, and 'Self-emp-inc' (self-employed with income) often correlates with above-average earnings. Since the true label is <=50K, these high-income indicators may have introduced a spurious signal that the model misinterpreted as evidence of high income. This could lead to overconfidence in predicting '>'50K, even when the actual income is below that threshold. Changing these values to more commonly associated with lower income groups (e.g., 'Other-service' for occupation and 'Private' for workclass) would reduce this spurious signal and align the input more closely with the true label.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the significance of 'education-num=9' and 'age=40' to known class-relevant features like 'sex=Male' or 'race=White' in the context of <=50K.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "high_relevance", "new_value": "Female", "reason": "Sex='Male' is strongly associated with higher income (>50K) in the dataset, and in the context of the model's prediction, this feature has direct, well-documented class-relevance. The model incorrectly predicting >50K when the true label is <=50K suggests that the model may be overemphasizing sex='Male' despite the actual outcome being <=50K."}, {"feature_key": "race", "action": "high_relevance", "new_value": "Black", "reason": "Race='White' is correlated with higher income, and is a known class-relevant feature. However, in this instance, the true label is <=50K, and the model predicts >50K despite these features. This indicates that the model may be incorrectly attributing high income potential to White males, leading to a misclassification."}, {"feature_key": "education-num", "action": "moderate_relevance", "new_value": 12, "reason": "Education level (education-num=9) corresponds to 'HS-grad', which is generally associated with lower income. However, the model's prediction of >50K is not directly explained by this feature. A higher education-num (e.g., 12 for Bachelor's) would be more predictive of >50K. Therefore, the current value (9) is insufficient to justify the prediction, suggesting it lacks high attribution in this context."}, {"feature_key": "age", "action": "low_relevance", "new_value": 60, "reason": "Age=40 is below the median age associated with higher income, and there's limited evidence that age alone drives the >50K class. In contrast, features like sex and race have stronger known associations. Thus, age contributes little to the current misprediction."}, {"feature_key": "hours-per-week", "action": "high_relevance_potential", "new_value": 80, "reason": "Hours-per-week is a strong predictor of income, but it is not provided in this input. Since it is missing, its absence may have caused the model to rely more on sex and race \u2014 which are also high-relevance features \u2014 thereby contributing to the misprediction due to overfitting on demographic bias."}]
+- Explanation: The model incorrectly predicts >50K when the true label is <=50K. While features like 'sex=Male' and 'race=White' are known to have strong semantic relevance to higher income (and thus are highly predictive of >50K), their presence in the input may have led the model to over-estimate income potential. In contrast, 'education-num=9' (HS-grad) and 'age=40' are not strongly predictive of >50K and, therefore, do not contribute significantly to the incorrect prediction. The misprediction is more likely due to the model's over-reliance on binary demographic features known to correlate with higher income, especially in the absence of strong labor-market or earnings signals like high hours-per-week. This suggests the model may be biased toward demographic cues rather than actual income-earning behavior.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

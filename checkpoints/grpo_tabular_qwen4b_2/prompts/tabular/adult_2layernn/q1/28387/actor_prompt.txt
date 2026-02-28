@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6281
+
+## Input Data
+Features: age=33, workclass=State-gov, fnlwgt=174171, education=Some-college, education-num=10, marital-status=Separated, occupation=Tech-support, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=12, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.024009).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0904
+  - race_Amer-Indian-Eskimo: +0.0228
+  - native-country_Dominican-Republic: +0.0157
+  - native-country_Vietnam: +0.0154
+  - native-country_Cuba: +0.0104
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0904
+  - race_Asian-Pac-Islander: -0.0228
+  - native-country_Ecuador: -0.0157
+  - native-country_Yugoslavia: -0.0154
+  - native-country_Columbia: -0.0104
+- Max positive: 0.090447  Max negative: -0.090447
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0788
+  - capital-loss <= -0.22: +0.0755
+  - hours-per-week <= -0.08: +0.0477
+  - native-country_France <= 0.00: +0.0199
+- Top negative features (weight):
+  - native-country_Laos <= 0.00: -0.0599
+  - native-country_South <= 0.00: -0.0583
+  - marital-status_Divorced <= 0.00: -0.0484
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0385
+  - native-country_Ireland <= 0.00: -0.0046
+- Max positive: 0.078825  Max negative: -0.059929
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0259
+  - education_Some-college: +0.0049
+  - relationship_Not-in-family: +0.0048
+  - marital-status_Separated: +0.0040
+  - workclass_State-gov: +0.0026
+- Top negative features (attribution_score):
+  - sex_Male: -0.0068
+  - native-country_United-States: -0.0058
+  - race_White: -0.0024
+  - occupation_Tech-support: -0.0014
+  - capital-loss: -0.0002
+- Max positive: 0.025942  Max negative: -0.006756
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0240  (orig=0.4081 → mod=0.3841)
+  - sex_Male: drop=-0.0068  (orig=0.4081 → mod=0.4149)
+  - education_Some-college: drop=+0.0068  (orig=0.4081 → mod=0.4013)
+  - relationship_Not-in-family: drop=+0.0062  (orig=0.4081 → mod=0.4019)
+  - native-country_United-States: drop=-0.0038  (orig=0.4081 → mod=0.4119)
+  - marital-status_Separated: drop=+0.0033  (orig=0.4081 → mod=0.4048)
+  - race_White: drop=-0.0022  (orig=0.4081 → mod=0.4103)
+  - workclass_State-gov: drop=+0.0017  (orig=0.4081 → mod=0.4064)
+  - fnlwgt: drop=+0.0008  (orig=0.4081 → mod=0.4073)
+  - occupation_Tech-support: drop=-0.0007  (orig=0.4081 → mod=0.4088)
+- Max prob_drop: 0.024009  Max prob_increase: -0.006823
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are commonly associated with income <=50K in the dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 33}, {"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "marital-status", "action": "change", "new_value": "Separated"}]
+- Explanation: Based on domain-level patterns observed in the dataset (e.g., UCI Adult Income Dataset), individuals with lower education levels, non-management occupations, and certain workclass assignments (such as 'State-gov') are commonly associated with income <=50K. Specifically, 'Some-college' education (education-num=10) and a lack of higher education attainment correlate with lower income. 'State-gov' workclass is often linked to lower earnings compared to private sector or self-employment. Marital status such as 'Separated' is also associated with lower income in historical data. Age=33 is within the middle range and not strongly predictive of income level on its own, but when combined with other features, it contributes to the overall pattern of lower income. These features collectively align with known socioeconomic patterns associated with income <=50K.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Based on the input values (e.g., age=33, workclass=State-gov, education=Some-college), how do these values align with known patterns in the income dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 33}, {"feature_key": "workclass", "action": "change", "new_value": "Federal-gov"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: The model predicted income ≤50K with confidence 62.81%. In the income dataset, individuals with lower education levels, non-privileged employment types (like 'Tech-support'), and less stable marital status (e.g., 'Separated') are more likely to have low income. The current values—age=33 (moderate), workclass='State-gov' (lower income sector), education='Some-college' (below bachelor's), marital-status='Separated' (instability), and occupation='Tech-support' (lower-paying field)—align with known patterns associated with lower income. To strengthen the prediction toward ≤50K, we adjust key features to reflect more typical low-income profiles: increasing education to 'Bachelors' would slightly improve income expectations, but in practice, high education does not always correlate with high income in this dataset due to job type. Hence, changing workclass to 'Federal-gov' (slightly better pay than State-gov) and occupation to 'Prof-specialty' (higher income potential) would shift outcomes toward higher income; however, the current setting remains consistent with low-income patterns. Therefore, the initial values are plausible for ≤50K prediction, and the top-5 features that reinforce this are education level, workclass, occupation, marital status, and hours-per-week (though not explicitly changed). Among these, education-num=10 (Some-college) and occupation='Tech-support' are the most influential in driving the ≤50K outcome.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the input feature values to those typically observed in the '>50K' class versus '<=50K' class.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": "33", "class_distribution": {"<=50K": "median age ~39", ">50K": "median age ~50"}, "interpretation": "The individual is relatively young (33), which is more typical of the <=50K class. Higher ages are more commonly associated with incomes >50K."}, {"feature_key": "workclass", "action": "compare", "new_value": "State-gov", "class_distribution": {"<=50K": "common workclass: State-gov, Private", ">50K": "common workclass: Self-emp-not-inc, Self-emp-inc"}, "interpretation": "State-gov is common in <=50K; higher-income individuals are more often self-employed or in high-income private sectors. This feature does not strongly support >50K."}, {"feature_key": "education-num", "action": "compare", "new_value": 10, "class_distribution": {"<=50K": "education-num median ~9", ">50K": "education-num median ~12"}, "interpretation": "Education level (10) is slightly above the median for <=50K but still below typical levels for >50K. Not a strong indicator of high income."}, {"feature_key": "occupation", "action": "compare", "new_value": "Tech-support", "class_distribution": {"<=50K": "common occupations: Tech-support, Craft-repair", ">50K": "common occupations: Prof-specialty, Exec-managerial"}, "interpretation": "Tech-support is a low-wage occupation typically associated with <=50K. Suggests lower income potential."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 12, "class_distribution": {"<=50K": "median ~40", ">50K": "median ~50+"}, "interpretation": "Hours per week (12) are very low and significantly below typical values for those earning >50K. This is a strong indicator against a >50K prediction."}, {"feature_key": "capital-gain", "action": "compare", "new_value": 0, "class_distribution": {"<=50K": "capital-gain median ~0", ">50K": "capital-gain median ~3000+"}, "interpretation": "Zero capital gain is common in <=50K and rare in >50K. This further supports the <=50K classification."}, {"feature_key": "sex", "action": "compare", "new_value": "Male", "class_distribution": {"<=50K": "equal distribution between male and female", ">50K": "slightly higher proportion of males"}, "interpretation": "Male sex is not strongly correlated with high income in this dataset. Neutral factor."}, {"feature_key": "race", "action": "compare", "new_value": "White", "class_distribution": {"<=50K": "most common race: White", ">50K": "White and Black both present, with Black slightly overrepresented"}, "interpretation": "Race is not a strong predictor; White individuals are common in both classes. Not a key contributor."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Separated", "class_distribution": {"<=50K": "common: Married-civ-spouse, Divorced, Separated", ">50K": "more common: Married-civ-spouse"}, "interpretation": "Separated status is more typical of <=50K. Married individuals are more likely to earn >50K, suggesting this is a minor negative factor."}]
+- Explanation: The individual's features show strong alignment with the <=50K class across multiple dimensions. Low hours-per-week (12), occupation in tech-support (low wage), zero capital gains, and younger age (33) are all features typically observed in the <=50K group. In contrast, higher education, self-employment, or managerial roles, along with higher hours and capital gains, are more typical of the >50K group. These discrepancies strongly support the model's prediction of <=50K.
+- Confidence: 0.97
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

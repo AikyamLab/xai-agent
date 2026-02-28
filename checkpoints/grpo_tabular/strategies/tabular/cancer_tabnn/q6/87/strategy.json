@@ -1,0 +1,67 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is optimal because autonomous analysis can provide initial hypotheses about critical features based on domain logic and current prediction confidence, while external XAI tools like SHAP and sensitivity analysis can validate and refine these insights by quantifying feature importance and impact on the prediction in a model-agnostic way. This ensures both interpretability and reliability in identifying counterfactual changes.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify features that are typically associated with malignant tumors in the breast cancer dataset based on known medical literature and feature definitions.",
+      "expected_output": "List of features such as mean radius, mean area, mean compactness, mean concavity, etc., that are known to increase in malignancy."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given the current prediction of benign with high confidence, reason about which features need to increase or decrease to shift the prediction toward malignant.",
+      "expected_output": "A set of proposed modifications: e.g., increase mean radius, increase mean area, increase mean compactness, increase mean concavity, and increase mean concave points."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the current feature values with typical thresholds or ranges observed for malignant cases in public breast cancer datasets.",
+      "expected_output": "Ranking of features that cross clinically relevant thresholds for malignancy, indicating which changes are most likely to flip the prediction."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      },
+      "lime": {
+        "target_class": "contrastive"
+      }
+    },
+    "reasoning": "SHAP is chosen for its ability to provide accurate, contrastive feature importance capturing how each feature contributes to the difference between classes. Sensitivity analysis helps quantify the impact of individual feature modifications on the prediction outcome. LIME provides local interpretability around the current instance, supporting robust counterfactual generation. These tools together address both global and local aspects of the model behavior for tabular data."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP is chosen for its ability to provide accurate, contrastive feature importance capturing how each feature contributes to the difference between classes. Sensitivity analysis helps quantify the impact of individual feature modifications on the prediction outcome. LIME provides local interpretability around the current instance, supporting robust counterfactual generation. These tools together address both global and local aspects of the model behavior for tabular data.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 3,
+      "reasoning": "SHAP is chosen for its ability to provide accurate, contrastive feature importance capturing how each feature contributes to the difference between classes. Sensitivity analysis helps quantify the impact of individual feature modifications on the prediction outcome. LIME provides local interpretability around the current instance, supporting robust counterfactual generation. These tools together address both global and local aspects of the model behavior for tabular data.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP is chosen for its ability to provide accurate, contrastive feature importance capturing how each feature contributes to the difference between classes. Sensitivity analysis helps quantify the impact of individual feature modifications on the prediction outcome. LIME provides local interpretability around the current instance, supporting robust counterfactual generation. These tools together address both global and local aspects of the model behavior for tabular data.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external XAI tools to ensure both domain knowledge and model-level feature attributions are leveraged. Autonomous analysis provides initial grounding in biologically and clinically relevant feature distinctions between malignant and benign tumors, while XAI tools offer data-driven, model-internal feature importance scores that validate and refine those intuitions in a systematic way.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Based on medical knowledge of breast cancer biology, which features (e.g., radius, texture, concavity) are known to be more elevated in malignant tumors compared to benign ones?",
+      "expected_output": "A list of features with clinical justification for being more prominent in malignant cases"
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the input feature values for malignant vs benign predictions, identifying features that show significant deviations, especially for the top-1 prediction where malignant is predicted with high confidence.",
+      "expected_output": "A ranked list of features with their values and direction of difference (e.g., higher in malignant) between top-1 and top-2 predictions"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "lime": {
+        "target_class": "top1"
+      },
+      "integrated_gradients": {
+        "target_class": "malignant",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "method": "leave-one-out",
+        "target": "prediction probability change"
+      }
+    },
+    "reasoning": "SHAP provides a robust, game-theoretic attribution for the contrast between malignant and benign, offering consistent and interpretable feature importance. LIME supports local interpretability of the top-1 prediction. Integrated gradients provide smooth, gradient-based attribution from baseline to prediction, useful for understanding model behavior. Sensitivity analysis tests how each feature affects the decision boundary, helping identify critical features that shift predictions between classes."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a robust, game-theoretic attribution for the contrast between malignant and benign, offering consistent and interpretable feature importance. LIME supports local interpretability of the top-1 prediction. Integrated gradients provide smooth, gradient-based attribution from baseline to prediction, useful for understanding model behavior. Sensitivity analysis tests how each feature affects the decision boundary, helping identify critical features that shift predictions between classes.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides a robust, game-theoretic attribution for the contrast between malignant and benign, offering consistent and interpretable feature importance. LIME supports local interpretability of the top-1 prediction. Integrated gradients provide smooth, gradient-based attribution from baseline to prediction, useful for understanding model behavior. Sensitivity analysis tests how each feature affects the decision boundary, helping identify critical features that shift predictions between classes.",
+      "parameters": {
+        "target_class": "top1"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides a robust, game-theoretic attribution for the contrast between malignant and benign, offering consistent and interpretable feature importance. LIME supports local interpretability of the top-1 prediction. Integrated gradients provide smooth, gradient-based attribution from baseline to prediction, useful for understanding model behavior. Sensitivity analysis tests how each feature affects the decision boundary, helping identify critical features that shift predictions between classes.",
+      "parameters": {
+        "target_class": "malignant",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides a robust, game-theoretic attribution for the contrast between malignant and benign, offering consistent and interpretable feature importance. LIME supports local interpretability of the top-1 prediction. Integrated gradients provide smooth, gradient-based attribution from baseline to prediction, useful for understanding model behavior. Sensitivity analysis tests how each feature affects the decision boundary, helping identify critical features that shift predictions between classes.",
+      "parameters": {
+        "method": "leave-one-out",
+        "target": "prediction probability change"
+      }
+    }
+  ]
+}

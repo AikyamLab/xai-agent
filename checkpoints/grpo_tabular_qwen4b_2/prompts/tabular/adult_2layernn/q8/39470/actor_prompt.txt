@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (51.71%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=52, workclass=State-gov, fnlwgt=101119, education=11th, education-num=7, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Vietnam.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: -0.01147).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Yugoslavia: +0.0065
+  - fnlwgt: +0.0056
+  - native-country_United-States: +0.0040
+  - race_Other: +0.0039
+  - occupation_Other-service: +0.0024
+- Top negative features (shap_value):
+  - native-country_Vietnam: -0.0065
+  - age: -0.0056
+  - native-country_Trinadad&Tobago: -0.0040
+  - race_Black: -0.0039
+  - occupation_Machine-op-inspct: -0.0024
+- Max positive: 0.006478  Max negative: -0.006478
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_South <= 0.00: +0.0663
+  - native-country_Columbia <= 0.00: +0.0524
+  - marital-status_Divorced <= 0.00: +0.0460
+  - workclass_Without-pay <= 0.00: +0.0101
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0780
+  - capital-loss <= -0.22: -0.0667
+  - education-num <= -0.44: -0.0531
+  - hours-per-week <= -0.08: -0.0437
+  - education_Masters <= 0.00: -0.0408
+- Max positive: 0.066281  Max negative: -0.078002
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0096
+  - age: +0.0053
+  - native-country_United-States: +0.0048
+  - relationship_Husband: +0.0042
+  - marital-status_Married-civ-spouse: +0.0018
+- Top negative features (attribution_score):
+  - education-num: -0.0117
+  - occupation_Transport-moving: -0.0036
+  - education_11th: -0.0028
+  - fnlwgt: -0.0025
+  - hours-per-week: -0.0008
+- Max positive: 0.009642  Max negative: -0.011684
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=-0.0115  (orig=0.6265 → mod=0.6379)
+  - sex_Male: drop=+0.0104  (orig=0.6265 → mod=0.6160)
+  - age: drop=+0.0055  (orig=0.6265 → mod=0.6210)
+  - relationship_Husband: drop=+0.0042  (orig=0.6265 → mod=0.6222)
+  - native-country_United-States: drop=+0.0038  (orig=0.6265 → mod=0.6227)
+  - occupation_Transport-moving: drop=-0.0037  (orig=0.6265 → mod=0.6302)
+  - marital-status_Married-civ-spouse: drop=+0.0028  (orig=0.6265 → mod=0.6236)
+  - fnlwgt: drop=-0.0020  (orig=0.6265 → mod=0.6285)
+  - education_11th: drop=-0.0017  (orig=0.6265 → mod=0.6282)
+  - hours-per-week: drop=-0.0008  (orig=0.6265 → mod=0.6272)
+- Max prob_drop: 0.010433  Max prob_increase: -0.01147
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'education-num=7' (11th grade) or 'workclass=State-gov' could be spurious indicators for >50K when the true label is <=50K, despite their low semantic relevance to income.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: The feature 'education-num=7' (11th grade) is semantically irrelevant to high income, as it represents a low level of education and is strongly associated with lower income outcomes. Similarly, 'workclass=State-gov' is associated with public sector employment, which historically correlates with lower earnings compared to private sector jobs. Despite their low semantic relevance, both features may have introduced spurious correlations due to underrepresentation in the data or co-occurrence with demographic patterns leading to biased predictions. Changing these values to more income-agnostic or higher-income associated categories (e.g., 'education-num' to 12, 'workclass' to 'Private') reduces potential spurious influence and improves alignment with the true label '<=50K'.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education-num', 'workclass', and 'race' to the target class <=50K and assess if the model assigns high attention to any of them despite low domain connection.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "7"}, {"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "race", "action": "change", "new_value": "White"}]
+- Explanation: The model predicted >50K despite the true label being <=50K. Among the three features evaluated, 'education-num' (value 7, '11th' education) is strongly associated with lower income in the domain — individuals with lower education levels are more likely to earn <=50K. However, the model assigned high attention to 'education-num' during prediction, possibly due to its numerical expressiveness or feature engineering dominance, despite its low predictive power in this case. 'workclass' (State-gov) and 'race' (White) also have domain-relevant associations: State-gov workers are typically low-income, and 'White' individuals are historically more likely to earn higher incomes in this dataset, which could introduce bias. Notably, the model may have over-weighted 'race' due to known biases in the dataset, even though race is not directly causal and is a sensitive, low-relevance feature. Thus, there is a mismatch: the model appears to assign high attention to 'race' and 'workclass'—both of which have some domain relevance—but 'education-num' is semantically relevant yet underutilized. The misprediction likely stems from over-reliance on 'race' and 'workclass' features which, while correlated, do not reliably predict the target class without context. Therefore, the highest mismatch between model attention and actual domain relevance occurs with 'race' and 'workclass' due to spurious or biased associations.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'education-num=7' (11th grade) or 'workclass=State-gov' could be spurious indicators for >50K when the true label is <=50K, despite their low semantic relevance to income.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: The feature 'education-num=7' (11th grade) is semantically irrelevant to high income, as it represents a low level of education and is strongly associated with lower income outcomes. Similarly, 'workclass=State-gov' is associated with public sector employment, which historically correlates with lower earnings compared to private sector jobs. Despite their low semantic relevance, both features may have introduced spurious correlations due to underrepresentation in the data or co-occurrence with demographic patterns leading to biased predictions. Changing these values to more income-agnostic or higher-income associated categories (e.g., 'education-num' to 12, 'workclass' to 'Private') reduces potential spurious influence and improves alignment with the true label '<=50K'.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education-num', 'workclass', and 'race' to the target class <=50K and assess if the model assigns high attention to any of them despite low domain connection.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "7"}, {"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "race", "action": "change", "new_value": "White"}]
+- Explanation: The model predicted >50K despite the true label being <=50K. Among the three features evaluated, 'education-num' (value 7, '11th' education) is strongly associated with lower income in the domain — individuals with lower education levels are more likely to earn <=50K. However, the model assigned high attention to 'education-num' during prediction, possibly due to its numerical expressiveness or feature engineering dominance, despite its low predictive power in this case. 'workclass' (State-gov) and 'race' (White) also have domain-relevant associations: State-gov workers are typically low-income, and 'White' individuals are historically more likely to earn higher incomes in this dataset, which could introduce bias. Notably, the model may have over-weighted 'race' due to known biases in the dataset, even though race is not directly causal and is a sensitive, low-relevance feature. Thus, there is a mismatch: the model appears to assign high attention to 'race' and 'workclass'—both of which have some domain relevance—but 'education-num' is semantically relevant yet underutilized. The misprediction likely stems from over-reliance on 'race' and 'workclass' features which, while correlated, do not reliably predict the target class without context. Therefore, the highest mismatch between model attention and actual domain relevance occurs with 'race' and 'workclass' due to spurious or biased associations.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:
