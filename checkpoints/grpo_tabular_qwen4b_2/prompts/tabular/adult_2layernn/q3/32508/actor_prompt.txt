@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (51.30%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.48697221279144287}
+
+## Input Data
+Features: age=54, workclass=Private, fnlwgt=210736, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.007528).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_United-States: +0.0131
+  - fnlwgt: +0.0110
+  - race_Other: +0.0092
+  - education_Assoc-voc: +0.0039
+  - capital-gain: +0.0020
+- Top negative features (shap_value):
+  - native-country_Trinadad&Tobago: -0.0131
+  - age: -0.0110
+  - race_Black: -0.0092
+  - education_Assoc-acdm: -0.0039
+  - education-num: -0.0020
+- Max positive: 0.013063  Max negative: -0.013063
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0473
+  - native-country_Laos <= 0.00: +0.0461
+  - native-country_Taiwan <= 0.00: +0.0425
+  - native-country_Poland <= 0.00: +0.0416
+  - native-country_Guatemala <= 0.00: +0.0352
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0743
+  - education-num <= -0.44: -0.0553
+  - capital-gain <= -0.15: -0.0514
+  - hours-per-week <= -0.08: -0.0428
+  - native-country_Cambodia <= 0.00: -0.0100
+- Max positive: 0.047309  Max negative: -0.074289
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0082
+  - relationship_Husband: +0.0046
+  - native-country_United-States: +0.0036
+  - marital-status_Married-civ-spouse: +0.0031
+  - age: +0.0021
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0060
+  - education-num: -0.0042
+  - workclass_Private: -0.0037
+  - occupation_Craft-repair: -0.0026
+  - hours-per-week: -0.0007
+- Max positive: 0.008184  Max negative: -0.006
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0075  (orig=0.6255 → mod=0.6180)
+  - occupation_Craft-repair: drop=-0.0075  (orig=0.6255 → mod=0.6330)
+  - relationship_Husband: drop=+0.0062  (orig=0.6255 → mod=0.6194)
+  - education_HS-grad: drop=-0.0054  (orig=0.6255 → mod=0.6309)
+  - workclass_Private: drop=-0.0046  (orig=0.6255 → mod=0.6301)
+  - marital-status_Married-civ-spouse: drop=+0.0044  (orig=0.6255 → mod=0.6211)
+  - age: drop=+0.0036  (orig=0.6255 → mod=0.6219)
+  - education-num: drop=-0.0032  (orig=0.6255 → mod=0.6288)
+  - native-country_United-States: drop=+0.0027  (orig=0.6255 → mod=0.6229)
+  - fnlwgt: drop=+0.0010  (orig=0.6255 → mod=0.6246)
+- Max prob_drop: 0.007528  Max prob_increase: -0.007469
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the adult dataset are known to be strongly associated with income >50K vs <=50K based on domain knowledge and historical correlations?
+- Status: Success
+- findings: ["age", "education-num", "hours-per-week", "workclass", "occupation"]
+- Explanation: Based on domain knowledge and historical correlations in the Adult Income Dataset (also known as the Census Income Dataset), several features are strongly associated with income >50K. Age is positively correlated with higher income due to experience and career accumulation. Education level, particularly measured by 'education-num', is a strong predictor, with higher education levels (e.g., Bachelor's or higher) being linked to higher earning potential. 'Hours-per-week' shows a positive association with income >50K, especially in higher-paying occupations. 'Workclass' matters significantly—individuals in private sector jobs or high-income professions (e.g., 'Private', 'Self-emp-not-inc') tend to earn more than those in government or farming sectors. 'Occupation' is another key factor; managerial or professional roles (e.g., 'Exec-managerial', 'Prof-specialty') are strongly correlated with higher incomes. These features have been consistently identified in studies and literature on this dataset as top predictors of income brackets.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, compare the values of features between the top-1 (>50K) and top-2 (<=50K) predictions and identify any discrepancies that may contribute to the prediction divergence.
+- Status: Success
+- findings: [{"feature_key": "age", "value_greater_than_50k": 54, "value_less_than_or_equal_to_50k": 39, "note": "Older age is associated with higher income; the individual is 54, which is significantly older than the average in the <=50K group."}, {"feature_key": "education-num", "value_greater_than_50k": 9, "value_less_than_or_equal_to_50k": 5, "note": "Higher education level (HS-grad vs. lower education) correlates with higher income potential; the individual has a modest education level, which is typical for both groups but still favors the >50K class when combined with work experience."}, {"feature_key": "hours-per-week", "value_greater_than_50k": 40, "value_less_than_or_equal_to_50k": 35, "note": "Slightly higher hours per week contribute to higher income prediction, although the difference is small and not decisive alone."}, {"feature_key": "occupation", "value_greater_than_50k": "Craft-repair", "value_less_than_or_equal_to_50k": "Adm-clerical", "note": "Craft-repair is a lower-paying occupation compared to managerial roles like 'Exec-managerial' or 'Prof-specialty'. This suggests that the >50K classification may be driven by other strong features rather than occupation alone."}, {"feature_key": "workclass", "value_greater_than_50k": "Private", "value_less_than_or_equal_to_50k": "State-gov", "note": "Private sector employment is more strongly associated with higher incomes than government employment; this is a key differentiator."}, {"feature_key": "marital-status", "value_greater_than_50k": "Married-civ-spouse", "value_less_than_or_equal_to_50k": "Never-married", "note": "Marital status is a known predictor; married individuals are more likely to earn above 50K, especially with stable employment and support."}, {"feature_key": "sex", "value_greater_than_50k": "Male", "value_less_than_or_equal_to_50k": "Female", "note": "Male sex is associated with higher income in the data; however, this is a sensitive factor and may be partially confounded by other variables."}]
+- Explanation: The model's prediction of '>50K' is most strongly influenced by the individual's age (54), workclass (Private), marital status (Married-civ-spouse), and hours-per-week (40), all of which are more typical of higher-income earners. While occupation and education are not outliers, the combination of workclass and marital status provides a strong classification edge. The most distinguishing differences are in workclass and marital status, which are consistently linked to higher income in the training data. The smaller differences in education-num and hours-per-week suggest that these features play a secondary role. The absence of capital gains or losses also reduces predictive bias toward higher income, making the age and employment stability features more critical.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the adult dataset are known to be strongly associated with income >50K vs <=50K based on domain knowledge and historical correlations?
+- Status: Success
+- findings: ["age", "education-num", "hours-per-week", "workclass", "occupation"]
+- Explanation: Based on domain knowledge and historical correlations in the Adult Income Dataset (also known as the Census Income Dataset), several features are strongly associated with income >50K. Age is positively correlated with higher income due to experience and career accumulation. Education level, particularly measured by 'education-num', is a strong predictor, with higher education levels (e.g., Bachelor's or higher) being linked to higher earning potential. 'Hours-per-week' shows a positive association with income >50K, especially in higher-paying occupations. 'Workclass' matters significantly—individuals in private sector jobs or high-income professions (e.g., 'Private', 'Self-emp-not-inc') tend to earn more than those in government or farming sectors. 'Occupation' is another key factor; managerial or professional roles (e.g., 'Exec-managerial', 'Prof-specialty') are strongly correlated with higher incomes. These features have been consistently identified in studies and literature on this dataset as top predictors of income brackets.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, compare the values of features between the top-1 (>50K) and top-2 (<=50K) predictions and identify any discrepancies that may contribute to the prediction divergence.
+- Status: Success
+- findings: [{"feature_key": "age", "value_greater_than_50k": 54, "value_less_than_or_equal_to_50k": 39, "note": "Older age is associated with higher income; the individual is 54, which is significantly older than the average in the <=50K group."}, {"feature_key": "education-num", "value_greater_than_50k": 9, "value_less_than_or_equal_to_50k": 5, "note": "Higher education level (HS-grad vs. lower education) correlates with higher income potential; the individual has a modest education level, which is typical for both groups but still favors the >50K class when combined with work experience."}, {"feature_key": "hours-per-week", "value_greater_than_50k": 40, "value_less_than_or_equal_to_50k": 35, "note": "Slightly higher hours per week contribute to higher income prediction, although the difference is small and not decisive alone."}, {"feature_key": "occupation", "value_greater_than_50k": "Craft-repair", "value_less_than_or_equal_to_50k": "Adm-clerical", "note": "Craft-repair is a lower-paying occupation compared to managerial roles like 'Exec-managerial' or 'Prof-specialty'. This suggests that the >50K classification may be driven by other strong features rather than occupation alone."}, {"feature_key": "workclass", "value_greater_than_50k": "Private", "value_less_than_or_equal_to_50k": "State-gov", "note": "Private sector employment is more strongly associated with higher incomes than government employment; this is a key differentiator."}, {"feature_key": "marital-status", "value_greater_than_50k": "Married-civ-spouse", "value_less_than_or_equal_to_50k": "Never-married", "note": "Marital status is a known predictor; married individuals are more likely to earn above 50K, especially with stable employment and support."}, {"feature_key": "sex", "value_greater_than_50k": "Male", "value_less_than_or_equal_to_50k": "Female", "note": "Male sex is associated with higher income in the data; however, this is a sensitive factor and may be partially confounded by other variables."}]
+- Explanation: The model's prediction of '>50K' is most strongly influenced by the individual's age (54), workclass (Private), marital status (Married-civ-spouse), and hours-per-week (40), all of which are more typical of higher-income earners. While occupation and education are not outliers, the combination of workclass and marital status provides a strong classification edge. The most distinguishing differences are in workclass and marital status, which are consistently linked to higher income in the training data. The smaller differences in education-num and hours-per-week suggest that these features play a secondary role. The absence of capital gains or losses also reduces predictive bias toward higher income, making the age and employment stability features more critical.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.48697221279144287}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

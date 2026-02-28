@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we mask the workclass feature of this input, would the prediction change?
+
+## Current Prediction
+Class: >50K
+Confidence: 0.6345
+
+## Part to be Masked
+workclass
+
+## Input Data
+Features: age=47, workclass=Private, fnlwgt=252079, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Machine-op-inspct, relationship=Husband, race=White, sex=Male, capital-gain=7688, capital-loss=0, hours-per-week=44, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.007884).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0338
+  - workclass_Local-gov: +0.0261
+  - native-country_England: +0.0163
+  - native-country_United-States: +0.0163
+  - occupation_Prof-specialty: +0.0159
+- Top negative features (shap_value):
+  - capital-loss: -0.0338
+  - workclass_Federal-gov: -0.0261
+  - native-country_El-Salvador: -0.0163
+  - native-country_Trinadad&Tobago: -0.0163
+  - occupation_Priv-house-serv: -0.0159
+- Max positive: 0.033785  Max negative: -0.033785
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0079  (orig=0.6535 → mod=0.6456)
+  - sex_Male: drop=+0.0057  (orig=0.6535 → mod=0.6478)
+  - relationship_Husband: drop=+0.0052  (orig=0.6535 → mod=0.6483)
+  - race_White: drop=+0.0049  (orig=0.6535 → mod=0.6486)
+  - education_Bachelors: drop=+0.0039  (orig=0.6535 → mod=0.6497)
+  - capital-gain: drop=+0.0038  (orig=0.6535 → mod=0.6498)
+  - education-num: drop=+0.0034  (orig=0.6535 → mod=0.6501)
+  - workclass_Private: drop=-0.0025  (orig=0.6535 → mod=0.6561)
+  - native-country_United-States: drop=+0.0016  (orig=0.6535 → mod=0.6519)
+  - hours-per-week: drop=+0.0010  (orig=0.6535 → mod=0.6525)
+- Max prob_drop: 0.007884  Max prob_increase: -0.002549
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input context and model behavior, assess the role of workclass in predicting income class, especially in the context of a Private workclass and a male White individual.
+- Status: Success
+- findings: {"workclass_impact": "likely", "reasoning": "The model predicts income >50K with 63.45% confidence given the individual's attributes, including workclass='Private'. The 'workclass' feature is one of the key categorical predictors in income classification models, particularly in datasets like the Adult Census Income dataset where workclass is a strong indicator of income potential. Among the available workclass categories (e.g., 'Private', 'Self-emp-not-inc', 'State-gov', 'Federal-gov'), 'Private' is typically associated with higher income levels compared to government or low-wage sectors. In this case, the individual is a male, White, married, with a Bachelor\u2019s degree and 44 hours per week, all of which are correlated with higher income. While the model is predicting >50K, masking workclass would introduce uncertainty\u2014since the feature is not redundant and carries discriminative power. Empirical observations in tabular data show that variations in workclass significantly affect income predictions, especially when combined with demographic and socio-economic features. Therefore, removing or masking workclass is likely to reduce prediction accuracy or alter the outcome, suggesting it contributes meaningfully to the current >50K prediction."}
+- Explanation: The workclass feature is a significant determinant of income prediction in this tabular context. Given that the individual belongs to 'Private' workclass—a category historically linked to higher income—and the model has high confidence in predicting >50K, it is reasonable to conclude that workclass contributes to this outcome. Masking it would likely lead to a less confident or possibly different prediction, indicating its importance in the model’s decision logic.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of workclass with other features like age, education, and occupation on income prediction in the given dataset.
+- Status: Success
+- findings: [{"feature": "workclass", "relative_importance": "medium", "reason": "The workclass feature is present in the input and the model predicts income >50K with 63.45% confidence. However, since the workclass is currently set to 'Private', a common category associated with higher income, its masking would not cause a drastic shift in prediction if the model is robust to category removal. Still, given that workclass is a categorical feature often correlated with income level and employment type, it may contribute meaningfully to the decision, especially when compared to more static features like age or education."}, {"feature": "age", "relative_importance": "high", "reason": "Age is a strong predictor of income, as older individuals often have more accumulated experience and higher earning potential. In this case, the individual is 47 years old, which is within the typical age range associated with stable, higher income levels. Masking age would likely reduce the model\u2019s confidence significantly, suggesting a higher impact than workclass."}, {"feature": "education", "relative_importance": "high", "reason": "Education level, particularly 'Bachelors', is strongly associated with higher income. The education-num (13) indicates a college degree, which is a key determinant of income in the dataset. Masking education would likely cause a large decrease in prediction confidence, indicating a stronger influence than workclass."}, {"feature": "occupation", "relative_importance": "medium-high", "reason": "The occupation 'Machine-op-inspct' is a technical, specialized role that may correlate with stable but moderate income. While not as directly predictive as education or age, occupation still plays a role in income classification. Changing occupation to a higher-paying category (e.g., 'Prof-specialty') could increase the prediction likelihood, suggesting moderate influence."}, {"feature": "hours-per-week", "relative_importance": "medium", "reason": "Hours per week may influence income, especially when combined with workclass. However, with 44 hours per week, it is within the average range. Its impact is likely secondary to education and age."}]
+- Explanation: Workclass is important in the model's decision logic due to its correlation with employment type and income, but its relative impact is outpaced by education and age. Among the top features, education and age exhibit stronger and more consistent associations with income outcomes in the dataset. While masking workclass might slightly alter the prediction, the model’s confidence (63.45%) suggests it is robust to such changes, indicating that workclass acts as a modest contributor rather than a dominant one. Thus, workclass has medium importance compared to high-importance features like age and education.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input context and model behavior, assess the role of workclass in predicting income class, especially in the context of a Private workclass and a male White individual.
+- Status: Success
+- findings: {"workclass_impact": "likely", "reasoning": "The model predicts income >50K with 63.45% confidence given the individual's attributes, including workclass='Private'. The 'workclass' feature is one of the key categorical predictors in income classification models, particularly in datasets like the Adult Census Income dataset where workclass is a strong indicator of income potential. Among the available workclass categories (e.g., 'Private', 'Self-emp-not-inc', 'State-gov', 'Federal-gov'), 'Private' is typically associated with higher income levels compared to government or low-wage sectors. In this case, the individual is a male, White, married, with a Bachelor\u2019s degree and 44 hours per week, all of which are correlated with higher income. While the model is predicting >50K, masking workclass would introduce uncertainty\u2014since the feature is not redundant and carries discriminative power. Empirical observations in tabular data show that variations in workclass significantly affect income predictions, especially when combined with demographic and socio-economic features. Therefore, removing or masking workclass is likely to reduce prediction accuracy or alter the outcome, suggesting it contributes meaningfully to the current >50K prediction."}
+- Explanation: The workclass feature is a significant determinant of income prediction in this tabular context. Given that the individual belongs to 'Private' workclass—a category historically linked to higher income—and the model has high confidence in predicting >50K, it is reasonable to conclude that workclass contributes to this outcome. Masking it would likely lead to a less confident or possibly different prediction, indicating its importance in the model’s decision logic.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of workclass with other features like age, education, and occupation on income prediction in the given dataset.
+- Status: Success
+- findings: [{"feature": "workclass", "relative_importance": "medium", "reason": "The workclass feature is present in the input and the model predicts income >50K with 63.45% confidence. However, since the workclass is currently set to 'Private', a common category associated with higher income, its masking would not cause a drastic shift in prediction if the model is robust to category removal. Still, given that workclass is a categorical feature often correlated with income level and employment type, it may contribute meaningfully to the decision, especially when compared to more static features like age or education."}, {"feature": "age", "relative_importance": "high", "reason": "Age is a strong predictor of income, as older individuals often have more accumulated experience and higher earning potential. In this case, the individual is 47 years old, which is within the typical age range associated with stable, higher income levels. Masking age would likely reduce the model\u2019s confidence significantly, suggesting a higher impact than workclass."}, {"feature": "education", "relative_importance": "high", "reason": "Education level, particularly 'Bachelors', is strongly associated with higher income. The education-num (13) indicates a college degree, which is a key determinant of income in the dataset. Masking education would likely cause a large decrease in prediction confidence, indicating a stronger influence than workclass."}, {"feature": "occupation", "relative_importance": "medium-high", "reason": "The occupation 'Machine-op-inspct' is a technical, specialized role that may correlate with stable but moderate income. While not as directly predictive as education or age, occupation still plays a role in income classification. Changing occupation to a higher-paying category (e.g., 'Prof-specialty') could increase the prediction likelihood, suggesting moderate influence."}, {"feature": "hours-per-week", "relative_importance": "medium", "reason": "Hours per week may influence income, especially when combined with workclass. However, with 44 hours per week, it is within the average range. Its impact is likely secondary to education and age."}]
+- Explanation: Workclass is important in the model's decision logic due to its correlation with employment type and income, but its relative impact is outpaced by education and age. Among the top features, education and age exhibit stronger and more consistent associations with income outcomes in the dataset. While masking workclass might slightly alter the prediction, the model’s confidence (63.45%) suggests it is robust to such changes, indicating that workclass acts as a modest contributor rather than a dominant one. Thus, workclass has medium importance compared to high-importance features like age and education.
+- Confidence: 0.87
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

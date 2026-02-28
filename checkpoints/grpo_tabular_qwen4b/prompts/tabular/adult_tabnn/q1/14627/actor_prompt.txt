@@ -1,0 +1,123 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7908
+
+## Input Data
+Features: age=22, workclass=Private, fnlwgt=131291, education=Some-college, education-num=10, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=15, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010964).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0572
+  - workclass_Self-emp-not-inc: +0.0461
+  - native-country_Columbia: +0.0303
+  - sex_Male: +0.0299
+  - native-country_Trinadad&Tobago: +0.0194
+- Top negative features (shap_value):
+  - fnlwgt: -0.0572
+  - workclass_State-gov: -0.0461
+  - native-country_Cuba: -0.0303
+  - native-country_Cambodia: -0.0299
+  - native-country_United-States: -0.0194
+- Max positive: 0.057161  Max negative: -0.057161
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2181
+  - capital-loss <= -0.22: +0.1226
+  - native-country_Jamaica <= 0.00: +0.1017
+  - age <= -0.80: +0.0953
+  - education_1st-4th <= 0.00: +0.0670
+- Top negative features (weight):
+  - native-country_Columbia <= 0.00: -0.0438
+  - native-country_Cambodia <= 0.00: -0.0431
+  - native-country_Yugoslavia <= 0.00: -0.0356
+  - native-country_South <= 0.00: -0.0241
+  - native-country_Poland <= 0.00: -0.0110
+- Max positive: 0.218052  Max negative: -0.043758
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0152
+  - age: +0.0133
+  - relationship_Own-child: +0.0097
+  - hours-per-week: +0.0096
+  - education_Some-college: +0.0077
+- Top negative features (attribution_score):
+  - occupation_Prof-specialty: -0.0077
+  - sex_Male: -0.0056
+  - workclass_Private: -0.0026
+  - race_White: -0.0023
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.015175  Max negative: -0.007744
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0110  (orig=0.4479 → mod=0.4369)
+  - marital-status_Never-married: drop=+0.0090  (orig=0.4479 → mod=0.4389)
+  - relationship_Own-child: drop=+0.0072  (orig=0.4479 → mod=0.4406)
+  - workclass_Private: drop=-0.0067  (orig=0.4479 → mod=0.4546)
+  - education_Some-college: drop=+0.0067  (orig=0.4479 → mod=0.4412)
+  - hours-per-week: drop=+0.0061  (orig=0.4479 → mod=0.4418)
+  - occupation_Prof-specialty: drop=-0.0037  (orig=0.4479 → mod=0.4516)
+  - sex_Male: drop=-0.0029  (orig=0.4479 → mod=0.4508)
+  - race_White: drop=-0.0026  (orig=0.4479 → mod=0.4505)
+  - capital-loss: drop=+0.0017  (orig=0.4479 → mod=0.4462)
+- Max prob_drop: 0.010964  Max prob_increase: -0.006737
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income levels in the Adult dataset?
+- Status: Success
+- findings: ["age", "education-num", "hours-per-week", "workclass", "occupation", "relationship", "sex"]
+- Explanation: In the Adult dataset, income is strongly influenced by demographic and employment-related features. Age correlates with work experience and earnings potential. Education-num is a direct proxy for skill level and earnings capacity. Hours-per-week reflects work intensity and may correlate with higher income. Workclass and occupation are strong indicators of job type and pay level. Relationship status (e.g., 'Own-child') can reflect dependency and socioeconomic status, while sex shows historical disparities in earnings. Among these, age, education-num, and hours-per-week have consistently shown the strongest empirical correlations in prior research and model analyses on the Adult dataset. Workclass and occupation are categorical but highly predictive due to their association with industry and salary bands. Sex is also a known confounder in income distribution, though its impact is often studied in the context of fairness and bias.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: How might workclass=Private, marital-status=Never-married, and occupation=Prof-specialty influence the prediction of <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}]
+- Explanation: The model predicted <=50K with high confidence (79.08%), and the current feature values—workclass='Private', marital-status='Never-married', and occupation='Prof-specialty'—may contribute to this outcome. 'Private' workclass is common among lower-income individuals, especially in contexts where the dataset reflects historical employment patterns linked to lower earnings. 'Never-married' is often associated with fewer financial supports and lower household income, which can reduce the likelihood of income exceeding $50K. Although 'Prof-specialty' is a high-level occupation, it may not be sufficiently correlated with high income in this model due to data imbalances or sparse examples in the training set. Changing these features to more typical high-income categories (e.g., Local-gov, Married-civ-spouse, Adm-clerical) may shift the prediction toward >50K, suggesting that the model may be sensitive to marital status and workclass. However, the presence of 'Prof-specialty' could introduce noise if such occupations are underrepresented or inconsistently associated with high earnings in the training data. Thus, these features likely contribute to the model’s confidence in <=50K through combinations of socio-economic and structural signals, despite the occupation being high-level.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative impact of numerical features (age, education-num, fnlwgt) versus categorical features (workclass, marital-status, occupation) on income prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 40}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "fnlwgt", "action": "change", "new_value": 200000}, {"feature_key": "workclass", "action": "change", "new_value": "State-gov"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: Numerical features such as age, education-num, and fnlwgt have a more direct and measurable influence on income prediction in this context. The model's prediction of income ≤50K is likely driven by lower values in these features—such as young age (22), mid-level education (10), and modest income weight (131291). Increasing these values (e.g., to 40, 16, 200k) would likely shift the prediction toward higher income. Categorical features like workclass and marital-status are influential but more contextual; changing them (e.g., to 'State-gov' or 'Married-civ-spouse') can affect outcomes, but their impact is less predictable and often confounded with other variables. Thus, numerical features carry a more consistent and quantifiable influence on the model's decision.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (56.35%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=45, workclass=Local-gov, fnlwgt=170099, education=Assoc-acdm, education-num=12, marital-status=Married-civ-spouse, occupation=Handlers-cleaners, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.010688).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0423
+  - native-country_Cambodia: +0.0344
+  - fnlwgt: +0.0343
+  - native-country_United-States: +0.0151
+  - native-country_Yugoslavia: +0.0145
+- Top negative features (shap_value):
+  - capital-loss: -0.0423
+  - sex_Male: -0.0344
+  - age: -0.0343
+  - native-country_Trinadad&Tobago: -0.0151
+  - native-country_Vietnam: -0.0145
+- Max positive: 0.042315  Max negative: -0.042315
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - -0.05 < education-num <= 1.13: +0.0842
+  - native-country_Trinadad&Tobago <= 0.00: +0.0716
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0690
+  - native-country_El-Salvador <= 0.00: +0.0650
+  - native-country_Ireland <= 0.00: +0.0560
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2286
+  - capital-loss <= -0.22: -0.1291
+  - native-country_Jamaica <= 0.00: -0.0808
+  - native-country_India <= 0.00: -0.0788
+  - native-country_Columbia <= 0.00: -0.0642
+- Max positive: 0.084215  Max negative: -0.228621
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0166
+  - sex_Male: +0.0105
+  - relationship_Husband: +0.0096
+  - education-num: +0.0089
+  - age: +0.0052
+- Top negative features (attribution_score):
+  - occupation_Handlers-cleaners: -0.0048
+  - race_White: -0.0025
+  - education_Assoc-acdm: -0.0017
+  - fnlwgt: -0.0014
+  - capital-loss: -0.0009
+- Max positive: 0.016641  Max negative: -0.004788
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0107  (orig=0.6373 → mod=0.6266)
+  - occupation_Handlers-cleaners: drop=-0.0082  (orig=0.6373 → mod=0.6455)
+  - education_Assoc-acdm: drop=-0.0069  (orig=0.6373 → mod=0.6441)
+  - education-num: drop=+0.0066  (orig=0.6373 → mod=0.6307)
+  - sex_Male: drop=+0.0064  (orig=0.6373 → mod=0.6309)
+  - relationship_Husband: drop=+0.0053  (orig=0.6373 → mod=0.6319)
+  - workclass_Local-gov: drop=-0.0031  (orig=0.6373 → mod=0.6404)
+  - native-country_United-States: drop=+0.0030  (orig=0.6373 → mod=0.6343)
+  - age: drop=+0.0017  (orig=0.6373 → mod=0.6355)
+  - capital-loss: drop=-0.0016  (orig=0.6373 → mod=0.6388)
+- Max prob_drop: 0.010688  Max prob_increase: -0.008236
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Local-gov' or 'occupation=Handlers-cleaners' be semantically irrelevant to income classification in the context of the true label <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Unknown"}, {"feature_key": "occupation", "action": "change", "new_value": "Unknown"}]
+- Explanation: In the context of income classification, 'workclass' and 'occupation' are often correlated with income levels due to general societal patterns (e.g., managerial roles typically earning more). However, 'Local-gov' and 'Handlers-cleaners' are specific categories that do not show a strong, direct link to income outcomes. 'Handlers-cleaners' is a lower-wage occupation typically associated with entry-level or service jobs, which may not be strongly predictive of income above $50K. 'Local-gov' refers to government employment at the local level, which generally has lower pay scales compared to private sector or executive roles. Given the true label is <=50K, these categories may reflect a spurious correlation rather than meaningful signal—specifically, they could be semantically disconnected from the income outcome and instead represent noise or irrelevant features that the model has learned from due to statistical co-occurrence in the training data. Changing them to 'Unknown' removes the potential for spurious influence.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in features like 'age', 'education-num', and 'sex' with their known semantic relevance to income; identify any discrepancies.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model predicted the individual as >50K with 56.35% confidence, despite the true label being <=50K. Semantically, 'sex' is a well-documented factor in income prediction with strong evidence showing that males are more likely to earn >50K, especially in the context of the original dataset (which shows male-dominated higher-income groups). However, in this case, the individual is 'Male', which should increase the probability of >50K. Since the true label is <=50K, the model's high confidence in 'sex' as a predictor—despite the feature being strongly relevant—suggests that the model may be over-relying on this feature. But critically, 'sex' is semantically relevant, so it is not irrelevant. After reviewing all features, no feature has both high model attribution and low semantic relevance. However, if we interpret 'irrelevant' as a feature that the model assigns high weight to but which does not meaningfully affect income (e.g., noise), none of the top features meet that. Therefore, the model may be over-attending to a relevant feature (sex), not a truly irrelevant one. Thus, there is no feature that is both highly attributed and semantically neutral or irrelevant to income in this context. As such, the only plausible interpretation of an 'irrelevant' part is a misalignment in the model's understanding of the data, but no specific feature demonstrates both high attribution and low semantic relevance. Hence, no such feature exists in the list.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Local-gov' or 'occupation=Handlers-cleaners' be semantically irrelevant to income classification in the context of the true label <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Unknown"}, {"feature_key": "occupation", "action": "change", "new_value": "Unknown"}]
+- Explanation: In the context of income classification, 'workclass' and 'occupation' are often correlated with income levels due to general societal patterns (e.g., managerial roles typically earning more). However, 'Local-gov' and 'Handlers-cleaners' are specific categories that do not show a strong, direct link to income outcomes. 'Handlers-cleaners' is a lower-wage occupation typically associated with entry-level or service jobs, which may not be strongly predictive of income above $50K. 'Local-gov' refers to government employment at the local level, which generally has lower pay scales compared to private sector or executive roles. Given the true label is <=50K, these categories may reflect a spurious correlation rather than meaningful signal—specifically, they could be semantically disconnected from the income outcome and instead represent noise or irrelevant features that the model has learned from due to statistical co-occurrence in the training data. Changing them to 'Unknown' removes the potential for spurious influence.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in features like 'age', 'education-num', and 'sex' with their known semantic relevance to income; identify any discrepancies.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model predicted the individual as >50K with 56.35% confidence, despite the true label being <=50K. Semantically, 'sex' is a well-documented factor in income prediction with strong evidence showing that males are more likely to earn >50K, especially in the context of the original dataset (which shows male-dominated higher-income groups). However, in this case, the individual is 'Male', which should increase the probability of >50K. Since the true label is <=50K, the model's high confidence in 'sex' as a predictor—despite the feature being strongly relevant—suggests that the model may be over-relying on this feature. But critically, 'sex' is semantically relevant, so it is not irrelevant. After reviewing all features, no feature has both high model attribution and low semantic relevance. However, if we interpret 'irrelevant' as a feature that the model assigns high weight to but which does not meaningfully affect income (e.g., noise), none of the top features meet that. Therefore, the model may be over-attending to a relevant feature (sex), not a truly irrelevant one. Thus, there is no feature that is both highly attributed and semantically neutral or irrelevant to income in this context. As such, the only plausible interpretation of an 'irrelevant' part is a misalignment in the model's understanding of the data, but no specific feature demonstrates both high attribution and low semantic relevance. Hence, no such feature exists in the list.
+- Confidence: 0.85
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

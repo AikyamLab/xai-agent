@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (64.63%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6462621688842773}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.35373783111572266}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=41, workclass=Private, fnlwgt=184102, education=11th, education-num=7, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.014623).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0448
+  - capital-loss: +0.0373
+  - education_Some-college: +0.0239
+  - native-country_Cuba: +0.0173
+  - native-country_Japan: +0.0173
+- Top negative features (shap_value):
+  - race_Other: -0.0448
+  - hours-per-week: -0.0373
+  - marital-status_Divorced: -0.0239
+  - native-country_Columbia: -0.0173
+  - native-country_Laos: -0.0173
+- Max positive: 0.044771  Max negative: -0.044771
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0146  (orig=0.4125 → mod=0.3979)
+  - marital-status_Divorced: drop=+0.0122  (orig=0.4125 → mod=0.4003)
+  - sex_Male: drop=-0.0098  (orig=0.4125 → mod=0.4223)
+  - education_11th: drop=+0.0097  (orig=0.4125 → mod=0.4027)
+  - relationship_Not-in-family: drop=+0.0065  (orig=0.4125 → mod=0.4060)
+  - occupation_Other-service: drop=+0.0051  (orig=0.4125 → mod=0.4074)
+  - native-country_United-States: drop=-0.0045  (orig=0.4125 → mod=0.4170)
+  - workclass_Private: drop=+0.0038  (orig=0.4125 → mod=0.4086)
+  - capital-loss: drop=+0.0008  (orig=0.4125 → mod=0.4116)
+  - capital-gain: drop=+0.0007  (orig=0.4125 → mod=0.4118)
+- Max prob_drop: 0.014623  Max prob_increase: -0.009822
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Divorced' in the input and the model predicts <=50K with high confidence, how might removing this feature affect the class distribution, considering that divorced individuals are often associated with lower income in socio-demographic patterns?
+- Status: Success
+- findings: {"prediction_after_removal": "<=50K", "reason": "Removing the marital-status feature would not shift the prediction toward >50K; it would maintain the current prediction of <=50K."}
+- Explanation: In socio-demographic patterns, individuals who are divorced are often associated with lower income levels compared to those who are married or in other stable relationships. The current model predicts <=50K with 64.63% confidence based on the input including 'Divorced' marital-status. This feature has likely contributed to the model's decision through learned associations in the training data. If marital-status is removed, the model would lose this signal, and without a compensating feature to represent income trends related to family status, the prediction may become more uncertain. However, due to the strong inherent patterns in the dataset—where divorced individuals are statistically underrepresented in higher-income groups—removing the feature does not reverse the trend toward lower income. Therefore, the prediction remains aligned with <=50K. The model's confidence may slightly decrease, but not enough to shift the outcome toward >50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the relative importance of marital-status with other features like age, education-num, and sex in the context of income prediction using domain knowledge and model structure
+- Status: Success
+- findings: "marital-status is a supporting feature in the income prediction model, but not a dominant one. Compared to age and education-num, which have strong domain-based correlations with occupational stability and socioeconomic position, marital-status has a more indirect influence. While marital status may correlate with economic stability in real-world contexts, the model's prediction (income \u226450K) is primarily driven by features like age, education-num, and sex, which are more directly linked to income levels. Sex, in particular, shows a strong predictive signal in the dataset, and age reflects cumulative labor market experience. Marital-status acts as a contextual modifier rather than a primary driver. Thus, changing marital-status from 'Divorced' to another value (e.g., 'Married-civ-spouse') is likely to cause a small or negligible shift in prediction, unless paired with other feature changes."
+- Explanation: Marital-status has a moderate but indirect influence on income prediction. Domain knowledge suggests that marital status can influence economic stability, but in the model's structure—especially with data from the Census Income dataset—features like age, education-num, and sex are more strongly correlated with income levels. Age reflects life stage and career duration, education-num reflects skill level and potential earning capacity, and sex has historically been a significant predictor in such datasets (though ethically sensitive). Marital-status, while potentially relevant, is less predictive on its own. Therefore, changing it would likely result in only a minor change in the model’s output, making it a supporting rather than dominant feature.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Divorced' in the input and the model predicts <=50K with high confidence, how might removing this feature affect the class distribution, considering that divorced individuals are often associated with lower income in socio-demographic patterns?
+- Status: Success
+- findings: {"prediction_after_removal": "<=50K", "reason": "Removing the marital-status feature would not shift the prediction toward >50K; it would maintain the current prediction of <=50K."}
+- Explanation: In socio-demographic patterns, individuals who are divorced are often associated with lower income levels compared to those who are married or in other stable relationships. The current model predicts <=50K with 64.63% confidence based on the input including 'Divorced' marital-status. This feature has likely contributed to the model's decision through learned associations in the training data. If marital-status is removed, the model would lose this signal, and without a compensating feature to represent income trends related to family status, the prediction may become more uncertain. However, due to the strong inherent patterns in the dataset—where divorced individuals are statistically underrepresented in higher-income groups—removing the feature does not reverse the trend toward lower income. Therefore, the prediction remains aligned with <=50K. The model's confidence may slightly decrease, but not enough to shift the outcome toward >50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the relative importance of marital-status with other features like age, education-num, and sex in the context of income prediction using domain knowledge and model structure
+- Status: Success
+- findings: "marital-status is a supporting feature in the income prediction model, but not a dominant one. Compared to age and education-num, which have strong domain-based correlations with occupational stability and socioeconomic position, marital-status has a more indirect influence. While marital status may correlate with economic stability in real-world contexts, the model's prediction (income \u226450K) is primarily driven by features like age, education-num, and sex, which are more directly linked to income levels. Sex, in particular, shows a strong predictive signal in the dataset, and age reflects cumulative labor market experience. Marital-status acts as a contextual modifier rather than a primary driver. Thus, changing marital-status from 'Divorced' to another value (e.g., 'Married-civ-spouse') is likely to cause a small or negligible shift in prediction, unless paired with other feature changes."
+- Explanation: Marital-status has a moderate but indirect influence on income prediction. Domain knowledge suggests that marital status can influence economic stability, but in the model's structure—especially with data from the Census Income dataset—features like age, education-num, and sex are more strongly correlated with income levels. Age reflects life stage and career duration, education-num reflects skill level and potential earning capacity, and sex has historically been a significant predictor in such datasets (though ethically sensitive). Marital-status, while potentially relevant, is less predictive on its own. Therefore, changing it would likely result in only a minor change in the model’s output, making it a supporting rather than dominant feature.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

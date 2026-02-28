@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach is optimal because autonomous analysis can quickly identify plausible high-impact features based on domain knowledge and model structure, while external XAI tools like SHAP and sensitivity analysis provide rigorous, data-driven evidence of feature importance and counterfactual influence. This ensures both efficiency and robustness in identifying effective changes.",
+  "confidence": 0.88,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify which features in the input are likely to have strong influence on income prediction, based on known socioeconomic patterns and the model's architecture (TabNN)",
+      "expected_output": "List of high-impact features such as age, education-num, occupation, workclass, and marital-status."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "For the identified high-impact features, reason about how their values would need to change to shift the prediction from <=50K to >50K",
+      "expected_output": "A set of hypothesized changes, e.g., increasing education-num to 13, changing workclass to 'Self-emp-inc', or changing occupation to 'Prof-specialty'."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the predicted probabilities after applying the hypothesized changes using the model and evaluate the net effect",
+      "expected_output": "A ranked list of proposed changes with estimated new predictions and confidence scores."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP is used to obtain contrastive importance scores between the target class (>50K) and current class (<=50K), highlighting features that contribute most to the discrepancy. Sensitivity analysis validates the impact of feature perturbations by measuring prediction drift when each feature is altered, providing empirical confirmation of counterfactual feasibility."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP is used to obtain contrastive importance scores between the target class (>50K) and current class (<=50K), highlighting features that contribute most to the discrepancy. Sensitivity analysis validates the impact of feature perturbations by measuring prediction drift when each feature is altered, providing empirical confirmation of counterfactual feasibility.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP is used to obtain contrastive importance scores between the target class (>50K) and current class (<=50K), highlighting features that contribute most to the discrepancy. Sensitivity analysis validates the impact of feature perturbations by measuring prediction drift when each feature is altered, providing empirical confirmation of counterfactual feasibility.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

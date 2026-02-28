@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (68.51%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.31491780281066895}
+
+## Input Data
+Features: age=55, workclass=Private, fnlwgt=124808, education=Assoc-voc, education-num=11, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=1977, hours-per-week=50, native-country=Germany
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss > -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.016742).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.0893
+  - workclass_State-gov: +0.0255
+  - hours-per-week: +0.0185
+  - native-country_Cambodia: +0.0154
+  - native-country_United-States: +0.0144
+- Top negative features (shap_value):
+  - workclass_Private: -0.0893
+  - workclass_Self-emp-not-inc: -0.0255
+  - capital-loss: -0.0185
+  - sex_Male: -0.0154
+  - native-country_Trinadad&Tobago: -0.0144
+- Max positive: 0.089291  Max negative: -0.089291
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss > -0.22: +0.0807
+  - marital-status_Divorced <= 0.00: +0.0589
+  - native-country_Vietnam <= 0.00: +0.0535
+  - native-country_Columbia <= 0.00: +0.0520
+  - hours-per-week > 0.34: +0.0463
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0753
+  - education_Masters <= 0.00: -0.0490
+  - native-country_South <= 0.00: -0.0228
+  - native-country_Italy <= 0.00: -0.0021
+- Max positive: 0.08071  Max negative: -0.075282
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0192
+  - sex_Male: +0.0065
+  - marital-status_Married-civ-spouse: +0.0054
+  - relationship_Husband: +0.0052
+  - hours-per-week: +0.0047
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0017
+  - workclass_Private: -0.0014
+  - occupation_Prof-specialty: -0.0008
+  - native-country_Germany: -0.0006
+  - capital-gain: -0.0003
+- Max positive: 0.019169  Max negative: -0.001701
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0167  (orig=0.6649 → mod=0.6481)
+  - relationship_Husband: drop=+0.0058  (orig=0.6649 → mod=0.6591)
+  - marital-status_Married-civ-spouse: drop=+0.0054  (orig=0.6649 → mod=0.6595)
+  - sex_Male: drop=+0.0050  (orig=0.6649 → mod=0.6598)
+  - hours-per-week: drop=+0.0030  (orig=0.6649 → mod=0.6619)
+  - race_White: drop=+0.0024  (orig=0.6649 → mod=0.6625)
+  - education-num: drop=+0.0019  (orig=0.6649 → mod=0.6629)
+  - age: drop=+0.0018  (orig=0.6649 → mod=0.6631)
+  - occupation_Prof-specialty: drop=+0.0017  (orig=0.6649 → mod=0.6632)
+  - education_Assoc-voc: drop=+0.0011  (orig=0.6649 → mod=0.6637)
+- Max prob_drop: 0.016742  Max prob_increase: -0.001093
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income (>50K) in the adult dataset, such as education level, workclass, and marital status?
+- Status: Success
+- findings: ["education-num", "workclass", "marital-status", "occupation", "hours-per-week", "sex"]
+- Explanation: In the Adult dataset, several features are well-documented to be strongly correlated with income >50K. 'education-num' reflects the level of education, with higher values (e.g., 13+) consistently associated with higher income. 'workclass' shows that private sector employment is often linked to higher earnings. 'marital-status' indicates that married individuals, particularly with a spouse, tend to have higher earnings. 'occupation' such as 'Prof-specialty' is a strong predictor of high income. 'hours-per-week' above the median (e.g., 40+) correlates with higher income. Lastly, while sex shows a notable disparity, 'sex' is a known confounder and is correlated with >50K in the data despite potential societal biases. Among these, education-num, workclass, marital-status, occupation, and hours-per-week are the most consistently and statistically significant features in predictive models for income >50K.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: What differences exist between the top-1 (>50K) and top-2 (<=50K) predictions in terms of feature values, and which features are consistently present or absent in the >50K group?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 55, "impact": "Higher age is typically associated with greater income potential, especially in stable occupations. This value is present in both classes, but higher age in the >50K group may contribute to stronger prediction."}, {"feature_key": "education-num", "action": "change", "new_value": 11, "impact": "An 'Assoc-voc' education level (education-num=11) is moderately skilled. While not strongly predictive of high income, it supports the >50K prediction when combined with high work hours and a high-paying occupation."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact": "The occupation 'Prof-specialty' is strongly predictive of higher income. This feature is present in the >50K group and is rarely found in the <=50K group, making it a key differentiator."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50, "impact": "Above-average work hours (50 weeks) suggest higher labor commitment, which correlates with higher income. This value significantly increases the probability of being in the >50K class."}, {"feature_key": "capital-gain", "action": "change", "new_value": 0, "impact": "A capital gain of zero is common in both groups. However, in the >50K group, the absence of capital gain may be offset by high income from employment, suggesting alternative income sources are not necessary for high income prediction."}, {"feature_key": "capital-loss", "action": "change", "new_value": 1977, "impact": "A non-zero capital loss may reduce expected income and increase likelihood of being in the <=50K group. The presence of a capital loss here is unusual in the >50K group, suggesting this may be an outlier or noise, not a distinguishing feature."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact": "The 'Private' workclass is common across classes but is associated with higher income in many datasets. It is present in the >50K group and supports the prediction, though not uniquely distinguishing."}]
+- Explanation: The model prediction of >50K is most strongly influenced by occupation ('Prof-specialty') and hours-per-week (50), both of which are associated with higher earning potential. These features are rare or absent in the <=50K group. Education level and age provide supporting context but are not sufficient alone. Capital loss is present, which may indicate financial risk, but it does not drive the classification. The feature 'sex' is 'Male', which is common in both groups and not predictive. The primary distinguishing features are occupation and hours-per-week, with education-num providing moderate support. No feature is consistently absent in the >50K group, but occupation and work hours are consistently present and critical to the prediction.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income (>50K) in the adult dataset, such as education level, workclass, and marital status?
+- Status: Success
+- findings: ["education-num", "workclass", "marital-status", "occupation", "hours-per-week", "sex"]
+- Explanation: In the Adult dataset, several features are well-documented to be strongly correlated with income >50K. 'education-num' reflects the level of education, with higher values (e.g., 13+) consistently associated with higher income. 'workclass' shows that private sector employment is often linked to higher earnings. 'marital-status' indicates that married individuals, particularly with a spouse, tend to have higher earnings. 'occupation' such as 'Prof-specialty' is a strong predictor of high income. 'hours-per-week' above the median (e.g., 40+) correlates with higher income. Lastly, while sex shows a notable disparity, 'sex' is a known confounder and is correlated with >50K in the data despite potential societal biases. Among these, education-num, workclass, marital-status, occupation, and hours-per-week are the most consistently and statistically significant features in predictive models for income >50K.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: What differences exist between the top-1 (>50K) and top-2 (<=50K) predictions in terms of feature values, and which features are consistently present or absent in the >50K group?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 55, "impact": "Higher age is typically associated with greater income potential, especially in stable occupations. This value is present in both classes, but higher age in the >50K group may contribute to stronger prediction."}, {"feature_key": "education-num", "action": "change", "new_value": 11, "impact": "An 'Assoc-voc' education level (education-num=11) is moderately skilled. While not strongly predictive of high income, it supports the >50K prediction when combined with high work hours and a high-paying occupation."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact": "The occupation 'Prof-specialty' is strongly predictive of higher income. This feature is present in the >50K group and is rarely found in the <=50K group, making it a key differentiator."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50, "impact": "Above-average work hours (50 weeks) suggest higher labor commitment, which correlates with higher income. This value significantly increases the probability of being in the >50K class."}, {"feature_key": "capital-gain", "action": "change", "new_value": 0, "impact": "A capital gain of zero is common in both groups. However, in the >50K group, the absence of capital gain may be offset by high income from employment, suggesting alternative income sources are not necessary for high income prediction."}, {"feature_key": "capital-loss", "action": "change", "new_value": 1977, "impact": "A non-zero capital loss may reduce expected income and increase likelihood of being in the <=50K group. The presence of a capital loss here is unusual in the >50K group, suggesting this may be an outlier or noise, not a distinguishing feature."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact": "The 'Private' workclass is common across classes but is associated with higher income in many datasets. It is present in the >50K group and supports the prediction, though not uniquely distinguishing."}]
+- Explanation: The model prediction of >50K is most strongly influenced by occupation ('Prof-specialty') and hours-per-week (50), both of which are associated with higher earning potential. These features are rare or absent in the <=50K group. Education level and age provide supporting context but are not sufficient alone. Capital loss is present, which may indicate financial risk, but it does not drive the classification. The feature 'sex' is 'Male', which is common in both groups and not predictive. The primary distinguishing features are occupation and hours-per-week, with education-num providing moderate support. No feature is consistently absent in the >50K group, but occupation and work hours are consistently present and critical to the prediction.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.31491780281066895}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

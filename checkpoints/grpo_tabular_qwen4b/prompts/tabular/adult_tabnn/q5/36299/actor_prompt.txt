@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the capital-loss feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6839
+
+## Part to be Masked
+capital-loss
+
+## Input Data
+Features: age=35, workclass=Self-emp-not-inc, fnlwgt=185621, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.020154).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0485
+  - sex_Male: +0.0368
+  - native-country_Columbia: +0.0252
+  - native-country_Yugoslavia: +0.0162
+  - native-country_Trinadad&Tobago: +0.0132
+- Top negative features (shap_value):
+  - capital-loss: -0.0485
+  - native-country_Cambodia: -0.0368
+  - native-country_Cuba: -0.0252
+  - native-country_Vietnam: -0.0162
+  - native-country_United-States: -0.0132
+- Max positive: 0.048536  Max negative: -0.048536
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0202  (orig=0.4216 → mod=0.4015)
+  - education-num: drop=-0.0084  (orig=0.4216 → mod=0.4300)
+  - relationship_Own-child: drop=+0.0071  (orig=0.4216 → mod=0.4145)
+  - sex_Female: drop=+0.0066  (orig=0.4216 → mod=0.4150)
+  - age: drop=+0.0052  (orig=0.4216 → mod=0.4165)
+  - workclass_Self-emp-not-inc: drop=-0.0048  (orig=0.4216 → mod=0.4264)
+  - occupation_Prof-specialty: drop=-0.0040  (orig=0.4216 → mod=0.4257)
+  - education_Bachelors: drop=-0.0028  (orig=0.4216 → mod=0.4244)
+  - race_White: drop=+0.0026  (orig=0.4216 → mod=0.4191)
+  - native-country_United-States: drop=-0.0019  (orig=0.4216 → mod=0.4236)
+- Max prob_drop: 0.020154  Max prob_increase: -0.008382
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with high confidence, and the input features include no explicit mention of financial loss or capital gains, evaluate whether capital-loss is likely to be a strong driver of this prediction.
+- Status: Success
+- findings: {"is_capital_loss_a_strong_driver": false}
+- Explanation: The model predicts income <=50K with 68.39% confidence, and the current input shows capital-loss = 0. In the provided context, there is no explicit financial loss or gain mentioned in the individual's profile. Capital-loss is a feature that typically appears in financial datasets to represent losses from the sale of assets, which may correlate with income in certain economic models. However, in this case, the individual has no capital-gain or capital-loss, and the rest of the features—such as education level, occupation, marital status, and gender—do not suggest a high financial risk or loss scenario. Additionally, the absence of a strong correlation between capital-loss and income in the training data (as indicated by the lack of top predictions or feature importance) suggests that capital-loss is not a dominant driver of the prediction. Therefore, masking capital-loss would likely not alter the model’s prediction significantly, especially given the high confidence in the current <=50K outcome.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the sensitivity of the prediction to capital-loss versus other features like age, education, or workclass in the provided input profile.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null, "impact": "neutral", "reason": "The model already predicted '\u226450K' with 68.39% confidence and the current value of capital-loss is 0. Masking this feature does not alter the prediction since the feature is already zero and inactive in the input. No observable change in prediction is expected, indicating low sensitivity."}, {"feature_key": "age", "action": "change", "new_value": 50, "impact": "moderate", "reason": "Age is a strong predictor in income models, particularly in tabular datasets with income classification. Increasing age from 35 to 50 may shift the prediction toward '\u226450K' or '>>50K' depending on the model's learned thresholds, indicating higher sensitivity."}, {"feature_key": "education", "action": "change", "new_value": "Masters", "impact": "moderate to high", "reason": "Higher education levels (e.g., Masters vs. Bachelors) are strongly associated with higher income in income prediction models. A shift to 'Masters' could increase the model\u2019s confidence in predicting '>>50K', showing significant predictive influence."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact": "moderate", "reason": "Workclass influences income through job type and income potential. Changing from 'Self-emp-not-inc' to 'Private' may alter the prediction slightly, though less than education due to category-specific average incomes."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60, "impact": "moderate", "reason": "Hours per week are often correlated with higher income. Increasing hours from 40 to 60 may shift the prediction toward '>>50K', especially in models where work hours are a direct or indirect predictor."}]
+- Explanation: Capital-loss is currently zero and does not contribute any additional signal to the model. Masking it has no effect because the feature is inactive. In contrast, features like age, education, workclass, and hours-per-week have established, measurable influence on income prediction in tabular datasets. Education and age show the strongest predictive sensitivity, while hours-per-week and workclass show moderate effects. Capital-loss, being zero, is not a driver of prediction and thus exhibits minimal impact when masked.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with high confidence, and the input features include no explicit mention of financial loss or capital gains, evaluate whether capital-loss is likely to be a strong driver of this prediction.
+- Status: Success
+- findings: {"is_capital_loss_a_strong_driver": false}
+- Explanation: The model predicts income <=50K with 68.39% confidence, and the current input shows capital-loss = 0. In the provided context, there is no explicit financial loss or gain mentioned in the individual's profile. Capital-loss is a feature that typically appears in financial datasets to represent losses from the sale of assets, which may correlate with income in certain economic models. However, in this case, the individual has no capital-gain or capital-loss, and the rest of the features—such as education level, occupation, marital status, and gender—do not suggest a high financial risk or loss scenario. Additionally, the absence of a strong correlation between capital-loss and income in the training data (as indicated by the lack of top predictions or feature importance) suggests that capital-loss is not a dominant driver of the prediction. Therefore, masking capital-loss would likely not alter the model’s prediction significantly, especially given the high confidence in the current <=50K outcome.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the sensitivity of the prediction to capital-loss versus other features like age, education, or workclass in the provided input profile.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null, "impact": "neutral", "reason": "The model already predicted '\u226450K' with 68.39% confidence and the current value of capital-loss is 0. Masking this feature does not alter the prediction since the feature is already zero and inactive in the input. No observable change in prediction is expected, indicating low sensitivity."}, {"feature_key": "age", "action": "change", "new_value": 50, "impact": "moderate", "reason": "Age is a strong predictor in income models, particularly in tabular datasets with income classification. Increasing age from 35 to 50 may shift the prediction toward '\u226450K' or '>>50K' depending on the model's learned thresholds, indicating higher sensitivity."}, {"feature_key": "education", "action": "change", "new_value": "Masters", "impact": "moderate to high", "reason": "Higher education levels (e.g., Masters vs. Bachelors) are strongly associated with higher income in income prediction models. A shift to 'Masters' could increase the model\u2019s confidence in predicting '>>50K', showing significant predictive influence."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact": "moderate", "reason": "Workclass influences income through job type and income potential. Changing from 'Self-emp-not-inc' to 'Private' may alter the prediction slightly, though less than education due to category-specific average incomes."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60, "impact": "moderate", "reason": "Hours per week are often correlated with higher income. Increasing hours from 40 to 60 may shift the prediction toward '>>50K', especially in models where work hours are a direct or indirect predictor."}]
+- Explanation: Capital-loss is currently zero and does not contribute any additional signal to the model. Masking it has no effect because the feature is inactive. In contrast, features like age, education, workclass, and hours-per-week have established, measurable influence on income prediction in tabular datasets. Education and age show the strongest predictive sensitivity, while hours-per-week and workclass show moderate effects. Capital-loss, being zero, is not a driver of prediction and thus exhibits minimal impact when masked.
+- Confidence: 0.95
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

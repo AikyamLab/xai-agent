@@ -1,0 +1,143 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the tumor to be benign. How should the instance change to flip the model into malignant?
+
+## Current State
+- Current Prediction: benign (66.13%)
+- Target Prediction: malignant
+
+## Input Data
+Features: mean radius=13.94, mean texture=13.17, mean perimeter=90.31, mean area=594.2, mean smoothness=0.1248, mean compactness=0.09755, mean concavity=0.101, mean concave points=0.06615, mean symmetry=0.1976, mean fractal dimension=0.06457, radius error=0.5461, texture error=2.635, perimeter error=4.091, area error=44.74, smoothness error=0.01004, compactness error=0.03247, concavity error=0.04763, concave points error=0.02853, symmetry error=0.01715, fractal dimension error=0.005528, worst radius=14.62, worst texture=15.38, worst perimeter=94.52, worst area=653.3, worst smoothness=0.1394, worst compactness=0.1364, worst concavity=0.1559, worst concave points=0.1015, worst symmetry=0.216, worst fractal dimension=0.07253
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: mean symmetry.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: worst texture <= -0.75.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst texture.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst texture (prob drop: 0.017835).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean symmetry: +0.0293
+  - mean area: +0.0242
+  - smoothness error: +0.0236
+  - fractal dimension error: +0.0108
+- Top negative features (shap_value):
+  - mean fractal dimension: -0.0293
+  - mean perimeter: -0.0242
+  - compactness error: -0.0236
+  - symmetry error: -0.0108
+  - mean radius: +0.0000
+- Max positive: 0.029319  Max negative: -0.029319
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst texture <= -0.75: +0.0906
+  - worst symmetry <= -0.64: +0.0638
+  - worst compactness <= -0.68: +0.0453
+  - -0.76 < worst concavity <= -0.22: +0.0419
+  - -0.67 < worst radius <= -0.27: +0.0371
+- Top negative features (weight):
+  - mean smoothness > 0.64: -0.0595
+  - mean symmetry > 0.53: -0.0590
+  - radius error > 0.27: -0.0484
+- Max positive: 0.090581  Max negative: -0.059489
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst texture: +0.0146
+  - mean texture: +0.0090
+  - worst radius: +0.0053
+  - concavity error: +0.0036
+  - worst concavity: +0.0034
+- Top negative features (attribution_score):
+  - mean smoothness: -0.0073
+  - mean concave points: -0.0061
+  - concave points error: -0.0061
+  - texture error: -0.0042
+  - mean symmetry: -0.0032
+- Max positive: 0.014627  Max negative: -0.007319
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst texture: drop=+0.0178  (orig=0.6595 → mod=0.6417)
+  - mean texture: drop=+0.0072  (orig=0.6595 → mod=0.6524)
+  - texture error: drop=-0.0050  (orig=0.6595 → mod=0.6646)
+  - mean concave points: drop=-0.0040  (orig=0.6595 → mod=0.6636)
+  - worst symmetry: drop=+0.0035  (orig=0.6595 → mod=0.6560)
+  - worst concavity: drop=+0.0031  (orig=0.6595 → mod=0.6564)
+  - concave points error: drop=-0.0029  (orig=0.6595 → mod=0.6624)
+  - worst radius: drop=+0.0027  (orig=0.6595 → mod=0.6568)
+  - worst area: drop=+0.0025  (orig=0.6595 → mod=0.6570)
+  - mean symmetry: drop=-0.0020  (orig=0.6595 → mod=0.6615)
+- Max prob_drop: 0.017835  Max prob_increase: -0.005044
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are clinically associated with malignancy in breast cancer, based on known medical literature?
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "clinical_significance": "Higher mean concavity is strongly associated with malignant tumors. Concavity measures the irregularity of the tumor's border, and malignant tumors typically exhibit more irregular borders, leading to higher concavity values."}, {"feature_key": "mean concave points", "clinical_significance": "Concave points quantify the number of concave portions in the tumor boundary. Malignant tumors often have more concave regions, resulting in elevated concave points, which serve as a key indicator of malignancy."}, {"feature_key": "worst concavity", "clinical_significance": "The worst concavity feature reflects the most extreme concavity observed in the tumor. In malignant tumors, worst concavity is significantly higher than in benign ones, making it a powerful predictor of malignancy."}, {"feature_key": "worst concave points", "clinical_significance": "Like worst concavity, worst concave points are more pronounced in malignant tumors due to irregular tumor morphology, and are consistently found to be elevated in malignant cases."}, {"feature_key": "mean compactness", "clinical_significance": "Compactness measures the compactness of the tumor's shape. Malignant tumors tend to be more compact and dense, leading to elevated compactness values compared to benign tumors, which are more smooth and regular."}]
+- Explanation: Based on medical literature such as the Wisconsin Breast Cancer Dataset (from the UCI Machine Learning Repository) and established pathology guidelines, features related to tumor irregularity (concavity and concave points) and density (compactness) are clinically well-documented as being more pronounced in malignant tumors. These features reflect the irregular, invasive growth patterns of cancerous tissue. Additionally, 'worst' features (which represent the most extreme measurements) are more sensitive in distinguishing malignancy because they capture the most aggressive tumor characteristics. All of these features are known to be significantly different between malignant and benign tumors in breast cancer classification.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the current prediction (benign) with the target prediction (malignant) in terms of typical feature distributions in known malignant vs benign cases from public datasets like Breast Cancer Wisconsin (UCI)
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "increase", "new_value": 20, "explanation": "Malignant tumors typically have larger mean radius values compared to benign ones. In the Breast Cancer Wisconsin dataset, mean radius in malignant cases ranges from ~15 to 30, while benign cases are generally below 15. Increasing from 13.94 to 20 shifts the feature into the malignant range."}, {"feature_key": "mean texture", "action": "increase", "new_value": 18.0, "explanation": "Mean texture is generally higher in malignant tumors. The typical range for malignant cases is ~15\u201325, while benign tumors are usually below 14. Increasing from 13.17 to 18.0 moves the value into the malignant domain."}, {"feature_key": "mean perimeter", "action": "increase", "new_value": 110, "explanation": "Malignant tumors show significantly higher mean perimeter values. Benign cases typically have perimeters under 100, whereas malignant cases range from ~100 to 160. Increasing from 90.31 to 110 pushes the instance toward malignancy."}, {"feature_key": "mean area", "action": "increase", "new_value": 800, "explanation": "Mean area is strongly correlated with malignancy. Malignant tumors have mean areas typically above 600, while benign cases are generally under 500. Raising from 594.2 to 800 aligns the instance with known malignant patterns."}, {"feature_key": "mean concavity", "action": "increase", "new_value": 0.25, "explanation": "Mean concavity is a key differentiator\u2014malignant tumors have significantly higher concavity (typically above 0.20), while benign tumors are below 0.15. Increasing from 0.101 to 0.25 improves malignancy likelihood."}]
+- Explanation: In the Breast Cancer Wisconsin dataset (UCI), malignant tumors consistently exhibit higher values in features related to tumor size, texture, and irregularity. Features like mean radius, texture, perimeter, area, and concavity are known to be substantially larger in malignant cases. By increasing these values toward their typical malignant ranges, the instance shifts from a benign to a malignant prediction. The changes are grounded in empirical distributions from public data sources, making them both biologically plausible and statistically supported.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are clinically associated with malignancy in breast cancer, based on known medical literature?
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "clinical_significance": "Higher mean concavity is strongly associated with malignant tumors. Concavity measures the irregularity of the tumor's border, and malignant tumors typically exhibit more irregular borders, leading to higher concavity values."}, {"feature_key": "mean concave points", "clinical_significance": "Concave points quantify the number of concave portions in the tumor boundary. Malignant tumors often have more concave regions, resulting in elevated concave points, which serve as a key indicator of malignancy."}, {"feature_key": "worst concavity", "clinical_significance": "The worst concavity feature reflects the most extreme concavity observed in the tumor. In malignant tumors, worst concavity is significantly higher than in benign ones, making it a powerful predictor of malignancy."}, {"feature_key": "worst concave points", "clinical_significance": "Like worst concavity, worst concave points are more pronounced in malignant tumors due to irregular tumor morphology, and are consistently found to be elevated in malignant cases."}, {"feature_key": "mean compactness", "clinical_significance": "Compactness measures the compactness of the tumor's shape. Malignant tumors tend to be more compact and dense, leading to elevated compactness values compared to benign tumors, which are more smooth and regular."}]
+- Explanation: Based on medical literature such as the Wisconsin Breast Cancer Dataset (from the UCI Machine Learning Repository) and established pathology guidelines, features related to tumor irregularity (concavity and concave points) and density (compactness) are clinically well-documented as being more pronounced in malignant tumors. These features reflect the irregular, invasive growth patterns of cancerous tissue. Additionally, 'worst' features (which represent the most extreme measurements) are more sensitive in distinguishing malignancy because they capture the most aggressive tumor characteristics. All of these features are known to be significantly different between malignant and benign tumors in breast cancer classification.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the current prediction (benign) with the target prediction (malignant) in terms of typical feature distributions in known malignant vs benign cases from public datasets like Breast Cancer Wisconsin (UCI)
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "increase", "new_value": 20, "explanation": "Malignant tumors typically have larger mean radius values compared to benign ones. In the Breast Cancer Wisconsin dataset, mean radius in malignant cases ranges from ~15 to 30, while benign cases are generally below 15. Increasing from 13.94 to 20 shifts the feature into the malignant range."}, {"feature_key": "mean texture", "action": "increase", "new_value": 18.0, "explanation": "Mean texture is generally higher in malignant tumors. The typical range for malignant cases is ~15\u201325, while benign tumors are usually below 14. Increasing from 13.17 to 18.0 moves the value into the malignant domain."}, {"feature_key": "mean perimeter", "action": "increase", "new_value": 110, "explanation": "Malignant tumors show significantly higher mean perimeter values. Benign cases typically have perimeters under 100, whereas malignant cases range from ~100 to 160. Increasing from 90.31 to 110 pushes the instance toward malignancy."}, {"feature_key": "mean area", "action": "increase", "new_value": 800, "explanation": "Mean area is strongly correlated with malignancy. Malignant tumors have mean areas typically above 600, while benign cases are generally under 500. Raising from 594.2 to 800 aligns the instance with known malignant patterns."}, {"feature_key": "mean concavity", "action": "increase", "new_value": 0.25, "explanation": "Mean concavity is a key differentiator\u2014malignant tumors have significantly higher concavity (typically above 0.20), while benign tumors are below 0.15. Increasing from 0.101 to 0.25 improves malignancy likelihood."}]
+- Explanation: In the Breast Cancer Wisconsin dataset (UCI), malignant tumors consistently exhibit higher values in features related to tumor size, texture, and irregularity. Features like mean radius, texture, perimeter, area, and concavity are known to be substantially larger in malignant cases. By increasing these values toward their typical malignant ranges, the instance shifts from a benign to a malignant prediction. The changes are grounded in empirical distributions from public data sources, making them both biologically plausible and statistically supported.
+- Confidence: 0.98
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "malignant".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['mean radius', 'mean texture', 'mean perimeter', 'mean area', 'mean smoothness', 'mean compactness', 'mean concavity', 'mean concave points', 'mean symmetry', 'mean fractal dimension', 'radius error', 'texture error', 'perimeter error', 'area error', 'smoothness error', 'compactness error', 'concavity error', 'concave points error', 'symmetry error', 'fractal dimension error', 'worst radius', 'worst texture', 'worst perimeter', 'worst area', 'worst smoothness', 'worst compactness', 'worst concavity', 'worst concave points', 'worst symmetry', 'worst fractal dimension']
+        // Current values: mean radius=13.94, mean texture=13.17, mean perimeter=90.31, mean area=594.2, mean smoothness=0.1248, mean compactness=0.09755, mean concavity=0.101, mean concave points=0.06615, mean symmetry=0.1976, mean fractal dimension=0.06457, radius error=0.5461, texture error=2.635, perimeter error=4.091, area error=44.74, smoothness error=0.01004
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

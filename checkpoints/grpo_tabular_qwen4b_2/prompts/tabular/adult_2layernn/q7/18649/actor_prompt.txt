@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (60.92%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6092272102832794}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3907727897167206}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=122999, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Craft-repair, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.009804).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0210
+  - occupation_Tech-support: +0.0151
+  - native-country_Haiti: +0.0147
+  - capital-loss: +0.0129
+  - age: +0.0106
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0210
+  - occupation_Transport-moving: -0.0151
+  - native-country_Holand-Netherlands: -0.0147
+  - hours-per-week: -0.0129
+  - fnlwgt: -0.0106
+- Max positive: 0.02102  Max negative: -0.02102
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0098  (orig=0.4035 → mod=0.4133)
+  - education_HS-grad: drop=+0.0071  (orig=0.4035 → mod=0.3964)
+  - occupation_Craft-repair: drop=+0.0070  (orig=0.4035 → mod=0.3966)
+  - relationship_Own-child: drop=+0.0065  (orig=0.4035 → mod=0.3970)
+  - marital-status_Never-married: drop=+0.0062  (orig=0.4035 → mod=0.3973)
+  - education-num: drop=+0.0047  (orig=0.4035 → mod=0.3989)
+  - workclass_Private: drop=+0.0036  (orig=0.4035 → mod=0.3999)
+  - age: drop=+0.0031  (orig=0.4035 → mod=0.4004)
+  - native-country_United-States: drop=-0.0031  (orig=0.4035 → mod=0.4067)
+  - fnlwgt: drop=+0.0011  (orig=0.4035 → mod=0.4025)
+- Max prob_drop: 0.007111  Max prob_increase: -0.009804
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical relationship between income and marital or household status in the adult dataset?
+- Status: Success
+- findings: ["Individuals in the 'Never-married' relationship category are significantly more likely to have an income <=50K compared to those in married or cohabiting relationships.", "Those in the 'Own-child' relationship (typically a child living with a parent, not married) are also more likely to earn <=50K, suggesting a strong correlation between non-standard household status and lower income.", "Married individuals, especially with spouses, tend to have higher income levels, with 'Married-civ-spouse' and 'Married-spouse-absent' showing higher probabilities of earning >50K.", "The presence of a formal household or marital structure correlates positively with income, indicating societal and economic factors such as shared resources, stability, and access to employment networks.", "The 'Unmarried' or 'Single' status (including 'Never-married' and 'Own-child') is associated with limited access to social and financial support structures, leading to lower predicted income."]
+- Explanation: In the Adult Income dataset, marital or household status is a strong predictor of income levels. The data shows that individuals in stable marital relationships (e.g., 'Married-civ-spouse', 'Married-spouse-absent') are more likely to earn over $50K. In contrast, 'Never-married' and 'Own-child' relationships are strongly associated with income <=50K. This suggests that household status reflects socioeconomic stability, access to support systems, and potential employment advantages. The relationship feature thus acts as a proxy for structural societal factors impacting income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: How might removing 'relationship' affect the model's confidence in predicting <=50K given that the current prediction is 0.6092?
+- Status: Success
+- findings: {"predicted_class": "0", "confidence_change": "decrease", "new_confidence_estimate": 0.52}
+- Explanation: The current prediction of '<=50K' with 60.92% confidence relies on the 'relationship' feature, which is currently 'Own-child'. This feature may carry discriminative power in relation to income, as marital or family status can influence financial stability and job outcomes. Removing or changing the relationship value (e.g., to 'Unmarried' or 'Other') reduces the model's ability to capture this contextual information, leading to a less certain prediction. Since the model uses the relationship as part of its feature space, omitting it or altering it without other compensatory features introduces uncertainty, thereby reducing confidence. Based on typical feature importance in similar datasets (e.g., Census Income), relationship has moderate predictive power, especially in combination with sex and marital status. Thus, the absence or change of relationship would likely lead to a modest decrease in confidence, estimated around 0.52.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the prediction outcome with and without relationship=Own-child in similar demographic profiles (e.g., same age, education, sex, workclass)
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "remove", "new_value": null}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}]
+- Explanation: The model currently predicts income ≤50K with confidence 60.92% when relationship is 'Own-child'. In the context of similar demographic profiles (same age, education, sex, workclass), changing the relationship from 'Own-child' to 'Unmarried' mimics a more typical demographic for lower-income individuals, as 'Own-child' may be associated with specific household dynamics that could influence income prediction. While the model does not have explicit rules linking 'Own-child' to higher income, the presence of a child in household can be correlated with lower income due to caregiving responsibilities or reduced work hours. Removing the relationship feature entirely reduces the model's ability to capture these dynamics, potentially leading to a less precise prediction. However, in practice, the model may degrade slightly in accuracy, pushing the prediction to a class that reflects the average baseline of similar profiles. Based on historical trends in such datasets, replacing 'Own-child' with 'Unmarried' may result in a slight shift toward predicting >50K due to the model's implicit bias toward higher income in economically independent individuals. Thus, a plausible alternative is a prediction of >50K with reduced confidence.
+- Confidence: 0.82
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical relationship between income and marital or household status in the adult dataset?
+- Status: Success
+- findings: ["Individuals in the 'Never-married' relationship category are significantly more likely to have an income <=50K compared to those in married or cohabiting relationships.", "Those in the 'Own-child' relationship (typically a child living with a parent, not married) are also more likely to earn <=50K, suggesting a strong correlation between non-standard household status and lower income.", "Married individuals, especially with spouses, tend to have higher income levels, with 'Married-civ-spouse' and 'Married-spouse-absent' showing higher probabilities of earning >50K.", "The presence of a formal household or marital structure correlates positively with income, indicating societal and economic factors such as shared resources, stability, and access to employment networks.", "The 'Unmarried' or 'Single' status (including 'Never-married' and 'Own-child') is associated with limited access to social and financial support structures, leading to lower predicted income."]
+- Explanation: In the Adult Income dataset, marital or household status is a strong predictor of income levels. The data shows that individuals in stable marital relationships (e.g., 'Married-civ-spouse', 'Married-spouse-absent') are more likely to earn over $50K. In contrast, 'Never-married' and 'Own-child' relationships are strongly associated with income <=50K. This suggests that household status reflects socioeconomic stability, access to support systems, and potential employment advantages. The relationship feature thus acts as a proxy for structural societal factors impacting income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: How might removing 'relationship' affect the model's confidence in predicting <=50K given that the current prediction is 0.6092?
+- Status: Success
+- findings: {"predicted_class": "0", "confidence_change": "decrease", "new_confidence_estimate": 0.52}
+- Explanation: The current prediction of '<=50K' with 60.92% confidence relies on the 'relationship' feature, which is currently 'Own-child'. This feature may carry discriminative power in relation to income, as marital or family status can influence financial stability and job outcomes. Removing or changing the relationship value (e.g., to 'Unmarried' or 'Other') reduces the model's ability to capture this contextual information, leading to a less certain prediction. Since the model uses the relationship as part of its feature space, omitting it or altering it without other compensatory features introduces uncertainty, thereby reducing confidence. Based on typical feature importance in similar datasets (e.g., Census Income), relationship has moderate predictive power, especially in combination with sex and marital status. Thus, the absence or change of relationship would likely lead to a modest decrease in confidence, estimated around 0.52.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the prediction outcome with and without relationship=Own-child in similar demographic profiles (e.g., same age, education, sex, workclass)
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "remove", "new_value": null}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}]
+- Explanation: The model currently predicts income ≤50K with confidence 60.92% when relationship is 'Own-child'. In the context of similar demographic profiles (same age, education, sex, workclass), changing the relationship from 'Own-child' to 'Unmarried' mimics a more typical demographic for lower-income individuals, as 'Own-child' may be associated with specific household dynamics that could influence income prediction. While the model does not have explicit rules linking 'Own-child' to higher income, the presence of a child in household can be correlated with lower income due to caregiving responsibilities or reduced work hours. Removing the relationship feature entirely reduces the model's ability to capture these dynamics, potentially leading to a less precise prediction. However, in practice, the model may degrade slightly in accuracy, pushing the prediction to a class that reflects the average baseline of similar profiles. Based on historical trends in such datasets, replacing 'Own-child' with 'Unmarried' may result in a slight shift toward predicting >50K due to the model's implicit bias toward higher income in economically independent individuals. Thus, a plausible alternative is a prediction of >50K with reduced confidence.
+- Confidence: 0.82
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change hours-per-week, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (65.46%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6546071171760559}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3453928828239441}]
+- Part to Change: hours-per-week
+
+## Input Data
+Features: age=18, workclass=Private, fnlwgt=122988, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Handlers-cleaners, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=20, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.015035).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0491
+  - age: +0.0170
+  - native-country_Columbia: +0.0141
+  - capital-loss: +0.0117
+  - native-country_Iran: +0.0110
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0491
+  - fnlwgt: -0.0170
+  - native-country_Cuba: -0.0141
+  - hours-per-week: -0.0117
+  - native-country_Ireland: -0.0110
+- Max positive: 0.049067  Max negative: -0.049067
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0150  (orig=0.4145 → mod=0.3995)
+  - sex_Male: drop=-0.0127  (orig=0.4145 → mod=0.4272)
+  - relationship_Own-child: drop=+0.0077  (orig=0.4145 → mod=0.4068)
+  - native-country_United-States: drop=-0.0070  (orig=0.4145 → mod=0.4215)
+  - marital-status_Never-married: drop=+0.0055  (orig=0.4145 → mod=0.4090)
+  - education-num: drop=+0.0042  (orig=0.4145 → mod=0.4103)
+  - education_HS-grad: drop=+0.0035  (orig=0.4145 → mod=0.4110)
+  - age: drop=+0.0027  (orig=0.4145 → mod=0.4118)
+  - workclass_Private: drop=+0.0023  (orig=0.4145 → mod=0.4122)
+  - occupation_Handlers-cleaners: drop=+0.0023  (orig=0.4145 → mod=0.4122)
+- Max prob_drop: 0.015035  Max prob_increase: -0.012682
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with high confidence, and hours-per-week is a feature associated with work intensity, how might removing this feature influence the decision boundary, especially for individuals with low work hours?
+- Status: Success
+- findings: "hours-per-week is a key discriminant feature for the <=50K vs >50K class boundary, particularly for individuals with low work hours. Removing or changing this feature could shift the decision boundary, potentially increasing the model's prediction of <=50K for individuals with low hours-per-week, as work hours are strongly correlated with income level in the data distribution."
+- Explanation: The model currently predicts <=50K with high confidence (65.46%) for an individual with 20 hours per week. In many real-world income scenarios, individuals with lower hours-per-week tend to have lower incomes, especially when controlling for other demographic and categorical features. Since the model has explicitly incorporated 'hours-per-week' as a feature, its removal or alteration would reduce the model's ability to capture work intensity as a proxy for income. For low-hour individuals, removing this feature could cause the model to rely more heavily on features like age, education, or marital status, which may not be strong enough to distinguish income level. As a result, the decision boundary would shift, potentially increasing the likelihood of predicting <=50K for those with low hours-per-week, especially if the model lacks sufficient alternative features to compensate for the loss of work intensity signaling.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the current prediction contrast with what the model would predict if hours-per-week were set to zero or missing, based on the overall feature distribution?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 0}, {"feature_key": "hours-per-week", "action": "change", "new_value": "missing"}]
+- Explanation: The current model prediction is 0 (income ≤50K) with 65.46% confidence. 'hours-per-week' is a feature known to have a positive correlation with higher income in datasets like the Adult Census Income. Setting 'hours-per-week' to 0 (zero hours) would likely reduce the likelihood of earning above 50K, possibly reinforcing the current prediction of ≤50K. However, setting it to 'missing' introduces uncertainty, as the model might treat missingness as a categorical or structural outlier. In missing data scenarios, some models default to imputation or drop the feature, potentially leading to a loss of discriminative power. Since the current value is 20, which is relatively low, setting it to 0 or missing would not drastically increase the chance of predicting >50K, but may reduce confidence due to information loss or representational bias. Thus, the class prediction remains broadly stable (0), but confidence may degrade slightly due to reduced feature informativeness, especially in models sensitive to work hours as a proxy for occupation intensity or job responsibility.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with high confidence, and hours-per-week is a feature associated with work intensity, how might removing this feature influence the decision boundary, especially for individuals with low work hours?
+- Status: Success
+- findings: "hours-per-week is a key discriminant feature for the <=50K vs >50K class boundary, particularly for individuals with low work hours. Removing or changing this feature could shift the decision boundary, potentially increasing the model's prediction of <=50K for individuals with low hours-per-week, as work hours are strongly correlated with income level in the data distribution."
+- Explanation: The model currently predicts <=50K with high confidence (65.46%) for an individual with 20 hours per week. In many real-world income scenarios, individuals with lower hours-per-week tend to have lower incomes, especially when controlling for other demographic and categorical features. Since the model has explicitly incorporated 'hours-per-week' as a feature, its removal or alteration would reduce the model's ability to capture work intensity as a proxy for income. For low-hour individuals, removing this feature could cause the model to rely more heavily on features like age, education, or marital status, which may not be strong enough to distinguish income level. As a result, the decision boundary would shift, potentially increasing the likelihood of predicting <=50K for those with low hours-per-week, especially if the model lacks sufficient alternative features to compensate for the loss of work intensity signaling.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the current prediction contrast with what the model would predict if hours-per-week were set to zero or missing, based on the overall feature distribution?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 0}, {"feature_key": "hours-per-week", "action": "change", "new_value": "missing"}]
+- Explanation: The current model prediction is 0 (income ≤50K) with 65.46% confidence. 'hours-per-week' is a feature known to have a positive correlation with higher income in datasets like the Adult Census Income. Setting 'hours-per-week' to 0 (zero hours) would likely reduce the likelihood of earning above 50K, possibly reinforcing the current prediction of ≤50K. However, setting it to 'missing' introduces uncertainty, as the model might treat missingness as a categorical or structural outlier. In missing data scenarios, some models default to imputation or drop the feature, potentially leading to a loss of discriminative power. Since the current value is 20, which is relatively low, setting it to 0 or missing would not drastically increase the chance of predicting >50K, but may reduce confidence due to information loss or representational bias. Thus, the class prediction remains broadly stable (0), but confidence may degrade slightly due to reduced feature informativeness, especially in models sensitive to work hours as a proxy for occupation intensity or job responsibility.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

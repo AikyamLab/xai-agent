@@ -1,0 +1,54 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning to identify potential shared spurious features through direct comparison of misclassified instances, with external XAI tools to quantify feature importance and validate spurious correlations. This ensures both domain-level insight and statistical rigor in detecting features that appear in all misclassified cases and have high model attribution despite being semantically irrelevant.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify which features are present in both instance 13590 and 31254, and whether any feature is consistently present across all misclassified instances (even if only two are provided).",
+      "expected_output": "A list of shared features between instance 13590 and 31254, with note on which ones appear in all misclassified cases"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any shared feature (e.g., marital-status=Married-civ-spouse, relationship=Husband) is likely to be a spurious correlation by assessing semantic relevance to income prediction (e.g., does marital status independently influence income?)",
+      "expected_output": "A judgment on whether the shared feature is semantically unrelated to income class and thus potentially spurious"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "sensitivity_analysis": {
+        "find_common": true
+      }
+    },
+    "reasoning": "SHAP provides reliable, model-agnostic feature attributions that can reveal which features have high predictive influence despite being semantically irrelevant. Sensitivity analysis complements this by measuring how prediction outcomes shift when features are ablated, helping to confirm whether a shared feature drives misclassifications artificially. Together, they detect spurious correlations more robustly than either method alone, especially when the shared feature lacks domain relevance."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides reliable, model-agnostic feature attributions that can reveal which features have high predictive influence despite being semantically irrelevant. Sensitivity analysis complements this by measuring how prediction outcomes shift when features are ablated, helping to confirm whether a shared feature drives misclassifications artificially. Together, they detect spurious correlations more robustly than either method alone, especially when the shared feature lacks domain relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides reliable, model-agnostic feature attributions that can reveal which features have high predictive influence despite being semantically irrelevant. Sensitivity analysis complements this by measuring how prediction outcomes shift when features are ablated, helping to confirm whether a shared feature drives misclassifications artificially. Together, they detect spurious correlations more robustly than either method alone, especially when the shared feature lacks domain relevance.",
+      "parameters": {
+        "find_common": true
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

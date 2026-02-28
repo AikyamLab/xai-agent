@@ -1,0 +1,66 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning with external explainability tools to ensure both domain-aware insights and statistically grounded feature attributions. Autonomous reasoning leverages domain knowledge about cancer biomarkers to identify biologically plausible features that distinguish benign from malignant tumors, while external tools provide quantified, model-based feature importance and sensitivity analysis for robust validation.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Based on oncological knowledge, which tumor features are typically lower in benign tumors compared to malignant ones, particularly in early-stage breast cancer?",
+      "expected_output": "List of feature names that are known to be lower in benign tumors (e.g., mean radius, texture, perimeter) as per clinical literature"
+    },
+    {
+      "task_type": "comparison",
+      "query": "For each input feature, compare the value in the benign prediction with the expected value in malignant cases, identifying any systematic deviations.",
+      "expected_output": "A ranked list of features showing significant differences in values between benign and malignant classes"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "integrated_gradients": {
+        "target_class": "benign",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "method": "leave-one-out",
+        "target_class": "benign"
+      }
+    },
+    "reasoning": "SHAP provides consistent and interpretable feature importance scores across the contrast between benign and malignant predictions, especially in tabular settings. Integrated Gradients offer a strong theoretical foundation for attributing prediction to features via gradient integration, enabling reliable contrastive analysis. Sensitivity Analysis directly measures how altering each feature impacts the model's confidence, offering empirical validation of feature influence. LIME is excluded due to its local interpretability constraints in contrastive settings and higher variance in tabular data."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across the contrast between benign and malignant predictions, especially in tabular settings. Integrated Gradients offer a strong theoretical foundation for attributing prediction to features via gradient integration, enabling reliable contrastive analysis. Sensitivity Analysis directly measures how altering each feature impacts the model's confidence, offering empirical validation of feature influence. LIME is excluded due to its local interpretability constraints in contrastive settings and higher variance in tabular data.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across the contrast between benign and malignant predictions, especially in tabular settings. Integrated Gradients offer a strong theoretical foundation for attributing prediction to features via gradient integration, enabling reliable contrastive analysis. Sensitivity Analysis directly measures how altering each feature impacts the model's confidence, offering empirical validation of feature influence. LIME is excluded due to its local interpretability constraints in contrastive settings and higher variance in tabular data.",
+      "parameters": {
+        "target_class": "benign",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across the contrast between benign and malignant predictions, especially in tabular settings. Integrated Gradients offer a strong theoretical foundation for attributing prediction to features via gradient integration, enabling reliable contrastive analysis. Sensitivity Analysis directly measures how altering each feature impacts the model's confidence, offering empirical validation of feature influence. LIME is excluded due to its local interpretability constraints in contrastive settings and higher variance in tabular data.",
+      "parameters": {
+        "method": "leave-one-out",
+        "target_class": "benign"
+      }
+    }
+  ]
+}

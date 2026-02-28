@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the capital-loss feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6913
+
+## Part to be Masked
+capital-loss
+
+## Input Data
+Features: age=22, workclass=Private, fnlwgt=193190, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Own-child, race=Black, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.00918).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0249
+  - native-country_Japan: +0.0229
+  - age: +0.0207
+  - occupation_Tech-support: +0.0128
+  - capital-loss: +0.0116
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0249
+  - native-country_Laos: -0.0229
+  - fnlwgt: -0.0207
+  - occupation_Transport-moving: -0.0128
+  - hours-per-week: -0.0116
+- Max positive: 0.024869  Max negative: -0.024869
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0092  (orig=0.4234 → mod=0.4142)
+  - relationship_Own-child: drop=+0.0058  (orig=0.4234 → mod=0.4176)
+  - occupation_Other-service: drop=+0.0057  (orig=0.4234 → mod=0.4177)
+  - education_HS-grad: drop=+0.0050  (orig=0.4234 → mod=0.4184)
+  - sex_Female: drop=+0.0046  (orig=0.4234 → mod=0.4188)
+  - workclass_Private: drop=+0.0045  (orig=0.4234 → mod=0.4189)
+  - age: drop=+0.0045  (orig=0.4234 → mod=0.4189)
+  - race_Black: drop=+0.0043  (orig=0.4234 → mod=0.4191)
+  - education-num: drop=+0.0037  (orig=0.4234 → mod=0.4197)
+  - capital-loss: drop=+0.0007  (orig=0.4234 → mod=0.4227)
+- Max prob_drop: 0.00918  Max prob_increase: -0.000416
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-loss is not present in the input description and the model predicts <=50K with high confidence, assess whether capital-loss is likely to be a strong driver of the prediction in this context.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: Capital-loss is a feature that typically represents financial losses from the sale of assets. In the context of income prediction, negative capital-loss values can sometimes signal financial instability or lower economic activity, which may correlate with lower income. However, in this specific case, the individual has a capital-loss value of 0, which is neutral. The model predicts a low income (≤50K) with high confidence (69.13%), and there is no evidence in the input data or top-5 predictions to suggest that capital-loss significantly influences the outcome. Since the feature is currently zero and masked, and no strong feature interactions or class shifts are observed in the model's behavior, it is unlikely that capital-loss would cause a meaningful change in prediction. The prediction remains stable even without this feature, indicating it is not a strong driver in this instance.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in predicting <=50K when capital-loss is set to zero versus when it is omitted or masked (assuming it was originally zero).
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: The model originally predicted the individual's income as <=50K with a confidence of 69.13%, and the capital-loss feature was already zero in the input. Masking (setting to null) this feature does not introduce any new information or alter the model's decision, as the value was already zero. Since the feature has no impact on the prediction when it is zero, omitting or masking it does not change the prediction class or confidence. Thus, the prediction remains the same.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-loss is not present in the input description and the model predicts <=50K with high confidence, assess whether capital-loss is likely to be a strong driver of the prediction in this context.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: Capital-loss is a feature that typically represents financial losses from the sale of assets. In the context of income prediction, negative capital-loss values can sometimes signal financial instability or lower economic activity, which may correlate with lower income. However, in this specific case, the individual has a capital-loss value of 0, which is neutral. The model predicts a low income (≤50K) with high confidence (69.13%), and there is no evidence in the input data or top-5 predictions to suggest that capital-loss significantly influences the outcome. Since the feature is currently zero and masked, and no strong feature interactions or class shifts are observed in the model's behavior, it is unlikely that capital-loss would cause a meaningful change in prediction. The prediction remains stable even without this feature, indicating it is not a strong driver in this instance.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in predicting <=50K when capital-loss is set to zero versus when it is omitted or masked (assuming it was originally zero).
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: The model originally predicted the individual's income as <=50K with a confidence of 69.13%, and the capital-loss feature was already zero in the input. Masking (setting to null) this feature does not introduce any new information or alter the model's decision, as the value was already zero. Since the feature has no impact on the prediction when it is zero, omitting or masking it does not change the prediction class or confidence. Thus, the prediction remains the same.
+- Confidence: 0.98
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

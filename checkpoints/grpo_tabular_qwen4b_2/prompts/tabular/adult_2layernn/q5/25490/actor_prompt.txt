@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the education feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6539
+
+## Part to be Masked
+education
+
+## Input Data
+Features: age=22, workclass=Private, fnlwgt=318915, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Japan.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.0079).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Japan: +0.0232
+  - native-country_Columbia: +0.0126
+  - native-country_Trinadad&Tobago: +0.0117
+  - age: +0.0110
+  - capital-loss: +0.0107
+- Top negative features (shap_value):
+  - native-country_Laos: -0.0232
+  - native-country_Cuba: -0.0126
+  - native-country_United-States: -0.0117
+  - fnlwgt: -0.0110
+  - hours-per-week: -0.0107
+- Max positive: 0.023178  Max negative: -0.023178
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0079  (orig=0.4143 → mod=0.4064)
+  - sex_Female: drop=+0.0073  (orig=0.4143 → mod=0.4071)
+  - occupation_Other-service: drop=+0.0065  (orig=0.4143 → mod=0.4078)
+  - education_HS-grad: drop=+0.0046  (orig=0.4143 → mod=0.4098)
+  - race_White: drop=-0.0045  (orig=0.4143 → mod=0.4188)
+  - education-num: drop=+0.0029  (orig=0.4143 → mod=0.4114)
+  - workclass_Private: drop=+0.0029  (orig=0.4143 → mod=0.4115)
+  - fnlwgt: drop=+0.0027  (orig=0.4143 → mod=0.4116)
+  - native-country_United-States: drop=-0.0017  (orig=0.4143 → mod=0.4160)
+  - age: drop=+0.0016  (orig=0.4143 → mod=0.4127)
+- Max prob_drop: 0.0079  Max prob_increase: -0.004509
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and model prediction context, assess whether the education feature contributes significantly to predicting income class (<=50K or >50K) in the adult income dataset.
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "education", "action": "change", "new_value": "Prof-school"}, {"feature_key": "education", "action": "change", "new_value": "Assoc-acdm"}, {"feature_key": "education", "action": "change", "new_value": "Masters"}]
+- Explanation: In the Adult Income dataset, education is a strong predictor of income level. Individuals with higher levels of education (e.g., Bachelors, Masters, Prof-school) are significantly more likely to earn over $50K annually. The current model predicts <=50K with 65.39% confidence, and the feature 'education' is strongly correlated with income outcomes. Changing the education level to higher categories (e.g., Bachelors or Masters) would likely increase the predicted income class to >50K, while lowering it (e.g., to 'Some-college' or '10th') may not alter the prediction substantially but could still affect model confidence. Therefore, education plays a significant role in income classification, and masking or altering it would likely lead to a change in prediction, especially for high-education categories. This confirms that the education feature contributes meaningfully to income prediction in this dataset.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the prediction confidence and class probability when education is masked versus when it is preserved, using only the known input and model behavior.
+- Status: Success
+- findings: {"prediction_before_masking": "0", "prediction_after_masking": "0", "confidence_before_masking": 0.6539, "confidence_after_masking": "unknown", "probability_change": "no_change", "class_prediction_stable": true}
+- Explanation: The model predicted the individual's income as '≤50K' with a confidence of 65.39%. Masking the 'education' feature (which is currently 'HS-grad') would involve replacing it with a missing or undefined value. However, since the model output (class prediction) is 0 (≤50K) and the education feature is not among the top predictive features in the known context—especially given that 'education-num' (a numeric proxy) is already present and used in the model—masking education may not alter the final prediction. The model likely relies on 'education-num' to capture the educational level. As a result, removing or masking the categorical 'education' field does not significantly affect the prediction, especially if the model has already incorporated the numeric version. Without access to the top-5 predictions or model internals, we cannot definitively assess the change in confidence, but based on typical modeling patterns, the class prediction remains stable, and the confidence may remain similar or slightly decrease due to loss of feature information, though not enough to change the class outcome.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and model prediction context, assess whether the education feature contributes significantly to predicting income class (<=50K or >50K) in the adult income dataset.
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "education", "action": "change", "new_value": "Prof-school"}, {"feature_key": "education", "action": "change", "new_value": "Assoc-acdm"}, {"feature_key": "education", "action": "change", "new_value": "Masters"}]
+- Explanation: In the Adult Income dataset, education is a strong predictor of income level. Individuals with higher levels of education (e.g., Bachelors, Masters, Prof-school) are significantly more likely to earn over $50K annually. The current model predicts <=50K with 65.39% confidence, and the feature 'education' is strongly correlated with income outcomes. Changing the education level to higher categories (e.g., Bachelors or Masters) would likely increase the predicted income class to >50K, while lowering it (e.g., to 'Some-college' or '10th') may not alter the prediction substantially but could still affect model confidence. Therefore, education plays a significant role in income classification, and masking or altering it would likely lead to a change in prediction, especially for high-education categories. This confirms that the education feature contributes meaningfully to income prediction in this dataset.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the prediction confidence and class probability when education is masked versus when it is preserved, using only the known input and model behavior.
+- Status: Success
+- findings: {"prediction_before_masking": "0", "prediction_after_masking": "0", "confidence_before_masking": 0.6539, "confidence_after_masking": "unknown", "probability_change": "no_change", "class_prediction_stable": true}
+- Explanation: The model predicted the individual's income as '≤50K' with a confidence of 65.39%. Masking the 'education' feature (which is currently 'HS-grad') would involve replacing it with a missing or undefined value. However, since the model output (class prediction) is 0 (≤50K) and the education feature is not among the top predictive features in the known context—especially given that 'education-num' (a numeric proxy) is already present and used in the model—masking education may not alter the final prediction. The model likely relies on 'education-num' to capture the educational level. As a result, removing or masking the categorical 'education' field does not significantly affect the prediction, especially if the model has already incorporated the numeric version. Without access to the top-5 predictions or model internals, we cannot definitively assess the change in confidence, but based on typical modeling patterns, the class prediction remains stable, and the confidence may remain similar or slightly decrease due to loss of feature information, though not enough to change the class outcome.
+- Confidence: 0.85
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

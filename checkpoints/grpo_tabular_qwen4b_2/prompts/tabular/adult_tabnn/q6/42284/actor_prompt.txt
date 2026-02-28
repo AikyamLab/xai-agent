@@ -1,0 +1,145 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. How should the instance change to flip the model into less than or equal to 50K?
+
+## Current State
+- Current Prediction: >50K (70.70%)
+- Target Prediction: less than or equal to 50K
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=341187, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.01146).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0688
+  - native-country_Hong: +0.0450
+  - native-country_Cuba: +0.0420
+  - native-country_United-States: +0.0380
+  - native-country_Cambodia: +0.0338
+- Top negative features (shap_value):
+  - capital-loss: -0.0688
+  - native-country_Honduras: -0.0450
+  - native-country_Columbia: -0.0420
+  - native-country_Trinadad&Tobago: -0.0380
+  - sex_Male: -0.0338
+- Max positive: 0.068807  Max negative: -0.068807
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Puerto-Rico <= 0.00: +0.0617
+  - native-country_Hungary <= 0.00: +0.0438
+  - native-country_El-Salvador <= 0.00: +0.0386
+  - native-country_Peru <= 0.00: +0.0254
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2101
+  - capital-loss <= -0.22: -0.1373
+  - native-country_England <= 0.00: -0.1133
+  - relationship_Wife <= 0.00: -0.0687
+  - native-country_Canada <= 0.00: -0.0620
+- Max positive: 0.061669  Max negative: -0.210108
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0156
+  - relationship_Husband: +0.0151
+  - occupation_Exec-managerial: +0.0116
+  - education-num: +0.0113
+  - sex_Male: +0.0104
+- Top negative features (attribution_score):
+  - age: -0.0063
+  - workclass_Private: -0.0023
+  - capital-gain: -0.0021
+  - race_White: -0.0009
+  - capital-loss: -0.0005
+- Max positive: 0.015589  Max negative: -0.006305
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0115  (orig=0.6697 → mod=0.6583)
+  - relationship_Husband: drop=+0.0084  (orig=0.6697 → mod=0.6613)
+  - education-num: drop=+0.0065  (orig=0.6697 → mod=0.6632)
+  - sex_Male: drop=+0.0056  (orig=0.6697 → mod=0.6641)
+  - occupation_Exec-managerial: drop=+0.0050  (orig=0.6697 → mod=0.6647)
+  - education_Bachelors: drop=+0.0045  (orig=0.6697 → mod=0.6652)
+  - age: drop=-0.0028  (orig=0.6697 → mod=0.6726)
+  - fnlwgt: drop=+0.0021  (orig=0.6697 → mod=0.6677)
+  - hours-per-week: drop=+0.0019  (orig=0.6697 → mod=0.6678)
+  - capital-gain: drop=-0.0017  (orig=0.6697 → mod=0.6714)
+- Max prob_drop: 0.01146  Max prob_increase: -0.00284
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to be driving the prediction of >50K, based on domain knowledge and model structure?
+- Status: Success
+- findings: [{"feature_key": "occupation", "hypothesized_impact": "High positive impact on >50K prediction. Occupations like 'Exec-managerial' or 'Prof-specialty' are strongly associated with higher income and are typically linked to higher earnings due to seniority, leadership roles, and higher pay scales."}, {"feature_key": "education-num", "hypothesized_impact": "Positive correlation with higher income. Higher education levels (e.g., Bachelors or higher) are generally associated with better employment opportunities and higher salary brackets, contributing to the >50K prediction."}, {"feature_key": "hours-per-week", "hypothesized_impact": "Strong positive impact. Higher working hours are often correlated with higher income, especially in high-paying jobs. This feature may amplify the model's confidence in the >50K prediction."}, {"feature_key": "age", "hypothesized_impacted": "Moderate positive impact. While not the strongest driver, age can influence income through experience, skill accumulation, and career stage. A 33-year-old male in a high-paying role may be in a stable, mid-career phase with strong earning potential."}, {"feature_key": "sex", "hypothesized_impact": "Can be a confounding or structural factor. In this dataset, 'Male' is associated with higher income in many models due to historical and structural wage disparities. However, its effect may be overridden by occupation and education."}]
+- Explanation: Based on domain knowledge and the structure of income prediction models (such as those in the classic Adult Income dataset), features like occupation, education level, hours per week, and age are strongly correlated with income. 'Exec-managerial' occupation and 'Bachelors' education are known to strongly predict >50K income. Hours per week directly influence earnings potential. Age contributes through career stage, though less directly. Sex may play a role due to structural wage gaps, but it's often secondary to occupation and education. These features are therefore the most likely drivers of the current >50K prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What would be the effect on the prediction if we reduce the value of highly confident features (e.g., age, education-num, occupation) to values typical of the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 6}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "occupation", "action": "change", "new_value": "Farming-fishing"}]
+- Explanation: The model predicts >50K with high confidence (70.70%), and features like age, education-num, and hours-per-week are strongly correlated with income levels. Reducing age from 33 to 25 (a typical value for lower-income groups), lowering education-num from 13 (Bachelors) to 6 (e.g., 9th grade or below), reducing work hours from 50 to 30, and replacing a high-income occupation like 'Exec-managerial' with a lower-income category such as 'Farming-fishing' are plausible changes that reflect patterns observed in the <=50K class. These shifts reduce the socioeconomic profile of the individual, making the instance more aligned with the lower-income demographic, thereby reducing the model's confidence in predicting >50K.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to be driving the prediction of >50K, based on domain knowledge and model structure?
+- Status: Success
+- findings: [{"feature_key": "occupation", "hypothesized_impact": "High positive impact on >50K prediction. Occupations like 'Exec-managerial' or 'Prof-specialty' are strongly associated with higher income and are typically linked to higher earnings due to seniority, leadership roles, and higher pay scales."}, {"feature_key": "education-num", "hypothesized_impact": "Positive correlation with higher income. Higher education levels (e.g., Bachelors or higher) are generally associated with better employment opportunities and higher salary brackets, contributing to the >50K prediction."}, {"feature_key": "hours-per-week", "hypothesized_impact": "Strong positive impact. Higher working hours are often correlated with higher income, especially in high-paying jobs. This feature may amplify the model's confidence in the >50K prediction."}, {"feature_key": "age", "hypothesized_impacted": "Moderate positive impact. While not the strongest driver, age can influence income through experience, skill accumulation, and career stage. A 33-year-old male in a high-paying role may be in a stable, mid-career phase with strong earning potential."}, {"feature_key": "sex", "hypothesized_impact": "Can be a confounding or structural factor. In this dataset, 'Male' is associated with higher income in many models due to historical and structural wage disparities. However, its effect may be overridden by occupation and education."}]
+- Explanation: Based on domain knowledge and the structure of income prediction models (such as those in the classic Adult Income dataset), features like occupation, education level, hours per week, and age are strongly correlated with income. 'Exec-managerial' occupation and 'Bachelors' education are known to strongly predict >50K income. Hours per week directly influence earnings potential. Age contributes through career stage, though less directly. Sex may play a role due to structural wage gaps, but it's often secondary to occupation and education. These features are therefore the most likely drivers of the current >50K prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What would be the effect on the prediction if we reduce the value of highly confident features (e.g., age, education-num, occupation) to values typical of the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 6}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "occupation", "action": "change", "new_value": "Farming-fishing"}]
+- Explanation: The model predicts >50K with high confidence (70.70%), and features like age, education-num, and hours-per-week are strongly correlated with income levels. Reducing age from 33 to 25 (a typical value for lower-income groups), lowering education-num from 13 (Bachelors) to 6 (e.g., 9th grade or below), reducing work hours from 50 to 30, and replacing a high-income occupation like 'Exec-managerial' with a lower-income category such as 'Farming-fishing' are plausible changes that reflect patterns observed in the <=50K class. These shifts reduce the socioeconomic profile of the individual, making the instance more aligned with the lower-income demographic, thereby reducing the model's confidence in predicting >50K.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "less than or equal to 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=33, workclass='Private', fnlwgt=341187, education='Bachelors', education-num=13, marital-status='Married-civ-spouse', occupation='Exec-managerial', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=50, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

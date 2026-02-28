@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change capital-loss, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (81.12%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.8112105131149292}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.1887894868850708}]
+- Part to Change: capital-loss
+
+## Input Data
+Features: age=61, workclass=State-gov, fnlwgt=186451, education=Prof-school, education-num=15, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=1902, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.014395).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1113
+  - hours-per-week: +0.0830
+  - fnlwgt: +0.0577
+  - relationship_Wife: +0.0367
+  - native-country_Cambodia: +0.0356
+- Top negative features (shap_value):
+  - workclass_Private: -0.1113
+  - capital-loss: -0.0830
+  - age: -0.0577
+  - relationship_Unmarried: -0.0367
+  - sex_Male: -0.0356
+- Max positive: 0.111271  Max negative: -0.111271
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0144  (orig=0.6924 → mod=0.6780)
+  - education-num: drop=+0.0096  (orig=0.6924 → mod=0.6828)
+  - marital-status_Married-civ-spouse: drop=+0.0068  (orig=0.6924 → mod=0.6856)
+  - age: drop=+0.0052  (orig=0.6924 → mod=0.6871)
+  - relationship_Husband: drop=+0.0044  (orig=0.6924 → mod=0.6880)
+  - occupation_Prof-specialty: drop=+0.0043  (orig=0.6924 → mod=0.6880)
+  - sex_Male: drop=+0.0042  (orig=0.6924 → mod=0.6881)
+  - native-country_United-States: drop=+0.0042  (orig=0.6924 → mod=0.6882)
+  - education_Prof-school: drop=+0.0037  (orig=0.6924 → mod=0.6886)
+  - race_White: drop=+0.0021  (orig=0.6924 → mod=0.6903)
+- Max prob_drop: 0.014395  Max prob_increase: -0.000644
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Is 'capital-loss' present in the input feature set or known to be zero?
+- Status: Success
+- findings: "present"
+- Explanation: The current values specify 'capital-loss=1902', which is a non-zero numeric value. Therefore, the feature 'capital-loss' is present in the input feature set and has a value of 1902, not zero.
+- Confidence: 0.99
+
+### REASONING Task
+- Query: How might the absence or change of 'capital-loss' affect the model's confidence in predicting >50K, given the individual's profile (e.g., age, occupation, income level)?
+- Status: Success
+- findings: "The model predicts income >50K with 81.12% confidence based on the current profile, which includes a capital-loss value of 1902. Removing or changing capital-loss to 0 is expected to have a moderate influence on the prediction, as capital-loss is a feature that can capture financial downturns or investment losses, which may be negatively correlated with higher income in this dataset. In many income prediction models (e.g., from the Adult Census dataset), capital-loss is typically associated with lower income levels when present, due to its correlation with lower socioeconomic status or financial instability. Thus, reducing or removing capital-loss (by setting it to 0) would likely enhance the model's confidence in predicting >50K, as it removes a negative financial signal. Therefore, the prediction probability would increase slightly."
+- Explanation: Capital-loss is a negative financial indicator. In the context of income prediction, a non-zero capital-loss (e.g., 1902) may signal financial hardship, which the model associates with lower income. When capital-loss is set to zero (i.e., removed), the individual's profile becomes more aligned with financial stability. Since the current prediction is already strong (81.12%), removing this negative factor may slightly improve confidence. The exact change would depend on the model’s feature weights, but data-driven patterns suggest that reducing capital-loss generally increases the likelihood of predicting >50K. Thus, the prediction probability would likely increase moderately.
+- Confidence: 0.86
+
+### COMPARISON Task
+- Query: Compare the model's current prediction confidence (0.8112) to a plausible alternative if capital-loss is set to zero or omitted, based on known correlations in the dataset?
+- Status: Success
+- findings: "The model's prediction confidence decreases from 81.12% to approximately 72.4% when capital-loss is changed from 1902 to 0. The predicted class remains '1' (income >50K), but the confidence level drops due to the removal of a feature that had a moderate negative correlation with income in the dataset."
+- Explanation: In the U.S. Census Income dataset, 'capital-loss' is negatively correlated with income. Individuals with higher capital losses tend to have lower incomes. In the current case, the individual has a capital-loss of 1902, which may contribute to the model's confidence in predicting a high income (since such losses are more common among lower-income groups). When capital-loss is set to zero, the model loses this signal, reducing its confidence in the positive income prediction. The feature 'capital-loss' acts as a weak but informative signal; removing it shifts the model toward more general patterns, which may reduce certainty in the class assignment. This is consistent with known feature importance trends in this dataset, where capital-loss is correlated with income in a non-linear, inverse manner.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Is 'capital-loss' present in the input feature set or known to be zero?
+- Status: Success
+- findings: "present"
+- Explanation: The current values specify 'capital-loss=1902', which is a non-zero numeric value. Therefore, the feature 'capital-loss' is present in the input feature set and has a value of 1902, not zero.
+- Confidence: 0.99
+
+### REASONING Task
+- Query: How might the absence or change of 'capital-loss' affect the model's confidence in predicting >50K, given the individual's profile (e.g., age, occupation, income level)?
+- Status: Success
+- findings: "The model predicts income >50K with 81.12% confidence based on the current profile, which includes a capital-loss value of 1902. Removing or changing capital-loss to 0 is expected to have a moderate influence on the prediction, as capital-loss is a feature that can capture financial downturns or investment losses, which may be negatively correlated with higher income in this dataset. In many income prediction models (e.g., from the Adult Census dataset), capital-loss is typically associated with lower income levels when present, due to its correlation with lower socioeconomic status or financial instability. Thus, reducing or removing capital-loss (by setting it to 0) would likely enhance the model's confidence in predicting >50K, as it removes a negative financial signal. Therefore, the prediction probability would increase slightly."
+- Explanation: Capital-loss is a negative financial indicator. In the context of income prediction, a non-zero capital-loss (e.g., 1902) may signal financial hardship, which the model associates with lower income. When capital-loss is set to zero (i.e., removed), the individual's profile becomes more aligned with financial stability. Since the current prediction is already strong (81.12%), removing this negative factor may slightly improve confidence. The exact change would depend on the model’s feature weights, but data-driven patterns suggest that reducing capital-loss generally increases the likelihood of predicting >50K. Thus, the prediction probability would likely increase moderately.
+- Confidence: 0.86
+
+### COMPARISON Task
+- Query: Compare the model's current prediction confidence (0.8112) to a plausible alternative if capital-loss is set to zero or omitted, based on known correlations in the dataset?
+- Status: Success
+- findings: "The model's prediction confidence decreases from 81.12% to approximately 72.4% when capital-loss is changed from 1902 to 0. The predicted class remains '1' (income >50K), but the confidence level drops due to the removal of a feature that had a moderate negative correlation with income in the dataset."
+- Explanation: In the U.S. Census Income dataset, 'capital-loss' is negatively correlated with income. Individuals with higher capital losses tend to have lower incomes. In the current case, the individual has a capital-loss of 1902, which may contribute to the model's confidence in predicting a high income (since such losses are more common among lower-income groups). When capital-loss is set to zero, the model loses this signal, reducing its confidence in the positive income prediction. The feature 'capital-loss' acts as a weak but informative signal; removing it shifts the model toward more general patterns, which may reduce certainty in the class assignment. This is consistent with known feature importance trends in this dataset, where capital-loss is correlated with income in a non-linear, inverse manner.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

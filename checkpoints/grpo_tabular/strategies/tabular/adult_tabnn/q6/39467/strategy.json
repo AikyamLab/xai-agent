@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external XAI tools to ensure robust and interpretable counterfactual analysis. Autonomous analysis provides initial hypothesis about critical features based on domain knowledge, while XAI tools like SHAP and sensitivity analysis validate and refine these hypotheses by quantifying feature impact, ensuring accuracy in identifying effective changes.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify which features in the input are likely to strongly influence income prediction based on known socioeconomic patterns and model architecture (TabNN).",
+      "expected_output": "List of high-impact features such as age, education-num, occupation, and workclass."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given the current prediction of <=50K, reason which feature changes would most likely push the prediction toward >50K based on the model's learning patterns.",
+      "expected_output": "Proposed direction of change for features like increasing education-num, changing occupation to higher-income roles, or updating workclass to government or self-employed."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the original feature values with the values from individuals in the training data who were predicted >50K, focusing on feature-level differences.",
+      "expected_output": "Groups of features differing between low-income and high-income instances, highlighting potential counterfactual paths."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP provides accurate feature-level importance by capturing both linear and non-linear interactions in the TabNN model, which is critical for counterfactual reasoning. Sensitivity analysis complements SHAP by measuring the predictive impact of each feature when perturbed, helping validate which changes are most effective in flipping the prediction."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides accurate feature-level importance by capturing both linear and non-linear interactions in the TabNN model, which is critical for counterfactual reasoning. Sensitivity analysis complements SHAP by measuring the predictive impact of each feature when perturbed, helping validate which changes are most effective in flipping the prediction.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides accurate feature-level importance by capturing both linear and non-linear interactions in the TabNN model, which is critical for counterfactual reasoning. Sensitivity analysis complements SHAP by measuring the predictive impact of each feature when perturbed, helping validate which changes are most effective in flipping the prediction.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

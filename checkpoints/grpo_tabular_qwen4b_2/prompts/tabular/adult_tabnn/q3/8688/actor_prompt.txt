@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (77.28%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.22720149159431458}
+
+## Input Data
+Features: age=68, workclass=Self-emp-not-inc, fnlwgt=150904, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Craft-repair, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_El-Salvador.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Widowed (prob drop: 0.013049).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_El-Salvador: +0.0528
+  - capital-loss: +0.0356
+  - native-country_Vietnam: +0.0291
+  - education_Assoc-acdm: +0.0201
+  - workclass_Federal-gov: +0.0177
+- Top negative features (shap_value):
+  - native-country_England: -0.0528
+  - hours-per-week: -0.0356
+  - native-country_Yugoslavia: -0.0291
+  - education_Assoc-voc: -0.0201
+  - workclass_Local-gov: -0.0177
+- Max positive: 0.052759  Max negative: -0.052759
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2369
+  - capital-loss <= -0.22: +0.1112
+  - education-num <= -0.44: +0.0981
+  - marital-status_Married-civ-spouse <= 0.00: +0.0637
+  - native-country_Japan <= 0.00: +0.0510
+- Top negative features (weight):
+  - age > 0.64: -0.0865
+  - native-country_Laos <= 0.00: -0.0637
+  - native-country_Jamaica <= 0.00: -0.0320
+- Max positive: 0.236882  Max negative: -0.086478
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0167
+  - marital-status_Widowed: +0.0151
+  - occupation_Craft-repair: +0.0091
+  - education-num: +0.0059
+  - education_HS-grad: +0.0051
+- Top negative features (attribution_score):
+  - age: -0.0170
+  - native-country_United-States: -0.0056
+  - sex_Female: -0.0005
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.016665  Max negative: -0.016971
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Widowed: drop=+0.0130  (orig=0.4434 → mod=0.4304)
+  - age: drop=-0.0089  (orig=0.4434 → mod=0.4523)
+  - relationship_Not-in-family: drop=+0.0081  (orig=0.4434 → mod=0.4353)
+  - occupation_Craft-repair: drop=+0.0054  (orig=0.4434 → mod=0.4381)
+  - native-country_United-States: drop=-0.0050  (orig=0.4434 → mod=0.4485)
+  - education-num: drop=+0.0038  (orig=0.4434 → mod=0.4396)
+  - workclass_Self-emp-not-inc: drop=+0.0033  (orig=0.4434 → mod=0.4401)
+  - education_HS-grad: drop=-0.0031  (orig=0.4434 → mod=0.4465)
+  - sex_Female: drop=+0.0016  (orig=0.4434 → mod=0.4418)
+  - hours-per-week: drop=+0.0014  (orig=0.4434 → mod=0.4420)
+- Max prob_drop: 0.013049  Max prob_increase: -0.008892
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic and socioeconomic features are typically associated with income <=50K vs >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 5}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: In the Adult Income dataset, individuals with income <=50K are typically associated with older age, lower education levels, lower work hours, and employment in non-high-wage occupations. Features such as 'age' and 'education-num' tend to be lower in the <=50K group, while higher work hours and occupations like 'Prof-specialty' or 'Exec-managerial' are more commonly observed in the >50K class. 'Workclass' such as 'Private' is common for lower-income individuals, whereas 'Self-emp-not-inc' may show mixed associations but is not consistently predictive. Based on known patterns from prior studies and feature importance analyses, these changes represent a shift toward the profile most typical of the high-income (>50K) group, thereby highlighting the distinguishing features between income classes.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input features in the top-1 prediction (<=50K) compare to the top-2 alternative (>50K) in terms of value and known class associations?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "value", "new_value": 68, "judgment": "more typical for <=50K"}, {"feature_key": "workclass", "action": "value", "new_value": "Self-emp-not-inc", "judgment": "atypical for <=50K"}, {"feature_key": "education", "action": "value", "new_value": "HS-grad", "judgment": "more typical for <=50K"}, {"feature_key": "education-num", "action": "value", "new_value": 9, "judgment": "more typical for <=50K"}, {"feature_key": "marital-status", "action": "value", "new_value": "Widowed", "judgment": "more typical for <=50K"}, {"feature_key": "occupation", "action": "value", "new_value": "Craft-repair", "judgment": "more typical for <=50K"}, {"feature_key": "relationship", "action": "value", "new_value": "Not-in-family", "judgment": "more typical for <=50K"}, {"feature_key": "race", "action": "value", "new_value": "White", "judgment": "more typical for <=50K"}, {"feature_key": "sex", "action": "value", "new_value": "Female", "judgment": "more typical for <=50K"}, {"feature_key": "capital-gain", "action": "value", "new_value": 0, "judgment": "more typical for <=50K"}, {"feature_key": "capital-loss", "action": "value", "new_value": 0, "judgment": "more typical for <=50K"}, {"feature_key": "hours-per-week", "action": "value", "new_value": 35, "judgment": "more typical for <=50K"}, {"feature_key": "native-country", "action": "value", "new_value": "United-States", "judgment": "more typical for <=50K"}]
+- Explanation: The individual in the <=50K prediction has an older age (68), which is generally associated with lower income in income distribution patterns. Education level (HS-grad) and marital status (Widowed) are typical of the <=50K demographic. Being female, White, and in a 'Not-in-family' relationship also aligns with known class associations for lower-income groups. Workclass 'Self-emp-not-inc' is atypical for <=50K as self-employed individuals often earn higher incomes. However, the absence of capital gains and losses, combined with moderate working hours (35), supports the low-income classification. Overall, the majority of features align with typical patterns for <=50K income, with only minor atypicalities in workclass that do not override the broader trend.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic and socioeconomic features are typically associated with income <=50K vs >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education-num", "action": "change", "new_value": 5}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: In the Adult Income dataset, individuals with income <=50K are typically associated with older age, lower education levels, lower work hours, and employment in non-high-wage occupations. Features such as 'age' and 'education-num' tend to be lower in the <=50K group, while higher work hours and occupations like 'Prof-specialty' or 'Exec-managerial' are more commonly observed in the >50K class. 'Workclass' such as 'Private' is common for lower-income individuals, whereas 'Self-emp-not-inc' may show mixed associations but is not consistently predictive. Based on known patterns from prior studies and feature importance analyses, these changes represent a shift toward the profile most typical of the high-income (>50K) group, thereby highlighting the distinguishing features between income classes.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input features in the top-1 prediction (<=50K) compare to the top-2 alternative (>50K) in terms of value and known class associations?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "value", "new_value": 68, "judgment": "more typical for <=50K"}, {"feature_key": "workclass", "action": "value", "new_value": "Self-emp-not-inc", "judgment": "atypical for <=50K"}, {"feature_key": "education", "action": "value", "new_value": "HS-grad", "judgment": "more typical for <=50K"}, {"feature_key": "education-num", "action": "value", "new_value": 9, "judgment": "more typical for <=50K"}, {"feature_key": "marital-status", "action": "value", "new_value": "Widowed", "judgment": "more typical for <=50K"}, {"feature_key": "occupation", "action": "value", "new_value": "Craft-repair", "judgment": "more typical for <=50K"}, {"feature_key": "relationship", "action": "value", "new_value": "Not-in-family", "judgment": "more typical for <=50K"}, {"feature_key": "race", "action": "value", "new_value": "White", "judgment": "more typical for <=50K"}, {"feature_key": "sex", "action": "value", "new_value": "Female", "judgment": "more typical for <=50K"}, {"feature_key": "capital-gain", "action": "value", "new_value": 0, "judgment": "more typical for <=50K"}, {"feature_key": "capital-loss", "action": "value", "new_value": 0, "judgment": "more typical for <=50K"}, {"feature_key": "hours-per-week", "action": "value", "new_value": 35, "judgment": "more typical for <=50K"}, {"feature_key": "native-country", "action": "value", "new_value": "United-States", "judgment": "more typical for <=50K"}]
+- Explanation: The individual in the <=50K prediction has an older age (68), which is generally associated with lower income in income distribution patterns. Education level (HS-grad) and marital status (Widowed) are typical of the <=50K demographic. Being female, White, and in a 'Not-in-family' relationship also aligns with known class associations for lower-income groups. Workclass 'Self-emp-not-inc' is atypical for <=50K as self-employed individuals often earn higher incomes. However, the absence of capital gains and losses, combined with moderate working hours (35), supports the low-income classification. Overall, the majority of features align with typical patterns for <=50K income, with only minor atypicalities in workclass that do not override the broader trend.
+- Confidence: 0.93
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.22720149159431458}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

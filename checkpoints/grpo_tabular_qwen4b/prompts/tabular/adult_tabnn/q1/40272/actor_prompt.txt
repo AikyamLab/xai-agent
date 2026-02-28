@@ -1,0 +1,115 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6819
+
+## Input Data
+Features: age=62, workclass=Private, fnlwgt=345780, education=Assoc-voc, education-num=11, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.018063).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0809
+  - race_Black: +0.0375
+  - sex_Male: +0.0348
+  - native-country_Vietnam: +0.0319
+  - native-country_Japan: +0.0265
+- Top negative features (shap_value):
+  - age: -0.0809
+  - race_Other: -0.0375
+  - native-country_Cambodia: -0.0348
+  - native-country_Yugoslavia: -0.0319
+  - native-country_Laos: -0.0265
+- Max positive: 0.080932  Max negative: -0.080932
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.1830
+  - capital-loss <= -0.22: +0.1460
+  - native-country_Vietnam <= 0.00: +0.0794
+  - marital-status_Married-civ-spouse <= 0.00: +0.0728
+  - native-country_England <= 0.00: +0.0349
+- Top negative features (weight):
+  - age > 0.64: -0.0920
+  - native-country_Hungary <= 0.00: -0.0914
+  - native-country_Dominican-Republic <= 0.00: -0.0781
+  - -0.05 < education-num <= 1.13: -0.0731
+  - native-country_Columbia <= 0.00: -0.0199
+- Max positive: 0.183017  Max negative: -0.092015
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0185
+  - occupation_Other-service: +0.0174
+  - marital-status_Divorced: +0.0153
+  - race_White: +0.0045
+  - capital-gain: +0.0021
+- Top negative features (attribution_score):
+  - age: -0.0206
+  - sex_Male: -0.0097
+  - education-num: -0.0061
+  - native-country_United-States: -0.0054
+  - fnlwgt: -0.0046
+- Max positive: 0.018465  Max negative: -0.020638
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0181  (orig=0.4211 → mod=0.4031)
+  - marital-status_Divorced: drop=+0.0174  (orig=0.4211 → mod=0.4038)
+  - age: drop=-0.0173  (orig=0.4211 → mod=0.4384)
+  - occupation_Other-service: drop=+0.0163  (orig=0.4211 → mod=0.4048)
+  - sex_Male: drop=-0.0081  (orig=0.4211 → mod=0.4292)
+  - race_White: drop=+0.0060  (orig=0.4211 → mod=0.4151)
+  - education-num: drop=-0.0057  (orig=0.4211 → mod=0.4268)
+  - native-country_United-States: drop=-0.0050  (orig=0.4211 → mod=0.4261)
+  - education_Assoc-voc: drop=+0.0038  (orig=0.4211 → mod=0.4174)
+  - workclass_Private: drop=-0.0034  (orig=0.4211 → mod=0.4246)
+- Max prob_drop: 0.018063  Max prob_increase: -0.017278
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which features in the input are likely correlated with lower income levels in the adult income dataset, based on known domain knowledge and feature distributions.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 62}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education", "action": "change", "new_value": "10th"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}]
+- Explanation: Based on domain knowledge from the Adult Income dataset, features associated with lower income levels (<=50K) typically include lower education levels, non-professional occupations, less stable marital status, and lower socioeconomic workclass. For example, '10th' education level and 'Adm-clerical' occupation are more commonly linked to lower income brackets. 'Never-married' and 'Local-gov' workclass are also indicators of lower income compared to 'Private' or 'Exec-managerial' categories. The current value of age=62 is relatively high but not a strong indicator of income level on its own; however, when combined with lower education and working class, it may contribute to the model's prediction of <=50K. These changes represent plausible values that could more strongly correlate with the <=50K prediction under known demographic and socioeconomic patterns.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Interpret how the combination of education-num=11 (Assoc-voc), age=62, and marital-status=Divorced might influence the model's decision to classify as '<=50K'.
+- Status: Success
+- Explanation: The model predicted an income of '<=50K' with high confidence (68.19%). The key features influencing this decision—education-num=11 (Assoc-voc), age=62, and marital-status='Divorced'—align with demographic patterns typically associated with lower-income outcomes in income prediction models. An 'Assoc-voc' education level (level 11) indicates a non-college vocational training, which is often correlated with lower earning potential compared to higher education levels like Bachelor’s or above. The individual's age of 62 suggests they may be in the later stages of their career, and without evidence of high-wage employment or career advancement, this can contribute to a lower-income projection. The marital-status 'Divorced' may signal a lack of household support or financial stability, often historically linked to reduced income in data-driven models. Together, these features form a profile that the model interprets as consistent with lower lifetime earnings, reinforcing the prediction of '<=50K'. While other features (e.g., workclass='Private', hours-per-week=40) are neutral or modest, the combination of moderate education, retirement-phase age, and single-life status strengthens the classification toward the lower income bracket.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

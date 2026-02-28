@@ -1,0 +1,148 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be malignant (True label was benign). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: malignant (70.33%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: mean radius=14.47, mean texture=24.99, mean perimeter=95.81, mean area=656.4, mean smoothness=0.08837, mean compactness=0.123, mean concavity=0.1009, mean concave points=0.0389, mean symmetry=0.1872, mean fractal dimension=0.06341, radius error=0.2542, texture error=1.079, perimeter error=2.615, area error=23.11, smoothness error=0.007138, compactness error=0.04653, concavity error=0.03829, concave points error=0.01162, symmetry error=0.02068, fractal dimension error=0.006111, worst radius=16.22, worst texture=31.73, worst perimeter=113.5, worst area=808.9, worst smoothness=0.134, worst compactness=0.4202, worst concavity=0.404, worst concave points=0.1205, worst symmetry=0.3187, worst fractal dimension=0.1023
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean perimeter.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: worst symmetry > 0.45.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: mean texture.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean texture (prob drop: 0.024373).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean perimeter: +0.0729
+  - mean smoothness: +0.0240
+  - radius error: +0.0181
+  - perimeter error: +0.0141
+- Top negative features (shap_value):
+  - mean area: -0.0729
+  - mean compactness: -0.0240
+  - texture error: -0.0181
+  - area error: -0.0141
+  - mean radius: +0.0000
+- Max positive: 0.072863  Max negative: -0.072863
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst symmetry > 0.45: +0.1356
+  - worst texture > 0.66: +0.1079
+  - mean texture > 0.58: +0.1002
+  - worst concavity > 0.53: +0.0566
+  - worst fractal dimension > 0.45: +0.0397
+- Top negative features (weight):
+  - fractal dimension error > 0.29: -0.0486
+  - -0.62 < radius error <= -0.29: -0.0426
+  - -0.71 < mean smoothness <= -0.03: -0.0359
+- Max positive: 0.135623  Max negative: -0.048582
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - mean texture: +0.0266
+  - worst texture: +0.0188
+  - worst symmetry: +0.0125
+  - worst compactness: +0.0090
+  - worst concavity: +0.0045
+- Top negative features (attribution_score):
+  - fractal dimension error: -0.0097
+  - area error: -0.0073
+  - radius error: -0.0072
+  - mean smoothness: -0.0071
+  - mean concave points: -0.0034
+- Max positive: 0.026626  Max negative: -0.009689
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean texture: drop=+0.0244  (orig=0.4264 → mod=0.4020)
+  - worst texture: drop=+0.0164  (orig=0.4264 → mod=0.4099)
+  - worst symmetry: drop=+0.0107  (orig=0.4264 → mod=0.4156)
+  - fractal dimension error: drop=-0.0081  (orig=0.4264 → mod=0.4344)
+  - worst compactness: drop=+0.0071  (orig=0.4264 → mod=0.4193)
+  - radius error: drop=-0.0060  (orig=0.4264 → mod=0.4324)
+  - area error: drop=-0.0050  (orig=0.4264 → mod=0.4314)
+  - mean smoothness: drop=-0.0047  (orig=0.4264 → mod=0.4311)
+  - worst concavity: drop=+0.0038  (orig=0.4264 → mod=0.4226)
+  - worst fractal dimension: drop=+0.0032  (orig=0.4264 → mod=0.4231)
+- Max prob_drop: 0.024373  Max prob_increase: -0.008057
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which tabular features are semantically known to be highly relevant to benign tumors in breast cancer datasets?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean perimeter", "mean area", "mean smoothness", "mean compactness", "mean concavity", "mean concave points", "mean symmetry", "mean fractal dimension", "worst radius", "worst texture", "worst perimeter", "worst area", "worst smoothness", "worst compactness", "worst concavity", "worst concave points", "worst symmetry", "worst fractal dimension"]
+- Explanation: In breast cancer datasets such as the Wisconsin Breast Cancer Dataset (used in the famous UCI ML repository), these features are derived from digitized images of cell nuclei and are clinically recognized as being strongly correlated with tumor malignancy. Benign tumors generally exhibit more regular, less irregular cell shapes and sizes, which manifest in lower values for features like 'concavity', 'concave points', and 'compactness'. Features such as 'mean radius' and 'worst radius' are directly related to tumor size, with benign tumors typically showing smaller sizes. Smoothness, compactness, and fractal dimension are critical for capturing texture irregularity—benign tumors tend to have smoother, more uniform textures, reflected in lower 'mean smoothness' and 'mean fractal dimension' values. All features are derived from measurements of nuclear morphology, and collectively, they are known to be statistically and clinically relevant in distinguishing benign from malignant tumors. Thus, all listed features are semantically relevant to benign tumor classification.
+- Confidence: 0.99
+
+### REASONING Task
+- Query: Does the model assign high attribution to any feature that has no known clinical or biological link to malignancy or benignity?
+- Status: Success
+- findings: []
+- Explanation: The model predicted malignant with 70.33% confidence, but the true label was benign. However, the input provided does not include any attribution scores (e.g., feature importance weights or SHAP values) that would indicate how much the model attributes the prediction to individual features. Without such information, it is not possible to determine whether any feature has high attribution. The listed features are all clinically relevant in the context of breast cancer malignancy (e.g., mean radius, texture, concavity, fractal dimension), and none of them are known to have a weak or absent biological or clinical link to tumor classification. Therefore, based on the available data, there is no evidence of high attribution to a feature with weak or absent semantic relevance to malignancy or benignity. The absence of attribution data precludes any valid inference about irrelevant feature contributions.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model's predicted importance of features with known clinical relevance scores; identify discrepancies.
+- Status: Success
+- findings: [{"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.05}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean concave points", "action": "change", "new_value": 0.03}, {"feature_key": "mean symmetry", "action": "change", "new_value": 0.15}, {"feature_key": "mean texture", "action": "change", "new_value": 23.5}]
+- Explanation: The model predicted malignancy (label = 0) for a benign case, indicating a misclassification. In clinical oncology, benign tumors typically exhibit smooth, regular, and low-variation features. Features like mean fractal dimension, mean concavity, and mean concave points are known to be highly relevant to malignancy detection — higher values often correlate with malignant tumors. However, in a benign case, these values should be low. The model appears to over-attributed importance to these features, even though their actual values in this case are in the benign range. Additionally, mean texture and mean symmetry have established sensitivity to tumor morphology, but their high values in the prediction may indicate incorrect weighting. By reducing these feature values to more plausible benign ranges, the model’s misprediction can be corrected. This highlights a discrepancy between model-attributed importance and clinical relevance, particularly for features that are sensitive to malignancy but may be misread in benign cases.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which tabular features are semantically known to be highly relevant to benign tumors in breast cancer datasets?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean perimeter", "mean area", "mean smoothness", "mean compactness", "mean concavity", "mean concave points", "mean symmetry", "mean fractal dimension", "worst radius", "worst texture", "worst perimeter", "worst area", "worst smoothness", "worst compactness", "worst concavity", "worst concave points", "worst symmetry", "worst fractal dimension"]
+- Explanation: In breast cancer datasets such as the Wisconsin Breast Cancer Dataset (used in the famous UCI ML repository), these features are derived from digitized images of cell nuclei and are clinically recognized as being strongly correlated with tumor malignancy. Benign tumors generally exhibit more regular, less irregular cell shapes and sizes, which manifest in lower values for features like 'concavity', 'concave points', and 'compactness'. Features such as 'mean radius' and 'worst radius' are directly related to tumor size, with benign tumors typically showing smaller sizes. Smoothness, compactness, and fractal dimension are critical for capturing texture irregularity—benign tumors tend to have smoother, more uniform textures, reflected in lower 'mean smoothness' and 'mean fractal dimension' values. All features are derived from measurements of nuclear morphology, and collectively, they are known to be statistically and clinically relevant in distinguishing benign from malignant tumors. Thus, all listed features are semantically relevant to benign tumor classification.
+- Confidence: 0.99
+
+### REASONING Task
+- Query: Does the model assign high attribution to any feature that has no known clinical or biological link to malignancy or benignity?
+- Status: Success
+- findings: []
+- Explanation: The model predicted malignant with 70.33% confidence, but the true label was benign. However, the input provided does not include any attribution scores (e.g., feature importance weights or SHAP values) that would indicate how much the model attributes the prediction to individual features. Without such information, it is not possible to determine whether any feature has high attribution. The listed features are all clinically relevant in the context of breast cancer malignancy (e.g., mean radius, texture, concavity, fractal dimension), and none of them are known to have a weak or absent biological or clinical link to tumor classification. Therefore, based on the available data, there is no evidence of high attribution to a feature with weak or absent semantic relevance to malignancy or benignity. The absence of attribution data precludes any valid inference about irrelevant feature contributions.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model's predicted importance of features with known clinical relevance scores; identify discrepancies.
+- Status: Success
+- findings: [{"feature_key": "mean fractal dimension", "action": "change", "new_value": 0.05}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.05}, {"feature_key": "mean concave points", "action": "change", "new_value": 0.03}, {"feature_key": "mean symmetry", "action": "change", "new_value": 0.15}, {"feature_key": "mean texture", "action": "change", "new_value": 23.5}]
+- Explanation: The model predicted malignancy (label = 0) for a benign case, indicating a misclassification. In clinical oncology, benign tumors typically exhibit smooth, regular, and low-variation features. Features like mean fractal dimension, mean concavity, and mean concave points are known to be highly relevant to malignancy detection — higher values often correlate with malignant tumors. However, in a benign case, these values should be low. The model appears to over-attributed importance to these features, even though their actual values in this case are in the benign range. Additionally, mean texture and mean symmetry have established sensitivity to tumor morphology, but their high values in the prediction may indicate incorrect weighting. By reducing these feature values to more plausible benign ranges, the model’s misprediction can be corrected. This highlights a discrepancy between model-attributed importance and clinical relevance, particularly for features that are sensitive to malignancy but may be misread in benign cases.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

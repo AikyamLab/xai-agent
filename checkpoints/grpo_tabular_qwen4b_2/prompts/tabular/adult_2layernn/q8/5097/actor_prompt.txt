@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (52.24%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=41, workclass=Federal-gov, fnlwgt=333070, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Without-pay.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: native-country_Honduras <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: workclass_Federal-gov (prob drop: 0.008057).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education_10th: +0.0295
+  - native-country_Haiti: +0.0212
+  - native-country_Cuba: +0.0110
+  - native-country_Cambodia: +0.0078
+  - native-country_Poland: +0.0040
+- Top negative features (shap_value):
+  - workclass_Without-pay: -0.0295
+  - native-country_Holand-Netherlands: -0.0212
+  - native-country_Columbia: -0.0110
+  - sex_Male: -0.0078
+  - native-country_Philippines: -0.0040
+- Max positive: 0.029514  Max negative: -0.029514
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Honduras <= 0.00: +0.0929
+  - native-country_Poland <= 0.00: +0.0465
+  - native-country_Scotland <= 0.00: +0.0313
+  - native-country_Vietnam <= 0.00: +0.0309
+  - native-country_Canada <= 0.00: +0.0077
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0789
+  - native-country_Japan <= 0.00: -0.0785
+  - capital-gain <= -0.15: -0.0681
+  - native-country_China <= 0.00: -0.0475
+- Max positive: 0.092851  Max negative: -0.078924
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - workclass_Federal-gov: +0.0068
+  - sex_Male: +0.0064
+  - native-country_United-States: +0.0044
+  - marital-status_Married-civ-spouse: +0.0035
+  - relationship_Husband: +0.0029
+- Top negative features (attribution_score):
+  - race_Black: -0.0052
+  - hours-per-week: -0.0049
+  - education_Some-college: -0.0041
+  - occupation_Craft-repair: -0.0024
+  - capital-gain: -0.0006
+- Max positive: 0.006751  Max negative: -0.005174
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - workclass_Federal-gov: drop=+0.0081  (orig=0.6277 → mod=0.6197)
+  - race_Black: drop=-0.0066  (orig=0.6277 → mod=0.6343)
+  - education_Some-college: drop=-0.0061  (orig=0.6277 → mod=0.6338)
+  - marital-status_Married-civ-spouse: drop=+0.0059  (orig=0.6277 → mod=0.6218)
+  - occupation_Craft-repair: drop=-0.0052  (orig=0.6277 → mod=0.6329)
+  - sex_Male: drop=+0.0051  (orig=0.6277 → mod=0.6226)
+  - hours-per-week: drop=-0.0033  (orig=0.6277 → mod=0.6310)
+  - relationship_Husband: drop=+0.0030  (orig=0.6277 → mod=0.6247)
+  - native-country_United-States: drop=+0.0017  (orig=0.6277 → mod=0.6260)
+  - age: drop=+0.0012  (orig=0.6277 → mod=0.6265)
+- Max prob_drop: 0.008057  Max prob_increase: -0.006566
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'race=Black' or 'sex=Male' are semantically relevant to the true class (<=50K) in the context of income prediction, given historical biases and domain knowledge about socioeconomic factors.
+- Status: Success
+- findings: {"race": false, "sex": true}
+- Explanation: In the context of income prediction, 'sex=Male' has historically shown a strong correlation with higher earnings in socio-economic data sets such as the Census Income dataset. While this correlation may not be causal, it is semantically relevant due to documented gender-based wage gaps and labor market dynamics. 'race=Black' has also shown historical correlation with lower income levels in such datasets, but this is often attributed to systemic socioeconomic factors rather than inherent ability. However, under strict semantic relevance (i.e., direct influence on income through labor market participation, education access, or occupational mobility), the sex factor is more consistently and directly relevant than race. Thus, sex is semantically relevant despite potential bias, while race is less directly relevant in a pure income prediction context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence on the prediction with the importance of features like 'workclass', 'education-num', and 'fnlwgt' relative to 'race' and 'sex' in terms of their alignment with socioeconomic real-world factors.
+- Status: Success
+- findings: [{"feature": "education-num", "semantic_relevance": "High", "explanation": "Education level is strongly correlated with income in real-world socioeconomic contexts. A value of '10' (Some-college) indicates limited formal education, which is typically associated with lower income brackets. This feature is semantically well-aligned with income outcomes and would strongly influence a model\u2019s prediction."}, {"feature": "workclass", "semantic_relevance": "Medium", "explanation": "Federal-gov is a public sector job, which often pays modestly compared to private sector or executive roles. While not the highest income-earning category, it is contextually plausible for mid-level salaries. Its relevance is moderate compared to education or work experience."}, {"feature": "fnlwgt", "semantic_relevance": "Low", "explanation": "fnlwgt (final weight) is a survey weighting factor used to represent population size, not actual income or earnings. It reflects sample representation, not economic ability. Therefore, it has no direct semantic relevance to individual income prediction and should not be a strong contributor to income classification."}, {"feature": "race", "semantic_relevance": "Low to Medium", "explanation": "Race is a sensitive feature with known real-world socioeconomic disparities. However, the data indicates the individual is 'Black' and male, with no other indicators of high income. While race can be correlated with structural inequalities, its use as a direct predictor of income is ethically and semantically problematic. It should not override stronger socioeconomic signals such as education or occupation."}, {"feature": "sex", "semantic_relevance": "Low", "explanation": "The individual is 'Male', and while gender disparities exist in income, the effect is generally less pronounced than education or work type. In this case, being male with low education and public-sector employment does not strongly push toward high income. Sex should not be a primary driver in income prediction due to minimal direct causal relevance."}]
+- Explanation: The model predicted >50K despite the true label being <=50K, and its confidence (52.24%) suggests a weak but not negligible decision boundary. Given the individual’s characteristics—low education (10), Federal-gov workclass, and no capital gains—the semantic plausibility of a high income is low. The model's high confidence may stem from relying on features like 'race' or 'sex' (which have weak or ethically dubious alignment with income) rather than stronger socioeconomic indicators like education-num or workclass. This misalignment suggests that the model is over-attributing importance to socially sensitive or proxy features, which undermines both factual accuracy and fairness. To improve prediction quality, the model should prioritize education-num, workclass, and hours-per-week over race or sex, especially when confidence is low.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'race=Black' or 'sex=Male' are semantically relevant to the true class (<=50K) in the context of income prediction, given historical biases and domain knowledge about socioeconomic factors.
+- Status: Success
+- findings: {"race": false, "sex": true}
+- Explanation: In the context of income prediction, 'sex=Male' has historically shown a strong correlation with higher earnings in socio-economic data sets such as the Census Income dataset. While this correlation may not be causal, it is semantically relevant due to documented gender-based wage gaps and labor market dynamics. 'race=Black' has also shown historical correlation with lower income levels in such datasets, but this is often attributed to systemic socioeconomic factors rather than inherent ability. However, under strict semantic relevance (i.e., direct influence on income through labor market participation, education access, or occupational mobility), the sex factor is more consistently and directly relevant than race. Thus, sex is semantically relevant despite potential bias, while race is less directly relevant in a pure income prediction context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence on the prediction with the importance of features like 'workclass', 'education-num', and 'fnlwgt' relative to 'race' and 'sex' in terms of their alignment with socioeconomic real-world factors.
+- Status: Success
+- findings: [{"feature": "education-num", "semantic_relevance": "High", "explanation": "Education level is strongly correlated with income in real-world socioeconomic contexts. A value of '10' (Some-college) indicates limited formal education, which is typically associated with lower income brackets. This feature is semantically well-aligned with income outcomes and would strongly influence a model\u2019s prediction."}, {"feature": "workclass", "semantic_relevance": "Medium", "explanation": "Federal-gov is a public sector job, which often pays modestly compared to private sector or executive roles. While not the highest income-earning category, it is contextually plausible for mid-level salaries. Its relevance is moderate compared to education or work experience."}, {"feature": "fnlwgt", "semantic_relevance": "Low", "explanation": "fnlwgt (final weight) is a survey weighting factor used to represent population size, not actual income or earnings. It reflects sample representation, not economic ability. Therefore, it has no direct semantic relevance to individual income prediction and should not be a strong contributor to income classification."}, {"feature": "race", "semantic_relevance": "Low to Medium", "explanation": "Race is a sensitive feature with known real-world socioeconomic disparities. However, the data indicates the individual is 'Black' and male, with no other indicators of high income. While race can be correlated with structural inequalities, its use as a direct predictor of income is ethically and semantically problematic. It should not override stronger socioeconomic signals such as education or occupation."}, {"feature": "sex", "semantic_relevance": "Low", "explanation": "The individual is 'Male', and while gender disparities exist in income, the effect is generally less pronounced than education or work type. In this case, being male with low education and public-sector employment does not strongly push toward high income. Sex should not be a primary driver in income prediction due to minimal direct causal relevance."}]
+- Explanation: The model predicted >50K despite the true label being <=50K, and its confidence (52.24%) suggests a weak but not negligible decision boundary. Given the individual’s characteristics—low education (10), Federal-gov workclass, and no capital gains—the semantic plausibility of a high income is low. The model's high confidence may stem from relying on features like 'race' or 'sex' (which have weak or ethically dubious alignment with income) rather than stronger socioeconomic indicators like education-num or workclass. This misalignment suggests that the model is over-attributing importance to socially sensitive or proxy features, which undermines both factual accuracy and fairness. To improve prediction quality, the model should prioritize education-num, workclass, and hours-per-week over race or sex, especially when confidence is low.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

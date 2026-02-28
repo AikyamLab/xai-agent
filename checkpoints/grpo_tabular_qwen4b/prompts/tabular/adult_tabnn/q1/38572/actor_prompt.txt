@@ -1,0 +1,119 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7466
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=188972, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Exec-managerial, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_El-Salvador.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Widowed.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Unmarried (prob drop: 0.015883).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_El-Salvador: +0.0380
+  - sex_Male: +0.0344
+  - native-country_Trinadad&Tobago: +0.0237
+  - capital-loss: +0.0157
+  - workclass_Federal-gov: +0.0114
+- Top negative features (shap_value):
+  - native-country_England: -0.0380
+  - native-country_Cambodia: -0.0344
+  - native-country_United-States: -0.0237
+  - hours-per-week: -0.0157
+  - workclass_Local-gov: -0.0114
+- Max positive: 0.038011  Max negative: -0.038011
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2346
+  - capital-loss <= -0.22: +0.1126
+  - education-num <= -0.44: +0.0847
+  - native-country_China <= 0.00: +0.0841
+  - marital-status_Married-civ-spouse <= 0.00: +0.0692
+- Top negative features (weight):
+  - native-country_Thailand <= 0.00: -0.0820
+  - native-country_Scotland <= 0.00: -0.0269
+- Max positive: 0.234597  Max negative: -0.081986
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Widowed: +0.0143
+  - relationship_Unmarried: +0.0104
+  - education-num: +0.0063
+  - education_HS-grad: +0.0055
+  - age: +0.0035
+- Top negative features (attribution_score):
+  - occupation_Exec-managerial: -0.0099
+  - hours-per-week: -0.0015
+  - workclass_Private: -0.0006
+  - race_White: -0.0006
+  - native-country_United-States: -0.0002
+- Max positive: 0.014267  Max negative: -0.009946
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Unmarried: drop=+0.0159  (orig=0.4370 → mod=0.4211)
+  - marital-status_Widowed: drop=+0.0130  (orig=0.4370 → mod=0.4240)
+  - education-num: drop=+0.0067  (orig=0.4370 → mod=0.4303)
+  - occupation_Exec-managerial: drop=-0.0061  (orig=0.4370 → mod=0.4431)
+  - education_HS-grad: drop=+0.0055  (orig=0.4370 → mod=0.4315)
+  - sex_Female: drop=+0.0044  (orig=0.4370 → mod=0.4325)
+  - age: drop=+0.0037  (orig=0.4370 → mod=0.4333)
+  - race_White: drop=-0.0032  (orig=0.4370 → mod=0.4402)
+  - workclass_Private: drop=-0.0030  (orig=0.4370 → mod=0.4400)
+  - capital-loss: drop=+0.0023  (orig=0.4370 → mod=0.4347)
+- Max prob_drop: 0.015883  Max prob_increase: -0.006133
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features in the adult dataset are commonly associated with income <=50K in domain knowledge?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "associated_with", "new_value": "lower values"}, {"feature_key": "education-num", "action": "associated_with", "new_value": "lower values"}, {"feature_key": "hours-per-week", "action": "associated_with", "new_value": "lower values"}, {"feature_key": "sex", "action": "associated_with", "new_value": "Female"}, {"feature_key": "race", "action": "associated_with", "new_value": "White"}]
+- Explanation: In domain knowledge of the Adult Income Dataset, individuals with lower education levels (as reflected in education-num), younger ages, fewer hours worked per week, and female sex are statistically more likely to have income <=50K. These features are well-documented in studies and historical analyses of the dataset. While 'White' race is associated with income <=50K in the dataset (despite being correlated with higher income in some aggregate trends), this association is nuanced due to social and structural factors. However, based on empirical data patterns, these features consistently appear in models predicting low income. The workclass, occupation, and marital-status are less consistently predictive, and 'capital-gain' and 'capital-loss' are often low in low-income groups, but not specifically predictive. Thus, the top features linked to <=50K income are age, education-num, hours-per-week, sex, and race (White).
+- Confidence: 0.93
+
+### REASONING Task
+- Query: How might the combination of being Widowed, Female, and having only a HS-grad education influence the model's prediction of <=50K?
+- Status: Success
+- Explanation: The model predicted an income of <=50K with high confidence (74.66%). The combination of being Widowed, Female, and having only a HS-grad education likely contributes to this prediction. In the dataset, marital status and education level are strong predictors of income. A 'Widowed' marital status may indicate limited household support or economic stability, and when paired with a female sex, it could reflect traditional labor market disadvantages, such as fewer employment opportunities or lower occupational status. Education level plays a significant role as 'HS-grad' (education-num=9) is below the levels typically associated with higher income groups (e.g., Bachelors, Masters, or Professions). Additionally, the individual holds an 'Exec-managerial' occupation, which normally correlates with higher income, suggesting a possible offsetting factor. However, the lack of higher education and the socioeconomic context of being widowed and female may outweigh the positive influence of the occupation, leading the model to downweight the predicted income. Thus, the features 'marital-status': 'Widowed', 'sex': 'Female', and 'education': 'HS-grad' collectively contribute to the model's decision that income is likely <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the feature values in the input to the average or median values in the training data for each feature, and identify outliers or typical patterns for low-income groups.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": "35", "analysis": "The age of 35 is typical and within the average range for the dataset. Low-income individuals are not consistently younger or older, so age does not strongly correlate with income prediction in this case."}, {"feature_key": "workclass", "action": "compare", "new_value": "Private", "analysis": "Workclass 'Private' is common and associated with both high and low income. However, 'Private' is more frequently linked to higher income in training data, so this value is somewhat atypical for a low-income prediction, suggesting other factors are more influential."}, {"feature_key": "education", "action": "compare", "new_value": "HS-grad", "analysis": "Education level 'HS-grad' (education-num=9) is below the median (typically higher for high-income individuals). Most high-income individuals have at least some college or advanced education. This is a strong indicator of low income potential."}, {"feature_key": "education-num", "action": "compare", "new_value": 9, "analysis": "Education-num=9 is significantly below the median (often above 10 for high-income group). This feature is strongly correlated with income, and a low value directly contributes to predicting \u226450K."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Widowed", "analysis": "Marital status 'Widowed' is associated with a higher likelihood of lower income, especially when combined with lower education. This status is typically linked to lower income brackets compared to 'Married-civ-spouse' or 'Married-spouse-absent'."}, {"feature_key": "occupation", "action": "compare", "new_value": "Exec-managerial", "analysis": "Occupation 'Exec-managerial' is strongly correlated with high income in the training data. This is a major outlier in the context of a \u226450K prediction, suggesting the model may be constrained by other features that override occupation-based income expectations."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 30, "analysis": "Hours-per-week=30 is typical and within the median range. No strong deviation from typical low-income patterns. Does not contribute significantly to the low-income prediction."}, {"feature_key": "sex", "action": "compare", "new_value": "Female", "analysis": "Female sex is associated with lower median income in the dataset, especially when combined with low education and non-unionized work. This contributes to the likelihood of \u226450K prediction, though not uniquely decisive."}, {"feature_key": "capital-gain", "action": "compare", "new_value": 0, "analysis": "Capital gain of 0 is common among low-income individuals and does not indicate a deviation from typical low-income profiles. Neutral factor."}, {"feature_key": "capital-loss", "action": "compare", "new_value": 0, "analysis": "Capital loss of 0 is neutral and not indicative of low income. Typical and non-contributory."}, {"feature_key": "race", "action": "compare", "new_value": "White", "analysis": "Race='White' is not correlated with income in the training data; income differences are more closely tied to education, occupation, and marital status than race. Neutral factor in this context."}, {"feature_key": "native-country", "action": "compare", "new_value": "United-States", "analysis": "United-States is the majority country in the dataset and not a distinguishing factor for income level. Neutral."}]
+- Explanation: The prediction of ≤50K is most strongly influenced by the education level (HS-grad, education-num=9), which is below the median for higher-income individuals. The marital status (Widowed) and sex (Female) also contribute to the low-income profile, as both are associated with lower median earnings. While occupation is 'Exec-managerial'—a high-income role—this is offset by low education, which dominates the income prediction. The model likely assigns lower credit to high-earning occupations when educational and marital background indicators are weak. Thus, the combination of low education and non-marital status outweighs the high occupation, driving the model toward ≤50K.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

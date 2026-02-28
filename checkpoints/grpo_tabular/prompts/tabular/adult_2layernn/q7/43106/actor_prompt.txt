@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change capital-gain, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (82.51%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.825066328048706}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.17493367195129395}]
+- Part to Change: capital-gain
+
+## Input Data
+Features: age=49, workclass=Self-emp-not-inc, fnlwgt=43348, education=Doctorate, education-num=16, marital-status=Never-married, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Male, capital-gain=99999, capital-loss=0, hours-per-week=70, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-gain (prob drop: 0.055487).
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+
+### Detailed Statistics
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=+0.0555  (orig=0.6953 → mod=0.6398)
+  - hours-per-week: drop=+0.0076  (orig=0.6953 → mod=0.6877)
+  - sex_Male: drop=+0.0070  (orig=0.6953 → mod=0.6883)
+  - education-num: drop=+0.0061  (orig=0.6953 → mod=0.6892)
+  - marital-status_Never-married: drop=-0.0052  (orig=0.6953 → mod=0.7005)
+  - workclass_Self-emp-not-inc: drop=+0.0025  (orig=0.6953 → mod=0.6928)
+  - age: drop=+0.0015  (orig=0.6953 → mod=0.6938)
+  - relationship_Not-in-family: drop=-0.0014  (orig=0.6953 → mod=0.6967)
+  - education_Doctorate: drop=-0.0011  (orig=0.6953 → mod=0.6964)
+  - occupation_Prof-specialty: drop=+0.0009  (orig=0.6953 → mod=0.6944)
+- Max prob_drop: 0.055487  Max prob_increase: -0.005154
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.2520
+  - hours-per-week: +0.0449
+  - workclass_State-gov: +0.0421
+  - native-country_Holand-Netherlands: +0.0045
+  - occupation_Other-service: +0.0038
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.2520
+  - capital-loss: -0.0449
+  - workclass_Self-emp-not-inc: -0.0421
+  - native-country_Haiti: -0.0045
+  - occupation_Machine-op-inspct: -0.0038
+- Max positive: 0.251969  Max negative: -0.251969
+- Total features: 104
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Given the model architecture and input, determine the expected role of capital-gain in predicting income >50K when combined with other features like education, occupation, and age.
+- Status: Success
+- findings: "capital-gain is a high-impact feature likely contributing to the model's high confidence in predicting income >50K"
+- Explanation: The model predicts income >50K with 82.51% confidence. The individual has a capital-gain of 99,999, which is exceptionally high compared to typical values and may strongly influence the model's prediction. While features like education (Doctorate), occupation (Prof-specialty), age (49), and hours-per-week (70) also suggest high-income potential, the extremely high capital-gain is likely a significant outlier that amplifies the prediction. Removing or reducing this value would likely decrease the predicted probability, as it may be a dominant indicator in the model's decision-making process, especially in models that treat financial gains as strong predictors of overall income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If capital-gain is removed, what would be the effect on the model's confidence, assuming other features remain stable and do not fully compensate for its absence?
+- Status: Success
+- findings: "Prediction that the model\u2019s confidence may decrease and the probability might shift toward <=50K due to loss of a salient feature."
+- Explanation: The feature 'capital-gain' has an exceptionally high value (99999), which is likely a strong predictor of income exceeding 50K. Removing this feature would eliminate a major signal that contributes to the model's high confidence in predicting income >50K. Given that other features, while informative, may not fully compensate for the loss of such a high-impact variable, the model’s confidence is expected to decrease, and the prediction may shift toward the lower income class.
+- Confidence: 0.88
+
+### COMPARISON Task
+- Query: Compare the importance of capital-gain relative to other key features (e.g., education-num, occupation) based on historical patterns in the Adult dataset.
+- Status: Success
+- findings: "capital-gain is among the top predictors of income >50K in the Adult dataset, comparable in importance to education-num and occupation. Historical modeling shows that capital-gain captures significant variance in income, especially when values exceed typical thresholds (e.g., >$10,000). Its removal would likely reduce the model's predictive confidence more than median-effect features like hours-per-week or marital-status, though not as drastically as education-num or occupation. However, the extreme value (99,999) suggests potential outlier influence."
+- Explanation: In the Adult dataset, capital-gain has shown strong predictive power for high-income classifications (>$50K) due to its direct association with wealth accumulation. While education-num and occupation rank high due to systemic income variance, capital-gain has demonstrated comparable leverage in boosting probability when nonzero. The model’s 82.51% confidence on the prediction is heavily influenced by the capital-gain value, as it is an order-of-magnitude outlier. Removing it would significantly lower the predicted probability and likely push the outcome toward ≤50K, highlighting its disproportionate role. This aligns with known model sensitivity in the dataset — capital-gain often appears in top SHAP values.
+- Confidence: 0.88
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Given the model architecture and input, determine the expected role of capital-gain in predicting income >50K when combined with other features like education, occupation, and age.
+- Status: Success
+- findings: "capital-gain is a high-impact feature likely contributing to the model's high confidence in predicting income >50K"
+- Explanation: The model predicts income >50K with 82.51% confidence. The individual has a capital-gain of 99,999, which is exceptionally high compared to typical values and may strongly influence the model's prediction. While features like education (Doctorate), occupation (Prof-specialty), age (49), and hours-per-week (70) also suggest high-income potential, the extremely high capital-gain is likely a significant outlier that amplifies the prediction. Removing or reducing this value would likely decrease the predicted probability, as it may be a dominant indicator in the model's decision-making process, especially in models that treat financial gains as strong predictors of overall income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If capital-gain is removed, what would be the effect on the model's confidence, assuming other features remain stable and do not fully compensate for its absence?
+- Status: Success
+- findings: "Prediction that the model\u2019s confidence may decrease and the probability might shift toward <=50K due to loss of a salient feature."
+- Explanation: The feature 'capital-gain' has an exceptionally high value (99999), which is likely a strong predictor of income exceeding 50K. Removing this feature would eliminate a major signal that contributes to the model's high confidence in predicting income >50K. Given that other features, while informative, may not fully compensate for the loss of such a high-impact variable, the model’s confidence is expected to decrease, and the prediction may shift toward the lower income class.
+- Confidence: 0.88
+
+### COMPARISON Task
+- Query: Compare the importance of capital-gain relative to other key features (e.g., education-num, occupation) based on historical patterns in the Adult dataset.
+- Status: Success
+- findings: "capital-gain is among the top predictors of income >50K in the Adult dataset, comparable in importance to education-num and occupation. Historical modeling shows that capital-gain captures significant variance in income, especially when values exceed typical thresholds (e.g., >$10,000). Its removal would likely reduce the model's predictive confidence more than median-effect features like hours-per-week or marital-status, though not as drastically as education-num or occupation. However, the extreme value (99,999) suggests potential outlier influence."
+- Explanation: In the Adult dataset, capital-gain has shown strong predictive power for high-income classifications (>$50K) due to its direct association with wealth accumulation. While education-num and occupation rank high due to systemic income variance, capital-gain has demonstrated comparable leverage in boosting probability when nonzero. The model’s 82.51% confidence on the prediction is heavily influenced by the capital-gain value, as it is an order-of-magnitude outlier. Removing it would significantly lower the predicted probability and likely push the outcome toward ≤50K, highlighting its disproportionate role. This aligns with known model sensitivity in the dataset — capital-gain often appears in top SHAP values.
+- Confidence: 0.88
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

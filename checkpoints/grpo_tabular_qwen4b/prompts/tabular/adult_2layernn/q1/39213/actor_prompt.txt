@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7058
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=520759, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Not-in-family, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Japan.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: fnlwgt.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: fnlwgt (prob drop: 0.012043).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Japan: +0.0326
+  - education-num: +0.0306
+  - native-country_Columbia: +0.0233
+  - native-country_Vietnam: +0.0229
+  - workclass_Self-emp-not-inc: +0.0182
+- Top negative features (shap_value):
+  - native-country_Laos: -0.0326
+  - capital-gain: -0.0306
+  - native-country_Cuba: -0.0233
+  - native-country_Yugoslavia: -0.0229
+  - workclass_State-gov: -0.0182
+- Max positive: 0.032571  Max negative: -0.032571
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0714
+  - capital-gain <= -0.15: +0.0628
+  - education-num <= -0.44: +0.0621
+  - hours-per-week <= -0.08: +0.0473
+  - native-country_China <= 0.00: +0.0377
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0539
+  - native-country_Peru <= 0.00: -0.0347
+  - native-country_Italy <= 0.00: -0.0244
+  - native-country_Dominican-Republic <= 0.00: -0.0219
+- Max positive: 0.071395  Max negative: -0.053881
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - fnlwgt: +0.0102
+  - occupation_Other-service: +0.0086
+  - relationship_Not-in-family: +0.0078
+  - marital-status_Never-married: +0.0068
+  - hours-per-week: +0.0054
+- Top negative features (attribution_score):
+  - sex_Male: -0.0078
+  - native-country_United-States: -0.0022
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.01023  Max negative: -0.007792
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - fnlwgt: drop=+0.0120  (orig=0.4270 → mod=0.4149)
+  - occupation_Other-service: drop=+0.0112  (orig=0.4270 → mod=0.4158)
+  - relationship_Not-in-family: drop=+0.0078  (orig=0.4270 → mod=0.4192)
+  - marital-status_Never-married: drop=+0.0076  (orig=0.4270 → mod=0.4194)
+  - sex_Male: drop=-0.0056  (orig=0.4270 → mod=0.4326)
+  - race_Black: drop=+0.0051  (orig=0.4270 → mod=0.4218)
+  - hours-per-week: drop=+0.0034  (orig=0.4270 → mod=0.4236)
+  - workclass_Private: drop=+0.0032  (orig=0.4270 → mod=0.4237)
+  - education_HS-grad: drop=+0.0031  (orig=0.4270 → mod=0.4239)
+  - education-num: drop=+0.0030  (orig=0.4270 → mod=0.4240)
+- Max prob_drop: 0.012043  Max prob_increase: -0.005601
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Based on known patterns in the adult income dataset, which features are typically associated with income <=50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35}]
+- Explanation: In the Adult Income dataset, individuals with income <=50K are typically associated with lower education levels, younger age, non-graduate or less advanced educational attainment, being never-married, working in lower-paying occupations like 'Other-service', and working fewer hours per week. The current input shows a young male (age=23), HS-grad (education), never-married status, and low hours (30), all of which align with known patterns of lower income. Changes to slightly increase age, reduce education level, maintain non-marital status, and keep modest hours reflect typical characteristics of the <=50K group. These modifications preserve the dataset's natural structure while reinforcing the known statistical associations.
+- Confidence: 0.94
+
+### REASONING Task
+- Query: Given the input features (age=23, workclass=Private, education=HS-grad, etc.), why might these features drive the model toward the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: The model predicted <=50K with moderate confidence (70.58%), and the current input features suggest a lower-income profile. Key features contributing to this prediction include a relatively young age (23), limited education (HS-grad, education-num=9), low working hours (30 per week), and a non-high-income occupation ('Other-service'). These factors are typically associated with lower earnings. Changing age to 35 increases work experience and potential income. Increasing education-num to 13 (e.g., some college or Bachelors) improves educational attainment linked to higher income. Raising hours-per-week to 40 reflects increased work effort, often correlated with higher earnings. Changing occupation to 'Prof-specialty' is strongly associated with high income in the dataset. Additionally, workclass='Local-gov' may imply less affluent employment compared to 'Private' or 'Self-employment' with higher earning potential. Thus, these changes would shift the prediction toward >50K, suggesting the original features are driving the <=50K class due to socioeconomic and employment profile limitations.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative impact of categorical features like 'race' and 'marital-status' versus numerical features like 'age' or 'fnlwgt' in typical income predictions.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "race", "action": "change", "new_value": "White"}]
+- Explanation: In typical income prediction models, numerical features like 'age', 'education-num', and 'hours-per-week' often carry strong predictive power due to their direct correlation with work experience, education level, and work hours—factors that are consistently linked to higher income. Changes in these features tend to produce more significant shifts in predicted income outcomes. Categorical features such as 'marital-status' and 'race' can also influence predictions, but their effects are often more nuanced and context-dependent. For instance, 'marital-status' may reflect socioeconomic stability, while 'race' has historically been a confounded variable in datasets due to systemic disparities. However, in this model's context, the prediction of ≤50K is likely driven less by race or marital status and more by the combination of low education level (HS-grad), relatively young age (23), and moderate work hours (30). Therefore, increasing age, education level, and work hours—numerical features—would likely improve the prediction toward a higher income. The change to 'White' race, while present in the dataset, does not surpass the impact of numerical changes in typical model behavior.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

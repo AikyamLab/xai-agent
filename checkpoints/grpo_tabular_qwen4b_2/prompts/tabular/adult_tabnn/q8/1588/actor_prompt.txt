@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (68.64%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=23, workclass=Local-gov, fnlwgt=200593, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.023899).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0619
+  - hours-per-week: +0.0440
+  - native-country_Peru: +0.0357
+  - native-country_Columbia: +0.0290
+  - occupation_Prof-specialty: +0.0284
+- Top negative features (shap_value):
+  - fnlwgt: -0.0619
+  - capital-loss: -0.0440
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0357
+  - native-country_Cuba: -0.0290
+  - occupation_Priv-house-serv: -0.0284
+- Max positive: 0.061888  Max negative: -0.061888
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2194
+  - native-country_Cambodia <= 0.00: +0.1111
+  - capital-loss <= -0.22: +0.1099
+  - age <= -0.80: +0.0820
+  - marital-status_Married-civ-spouse <= 0.00: +0.0694
+- Top negative features (weight):
+  - -0.05 < education-num <= 1.13: -0.0768
+  - native-country_England <= 0.00: -0.0750
+  - native-country_Poland <= 0.00: -0.0445
+  - native-country_Haiti <= 0.00: -0.0230
+- Max positive: 0.219407  Max negative: -0.076799
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0232
+  - age: +0.0170
+  - relationship_Own-child: +0.0122
+  - capital-gain: +0.0025
+  - race_White: +0.0022
+- Top negative features (attribution_score):
+  - sex_Male: -0.0111
+  - occupation_Prof-specialty: -0.0100
+  - education_Bachelors: -0.0091
+  - education-num: -0.0083
+  - workclass_Local-gov: -0.0044
+- Max positive: 0.023159  Max negative: -0.011096
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0239  (orig=0.4222 → mod=0.3983)
+  - age: drop=+0.0182  (orig=0.4222 → mod=0.4040)
+  - relationship_Own-child: drop=+0.0090  (orig=0.4222 → mod=0.4132)
+  - sex_Male: drop=-0.0084  (orig=0.4222 → mod=0.4307)
+  - education-num: drop=-0.0078  (orig=0.4222 → mod=0.4300)
+  - occupation_Prof-specialty: drop=-0.0070  (orig=0.4222 → mod=0.4293)
+  - education_Bachelors: drop=-0.0049  (orig=0.4222 → mod=0.4271)
+  - race_White: drop=+0.0044  (orig=0.4222 → mod=0.4178)
+  - native-country_United-States: drop=+0.0038  (orig=0.4222 → mod=0.4184)
+  - capital-gain: drop=+0.0022  (orig=0.4222 → mod=0.4200)
+- Max prob_drop: 0.023899  Max prob_increase: -0.008423
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether any of the input features (e.g., workclass, occupation, relationship) have semantically strong ties to income level (<=50K) or are commonly associated with low-income populations in the context of the Adult Income dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35}]
+- Explanation: In the Adult Income dataset, individuals with lower education levels, younger age, unmarried status, and fewer hours per week are statistically more likely to earn <=50K. The current input shows a young male (age=23) with a bachelor’s degree, which is relatively high education, and working 40 hours per week—these are not strongly indicative of low income. However, marital status and relationship are strong predictors: 'Never-married' and 'Own-child' are associated with lower income, as they often reflect limited stable income sources. Reducing age or education level, or changing marital status to a more stable form (like 'Married-civ-spouse'), would increase the likelihood of predicting <=50K. Given that the model incorrectly predicted >50K, the absence of such features (especially stable marital status or lower education) could be contributing to the overconfidence in a high-income prediction. The 'workclass' and 'occupation' here ('Local-gov', 'Prof-specialty') are not strongly tied to low income—government employment is often associated with stable wages, and professional specialties typically have higher earnings. Therefore, the model's error may stem from over-relying on higher-income patterns in occupation and workclass rather than socioeconomic stability indicators like marital status or education level. Thus, adjusting features related to stability (marital status, age, education) strengthens the ground-truth alignment with <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence (0.6864) with the expected confidence if the model had correctly classified the instance (true label <=50K), and assess whether high attribution scores are assigned to features that contradict known demographic or socioeconomic patterns for <=50K individuals.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "reason": "The current age (23) is unusually low for individuals in the <=50K group, especially when combined with a high education level (Bachelors) and a profession like 'Prof-specialty'. A younger age typically correlates with lower income, but the model's confidence suggests it is overemphasizing youth as a positive signal for higher earnings, which contradicts known socioeconomic patterns."}, {"feature_key": "education", "action": "change", "new_value": "Some-college", "reason": "The individual has a 'Bachelors' degree, which is associated with higher earning potential. However, the model's prediction of >50K despite the true label being <=50K may be influenced by an over-attribution to education-level benefits, which is semantically plausible only when paired with work experience and occupation. A lower education level like 'Some-college' is more semantically consistent with <=50K income patterns."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "reason": "The occupation 'Prof-specialty' is high-earning by nature and might be over-emphasized in the model's prediction. Such roles are more common among individuals earning >50K. In contrast, occupations like 'Other-service' are more typical among <=50K individuals. High attribution to 'Prof-specialty' may be a source of misleading confidence."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "reason": "The current value of 40 hours per week is moderately high, but not exceptional. However, if the model assigns high confidence to this feature for predicting >50K, it may reflect a misalignment with socioeconomic norms where higher hours are not consistently tied to higher income in the <=50K demographic. Lower hours may better align with income ceilings."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "reason": "The prediction is for a male individual (sex='Male'), which is congruent with higher-earning tendencies in some datasets. However, the true label is <=50K, which is more typical among women in this demographic. High attribution to 'Male' might be semantically implausible given gender-income trends in the <=50K group, forming an inconsistency."}]
+- Explanation: The model's confidence of 0.6864 suggests a high degree of certainty in predicting >50K despite the true label being <=50K. The analysis identifies features that are semantically or demographically implausible for individuals in the <=50K group. Features such as high age, high education, high-earning occupation, and male gender are associated with higher income potential, but their attribution at high confidence contradicts demographic patterns in the <=50K population. These misalignments indicate that the model may be over-relying on features that are positively correlated with >50K income, even when contextual patterns suggest otherwise. Adjusting these features to more typical values for the <=50K group reduces semantic plausibility and supports a more grounded prediction.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether any of the input features (e.g., workclass, occupation, relationship) have semantically strong ties to income level (<=50K) or are commonly associated with low-income populations in the context of the Adult Income dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35}]
+- Explanation: In the Adult Income dataset, individuals with lower education levels, younger age, unmarried status, and fewer hours per week are statistically more likely to earn <=50K. The current input shows a young male (age=23) with a bachelor’s degree, which is relatively high education, and working 40 hours per week—these are not strongly indicative of low income. However, marital status and relationship are strong predictors: 'Never-married' and 'Own-child' are associated with lower income, as they often reflect limited stable income sources. Reducing age or education level, or changing marital status to a more stable form (like 'Married-civ-spouse'), would increase the likelihood of predicting <=50K. Given that the model incorrectly predicted >50K, the absence of such features (especially stable marital status or lower education) could be contributing to the overconfidence in a high-income prediction. The 'workclass' and 'occupation' here ('Local-gov', 'Prof-specialty') are not strongly tied to low income—government employment is often associated with stable wages, and professional specialties typically have higher earnings. Therefore, the model's error may stem from over-relying on higher-income patterns in occupation and workclass rather than socioeconomic stability indicators like marital status or education level. Thus, adjusting features related to stability (marital status, age, education) strengthens the ground-truth alignment with <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence (0.6864) with the expected confidence if the model had correctly classified the instance (true label <=50K), and assess whether high attribution scores are assigned to features that contradict known demographic or socioeconomic patterns for <=50K individuals.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "reason": "The current age (23) is unusually low for individuals in the <=50K group, especially when combined with a high education level (Bachelors) and a profession like 'Prof-specialty'. A younger age typically correlates with lower income, but the model's confidence suggests it is overemphasizing youth as a positive signal for higher earnings, which contradicts known socioeconomic patterns."}, {"feature_key": "education", "action": "change", "new_value": "Some-college", "reason": "The individual has a 'Bachelors' degree, which is associated with higher earning potential. However, the model's prediction of >50K despite the true label being <=50K may be influenced by an over-attribution to education-level benefits, which is semantically plausible only when paired with work experience and occupation. A lower education level like 'Some-college' is more semantically consistent with <=50K income patterns."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "reason": "The occupation 'Prof-specialty' is high-earning by nature and might be over-emphasized in the model's prediction. Such roles are more common among individuals earning >50K. In contrast, occupations like 'Other-service' are more typical among <=50K individuals. High attribution to 'Prof-specialty' may be a source of misleading confidence."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "reason": "The current value of 40 hours per week is moderately high, but not exceptional. However, if the model assigns high confidence to this feature for predicting >50K, it may reflect a misalignment with socioeconomic norms where higher hours are not consistently tied to higher income in the <=50K demographic. Lower hours may better align with income ceilings."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "reason": "The prediction is for a male individual (sex='Male'), which is congruent with higher-earning tendencies in some datasets. However, the true label is <=50K, which is more typical among women in this demographic. High attribution to 'Male' might be semantically implausible given gender-income trends in the <=50K group, forming an inconsistency."}]
+- Explanation: The model's confidence of 0.6864 suggests a high degree of certainty in predicting >50K despite the true label being <=50K. The analysis identifies features that are semantically or demographically implausible for individuals in the <=50K group. Features such as high age, high education, high-earning occupation, and male gender are associated with higher income potential, but their attribution at high confidence contradicts demographic patterns in the <=50K population. These misalignments indicate that the model may be over-relying on features that are positively correlated with >50K income, even when contextual patterns suggest otherwise. Adjusting these features to more typical values for the <=50K group reduces semantic plausibility and supports a more grounded prediction.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,101 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the tumor to be benign. If we mask the worst area feature of this input, would the prediction change?
+
+## Current Prediction
+Class: benign
+Confidence: 0.7706
+
+## Part to be Masked
+worst area
+
+## Input Data
+Features: mean radius=14.86, mean texture=16.94, mean perimeter=94.89, mean area=673.7, mean smoothness=0.08924, mean compactness=0.07074, mean concavity=0.03346, mean concave points=0.02877, mean symmetry=0.1573, mean fractal dimension=0.05703, radius error=0.3028, texture error=0.6683, perimeter error=1.612, area error=23.92, smoothness error=0.005756, compactness error=0.01665, concavity error=0.01461, concave points error=0.008281, symmetry error=0.01551, fractal dimension error=0.002168, worst radius=16.31, worst texture=20.54, worst perimeter=102.3, worst area=777.5, worst smoothness=0.1218, worst compactness=0.155, worst concavity=0.122, worst concave points=0.07971, worst symmetry=0.2525, worst fractal dimension=0.06827
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: perimeter error.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: mean concavity (prob drop: 0.006417).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - area error: +0.0416
+  - compactness error: +0.0247
+  - concave points error: +0.0175
+  - mean fractal dimension: +0.0126
+- Top negative features (shap_value):
+  - perimeter error: -0.0416
+  - smoothness error: -0.0247
+  - concavity error: -0.0175
+  - mean symmetry: -0.0126
+  - mean radius: +0.0000
+- Max positive: 0.041599  Max negative: -0.041599
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean concavity: drop=+0.0064  (orig=0.6836 → mod=0.6772)
+  - worst texture: drop=+0.0054  (orig=0.6836 → mod=0.6783)
+  - mean fractal dimension: drop=-0.0051  (orig=0.6836 → mod=0.6888)
+  - mean texture: drop=+0.0051  (orig=0.6836 → mod=0.6786)
+  - worst concave points: drop=+0.0044  (orig=0.6836 → mod=0.6792)
+  - perimeter error: drop=+0.0038  (orig=0.6836 → mod=0.6799)
+  - mean concave points: drop=+0.0035  (orig=0.6836 → mod=0.6802)
+  - mean symmetry: drop=+0.0034  (orig=0.6836 → mod=0.6802)
+  - texture error: drop=+0.0033  (orig=0.6836 → mod=0.6804)
+  - worst concavity: drop=+0.0033  (orig=0.6836 → mod=0.6804)
+- Max prob_drop: 0.006417  Max prob_increase: -0.005112
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts benign with 77% confidence and the input data includes multiple shape and texture features, assess whether 'worst area' (a derived, high-variance feature often correlated with malignancy) contributes meaningfully to the benign prediction.
+- Status: Success
+- findings: {"mask_worst_area": "would reduce confidence in benign prediction"}
+- Explanation: The 'worst area' feature is a high-variance, derived attribute that is strongly correlated with malignancy in breast cancer datasets. It represents the largest observed area of the tumor and tends to be significantly larger in malignant cases. Since the model predicted benign with only 77% confidence, and given that 'worst area' is one of the most discriminative features for malignancy, masking or removing its influence would likely disrupt the model's confidence in the benign classification. This suggests that the current benign prediction is partially dependent on the absence of elevated 'worst area' values. Therefore, concealing this feature (e.g., by masking it) would likely lead to a decreased confidence in the benign label, possibly shifting the prediction toward malignancy or at least increasing uncertainty.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the influence of 'worst area' (if available) with other high-impact features like 'concavity' or 'compactness', which are known to be strong indicators in cancer classification models.
+- Status: Success
+- findings: [{"feature": "worst concavity", "importance": "high"}, {"feature": "worst compactness", "importance": "high"}, {"feature": "worst area", "importance": "medium"}, {"feature": "mean concavity", "importance": "medium"}, {"feature": "mean compactness", "importance": "medium"}]
+- Explanation: In breast cancer classification using the Wisconsin Breast Cancer Dataset, features related to concavity and compactness are well-established as strong indicators of malignancy. 'Worst concavity' and 'worst compactness' are consistently among the most predictive features because they reflect cellular irregularity and tissue density—key characteristics of malignant tumors. 'Worst area' is correlated with tumor size but is less directly indicative than concavity or compactness, which capture morphological irregularities. Therefore, masking 'worst area' is less likely to significantly alter the model's prediction compared to masking 'worst concavity' or 'worst compactness', which are more discriminative. Based on domain knowledge and model behavior in similar tabular cancer classification models, these rankings reflect the relative sensitivity and impact of each feature on the final prediction.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts benign with 77% confidence and the input data includes multiple shape and texture features, assess whether 'worst area' (a derived, high-variance feature often correlated with malignancy) contributes meaningfully to the benign prediction.
+- Status: Success
+- findings: {"mask_worst_area": "would reduce confidence in benign prediction"}
+- Explanation: The 'worst area' feature is a high-variance, derived attribute that is strongly correlated with malignancy in breast cancer datasets. It represents the largest observed area of the tumor and tends to be significantly larger in malignant cases. Since the model predicted benign with only 77% confidence, and given that 'worst area' is one of the most discriminative features for malignancy, masking or removing its influence would likely disrupt the model's confidence in the benign classification. This suggests that the current benign prediction is partially dependent on the absence of elevated 'worst area' values. Therefore, concealing this feature (e.g., by masking it) would likely lead to a decreased confidence in the benign label, possibly shifting the prediction toward malignancy or at least increasing uncertainty.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the influence of 'worst area' (if available) with other high-impact features like 'concavity' or 'compactness', which are known to be strong indicators in cancer classification models.
+- Status: Success
+- findings: [{"feature": "worst concavity", "importance": "high"}, {"feature": "worst compactness", "importance": "high"}, {"feature": "worst area", "importance": "medium"}, {"feature": "mean concavity", "importance": "medium"}, {"feature": "mean compactness", "importance": "medium"}]
+- Explanation: In breast cancer classification using the Wisconsin Breast Cancer Dataset, features related to concavity and compactness are well-established as strong indicators of malignancy. 'Worst concavity' and 'worst compactness' are consistently among the most predictive features because they reflect cellular irregularity and tissue density—key characteristics of malignant tumors. 'Worst area' is correlated with tumor size but is less directly indicative than concavity or compactness, which capture morphological irregularities. Therefore, masking 'worst area' is less likely to significantly alter the model's prediction compared to masking 'worst concavity' or 'worst compactness', which are more discriminative. Based on domain knowledge and model behavior in similar tabular cancer classification models, these rankings reflect the relative sensitivity and impact of each feature on the final prediction.
+- Confidence: 0.96
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

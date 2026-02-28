@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (79.28%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.20721657574176788}
+
+## Input Data
+Features: age=36, workclass=Federal-gov, fnlwgt=128884, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=48, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.015308).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0419
+  - sex_Male: +0.0319
+  - native-country_Vietnam: +0.0295
+  - capital-loss: +0.0258
+  - native-country_Trinadad&Tobago: +0.0148
+- Top negative features (shap_value):
+  - race_Other: -0.0419
+  - native-country_Cambodia: -0.0319
+  - native-country_Yugoslavia: -0.0295
+  - hours-per-week: -0.0258
+  - native-country_United-States: -0.0148
+- Max positive: 0.041915  Max negative: -0.041915
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2205
+  - capital-loss <= -0.22: +0.1181
+  - education-num <= -0.44: +0.0829
+  - marital-status_Married-civ-spouse <= 0.00: +0.0710
+  - native-country_Japan <= 0.00: +0.0473
+- Top negative features (weight):
+  - native-country_Laos <= 0.00: -0.0793
+  - education_12th <= 0.00: -0.0350
+  - native-country_Taiwan <= 0.00: -0.0332
+  - native-country_Hong <= 0.00: -0.0182
+- Max positive: 0.220509  Max negative: -0.079287
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0145
+  - relationship_Not-in-family: +0.0128
+  - education_HS-grad: +0.0071
+  - occupation_Adm-clerical: +0.0037
+  - education-num: +0.0037
+- Top negative features (attribution_score):
+  - workclass_Federal-gov: -0.0063
+  - sex_Female: -0.0015
+  - workclass_Local-gov: -0.0000
+  - workclass_Private: +0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.01454  Max negative: -0.00626
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0153  (orig=0.4484 → mod=0.4331)
+  - relationship_Not-in-family: drop=+0.0109  (orig=0.4484 → mod=0.4375)
+  - education_HS-grad: drop=+0.0060  (orig=0.4484 → mod=0.4424)
+  - workclass_Federal-gov: drop=-0.0037  (orig=0.4484 → mod=0.4521)
+  - native-country_United-States: drop=+0.0027  (orig=0.4484 → mod=0.4457)
+  - race_White: drop=+0.0024  (orig=0.4484 → mod=0.4459)
+  - occupation_Adm-clerical: drop=+0.0024  (orig=0.4484 → mod=0.4459)
+  - education-num: drop=+0.0023  (orig=0.4484 → mod=0.4460)
+  - sex_Female: drop=+0.0018  (orig=0.4484 → mod=0.4465)
+  - age: drop=+0.0016  (orig=0.4484 → mod=0.4467)
+- Max prob_drop: 0.015308  Max prob_increase: -0.00368
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and known demographic patterns in the adult dataset, which features are commonly associated with income <=50K versus >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels (e.g., education-num >= 12), higher work hours (e.g., >40), and occupations in specialized or managerial fields (e.g., Prof-specialty, Tech-support) are more likely to be predicted as earning >50K. Conversely, lower education levels (e.g., HS-grad, education-num=9), non-manual occupations like 'Adm-clerical', lower capital gains, and mid-range ages tend to associate with income <=50K. The current input shows 'HS-grad' (education-num=9), 48 hours/week, and a clerical role—consistent with lower-income outcomes. To shift toward the >50K prediction, increasing education level, reducing hours slightly, or upgrading to high-earning occupations would be key. These changes reflect known demographic and socioeconomic patterns in the dataset.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: How do the values of 'education-num', 'age', 'occupation', and 'marital-status' in this input compare to typical patterns observed in high-income (>50K) vs low-income (<=50K) groups?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "compare", "new_value": "9", "analysis": "The 'education-num' value of 9 corresponds to 'HS-grad'. In typical data patterns, individuals with higher education levels (e.g., Bachelors, Masters, Prof-school) are more likely to earn over $50K. HS-grad is associated with a lower income probability, especially when combined with other middle-income characteristics like low capital gains and limited occupational prestige."}, {"feature_key": "age", "action": "compare", "new_value": 36, "analysis": "An age of 36 is within the typical range for both low- and high-income groups. However, older individuals (e.g., 50+) are more often found in the >50K group due to accumulated work experience and occupational seniority. This age does not strongly distinguish the individual from the high-income cohort."}, {"feature_key": "occupation", "action": "compare", "new_value": "Adm-clerical", "analysis": "The occupation 'Adm-clerical' (administrative clerical) is generally associated with lower income potential. In contrast, high-income occupations such as 'Prof-specialty', 'Exec-managerial', or 'Purchased' are more predictive of earning over $50K. This occupation is a strong indicator of low-income classification."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Divorced", "analysis": "Marital status of 'Divorced' is not strongly correlated with income in the dataset, but it appears less common among high-income individuals, who are more often married or living with a partner. However, this factor alone does not decisively differentiate income groups; its predictive power is weak compared to education or occupation."}]
+- Explanation: The model's prediction of <=50K is most strongly supported by the combination of 'education-num'=9 (HS-grad), 'occupation'='Adm-clerical', and 'marital-status'='Divorced'. These characteristics are consistently observed in low-income individuals in the dataset. In contrast, high-income (>50K) individuals typically have higher education (e.g., Bachelors or higher), occupational prestige (e.g., managerial or professional roles), and more stable household status (e.g., married or cohabiting). While age of 36 is neutral, the occupation and education level are the most distinguishing features in the context of income prediction.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and known demographic patterns in the adult dataset, which features are commonly associated with income <=50K versus >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels (e.g., education-num >= 12), higher work hours (e.g., >40), and occupations in specialized or managerial fields (e.g., Prof-specialty, Tech-support) are more likely to be predicted as earning >50K. Conversely, lower education levels (e.g., HS-grad, education-num=9), non-manual occupations like 'Adm-clerical', lower capital gains, and mid-range ages tend to associate with income <=50K. The current input shows 'HS-grad' (education-num=9), 48 hours/week, and a clerical role—consistent with lower-income outcomes. To shift toward the >50K prediction, increasing education level, reducing hours slightly, or upgrading to high-earning occupations would be key. These changes reflect known demographic and socioeconomic patterns in the dataset.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: How do the values of 'education-num', 'age', 'occupation', and 'marital-status' in this input compare to typical patterns observed in high-income (>50K) vs low-income (<=50K) groups?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "compare", "new_value": "9", "analysis": "The 'education-num' value of 9 corresponds to 'HS-grad'. In typical data patterns, individuals with higher education levels (e.g., Bachelors, Masters, Prof-school) are more likely to earn over $50K. HS-grad is associated with a lower income probability, especially when combined with other middle-income characteristics like low capital gains and limited occupational prestige."}, {"feature_key": "age", "action": "compare", "new_value": 36, "analysis": "An age of 36 is within the typical range for both low- and high-income groups. However, older individuals (e.g., 50+) are more often found in the >50K group due to accumulated work experience and occupational seniority. This age does not strongly distinguish the individual from the high-income cohort."}, {"feature_key": "occupation", "action": "compare", "new_value": "Adm-clerical", "analysis": "The occupation 'Adm-clerical' (administrative clerical) is generally associated with lower income potential. In contrast, high-income occupations such as 'Prof-specialty', 'Exec-managerial', or 'Purchased' are more predictive of earning over $50K. This occupation is a strong indicator of low-income classification."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Divorced", "analysis": "Marital status of 'Divorced' is not strongly correlated with income in the dataset, but it appears less common among high-income individuals, who are more often married or living with a partner. However, this factor alone does not decisively differentiate income groups; its predictive power is weak compared to education or occupation."}]
+- Explanation: The model's prediction of <=50K is most strongly supported by the combination of 'education-num'=9 (HS-grad), 'occupation'='Adm-clerical', and 'marital-status'='Divorced'. These characteristics are consistently observed in low-income individuals in the dataset. In contrast, high-income (>50K) individuals typically have higher education (e.g., Bachelors or higher), occupational prestige (e.g., managerial or professional roles), and more stable household status (e.g., married or cohabiting). While age of 36 is neutral, the occupation and education level are the most distinguishing features in the context of income prediction.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.20721657574176788}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

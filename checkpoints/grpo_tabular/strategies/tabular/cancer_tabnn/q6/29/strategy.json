@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external XAI tools to ensure both interpretability and accuracy in identifying counterfactual changes. Autonomous analysis provides initial insights into high-impact features, while XAI tools like SHAP and sensitivity analysis validate and refine these insights using systematic importance scoring.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify features in the input that are typically associated with malignant tumors based on known biomedical patterns.",
+      "expected_output": "List of features (e.g., mean radius, mean concavity) with higher values typically linked to malignancy."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "For the features linked to malignancy, determine how much they need to increase to shift the model's prediction from benign (confidence 0.875) to malignant (target class).",
+      "expected_output": "Proposed changes in feature values (e.g., increase mean radius from 9.436 to 12.0) to flip prediction."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the current feature values with typical malignant tumor profiles using domain knowledge and model behavior.",
+      "expected_output": "Ranking of features by deviation from benign profiles toward malignant."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP provides feature-level Shapley values that quantify the impact of each feature on the prediction, particularly useful for contrastive explanations (benign vs. malignant). Sensitivity analysis identifies which features cause the largest drop in benign confidence when altered, helping pinpoint effective changes for counterfactual generation."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides feature-level Shapley values that quantify the impact of each feature on the prediction, particularly useful for contrastive explanations (benign vs. malignant). Sensitivity analysis identifies which features cause the largest drop in benign confidence when altered, helping pinpoint effective changes for counterfactual generation.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides feature-level Shapley values that quantify the impact of each feature on the prediction, particularly useful for contrastive explanations (benign vs. malignant). Sensitivity analysis identifies which features cause the largest drop in benign confidence when altered, helping pinpoint effective changes for counterfactual generation.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

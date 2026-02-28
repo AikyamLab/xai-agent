@@ -167,6 +167,17 @@ Provide your strategy as a JSON object:
         tool_results = results.get('tool_results', {})
         size_constraint = self._build_image_size_constraint(tool_results)
 
+        available_classes = context.get('available_classes')
+        if available_classes:
+            classes_section = (
+                "\n## Available Classes\n"
+                "The model classifies images into these classes — your `changed_class` "
+                "MUST be one of them exactly:\n"
+                + ", ".join(available_classes) + "\n"
+            )
+        else:
+            classes_section = ""
+
         prompt = f"""You are an XAI expert. Identify one specific region in the image and predict how the model's prediction would change after masking it.
 
 ## Question
@@ -175,7 +186,7 @@ Provide your strategy as a JSON object:
 ## Current State
 - Current Prediction: {prediction.get('predicted_class_name', 'Unknown')} ({prediction.get('confidence', 0):.2%})
 - Top-5 Predictions: {top5}
-{size_constraint}
+{size_constraint}{classes_section}
 ## XAI Analysis
 {self._format_results_comprehensive(results)}
 

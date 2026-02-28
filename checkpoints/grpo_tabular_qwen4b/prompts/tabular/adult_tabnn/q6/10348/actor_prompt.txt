@@ -1,0 +1,146 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (75.25%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=58, workclass=Private, fnlwgt=141379, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: -0.01364).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - sex_Male: +0.0252
+  - native-country_Vietnam: +0.0242
+  - race_Black: +0.0223
+  - native-country_Portugal: +0.0129
+  - workclass_Private: +0.0124
+- Top negative features (shap_value):
+  - native-country_Cambodia: -0.0252
+  - native-country_Yugoslavia: -0.0242
+  - race_Other: -0.0223
+  - native-country_Puerto-Rico: -0.0129
+  - workclass_Self-emp-inc: -0.0124
+- Max positive: 0.025229  Max negative: -0.025229
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2020
+  - native-country_Canada <= 0.00: +0.1143
+  - capital-loss <= -0.22: +0.1139
+  - education-num <= -0.44: +0.0841
+  - native-country_England <= 0.00: +0.0534
+- Top negative features (weight):
+  - age > 0.64: -0.0833
+  - native-country_Columbia <= 0.00: -0.0723
+  - native-country_South <= 0.00: -0.0704
+  - workclass_Without-pay <= 0.00: -0.0292
+  - native-country_Japan <= 0.00: -0.0172
+- Max positive: 0.202016  Max negative: -0.083298
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0165
+  - relationship_Not-in-family: +0.0142
+  - education_HS-grad: +0.0068
+  - education-num: +0.0056
+  - race_White: +0.0038
+- Top negative features (attribution_score):
+  - age: -0.0179
+  - native-country_United-States: -0.0040
+  - sex_Female: -0.0015
+  - hours-per-week: -0.0002
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.016516  Max negative: -0.017864
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=-0.0136  (orig=0.4384 → mod=0.4521)
+  - marital-status_Divorced: drop=+0.0130  (orig=0.4384 → mod=0.4254)
+  - relationship_Not-in-family: drop=+0.0117  (orig=0.4384 → mod=0.4267)
+  - education_HS-grad: drop=+0.0053  (orig=0.4384 → mod=0.4331)
+  - education-num: drop=+0.0051  (orig=0.4384 → mod=0.4333)
+  - native-country_United-States: drop=-0.0046  (orig=0.4384 → mod=0.4430)
+  - race_White: drop=+0.0028  (orig=0.4384 → mod=0.4356)
+  - capital-loss: drop=+0.0016  (orig=0.4384 → mod=0.4368)
+  - capital-gain: drop=+0.0013  (orig=0.4384 → mod=0.4372)
+  - fnlwgt: drop=-0.0009  (orig=0.4384 → mod=0.4393)
+- Max prob_drop: 0.013007  Max prob_increase: -0.01364
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features are most likely to influence a shift from <=50K to >50K based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child"}]
+- Explanation: Based on domain knowledge from the Adult Income Prediction dataset, income is strongly influenced by education level, work hours, age, occupation, and relationship status. Higher education-num (indicating more advanced education) and age are positively correlated with higher income. Increasing hours-per-week suggests greater work engagement and earning potential. Occupations like 'Prof-specialty' are typically associated with higher income than 'Adm-clerical'. Changing relationship status to 'Own-child' may imply a higher income due to increased responsibility and workforce participation. These changes are plausible and align with known income disparities in the dataset, especially when moving from <=50K to >50K. While the model is confident (75.25%), these features represent high-impact levers that could override the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How would increasing education-num from 9 to 12 or 16 affect the model's decision boundary in terms of class prediction?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "education-num", "action": "increase", "new_value": 16}]
+- Explanation: Higher education-num values (e.g., 12 or 16) are associated with more advanced levels of education, which in the context of income prediction models are typically linked to higher earning potential. Since the model currently predicts income ≤50K with 75.25% confidence, increasing education-num from 9 (HS-grad) to 12 (Bachelors or higher) or 16 (Masters or higher) may shift the instance closer to the decision boundary for >50K. This is because models often learn that higher education correlates with higher income, especially in datasets like the Adult Income dataset, where education is a strong predictor of income class. Thus, elevating education-num directly enhances the model's confidence in predicting >50K, as it aligns with patterns observed in the training data.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features are most likely to influence a shift from <=50K to >50K based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child"}]
+- Explanation: Based on domain knowledge from the Adult Income Prediction dataset, income is strongly influenced by education level, work hours, age, occupation, and relationship status. Higher education-num (indicating more advanced education) and age are positively correlated with higher income. Increasing hours-per-week suggests greater work engagement and earning potential. Occupations like 'Prof-specialty' are typically associated with higher income than 'Adm-clerical'. Changing relationship status to 'Own-child' may imply a higher income due to increased responsibility and workforce participation. These changes are plausible and align with known income disparities in the dataset, especially when moving from <=50K to >50K. While the model is confident (75.25%), these features represent high-impact levers that could override the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How would increasing education-num from 9 to 12 or 16 affect the model's decision boundary in terms of class prediction?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "education-num", "action": "increase", "new_value": 16}]
+- Explanation: Higher education-num values (e.g., 12 or 16) are associated with more advanced levels of education, which in the context of income prediction models are typically linked to higher earning potential. Since the model currently predicts income ≤50K with 75.25% confidence, increasing education-num from 9 (HS-grad) to 12 (Bachelors or higher) or 16 (Masters or higher) may shift the instance closer to the decision boundary for >50K. This is because models often learn that higher education correlates with higher income, especially in datasets like the Adult Income dataset, where education is a strong predictor of income class. Thus, elevating education-num directly enhances the model's confidence in predicting >50K, as it aligns with patterns observed in the training data.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=58, workclass='Private', fnlwgt=141379, education='HS-grad', education-num=9, marital-status='Divorced', occupation='Adm-clerical', relationship='Not-in-family', race='White', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=42, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

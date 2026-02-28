@@ -1,0 +1,145 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (54.23%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.45771855115890503}
+
+## Input Data
+Features: age=32, workclass=Private, fnlwgt=264554, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Tech-support, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.007085).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cambodia: +0.0136
+  - native-country_Cuba: +0.0114
+  - native-country_Yugoslavia: +0.0094
+  - capital-gain: +0.0087
+  - occupation_Transport-moving: +0.0084
+- Top negative features (shap_value):
+  - sex_Male: -0.0136
+  - native-country_Columbia: -0.0114
+  - native-country_Vietnam: -0.0094
+  - education-num: -0.0087
+  - occupation_Tech-support: -0.0084
+- Max positive: 0.013632  Max negative: -0.013632
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Puerto-Rico <= 0.00: +0.0484
+  - marital-status_Divorced <= 0.00: +0.0448
+  - native-country_Laos <= 0.00: +0.0438
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0781
+  - capital-gain <= -0.15: -0.0544
+  - education_Prof-school <= 0.00: -0.0517
+  - hours-per-week <= -0.08: -0.0502
+  - native-country_India <= 0.00: -0.0493
+- Max positive: 0.048428  Max negative: -0.078071
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0064
+  - marital-status_Married-civ-spouse: +0.0050
+  - native-country_United-States: +0.0039
+  - relationship_Husband: +0.0035
+  - occupation_Tech-support: +0.0022
+- Top negative features (attribution_score):
+  - education_Some-college: -0.0040
+  - workclass_Private: -0.0028
+  - age: -0.0025
+  - hours-per-week: -0.0006
+  - capital-gain: -0.0005
+- Max positive: 0.00639  Max negative: -0.003951
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0071  (orig=0.6323 → mod=0.6253)
+  - sex_Male: drop=+0.0062  (orig=0.6323 → mod=0.6261)
+  - education_Some-college: drop=-0.0054  (orig=0.6323 → mod=0.6378)
+  - relationship_Husband: drop=+0.0036  (orig=0.6323 → mod=0.6288)
+  - occupation_Tech-support: drop=+0.0033  (orig=0.6323 → mod=0.6290)
+  - age: drop=-0.0029  (orig=0.6323 → mod=0.6352)
+  - fnlwgt: drop=+0.0028  (orig=0.6323 → mod=0.6295)
+  - race_White: drop=-0.0014  (orig=0.6323 → mod=0.6337)
+  - native-country_United-States: drop=+0.0011  (orig=0.6323 → mod=0.6312)
+  - capital-gain: drop=-0.0008  (orig=0.6323 → mod=0.6331)
+- Max prob_drop: 0.007085  Max prob_increase: -0.00543
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are typically associated with higher income in the adult dataset?
+- Status: Success
+- findings: ["education-num", "occupation", "marital-status", "age", "hours-per-week", "capital-gain", "education", "workclass"]
+- Explanation: In the adult dataset, higher income is typically associated with advanced education levels (reflected by 'education-num'), specific high-paying occupations (e.g., 'Exec-managerial', 'Prof-specialty'), marital status such as 'Married-civ-spouse' indicating stable household income, older age often correlating with career advancement, higher weekly work hours suggesting greater workforce participation, non-zero capital gains indicating investment income, and employment in private or professional sectors. Features like 'education' and 'occupation' have strong predictive power, while 'capital-gain' and 'hours-per-week' are unique indicators of financial status.
+- Confidence: 0.88
+
+### REASONING Task
+- Query: How does the given input compare to typical samples classified as <=50K versus >50K?
+- Status: Success
+- findings: {"feature_key": "education", "action": "change", "new_value": "Some-college"}
+- Explanation: The input features show a mix of attributes associated with higher-income predictions. Notably, 'education' as 'Some-college' (education-num=10) places the individual above the minimum education level, which correlates positively with income. The 'occupation' of 'Tech-support' is a skilled role that often earns above-average income, despite not being among the highest-paying. 'Married-civ-spouse' and 'Husband' suggest marital and relationship stability, which historically aligns with higher income. Gender ('Male') and race ('White') are demographic factors historically associated with greater economic opportunity in the dataset. Additionally, age 32 is in a typical peak earning window, and 'hours-per-week' at 40 is standard, indicating full-time employment. The combination of these features—particularly education and occupation—carries strong weight in distinguishing the >50K prediction. However, the model's confidence is moderate (54.23%), suggesting close competition with the next-best class. The key differentiator is likely the combination of an above-average education level (Some-college) and a professional occupation, reinforcing income potential.
+- Confidence: 0.78
+
+### COMPARISON Task
+- Query: Which features are most likely to drive the difference between >50K and <=50K predictions for this individual?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}, {"feature_key": "capital-gain", "action": "change", "new_value": 5000}, {"feature_key": "hours-per-week", "action": "change", "new_value": 55}]
+- Explanation: The prediction of >50K income is strongly influenced by education level, occupation, and capital gains. The individual currently has 'Some-college' (education-num=10), which is below the typical benchmark for high-income predictions. Elevating education-num to 13 (e.g., bachelor's level) would significantly improve predicted income. Similarly, changing occupation from 'Tech-support' to 'Exec-managerial' aligns with higher-income roles. The relationship 'Husband' is associated with household income patterns, and changing to 'Not-in-family' may reflect a different income context. Additionally, non-zero capital gains (e.g., 5000) are notable predictors of high income. Increasing hours-per-week to 55 could reflect higher earnings potential. These changes represent the most impactful shifts in features for driving the model's >50K prediction.
+- Confidence: 0.82
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are typically associated with higher income in the adult dataset?
+- Status: Success
+- findings: ["education-num", "occupation", "marital-status", "age", "hours-per-week", "capital-gain", "education", "workclass"]
+- Explanation: In the adult dataset, higher income is typically associated with advanced education levels (reflected by 'education-num'), specific high-paying occupations (e.g., 'Exec-managerial', 'Prof-specialty'), marital status such as 'Married-civ-spouse' indicating stable household income, older age often correlating with career advancement, higher weekly work hours suggesting greater workforce participation, non-zero capital gains indicating investment income, and employment in private or professional sectors. Features like 'education' and 'occupation' have strong predictive power, while 'capital-gain' and 'hours-per-week' are unique indicators of financial status.
+- Confidence: 0.88
+
+### REASONING Task
+- Query: How does the given input compare to typical samples classified as <=50K versus >50K?
+- Status: Success
+- findings: {"feature_key": "education", "action": "change", "new_value": "Some-college"}
+- Explanation: The input features show a mix of attributes associated with higher-income predictions. Notably, 'education' as 'Some-college' (education-num=10) places the individual above the minimum education level, which correlates positively with income. The 'occupation' of 'Tech-support' is a skilled role that often earns above-average income, despite not being among the highest-paying. 'Married-civ-spouse' and 'Husband' suggest marital and relationship stability, which historically aligns with higher income. Gender ('Male') and race ('White') are demographic factors historically associated with greater economic opportunity in the dataset. Additionally, age 32 is in a typical peak earning window, and 'hours-per-week' at 40 is standard, indicating full-time employment. The combination of these features—particularly education and occupation—carries strong weight in distinguishing the >50K prediction. However, the model's confidence is moderate (54.23%), suggesting close competition with the next-best class. The key differentiator is likely the combination of an above-average education level (Some-college) and a professional occupation, reinforcing income potential.
+- Confidence: 0.78
+
+### COMPARISON Task
+- Query: Which features are most likely to drive the difference between >50K and <=50K predictions for this individual?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}, {"feature_key": "capital-gain", "action": "change", "new_value": 5000}, {"feature_key": "hours-per-week", "action": "change", "new_value": 55}]
+- Explanation: The prediction of >50K income is strongly influenced by education level, occupation, and capital gains. The individual currently has 'Some-college' (education-num=10), which is below the typical benchmark for high-income predictions. Elevating education-num to 13 (e.g., bachelor's level) would significantly improve predicted income. Similarly, changing occupation from 'Tech-support' to 'Exec-managerial' aligns with higher-income roles. The relationship 'Husband' is associated with household income patterns, and changing to 'Not-in-family' may reflect a different income context. Additionally, non-zero capital gains (e.g., 5000) are notable predictors of high income. Increasing hours-per-week to 55 could reflect higher earnings potential. These changes represent the most impactful shifts in features for driving the model's >50K prediction.
+- Confidence: 0.82
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.45771855115890503}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

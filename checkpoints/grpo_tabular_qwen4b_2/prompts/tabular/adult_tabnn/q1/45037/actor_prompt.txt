@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.8069
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=167031, education=Some-college, education-num=10, marital-status=Never-married, occupation=Other-service, relationship=Other-relative, race=Other, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=25, native-country=Ecuador
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: occupation_Other-service (prob drop: 0.005841).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0396
+  - native-country_Columbia: +0.0335
+  - sex_Male: +0.0296
+  - native-country_Japan: +0.0227
+  - native-country_Trinadad&Tobago: +0.0211
+- Top negative features (shap_value):
+  - fnlwgt: -0.0396
+  - native-country_Cuba: -0.0335
+  - native-country_Cambodia: -0.0296
+  - native-country_Laos: -0.0227
+  - native-country_United-States: -0.0211
+- Max positive: 0.039632  Max negative: -0.039632
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.1939
+  - capital-loss <= -0.22: +0.1236
+  - native-country_France <= 0.00: +0.1050
+  - native-country_Jamaica <= 0.00: +0.0920
+  - education_Doctorate <= 0.00: +0.0837
+- Top negative features (weight):
+  - native-country_Guatemala <= 0.00: -0.1477
+  - native-country_Thailand <= 0.00: -0.1236
+  - workclass_Without-pay <= 0.00: -0.0800
+  - native-country_China <= 0.00: -0.0361
+- Max positive: 0.193936  Max negative: -0.14767
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0106
+  - occupation_Other-service: +0.0086
+  - age: +0.0076
+  - relationship_Other-relative: +0.0054
+  - hours-per-week: +0.0049
+- Top negative features (attribution_score):
+  - race_Other: -0.0029
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+  - workclass_Self-emp-not-inc: +0.0000
+- Max positive: 0.01064  Max negative: -0.002898
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - occupation_Other-service: drop=+0.0058  (orig=0.4519 → mod=0.4460)
+  - marital-status_Never-married: drop=+0.0058  (orig=0.4519 → mod=0.4461)
+  - relationship_Other-relative: drop=+0.0039  (orig=0.4519 → mod=0.4480)
+  - hours-per-week: drop=+0.0036  (orig=0.4519 → mod=0.4483)
+  - race_Other: drop=-0.0036  (orig=0.4519 → mod=0.4555)
+  - education_Some-college: drop=+0.0035  (orig=0.4519 → mod=0.4484)
+  - age: drop=+0.0032  (orig=0.4519 → mod=0.4487)
+  - sex_Female: drop=+0.0017  (orig=0.4519 → mod=0.4502)
+  - capital-gain: drop=+0.0013  (orig=0.4519 → mod=0.4506)
+  - native-country_Ecuador: drop=+0.0009  (orig=0.4519 → mod=0.4510)
+- Max prob_drop: 0.005841  Max prob_increase: -0.003591
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which input features in the adult dataset are traditionally associated with income ≤50K based on domain knowledge
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "25"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: Based on domain knowledge of the Adult Income dataset, individuals with lower educational attainment, younger age, private employment (commonly associated with lower wages), being never-married (often linked to fewer income-support mechanisms), and working in service occupations (typically lower-paying than managerial or technical roles) are traditionally associated with income ≤50K. The current values in the dataset align with these known socioeconomic patterns. Specifically, age=25 is below median working income thresholds, 'Private' workclass is common in lower-wage jobs, 'Some-college' indicates limited formal education, 'Never-married' status correlates with lower household income, and 'Other-service' is generally a low-wage occupation. These features collectively support the model's prediction of income ≤50K.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Evaluate the input features (age=25, workclass=Private, education=Some-college, marital-status=Never-married, etc.) and assess how their typical distribution or values in the dataset might influence the model's decision to classify as <=50K
+- Status: Success
+- Explanation: The model predicted the individual's income as <=50K with 80.69% confidence. Several key input features contribute to this prediction based on domain knowledge and typical patterns in income datasets like the Adult Census Income Dataset. The individual is 25 years old, which is typically associated with lower income levels due to early career stage. The education level is 'Some-college' (education-num=10), indicating limited formal education, which correlates with lower earning potential. Marital status is 'Never-married', which is often linked to lower household income, as married individuals tend to have higher average incomes due to shared resources or dual-income dynamics. The occupation is 'Other-service', which is generally on the lower end of the income spectrum compared to categories like 'Exec-managerial' or 'Prof-specialty'. The individual is female and from 'Ecuador', both of which may contribute to lower income due to gender pay gaps and possible regional economic disparities. Additionally, the hours-per-week (25) are modest, suggesting limited work engagement, and capital gains and losses are zero, indicating no significant financial assets or investments. These combined factors—low age, limited education, non-marital status, low-paying occupation, and modest work hours—collectively align with a higher probability of earning ≤50K. While no single feature is decisive, the group pattern of these values strongly supports the model's classification.
+- Confidence: 0.92
+- feature_influences: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+
+### COMPARISON Task
+- Query: Compare the input values across features with known class distribution patterns (e.g., younger age, lower education, no spouse, non-union work) to determine which combinations are more typical in the <=50K population
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 25}, {"feature_key": "education", "action": "change", "new_value": "Below-high-school"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 25}]
+- Explanation: Based on known demographic patterns in the <=50K income group, individuals are typically younger, have lower levels of education, are often never-married, work in non-management service roles, and report fewer hours per week. The current input shows age=25, education='Some-college', which is on the border of low-income patterns. However, 'Some-college' is above the typical 'Below-high-school' or 'Some-high-school' thresholds often associated with lower income. For stronger alignment with the <=50K population, shifting education to 'Below-high-school' increases consistency. 'Never-married' is common in the low-income cohort. 'Other-service' is a typical occupation for this group. Hours-per-week of 25 is reasonable and within the average range. Thus, these changes best reflect known class distribution patterns for low-income individuals.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

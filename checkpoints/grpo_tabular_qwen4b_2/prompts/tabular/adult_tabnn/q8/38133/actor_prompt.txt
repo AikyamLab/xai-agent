@@ -1,0 +1,133 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (59.49%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=31, workclass=Self-emp-not-inc, fnlwgt=36592, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Farming-fishing, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=91, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: -0.018765).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0619
+  - native-country_Hungary: +0.0433
+  - native-country_Cambodia: +0.0380
+  - capital-loss: +0.0289
+  - education-num: +0.0243
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0619
+  - native-country_India: -0.0433
+  - sex_Male: -0.0380
+  - hours-per-week: -0.0289
+  - capital-gain: -0.0243
+- Max positive: 0.061872  Max negative: -0.061872
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2219
+  - capital-loss <= -0.22: +0.1093
+  - education-num <= -0.44: +0.0961
+  - native-country_India <= 0.00: +0.0890
+  - native-country_Canada <= 0.00: +0.0797
+- Top negative features (weight):
+  - marital-status_Married-AF-spouse <= 0.00: -0.1015
+- Max positive: 0.221862  Max negative: -0.101479
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0139
+  - occupation_Farming-fishing: +0.0119
+  - fnlwgt: +0.0111
+  - age: +0.0085
+  - education-num: +0.0053
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0175
+  - hours-per-week: -0.0149
+  - sex_Male: -0.0138
+  - relationship_Husband: -0.0127
+  - native-country_United-States: -0.0049
+- Max positive: 0.013934  Max negative: -0.01746
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=-0.0188  (orig=0.4001 → mod=0.4189)
+  - marital-status_Married-civ-spouse: drop=-0.0141  (orig=0.4001 → mod=0.4142)
+  - sex_Male: drop=-0.0131  (orig=0.4001 → mod=0.4132)
+  - occupation_Farming-fishing: drop=+0.0120  (orig=0.4001 → mod=0.3881)
+  - relationship_Husband: drop=-0.0101  (orig=0.4001 → mod=0.4102)
+  - education_HS-grad: drop=+0.0094  (orig=0.4001 → mod=0.3907)
+  - native-country_United-States: drop=-0.0086  (orig=0.4001 → mod=0.4087)
+  - fnlwgt: drop=+0.0077  (orig=0.4001 → mod=0.3924)
+  - education-num: drop=+0.0052  (orig=0.4001 → mod=0.3949)
+  - age: drop=+0.0049  (orig=0.4001 → mod=0.3952)
+- Max prob_drop: 0.011961  Max prob_increase: -0.018765
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether features like 'occupation=Farming-fishing' or 'relationship=Husband' have semantically plausible links to income level (<=50K) and whether their presence could introduce spurious correlations due to dataset biases or coincidental patterns.
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Not specified", "justification": "The occupation 'Farming-fishing' is a low-income sector with minimal employment in high-income populations. Given the dataset's known bias toward urban, service, or professional occupations being linked to higher income, this occupation is semantically weakly correlated with income >50K. It is more likely to be associated with lower income, so its presence does not introduce a spurious correlation but rather reflects a domain-appropriate outcome. Therefore, it is not irrelevance but rather a plausible signal."}, {"feature_key": "relationship", "action": "change", "new_value": "Not specified", "justification": "The relationship 'Husband' is semantically linked to household structure and marital status, which may correlate with income through social or economic factors (e.g., shared resources). However, in domain knowledge, household structure (e.g., married vs. single) is not a direct or independent driver of individual income level. It may act as a proxy for structural factors rather than a direct indicator. Thus, it is contextually weak and could potentially introduce spurious correlations due to dataset biases (e.g., marital status being correlated with educational attainment or region). However, it is not semantically irrelevant\u2014rather, it is a weak mediator."}, {"feature_key": "age", "action": "change", "new_value": "Not specified", "justification": "The age (31) is within the age range commonly associated with lower-to-mid income levels, especially when paired with a low-education background. However, age is a known demographic factor and is semantically relevant to income. It is not irrelevant and should not be flagged as such."}, {"feature_key": "education", "action": "change", "new_value": "Not specified", "justification": "Education level ('HS-grad') is directly tied to income. Individuals with only high school education are statistically more likely to earn <=50K in this dataset. This feature is semantically relevant and contributes to the model\u2019s prediction, so it is not irrelevant."}, {"feature_key": "sex", "action": "change", "new_value": "Not specified", "justification": "Sex ('Male') is a known demographic feature with historical dataset bias toward income disparities. In the original dataset, sex is correlated not because of direct causality but due to historical wage gaps. While it may introduce spurious correlations, it is semantically relevant and cannot be considered irrelevant in this context."}, {"feature_key": "hours-per-week", "action": "change", "new_value": "Not specified", "justification": "High hours-per-week (91) is a known positive predictor of income in this dataset. It is semantically relevant and should not be considered irrelevant."}, {"feature_key": "race", "action": "change", "new_value": "Not specified", "justification": "Race ('White') is correlated with higher income in the dataset due to historical and socio-economic factors, and is a known source of spurious correlations. However, it is semantically relevant in the context of dataset biases and demographic structure. Thus, it should not be flagged as irrelevant."}, {"feature_key": "workclass", "action": "change", "new_value": "Not specified", "justification": "Workclass 'Self-emp-not-inc' (self-employed, not incorporated) is typically associated with lower and less stable income. It is semantically relevant and contributes to income prediction; not irrelevant."}, {"feature_key": "capital-gain", "action": "change", "new_value": "Not specified", "justification": "Capital gain (0) indicates no investment-related income, which is typical for lower-income individuals. It is semantically relevant and not irrelevant."}, {"feature_key": "capital-loss", "action": "change", "new_value": "Not specified", "justification": "Capital loss (0) is neutral and reflects no financial loss. It does not introduce a spurious correlation and is not semantically irrelevant."}, {"feature_key": "fnlwgt", "action": "change", "new_value": "Not specified", "justification": "fnlwgt (final weight) is a statistical adjustment for sampling and is not a direct indicator of income. However, in tabular datasets, it is often used as a proxy for income distribution. It is semantically irrelevant to individual income level and may introduce spurious patterns due to weighting biases. Despite being a statistical adjustment, it is not a direct income driver and may contribute to wrong predictions if misinterpreted. Thus, it is flagged as semantically irrelevant."}]
+- Explanation: In the context of income prediction, features like 'occupation' and 'relationship' are weakly tied to income and may reflect indirect or biased correlations due to dataset structure (e.g., rural occupations or marital status as a proxy). However, 'fnlwgt' is a statistical weight and not a direct feature of individual income, making it semantically irrelevant. The presence of features like 'Farming-fishing' or 'Husband' does not introduce spurious correlations but may reflect underlying demographic or geographic biases. Nonetheless, only 'fnlwgt' is truly semantically irrelevant and does not directly inform income level. Therefore, 'fnlwgt' is the only feature that has no direct or plausible link to income and should be flagged.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model’s attention to features such as 'age', 'education-num', and 'workclass' with known relevant factors for <=50K classification; determine if any feature with high attention has no expected correlation to income.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education-num", "action": "change", "new_value": "12"}]
+- Explanation: The model predicted >50K with low confidence (59.49%) despite the true label being <=50K. In the context of income classification, 'workclass' and 'education-num' are known to have strong semantic relevance: 'Farming-fishing' is typically associated with lower income brackets, and 'HS-grad' (education-num=9) is below average education level, both of which correlate with <=50K. However, the model appears to have disproportionately attended to 'workclass' and 'education-num' in its prediction, suggesting potential confusion or misweighting. Specifically, assigning 'workclass' a higher value like 'Local-gov' or reducing 'education-num' to a lower value (e.g., 12) would make the case more aligned with <=50K. The presence of high attention to these features despite their known low predictive value for >50K suggests an opportunity for correction. Thus, these features show high modeled importance but low semantic relevance to the true class of <=50K.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether features like 'occupation=Farming-fishing' or 'relationship=Husband' have semantically plausible links to income level (<=50K) and whether their presence could introduce spurious correlations due to dataset biases or coincidental patterns.
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Not specified", "justification": "The occupation 'Farming-fishing' is a low-income sector with minimal employment in high-income populations. Given the dataset's known bias toward urban, service, or professional occupations being linked to higher income, this occupation is semantically weakly correlated with income >50K. It is more likely to be associated with lower income, so its presence does not introduce a spurious correlation but rather reflects a domain-appropriate outcome. Therefore, it is not irrelevance but rather a plausible signal."}, {"feature_key": "relationship", "action": "change", "new_value": "Not specified", "justification": "The relationship 'Husband' is semantically linked to household structure and marital status, which may correlate with income through social or economic factors (e.g., shared resources). However, in domain knowledge, household structure (e.g., married vs. single) is not a direct or independent driver of individual income level. It may act as a proxy for structural factors rather than a direct indicator. Thus, it is contextually weak and could potentially introduce spurious correlations due to dataset biases (e.g., marital status being correlated with educational attainment or region). However, it is not semantically irrelevant\u2014rather, it is a weak mediator."}, {"feature_key": "age", "action": "change", "new_value": "Not specified", "justification": "The age (31) is within the age range commonly associated with lower-to-mid income levels, especially when paired with a low-education background. However, age is a known demographic factor and is semantically relevant to income. It is not irrelevant and should not be flagged as such."}, {"feature_key": "education", "action": "change", "new_value": "Not specified", "justification": "Education level ('HS-grad') is directly tied to income. Individuals with only high school education are statistically more likely to earn <=50K in this dataset. This feature is semantically relevant and contributes to the model\u2019s prediction, so it is not irrelevant."}, {"feature_key": "sex", "action": "change", "new_value": "Not specified", "justification": "Sex ('Male') is a known demographic feature with historical dataset bias toward income disparities. In the original dataset, sex is correlated not because of direct causality but due to historical wage gaps. While it may introduce spurious correlations, it is semantically relevant and cannot be considered irrelevant in this context."}, {"feature_key": "hours-per-week", "action": "change", "new_value": "Not specified", "justification": "High hours-per-week (91) is a known positive predictor of income in this dataset. It is semantically relevant and should not be considered irrelevant."}, {"feature_key": "race", "action": "change", "new_value": "Not specified", "justification": "Race ('White') is correlated with higher income in the dataset due to historical and socio-economic factors, and is a known source of spurious correlations. However, it is semantically relevant in the context of dataset biases and demographic structure. Thus, it should not be flagged as irrelevant."}, {"feature_key": "workclass", "action": "change", "new_value": "Not specified", "justification": "Workclass 'Self-emp-not-inc' (self-employed, not incorporated) is typically associated with lower and less stable income. It is semantically relevant and contributes to income prediction; not irrelevant."}, {"feature_key": "capital-gain", "action": "change", "new_value": "Not specified", "justification": "Capital gain (0) indicates no investment-related income, which is typical for lower-income individuals. It is semantically relevant and not irrelevant."}, {"feature_key": "capital-loss", "action": "change", "new_value": "Not specified", "justification": "Capital loss (0) is neutral and reflects no financial loss. It does not introduce a spurious correlation and is not semantically irrelevant."}, {"feature_key": "fnlwgt", "action": "change", "new_value": "Not specified", "justification": "fnlwgt (final weight) is a statistical adjustment for sampling and is not a direct indicator of income. However, in tabular datasets, it is often used as a proxy for income distribution. It is semantically irrelevant to individual income level and may introduce spurious patterns due to weighting biases. Despite being a statistical adjustment, it is not a direct income driver and may contribute to wrong predictions if misinterpreted. Thus, it is flagged as semantically irrelevant."}]
+- Explanation: In the context of income prediction, features like 'occupation' and 'relationship' are weakly tied to income and may reflect indirect or biased correlations due to dataset structure (e.g., rural occupations or marital status as a proxy). However, 'fnlwgt' is a statistical weight and not a direct feature of individual income, making it semantically irrelevant. The presence of features like 'Farming-fishing' or 'Husband' does not introduce spurious correlations but may reflect underlying demographic or geographic biases. Nonetheless, only 'fnlwgt' is truly semantically irrelevant and does not directly inform income level. Therefore, 'fnlwgt' is the only feature that has no direct or plausible link to income and should be flagged.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model’s attention to features such as 'age', 'education-num', and 'workclass' with known relevant factors for <=50K classification; determine if any feature with high attention has no expected correlation to income.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education-num", "action": "change", "new_value": "12"}]
+- Explanation: The model predicted >50K with low confidence (59.49%) despite the true label being <=50K. In the context of income classification, 'workclass' and 'education-num' are known to have strong semantic relevance: 'Farming-fishing' is typically associated with lower income brackets, and 'HS-grad' (education-num=9) is below average education level, both of which correlate with <=50K. However, the model appears to have disproportionately attended to 'workclass' and 'education-num' in its prediction, suggesting potential confusion or misweighting. Specifically, assigning 'workclass' a higher value like 'Local-gov' or reducing 'education-num' to a lower value (e.g., 12) would make the case more aligned with <=50K. The presence of high attention to these features despite their known low predictive value for >50K suggests an opportunity for correction. Thus, these features show high modeled importance but low semantic relevance to the true class of <=50K.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

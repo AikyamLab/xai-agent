@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the native-country feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5479
+
+## Part to be Masked
+native-country
+
+## Input Data
+Features: age=45, workclass=Private, fnlwgt=26781, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Farming-fishing, relationship=Husband, race=Amer-Indian-Eskimo, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: fnlwgt (prob drop: 0.009439).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education-num: +0.0212
+  - native-country_Hungary: +0.0188
+  - occupation_Tech-support: +0.0182
+  - native-country_United-States: +0.0122
+  - race_Other: +0.0093
+- Top negative features (shap_value):
+  - capital-gain: -0.0212
+  - native-country_India: -0.0188
+  - occupation_Transport-moving: -0.0182
+  - native-country_Trinadad&Tobago: -0.0122
+  - race_Black: -0.0093
+- Max positive: 0.021223  Max negative: -0.021223
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - fnlwgt: drop=+0.0094  (orig=0.3889 → mod=0.3794)
+  - sex_Male: drop=-0.0093  (orig=0.3889 → mod=0.3982)
+  - relationship_Husband: drop=-0.0071  (orig=0.3889 → mod=0.3959)
+  - occupation_Farming-fishing: drop=+0.0064  (orig=0.3889 → mod=0.3825)
+  - race_Amer-Indian-Eskimo: drop=+0.0062  (orig=0.3889 → mod=0.3826)
+  - education_HS-grad: drop=+0.0059  (orig=0.3889 → mod=0.3830)
+  - workclass_Private: drop=+0.0040  (orig=0.3889 → mod=0.3848)
+  - native-country_United-States: drop=-0.0035  (orig=0.3889 → mod=0.3924)
+  - education-num: drop=+0.0035  (orig=0.3889 → mod=0.3854)
+  - marital-status_Married-civ-spouse: drop=-0.0017  (orig=0.3889 → mod=0.3906)
+- Max prob_drop: 0.009439  Max prob_increase: -0.009349
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and model prediction, assess whether 'native-country' is a likely determinant of income class given the demographic profile (e.g., age, gender, occupation, race).
+- Status: Success
+- findings: [{"feature_key": "native-country", "action": "mask", "new_value": null}]
+- Explanation: The individual in question is a 45-year-old male, married, with a high school education, working in farming/fishing, and belonging to the Amer-Indian-Eskimo race. The model predicts an income ≤50K with 54.79% confidence. Among the available features, 'native-country' is a categorical variable that may introduce demographic bias, particularly in the context of U.S. income distributions. However, in the training data of the dataset (such as the Adult Income dataset), native-country is typically a weak predictor of income when conditioned on other strong factors like age, sex, occupation, and education level. For instance, most individuals from the 'United-States' are included in the dataset, and income distribution across countries is not strongly correlated—especially when controlling for race, sex, and education. Given that the native-country value is 'United-States', and that this is the largest and most represented category, masking it does not significantly alter the model's prediction. The model has already accounted for the interaction between demographic features, and the income prediction remains stable despite the absence of native-country information. Therefore, native-country is not a likely determinant of income class in this demographic profile.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the provided prediction confidence (0.5479) with what might be expected if native-country were absent or masked, considering the model's known sensitivity to categorical features like race or region.
+- Status: Success
+- findings: {"predicted_class": "<=50K", "original_confidence": 0.5479, "predicted_confidence_after_masking": 0.52, "class_prediction_stability": "slight decrease", "expected_change": "small reduction in confidence"}
+- Explanation: The native-country feature is a categorical variable that encodes regional information, which may have a subtle influence on income prediction, particularly when combined with demographic features like race and sex. In this case, the individual's native-country is 'United-States', which is the dominant category in the dataset. Masking this feature removes a potential signal that could contribute to the model's confidence, especially given that region-specific trends (e.g., higher income in certain countries) may be present in the training data. However, since the model was trained on a dataset where most individuals are from the United States, and the native-country feature is not strongly predictive in isolation, the impact on confidence is expected to be small. Thus, the prediction remains stable, with only a slight reduction in confidence due to the loss of minor regional imputation strength.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input features and model prediction, assess whether 'native-country' is a likely determinant of income class given the demographic profile (e.g., age, gender, occupation, race).
+- Status: Success
+- findings: [{"feature_key": "native-country", "action": "mask", "new_value": null}]
+- Explanation: The individual in question is a 45-year-old male, married, with a high school education, working in farming/fishing, and belonging to the Amer-Indian-Eskimo race. The model predicts an income ≤50K with 54.79% confidence. Among the available features, 'native-country' is a categorical variable that may introduce demographic bias, particularly in the context of U.S. income distributions. However, in the training data of the dataset (such as the Adult Income dataset), native-country is typically a weak predictor of income when conditioned on other strong factors like age, sex, occupation, and education level. For instance, most individuals from the 'United-States' are included in the dataset, and income distribution across countries is not strongly correlated—especially when controlling for race, sex, and education. Given that the native-country value is 'United-States', and that this is the largest and most represented category, masking it does not significantly alter the model's prediction. The model has already accounted for the interaction between demographic features, and the income prediction remains stable despite the absence of native-country information. Therefore, native-country is not a likely determinant of income class in this demographic profile.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the provided prediction confidence (0.5479) with what might be expected if native-country were absent or masked, considering the model's known sensitivity to categorical features like race or region.
+- Status: Success
+- findings: {"predicted_class": "<=50K", "original_confidence": 0.5479, "predicted_confidence_after_masking": 0.52, "class_prediction_stability": "slight decrease", "expected_change": "small reduction in confidence"}
+- Explanation: The native-country feature is a categorical variable that encodes regional information, which may have a subtle influence on income prediction, particularly when combined with demographic features like race and sex. In this case, the individual's native-country is 'United-States', which is the dominant category in the dataset. Masking this feature removes a potential signal that could contribute to the model's confidence, especially given that region-specific trends (e.g., higher income in certain countries) may be present in the training data. However, since the model was trained on a dataset where most individuals are from the United States, and the native-country feature is not strongly predictive in isolation, the impact on confidence is expected to be small. Thus, the prediction remains stable, with only a slight reduction in confidence due to the loss of minor regional imputation strength.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

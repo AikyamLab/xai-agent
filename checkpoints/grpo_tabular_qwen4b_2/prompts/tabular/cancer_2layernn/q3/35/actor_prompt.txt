@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the tumor to be malignant. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: malignant (60.55%)
+- Top-2: {'class_idx': 1, 'class_name': 'benign', 'probability': 0.3944600820541382}
+
+## Input Data
+Features: mean radius=10.95, mean texture=21.35, mean perimeter=71.9, mean area=371.1, mean smoothness=0.1227, mean compactness=0.1218, mean concavity=0.1044, mean concave points=0.05669, mean symmetry=0.1895, mean fractal dimension=0.0687, radius error=0.2366, texture error=1.428, perimeter error=1.822, area error=16.97, smoothness error=0.008064, compactness error=0.01764, concavity error=0.02595, concave points error=0.01037, symmetry error=0.01357, fractal dimension error=0.00304, worst radius=12.84, worst texture=35.34, worst perimeter=87.22, worst area=514.0, worst smoothness=0.1909, worst compactness=0.2698, worst concavity=0.4023, worst concave points=0.1424, worst symmetry=0.2964, worst fractal dimension=0.09606
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean symmetry.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: worst texture > 0.66.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: worst texture.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst texture (prob drop: 0.027792).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean symmetry: +0.0542
+  - fractal dimension error: +0.0309
+  - mean texture: +0.0304
+  - worst concave points: +0.0264
+  - radius error: +0.0143
+- Top negative features (shap_value):
+  - mean fractal dimension: -0.0542
+  - symmetry error: -0.0309
+  - mean radius: -0.0304
+  - worst concavity: -0.0264
+  - texture error: -0.0143
+- Max positive: 0.054249  Max negative: -0.054249
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst texture > 0.66: +0.1092
+  - mean smoothness > 0.64: +0.0787
+  - worst smoothness > 0.60: +0.0590
+  - worst concavity > 0.53: +0.0487
+  - worst fractal dimension > 0.45: +0.0423
+- Top negative features (weight):
+  - mean perimeter <= -0.69: -0.0795
+  - mean area <= -0.67: -0.0743
+  - -0.62 < perimeter error <= -0.29: -0.0672
+  - area error <= -0.49: -0.0635
+  - mean radius <= -0.69: -0.0587
+- Max positive: 0.109177  Max negative: -0.079484
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst texture: +0.0357
+  - mean smoothness: +0.0282
+  - worst smoothness: +0.0231
+  - symmetry error: +0.0117
+  - mean texture: +0.0090
+- Top negative features (attribution_score):
+  - mean perimeter: -0.0145
+  - mean radius: -0.0138
+  - worst perimeter: -0.0137
+  - mean area: -0.0121
+  - worst radius: -0.0110
+- Max positive: 0.035718  Max negative: -0.014505
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst texture: drop=+0.0278  (orig=0.4026 → mod=0.3749)
+  - mean smoothness: drop=+0.0219  (orig=0.4026 → mod=0.3808)
+  - worst smoothness: drop=+0.0159  (orig=0.4026 → mod=0.3867)
+  - mean radius: drop=-0.0127  (orig=0.4026 → mod=0.4153)
+  - mean perimeter: drop=-0.0119  (orig=0.4026 → mod=0.4145)
+  - worst perimeter: drop=-0.0109  (orig=0.4026 → mod=0.4136)
+  - mean area: drop=-0.0106  (orig=0.4026 → mod=0.4132)
+  - worst radius: drop=-0.0095  (orig=0.4026 → mod=0.4122)
+  - symmetry error: drop=+0.0095  (orig=0.4026 → mod=0.3932)
+  - area error: drop=-0.0083  (orig=0.4026 → mod=0.4109)
+- Max prob_drop: 0.027792  Max prob_increase: -0.012652
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge, which radiological or morphological features are typically more pronounced in malignant tumors compared to benign ones?
+- Status: Success
+- findings: ["mean concavity", "mean concave points", "worst radius", "worst perimeter", "worst area", "worst smoothness", "worst compactness", "worst concavity", "worst concave points"]
+- Explanation: In medical imaging and pathology, malignant tumors typically exhibit more irregular and severe morphological features compared to benign tumors. Key features such as concavity and concave points reflect the irregular shape and poorly defined margins of malignant cells. The 'worst' values (extreme end of the distribution) are particularly significant because they capture the most aggressive growth patterns. Features like radius, perimeter, and area tend to be larger in malignant cases due to uncontrolled proliferation. Compactness and smoothness are often reduced in malignancies, indicating irregular cell boundaries. These features are consistently associated with malignancy in breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), where higher concavity and concave points strongly correlate with malignant outcomes.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the input features for the malignant prediction (top-1) and the benign alternative (top-2) to identify which features differ significantly in value, especially in the context of known malignancy indicators
+- Status: Success
+- findings: [{"feature_key": "worst radius", "action": "change", "new_value": 17.96, "values": {"malignant": 17.96, "benign": 15.38}, "direction": "higher in malignant"}, {"feature_key": "worst texture", "action": "change", "new_value": 27.41, "values": {"malignant": 27.41, "benign": 22.04}, "direction": "higher in malignant"}, {"feature_key": "worst perimeter", "action": "change", "new_value": 104.0, "values": {"malignant": 104.0, "benign": 91.0}, "direction": "higher in malignant"}, {"feature_key": "worst area", "action": "change", "new_value": 435.0, "values": {"malignant": 435.0, "benign": 341.0}, "direction": "higher in malignant"}, {"feature_key": "worst concavity", "action": "change", "new_value": 0.425, "values": {"malignant": 0.425, "benign": 0.277}, "direction": "higher in malignant"}, {"feature_key": "worst concave points", "action": "change", "new_value": 0.159, "values": {"malignant": 0.159, "benign": 0.106}, "direction": "higher in malignant"}, {"feature_key": "worst symmetry", "action": "change", "new_value": 0.256, "values": {"malignant": 0.256, "benign": 0.204}, "direction": "higher in malignant"}, {"feature_key": "worst fractal dimension", "action": "change", "new_value": 0.204, "values": {"malignant": 0.204, "benign": 0.176}, "direction": "higher in malignant"}]
+- Explanation: The malignant prediction is distinguished from the benign alternative primarily by higher values in the 'worst' features, which are known to be strong indicators of malignancy in tumor classification. These features (worst radius, worst texture, worst perimeter, worst area, worst concavity, worst concave points, worst symmetry, and worst fractal dimension) consistently show larger values in malignant cases. This aligns with established medical knowledge that malignant tumors tend to be larger, more irregular in shape, and have greater textural and structural complexity. The differences are statistically significant and directly contribute to the model's confidence in the malignant classification. Missing values or missing top-2 predictions prevent a direct comparison of mean features, but the 'worst' features are typically the most discriminative in such datasets.
+- Confidence: 0.97
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on medical knowledge, which radiological or morphological features are typically more pronounced in malignant tumors compared to benign ones?
+- Status: Success
+- findings: ["mean concavity", "mean concave points", "worst radius", "worst perimeter", "worst area", "worst smoothness", "worst compactness", "worst concavity", "worst concave points"]
+- Explanation: In medical imaging and pathology, malignant tumors typically exhibit more irregular and severe morphological features compared to benign tumors. Key features such as concavity and concave points reflect the irregular shape and poorly defined margins of malignant cells. The 'worst' values (extreme end of the distribution) are particularly significant because they capture the most aggressive growth patterns. Features like radius, perimeter, and area tend to be larger in malignant cases due to uncontrolled proliferation. Compactness and smoothness are often reduced in malignancies, indicating irregular cell boundaries. These features are consistently associated with malignancy in breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), where higher concavity and concave points strongly correlate with malignant outcomes.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the input features for the malignant prediction (top-1) and the benign alternative (top-2) to identify which features differ significantly in value, especially in the context of known malignancy indicators
+- Status: Success
+- findings: [{"feature_key": "worst radius", "action": "change", "new_value": 17.96, "values": {"malignant": 17.96, "benign": 15.38}, "direction": "higher in malignant"}, {"feature_key": "worst texture", "action": "change", "new_value": 27.41, "values": {"malignant": 27.41, "benign": 22.04}, "direction": "higher in malignant"}, {"feature_key": "worst perimeter", "action": "change", "new_value": 104.0, "values": {"malignant": 104.0, "benign": 91.0}, "direction": "higher in malignant"}, {"feature_key": "worst area", "action": "change", "new_value": 435.0, "values": {"malignant": 435.0, "benign": 341.0}, "direction": "higher in malignant"}, {"feature_key": "worst concavity", "action": "change", "new_value": 0.425, "values": {"malignant": 0.425, "benign": 0.277}, "direction": "higher in malignant"}, {"feature_key": "worst concave points", "action": "change", "new_value": 0.159, "values": {"malignant": 0.159, "benign": 0.106}, "direction": "higher in malignant"}, {"feature_key": "worst symmetry", "action": "change", "new_value": 0.256, "values": {"malignant": 0.256, "benign": 0.204}, "direction": "higher in malignant"}, {"feature_key": "worst fractal dimension", "action": "change", "new_value": 0.204, "values": {"malignant": 0.204, "benign": 0.176}, "direction": "higher in malignant"}]
+- Explanation: The malignant prediction is distinguished from the benign alternative primarily by higher values in the 'worst' features, which are known to be strong indicators of malignancy in tumor classification. These features (worst radius, worst texture, worst perimeter, worst area, worst concavity, worst concave points, worst symmetry, and worst fractal dimension) consistently show larger values in malignant cases. This aligns with established medical knowledge that malignant tumors tend to be larger, more irregular in shape, and have greater textural and structural complexity. The differences are statistically significant and directly contribute to the model's confidence in the malignant classification. Missing values or missing top-2 predictions prevent a direct comparison of mean features, but the 'worst' features are typically the most discriminative in such datasets.
+- Confidence: 0.97
+
+## Your Task
+Identify the part that DISTINGUISHES malignant from {'class_idx': 1, 'class_name': 'benign', 'probability': 0.3944600820541382}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

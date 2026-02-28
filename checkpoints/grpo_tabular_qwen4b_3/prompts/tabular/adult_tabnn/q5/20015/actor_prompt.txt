@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the race feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.7958
+
+## Part to be Masked
+race
+
+## Input Data
+Features: age=18, workclass=Private, fnlwgt=148644, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Sales, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=28, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.016763).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0731
+  - native-country_Columbia: +0.0271
+  - sex_Male: +0.0176
+  - occupation_Tech-support: +0.0120
+  - native-country_Trinadad&Tobago: +0.0111
+- Top negative features (shap_value):
+  - fnlwgt: -0.0731
+  - native-country_Cuba: -0.0271
+  - native-country_Cambodia: -0.0176
+  - occupation_Transport-moving: -0.0120
+  - native-country_United-States: -0.0111
+- Max positive: 0.073058  Max negative: -0.073058
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0168  (orig=0.4491 → mod=0.4324)
+  - marital-status_Never-married: drop=+0.0057  (orig=0.4491 → mod=0.4434)
+  - relationship_Own-child: drop=+0.0056  (orig=0.4491 → mod=0.4435)
+  - occupation_Sales: drop=-0.0044  (orig=0.4491 → mod=0.4535)
+  - race_White: drop=-0.0030  (orig=0.4491 → mod=0.4521)
+  - native-country_United-States: drop=-0.0029  (orig=0.4491 → mod=0.4520)
+  - education-num: drop=+0.0023  (orig=0.4491 → mod=0.4468)
+  - education_HS-grad: drop=+0.0019  (orig=0.4491 → mod=0.4472)
+  - capital-loss: drop=+0.0011  (orig=0.4491 → mod=0.4480)
+  - capital-gain: drop=+0.0009  (orig=0.4491 → mod=0.4482)
+- Max prob_drop: 0.016763  Max prob_increase: -0.004402
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Is the 'race' feature likely to have a significant influence on the model's income prediction based on known biases, domain knowledge, and the input context?
+- Status: Success
+- findings: {"is_race_critical": true, "reasoning": "In the context of the dataset (adult income prediction), race has historically been a known demographic factor associated with income disparities, both in sociological studies and in machine learning models trained on such data. The feature 'race' is present in the input and is explicitly included in the model\u2019s feature space. The prediction was made with a high confidence (79.58%) that the individual\u2019s income is \u226450K, and while the input includes 'race=White', masking this feature would require evaluating whether the model would still make the same prediction without it. Given that race is a sensitive, protected attribute and has been correlated with income outcomes in past analyses (e.g., in U.S. dataset biases), it is likely that the model has learned patterns tied to race, even if not explicitly encoded. Furthermore, domain knowledge suggests that demographic factors like race can influence socioeconomic outcomes, which are partially captured by income. Thus, the removal of race from the input may alter the prediction, indicating that it is a critical factor in the model\u2019s decision-making. The absence of top-5 predictions makes it difficult to confirm alternate outcomes directly, but the combination of known biases and feature importance suggests race plays a significant role."}
+- Explanation: In the context of the dataset (adult income prediction), race has historically been a known demographic factor associated with income disparities, both in sociological studies and in machine learning models trained on such data. The feature 'race' is present in the input and is explicitly included in the model’s feature space. The prediction was made with a high confidence (79.58%) that the individual’s income is ≤50K, and while the input includes 'race=White', masking this feature would require evaluating whether the model would still make the same prediction without it. Given that race is a sensitive, protected attribute and has been correlated with income outcomes in past analyses (e.g., in U.S. dataset biases), it is likely that the model has learned patterns tied to race, even if not explicitly encoded. Furthermore, domain knowledge suggests that demographic factors like race can influence socioeconomic outcomes, which are partially captured by income. Thus, the removal of race from the input may alter the prediction, indicating that it is a critical factor in the model’s decision-making. The absence of top-5 predictions makes it difficult to confirm alternate outcomes directly, but the combination of known biases and feature importance suggests race plays a significant role.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the prediction outcome when race is masked (set to NaN or omitted) versus when it is present (White), assuming all other features remain constant.
+- Status: Success
+- findings: [{"feature_key": "race", "action": "mask", "new_value": "NaN", "prediction_class": 0, "confidence": 0.7958}, {"feature_key": "race", "action": "keep", "new_value": "White", "prediction_class": 0, "confidence": 0.7958}]
+- Explanation: The model's prediction class remains unchanged (0, i.e., income ≤ 50K) when the race feature is masked (set to NaN) compared to when it is present as 'White'. The confidence level also remains statistically consistent at 79.58% in both cases. This suggests that race is not a decisive factor in determining the prediction under the given input configuration, and its absence does not significantly alter the model's output or trust in the prediction. This may indicate that the model's decision boundary is robust to missing or masked race information, possibly due to the feature being non-critical or well-regularized in the training data.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Is the 'race' feature likely to have a significant influence on the model's income prediction based on known biases, domain knowledge, and the input context?
+- Status: Success
+- findings: {"is_race_critical": true, "reasoning": "In the context of the dataset (adult income prediction), race has historically been a known demographic factor associated with income disparities, both in sociological studies and in machine learning models trained on such data. The feature 'race' is present in the input and is explicitly included in the model\u2019s feature space. The prediction was made with a high confidence (79.58%) that the individual\u2019s income is \u226450K, and while the input includes 'race=White', masking this feature would require evaluating whether the model would still make the same prediction without it. Given that race is a sensitive, protected attribute and has been correlated with income outcomes in past analyses (e.g., in U.S. dataset biases), it is likely that the model has learned patterns tied to race, even if not explicitly encoded. Furthermore, domain knowledge suggests that demographic factors like race can influence socioeconomic outcomes, which are partially captured by income. Thus, the removal of race from the input may alter the prediction, indicating that it is a critical factor in the model\u2019s decision-making. The absence of top-5 predictions makes it difficult to confirm alternate outcomes directly, but the combination of known biases and feature importance suggests race plays a significant role."}
+- Explanation: In the context of the dataset (adult income prediction), race has historically been a known demographic factor associated with income disparities, both in sociological studies and in machine learning models trained on such data. The feature 'race' is present in the input and is explicitly included in the model’s feature space. The prediction was made with a high confidence (79.58%) that the individual’s income is ≤50K, and while the input includes 'race=White', masking this feature would require evaluating whether the model would still make the same prediction without it. Given that race is a sensitive, protected attribute and has been correlated with income outcomes in past analyses (e.g., in U.S. dataset biases), it is likely that the model has learned patterns tied to race, even if not explicitly encoded. Furthermore, domain knowledge suggests that demographic factors like race can influence socioeconomic outcomes, which are partially captured by income. Thus, the removal of race from the input may alter the prediction, indicating that it is a critical factor in the model’s decision-making. The absence of top-5 predictions makes it difficult to confirm alternate outcomes directly, but the combination of known biases and feature importance suggests race plays a significant role.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the prediction outcome when race is masked (set to NaN or omitted) versus when it is present (White), assuming all other features remain constant.
+- Status: Success
+- findings: [{"feature_key": "race", "action": "mask", "new_value": "NaN", "prediction_class": 0, "confidence": 0.7958}, {"feature_key": "race", "action": "keep", "new_value": "White", "prediction_class": 0, "confidence": 0.7958}]
+- Explanation: The model's prediction class remains unchanged (0, i.e., income ≤ 50K) when the race feature is masked (set to NaN) compared to when it is present as 'White'. The confidence level also remains statistically consistent at 79.58% in both cases. This suggests that race is not a decisive factor in determining the prediction under the given input configuration, and its absence does not significantly alter the model's output or trust in the prediction. This may indicate that the model's decision boundary is robust to missing or masked race information, possibly due to the feature being non-critical or well-regularized in the training data.
+- Confidence: 0.94
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

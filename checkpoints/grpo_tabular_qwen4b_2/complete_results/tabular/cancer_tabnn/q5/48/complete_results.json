@@ -1,0 +1,547 @@
+{
+  "question_id": "30",
+  "question": {
+    "model": [
+      "TwoLayerNN",
+      "TabNN"
+    ],
+    "dataset": "Breast Cancer",
+    "row_no": 48,
+    "features": {
+      "mean radius": 16.17,
+      "mean texture": 16.07,
+      "mean perimeter": 106.3,
+      "mean area": 788.5,
+      "mean smoothness": 0.0988,
+      "mean compactness": 0.1438,
+      "mean concavity": 0.06651,
+      "mean concave points": 0.05397,
+      "mean symmetry": 0.199,
+      "mean fractal dimension": 0.06572,
+      "radius error": 0.1745,
+      "texture error": 0.489,
+      "perimeter error": 1.349,
+      "area error": 14.91,
+      "smoothness error": 0.00451,
+      "compactness error": 0.01812,
+      "concavity error": 0.01951,
+      "concave points error": 0.01196,
+      "symmetry error": 0.01934,
+      "fractal dimension error": 0.003696,
+      "worst radius": 16.97,
+      "worst texture": 19.14,
+      "worst perimeter": 113.1,
+      "worst area": 861.5,
+      "worst smoothness": 0.1235,
+      "worst compactness": 0.255,
+      "worst concavity": 0.2114,
+      "worst concave points": 0.1251,
+      "worst symmetry": 0.3153,
+      "worst fractal dimension": 0.0896
+    },
+    "target": {
+      "value": 1,
+      "label": "benign"
+    },
+    "predicted": {
+      "value": 1,
+      "label": "benign"
+    },
+    "example": "The model predicted the tumor to be benign. If we mask the perimeter error feature of this input, would the prediction change?",
+    "q_type": 5,
+    "q": "If we mask the {certain} part of this input, would the prediction change?",
+    "question": "The model predicted the tumor to be benign. If we mask the perimeter error feature of this input, would the prediction change?",
+    "question_id": "q30",
+    "modality": "tabular",
+    "is_multi_instance": false,
+    "num_instances": 1,
+    "dataset_base_name": "cancer_tabnn_q5",
+    "feature_names": [
+      "mean radius",
+      "mean texture",
+      "mean perimeter",
+      "mean area",
+      "mean smoothness",
+      "mean compactness",
+      "mean concavity",
+      "mean concave points",
+      "mean symmetry",
+      "mean fractal dimension",
+      "radius error",
+      "texture error",
+      "perimeter error",
+      "area error",
+      "smoothness error",
+      "compactness error",
+      "concavity error",
+      "concave points error",
+      "symmetry error",
+      "fractal dimension error",
+      "worst radius",
+      "worst texture",
+      "worst perimeter",
+      "worst area",
+      "worst smoothness",
+      "worst compactness",
+      "worst concavity",
+      "worst concave points",
+      "worst symmetry",
+      "worst fractal dimension"
+    ]
+  },
+  "template": {
+    "q_type": 5,
+    "category": "counterfactual",
+    "template_text": "If we mask a certain part, would the prediction change?"
+  },
+  "strategy": {
+    "strategy_type": "hybrid",
+    "reasoning": "A hybrid strategy combines autonomous reasoning with external explainability tools to assess the impact of masking the 'perimeter error' feature. Autonomous analysis helps ground the feature's relevance in the context of tumor classification, while XAI tools provide quantitative, model-agnostic evidence of its contribution to the prediction. This combination increases confidence in detecting whether masking would change the output.",
+    "confidence": 0.85,
+    "autonomous_tasks": [
+      {
+        "task_type": "reasoning",
+        "query": "Given that the model predicts benign with 0.59 confidence, and the input features are centered around typical benign tumor values, assess whether 'perimeter error' is likely to be a key discriminative feature between benign and malignant tumors.",
+        "expected_output": "A qualitative assessment of whether perimeter error contributes significantly to the benign prediction, based on medical knowledge and the model's behavior."
+      },
+      {
+        "task_type": "comparison",
+        "query": "Compare the relative scale and distribution of 'perimeter error' to other perimeter-related features like 'mean perimeter' and 'mean area' in the input data to infer its potential role in classification.",
+        "expected_output": "An inference about whether perimeter error is a meaningful or noisy feature in the context of tumor classification."
+      }
+    ],
+    "tool_selection": {
+      "selected_tools": [
+        "shap",
+        "sensitivity_analysis"
+      ],
+      "tool_params": {
+        "shap": {
+          "focus_feature": "perimeter error"
+        },
+        "sensitivity_analysis": {
+          "focus_feature": "perimeter error"
+        }
+      },
+      "reasoning": "SHAP provides a game-theoretic attribution of feature importance, indicating how much each feature, including perimeter error, contributes to the prediction. Sensitivity analysis directly tests the effect of ablating the feature (masking) by evaluating prediction probability changes when the feature is set to zero, which directly answers the user\u2019s question about prediction change under masking. These tools are especially effective for tabular data and offer robust, interpretable outputs without model-specific assumptions."
+    },
+    "selected_tools": [
+      {
+        "tool_name": "shap",
+        "priority": 1,
+        "reasoning": "SHAP provides a game-theoretic attribution of feature importance, indicating how much each feature, including perimeter error, contributes to the prediction. Sensitivity analysis directly tests the effect of ablating the feature (masking) by evaluating prediction probability changes when the feature is set to zero, which directly answers the user\u2019s question about prediction change under masking. These tools are especially effective for tabular data and offer robust, interpretable outputs without model-specific assumptions.",
+        "parameters": {
+          "focus_feature": "perimeter error"
+        }
+      },
+      {
+        "tool_name": "sensitivity_analysis",
+        "priority": 2,
+        "reasoning": "SHAP provides a game-theoretic attribution of feature importance, indicating how much each feature, including perimeter error, contributes to the prediction. Sensitivity analysis directly tests the effect of ablating the feature (masking) by evaluating prediction probability changes when the feature is set to zero, which directly answers the user\u2019s question about prediction change under masking. These tools are especially effective for tabular data and offer robust, interpretable outputs without model-specific assumptions.",
+        "parameters": {
+          "focus_feature": "perimeter error"
+        }
+      }
+    ]
+  },
+  "results": {
+    "output": {
+      "prediction_changes": 0
+    },
+    "explanation": "The SHAP values show that perimeter error has a small negative impact (-0.0120), and the sensitivity analysis indicates only a minor probability drop of 0.0051 when masked. The autonomous reasoning concludes that perimeter error is not a key discriminative feature, especially given the low model confidence (0.59) and the presence of stronger features like concavity or symmetry errors. Thus, masking it would not substantially alter the prediction.",
+    "confidence": 0.85,
+    "tool_results": {
+      "shap": {
+        "success": true,
+        "method": "SHAP (Tabular)",
+        "target_class": 1,
+        "statistics": {
+          "num_features": 30,
+          "feature_importance": [
+            {
+              "feature": "mean perimeter",
+              "feature_index": 2,
+              "shap_value": -0.032685,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean area",
+              "feature_index": 3,
+              "shap_value": 0.032685,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean smoothness",
+              "feature_index": 4,
+              "shap_value": 0.029361,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean compactness",
+              "feature_index": 5,
+              "shap_value": -0.029361,
+              "direction": "negative"
+            },
+            {
+              "feature": "worst concavity",
+              "feature_index": 26,
+              "shap_value": -0.017395,
+              "direction": "negative"
+            },
+            {
+              "feature": "worst concave points",
+              "feature_index": 27,
+              "shap_value": 0.017395,
+              "direction": "positive"
+            },
+            {
+              "feature": "worst perimeter",
+              "feature_index": 22,
+              "shap_value": 0.016604,
+              "direction": "positive"
+            },
+            {
+              "feature": "worst area",
+              "feature_index": 23,
+              "shap_value": -0.016604,
+              "direction": "negative"
+            },
+            {
+              "feature": "perimeter error",
+              "feature_index": 12,
+              "shap_value": -0.011968,
+              "direction": "negative"
+            },
+            {
+              "feature": "area error",
+              "feature_index": 13,
+              "shap_value": 0.011968,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean concavity",
+              "feature_index": 6,
+              "shap_value": 0.011205,
+              "direction": "positive"
+            },
+            {
+              "feature": "mean concave points",
+              "feature_index": 7,
+              "shap_value": -0.011205,
+              "direction": "negative"
+            },
+            {
+              "feature": "concavity error",
+              "feature_index": 16,
+              "shap_value": 0.008479,
+              "direction": "positive"
+            },
+            {
+              "feature": "concave points error",
+              "feature_index": 17,
+              "shap_value": -0.008479,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean radius",
+              "feature_index": 0,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean texture",
+              "feature_index": 1,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean symmetry",
+              "feature_index": 8,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "mean fractal dimension",
+              "feature_index": 9,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "radius error",
+              "feature_index": 10,
+              "shap_value": 0.0,
+              "direction": "negative"
+            },
+            {
+              "feature": "texture error",
+              "feature_index": 11,
+              "shap_value": 0.0,
+              "direction": "negative"
+            }
+          ],
+          "top_positive": 0.032685,
+          "top_negative": -0.032685
+        },
+        "description": "SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: mean perimeter."
+      },
+      "sensitivity_analysis": {
+        "success": true,
+        "method": "Sensitivity Analysis (Tabular)",
+        "target_class": 1,
+        "original_prob": 0.643821,
+        "statistics": {
+          "num_features": 30,
+          "feature_sensitivity": [
+            {
+              "feature": "worst texture",
+              "feature_index": 21,
+              "original_prob": 0.643821,
+              "modified_prob": 0.619709,
+              "prob_drop": 0.024112
+            },
+            {
+              "feature": "mean texture",
+              "feature_index": 1,
+              "original_prob": 0.643821,
+              "modified_prob": 0.63071,
+              "prob_drop": 0.013111
+            },
+            {
+              "feature": "mean perimeter",
+              "feature_index": 2,
+              "original_prob": 0.643821,
+              "modified_prob": 0.653604,
+              "prob_drop": -0.009782
+            },
+            {
+              "feature": "worst symmetry",
+              "feature_index": 28,
+              "original_prob": 0.643821,
+              "modified_prob": 0.650509,
+              "prob_drop": -0.006687
+            },
+            {
+              "feature": "mean concavity",
+              "feature_index": 6,
+              "original_prob": 0.643821,
+              "modified_prob": 0.637397,
+              "prob_drop": 0.006424
+            },
+            {
+              "feature": "perimeter error",
+              "feature_index": 12,
+              "original_prob": 0.643821,
+              "modified_prob": 0.63874,
+              "prob_drop": 0.005082
+            },
+            {
+              "feature": "mean symmetry",
+              "feature_index": 8,
+              "original_prob": 0.643821,
+              "modified_prob": 0.648514,
+              "prob_drop": -0.004693
+            },
+            {
+              "feature": "smoothness error",
+              "feature_index": 14,
+              "original_prob": 0.643821,
+              "modified_prob": 0.639968,
+              "prob_drop": 0.003854
+            },
+            {
+              "feature": "area error",
+              "feature_index": 13,
+              "original_prob": 0.643821,
+              "modified_prob": 0.640231,
+              "prob_drop": 0.003591
+            },
+            {
+              "feature": "mean area",
+              "feature_index": 3,
+              "original_prob": 0.643821,
+              "modified_prob": 0.647092,
+              "prob_drop": -0.00327
+            },
+            {
+              "feature": "texture error",
+              "feature_index": 11,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646804,
+              "prob_drop": -0.002983
+            },
+            {
+              "feature": "mean fractal dimension",
+              "feature_index": 9,
+              "original_prob": 0.643821,
+              "modified_prob": 0.641003,
+              "prob_drop": 0.002819
+            },
+            {
+              "feature": "concavity error",
+              "feature_index": 16,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646597,
+              "prob_drop": -0.002776
+            },
+            {
+              "feature": "mean concave points",
+              "feature_index": 7,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646345,
+              "prob_drop": -0.002524
+            },
+            {
+              "feature": "compactness error",
+              "feature_index": 15,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646267,
+              "prob_drop": -0.002445
+            },
+            {
+              "feature": "mean radius",
+              "feature_index": 0,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646243,
+              "prob_drop": -0.002421
+            },
+            {
+              "feature": "mean compactness",
+              "feature_index": 5,
+              "original_prob": 0.643821,
+              "modified_prob": 0.641486,
+              "prob_drop": 0.002335
+            },
+            {
+              "feature": "worst concave points",
+              "feature_index": 27,
+              "original_prob": 0.643821,
+              "modified_prob": 0.646101,
+              "prob_drop": -0.002279
+            },
+            {
+              "feature": "worst radius",
+              "feature_index": 20,
+              "original_prob": 0.643821,
+              "modified_prob": 0.645991,
+              "prob_drop": -0.002169
+            },
+            {
+              "feature": "worst concavity",
+              "feature_index": 26,
+              "original_prob": 0.643821,
+              "modified_prob": 0.64201,
+              "prob_drop": 0.001811
+            }
+          ],
+          "max_prob_drop": 0.024112,
+          "max_prob_increase": -0.009782
+        },
+        "description": "Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst texture (prob drop: 0.024112)."
+      },
+      "autonomous_tasks": {
+        "reasoning": {
+          "success": true,
+          "task_type": "reasoning",
+          "query": "Given that the model predicts benign with 0.59 confidence, and the input features are centered around typical benign tumor values, assess whether 'perimeter error' is likely to be a key discriminative feature between benign and malignant tumors.",
+          "result": {
+            "findings": "The model predicted benign with 59.20% confidence, and the 'perimeter error' feature has a value of 1.349. Given that benign tumors typically exhibit more consistent, stable measurements compared to malignant ones, which often show irregular growth patterns, perimeter error is expected to reflect the deviation from expected smooth growth. In medical literature, perimeter irregularity is a known indicator of malignancy, as malignant tumors tend to have asymmetric or rapidly changing perimeters. The current value of perimeter error is moderate\u2014within the range seen in both benign and malignant cases\u2014but it is not exceptionally high. However, since the model's prediction is relatively low-confidence (only 59.20%), the contribution of individual features like perimeter error may be marginal or secondary to more dominant features such as mean concavity or worst symmetry. Masking perimeter error would likely result in minimal change to the prediction, as it is not a strongly discriminative feature in this case. Therefore, perimeter error is not a key discriminative feature for the current prediction.",
+            "explanation": "Perimeter error reflects the deviation in the tumor's perimeter from expected values. Malignant tumors often display irregular growth, leading to higher perimeter error. Benign tumors grow more uniformly, resulting in lower error values. While perimeter error is related to tumor morphology, the current value (1.349) is moderate and falls within the range of both benign and malignant cases. The model's low confidence (59.20%) suggests uncertainty, indicating that the prediction is not strongly driven by any single feature. Given the presence of other more robust features like concavity or symmetry errors, perimeter error is likely not a primary driver in the current prediction. Thus, masking it would not substantially alter the model's output.",
+            "confidence": 0.85
+          },
+          "raw_response": "{'findings': \"The model predicted benign with 59.20% confidence, and the 'perimeter error' feature has a value of 1.349. Given that benign tumors typically exhibit more consistent, stable measurements compared to malignant ones, which often show irregular growth patterns, perimeter error is expected to reflect the deviation from expected smooth growth. In medical literature, perimeter irregularity is a known indicator of malignancy, as malignant tumors tend to have asymmetric or rapidly changing perimeters. The current value of perimeter error is moderate\u2014within the range seen in both benign and malignant cases\u2014but it is not exceptionally high. However, since the model's prediction is relatively low-confidence (only 59.20%), the contribution of individual features like perimeter error may be marginal or secondary to more dominant features such as mean concavity or worst symmetry. Masking perimeter error would likely result in minimal change to the prediction, as it is not a strongly di"
+        },
+        "comparison": {
+          "success": true,
+          "task_type": "comparison",
+          "query": "Compare the relative scale and distribution of 'perimeter error' to other perimeter-related features like 'mean perimeter' and 'mean area' in the input data to infer its potential role in classification.",
+          "result": {
+            "findings": {
+              "perimeter_error_is_meaningful": true,
+              "comparison_with_mean_perimeter": "perimeter error (1.349) is relatively small compared to mean perimeter (106.3), indicating it is a normalized or scaled deviation rather than an absolute measure. This suggests it may represent a relative variation (e.g., percentage error), which could be informative for modeling variability in tumor growth.",
+              "comparison_with_mean_area": "mean area (788.5) is several times larger than perimeter error (1.349), reinforcing that perimeter error is a small-scale deviation relative to the overall magnitude of the feature. This aligns with it being a normalized error term.",
+              "role_in_classification": "perimeter error appears to be a normalized, scaled feature that captures variation in tumor perimeter. Given that the model confidently predicted 'benign' (59.20%) and perimeter is a key morphological feature, masking this feature could introduce uncertainty, especially if the model relies on error-based variance to distinguish benign from malignant tumors."
+            },
+            "explanation": "Perimeter error (1.349) is on the same order of magnitude as the error terms for other features like radius and texture, and it is numerically small compared to the mean perimeter (106.3). This suggests it is not an absolute measure but rather a relative or normalized deviation. Such error terms are common in medical diagnostics to capture variability in measurements, which can be critical for distinguishing between benign and malignant conditions. Since the model relies on morphological features and perimeter is a strong indicator of tumor shape, the error component may provide additional stability or sensitivity to small deviations. Therefore, masking perimeter error might reduce the model\u2019s ability to detect subtle variations, potentially altering the classification decision.",
+            "confidence": 0.93
+          },
+          "raw_response": "{'findings': {'perimeter_error_is_meaningful': True, 'comparison_with_mean_perimeter': 'perimeter error (1.349) is relatively small compared to mean perimeter (106.3), indicating it is a normalized or scaled deviation rather than an absolute measure. This suggests it may represent a relative variation (e.g., percentage error), which could be informative for modeling variability in tumor growth.', 'comparison_with_mean_area': 'mean area (788.5) is several times larger than perimeter error (1.349), reinforcing that perimeter error is a small-scale deviation relative to the overall magnitude of the feature. This aligns with it being a normalized error term.', 'role_in_classification': \"perimeter error appears to be a normalized, scaled feature that captures variation in tumor perimeter. Given that the model confidently predicted 'benign' (59.20%) and perimeter is a key morphological feature, masking this feature could introduce uncertainty, especially if the model relies on error-based va"
+        }
+      }
+    },
+    "visualization_paths": [],
+    "question_id": "q30",
+    "question_type": 5,
+    "autonomous_results": {
+      "reasoning": {
+        "success": true,
+        "task_type": "reasoning",
+        "query": "Given that the model predicts benign with 0.59 confidence, and the input features are centered around typical benign tumor values, assess whether 'perimeter error' is likely to be a key discriminative feature between benign and malignant tumors.",
+        "result": {
+          "findings": "The model predicted benign with 59.20% confidence, and the 'perimeter error' feature has a value of 1.349. Given that benign tumors typically exhibit more consistent, stable measurements compared to malignant ones, which often show irregular growth patterns, perimeter error is expected to reflect the deviation from expected smooth growth. In medical literature, perimeter irregularity is a known indicator of malignancy, as malignant tumors tend to have asymmetric or rapidly changing perimeters. The current value of perimeter error is moderate\u2014within the range seen in both benign and malignant cases\u2014but it is not exceptionally high. However, since the model's prediction is relatively low-confidence (only 59.20%), the contribution of individual features like perimeter error may be marginal or secondary to more dominant features such as mean concavity or worst symmetry. Masking perimeter error would likely result in minimal change to the prediction, as it is not a strongly discriminative feature in this case. Therefore, perimeter error is not a key discriminative feature for the current prediction.",
+          "explanation": "Perimeter error reflects the deviation in the tumor's perimeter from expected values. Malignant tumors often display irregular growth, leading to higher perimeter error. Benign tumors grow more uniformly, resulting in lower error values. While perimeter error is related to tumor morphology, the current value (1.349) is moderate and falls within the range of both benign and malignant cases. The model's low confidence (59.20%) suggests uncertainty, indicating that the prediction is not strongly driven by any single feature. Given the presence of other more robust features like concavity or symmetry errors, perimeter error is likely not a primary driver in the current prediction. Thus, masking it would not substantially alter the model's output.",
+          "confidence": 0.85
+        },
+        "raw_response": "{'findings': \"The model predicted benign with 59.20% confidence, and the 'perimeter error' feature has a value of 1.349. Given that benign tumors typically exhibit more consistent, stable measurements compared to malignant ones, which often show irregular growth patterns, perimeter error is expected to reflect the deviation from expected smooth growth. In medical literature, perimeter irregularity is a known indicator of malignancy, as malignant tumors tend to have asymmetric or rapidly changing perimeters. The current value of perimeter error is moderate\u2014within the range seen in both benign and malignant cases\u2014but it is not exceptionally high. However, since the model's prediction is relatively low-confidence (only 59.20%), the contribution of individual features like perimeter error may be marginal or secondary to more dominant features such as mean concavity or worst symmetry. Masking perimeter error would likely result in minimal change to the prediction, as it is not a strongly di"
+      },
+      "comparison": {
+        "success": true,
+        "task_type": "comparison",
+        "query": "Compare the relative scale and distribution of 'perimeter error' to other perimeter-related features like 'mean perimeter' and 'mean area' in the input data to infer its potential role in classification.",
+        "result": {
+          "findings": {
+            "perimeter_error_is_meaningful": true,
+            "comparison_with_mean_perimeter": "perimeter error (1.349) is relatively small compared to mean perimeter (106.3), indicating it is a normalized or scaled deviation rather than an absolute measure. This suggests it may represent a relative variation (e.g., percentage error), which could be informative for modeling variability in tumor growth.",
+            "comparison_with_mean_area": "mean area (788.5) is several times larger than perimeter error (1.349), reinforcing that perimeter error is a small-scale deviation relative to the overall magnitude of the feature. This aligns with it being a normalized error term.",
+            "role_in_classification": "perimeter error appears to be a normalized, scaled feature that captures variation in tumor perimeter. Given that the model confidently predicted 'benign' (59.20%) and perimeter is a key morphological feature, masking this feature could introduce uncertainty, especially if the model relies on error-based variance to distinguish benign from malignant tumors."
+          },
+          "explanation": "Perimeter error (1.349) is on the same order of magnitude as the error terms for other features like radius and texture, and it is numerically small compared to the mean perimeter (106.3). This suggests it is not an absolute measure but rather a relative or normalized deviation. Such error terms are common in medical diagnostics to capture variability in measurements, which can be critical for distinguishing between benign and malignant conditions. Since the model relies on morphological features and perimeter is a strong indicator of tumor shape, the error component may provide additional stability or sensitivity to small deviations. Therefore, masking perimeter error might reduce the model\u2019s ability to detect subtle variations, potentially altering the classification decision.",
+          "confidence": 0.93
+        },
+        "raw_response": "{'findings': {'perimeter_error_is_meaningful': True, 'comparison_with_mean_perimeter': 'perimeter error (1.349) is relatively small compared to mean perimeter (106.3), indicating it is a normalized or scaled deviation rather than an absolute measure. This suggests it may represent a relative variation (e.g., percentage error), which could be informative for modeling variability in tumor growth.', 'comparison_with_mean_area': 'mean area (788.5) is several times larger than perimeter error (1.349), reinforcing that perimeter error is a small-scale deviation relative to the overall magnitude of the feature. This aligns with it being a normalized error term.', 'role_in_classification': \"perimeter error appears to be a normalized, scaled feature that captures variation in tumor perimeter. Given that the model confidently predicted 'benign' (59.20%) and perimeter is a key morphological feature, masking this feature could introduce uncertainty, especially if the model relies on error-based va"
+      }
+    }
+  },
+  "output_validation": {
+    "is_valid": true,
+    "errors": []
+  },
+  "evaluation": {
+    "question_id": "q30",
+    "question_type": 5,
+    "modality": "tabular",
+    "quality_score": 1.0,
+    "completeness": 1.0,
+    "overall_score": 1.0,
+    "overall_rating": "Excellent",
+    "execution_metrics": {
+      "successful_tools": 4,
+      "total_tools": 4,
+      "has_output": true,
+      "has_explanation": true
+    },
+    "faithfulness": {
+      "score": 0.9779091477394104,
+      "passed": true,
+      "metric_name": "Prediction Accuracy",
+      "metric_formula": "1 if agent_prediction == actual_outcome else 0",
+      "p_original": null,
+      "p_modified": null,
+      "original_class": "1",
+      "modified_class": "1",
+      "details": {
+        "soft_score": 0.9779091477394104,
+        "queried_region": {
+          "feature_key": "perimeter error"
+        },
+        "agent_says_changes": 0,
+        "actually_changed": 0,
+        "p_original_class_before_mask": 0.5919892191886902,
+        "p_original_class_after_mask": 0.5698983669281006,
+        "prob_drop": 0.0220908522605896,
+        "binary_correct": true,
+        "interpretation": "Soft score: agent says changes -> prob drop; agent says stable -> 1-|drop|"
+      },
+      "errors": []
+    }
+  }
+}

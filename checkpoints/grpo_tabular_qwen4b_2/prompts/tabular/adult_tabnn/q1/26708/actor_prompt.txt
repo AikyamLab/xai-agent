@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7713
+
+## Input Data
+Features: age=37, workclass=Private, fnlwgt=114765, education=Some-college, education-num=10, marital-status=Never-married, occupation=Machine-op-inspct, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Vietnam.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Not-in-family.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.008971).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Vietnam: +0.0381
+  - sex_Male: +0.0371
+  - native-country_Columbia: +0.0354
+  - native-country_Trinadad&Tobago: +0.0319
+  - race_Amer-Indian-Eskimo: +0.0124
+- Top negative features (shap_value):
+  - native-country_Yugoslavia: -0.0381
+  - native-country_Cambodia: -0.0371
+  - native-country_Cuba: -0.0354
+  - native-country_United-States: -0.0319
+  - race_Asian-Pac-Islander: -0.0124
+- Max positive: 0.03814  Max negative: -0.03814
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2119
+  - native-country_France <= 0.00: +0.1489
+  - capital-loss <= -0.22: +0.1091
+  - native-country_Greece <= 0.00: +0.0727
+  - native-country_Hong <= 0.00: +0.0688
+- Top negative features (weight):
+  - native-country_Philippines <= 0.00: -0.1338
+  - native-country_Nicaragua <= 0.00: -0.0435
+  - native-country_Vietnam <= 0.00: -0.0348
+- Max positive: 0.211911  Max negative: -0.13383
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0131
+  - marital-status_Never-married: +0.0129
+  - education_Some-college: +0.0031
+  - occupation_Machine-op-inspct: +0.0024
+  - fnlwgt: +0.0020
+- Top negative features (attribution_score):
+  - sex_Female: -0.0007
+  - race_White: -0.0003
+  - native-country_United-States: -0.0000
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.013144  Max negative: -0.000706
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0090  (orig=0.4431 → mod=0.4341)
+  - marital-status_Never-married: drop=+0.0082  (orig=0.4431 → mod=0.4348)
+  - workclass_Private: drop=-0.0031  (orig=0.4431 → mod=0.4462)
+  - education_Some-college: drop=+0.0029  (orig=0.4431 → mod=0.4402)
+  - occupation_Machine-op-inspct: drop=+0.0014  (orig=0.4431 → mod=0.4417)
+  - sex_Female: drop=+0.0013  (orig=0.4431 → mod=0.4418)
+  - age: drop=+0.0011  (orig=0.4431 → mod=0.4420)
+  - capital-gain: drop=+0.0011  (orig=0.4431 → mod=0.4420)
+  - capital-loss: drop=+0.0009  (orig=0.4431 → mod=0.4421)
+  - race_White: drop=-0.0007  (orig=0.4431 → mod=0.4437)
+- Max prob_drop: 0.008971  Max prob_increase: -0.003071
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features in the adult dataset are known to be strongly correlated with income levels in the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 37}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}]
+- Explanation: From empirical analyses of the Adult Income dataset (e.g., UCI ML Repository and related studies), features such as age, education level (encoded as education-num), hours per week, and sex are consistently shown to be strongly correlated with income levels. Specifically, higher education-num and age are associated with higher income, while being female and having a non-family relationship (like 'Not-in-family') is often correlated with lower income in the <=50K class. These features are known from literature to influence the model decision when predicting income. Workclass and occupation are less consistently predictive, and race and native-country show weak or non-significant correlations in most models. The current values align with a profile typical of low-income individuals, especially in the context of limited education, no capital gains, and part-time or standard work hours.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Given the input features (age=37, workclass=Private, education=Some-college, marital-status=Never-married, sex=Female), how might each feature contribute to the model predicting <=50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}]
+- Explanation: The model predicts <=50K with 77.13% confidence, and the current input features reflect a profile typical of lower-income individuals. Age=37 is moderate but not particularly predictive on its own. 'Some-college' education is below average in terms of income potential compared to higher degrees. Being 'Never-married' is associated with lower income in historical datasets. 'Female' sex is a significant demographic factor in the dataset, historically linked to lower earnings. 'Machine-op-inspct' is a low-skill occupation with modest pay, and 40 hours per week is standard but not sufficient to push earnings above 50K. To increase the probability of predicting >50K, we would enhance income-associated features such as education level, marital status (which often correlates with stability and income), occupation (higher-paying roles like managerial or executive), and hours worked (longer hours can correlate with higher earnings). Changing these features to values typically associated with higher-income groups increases the likelihood of a >50K prediction, aligning with known patterns in the dataset.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the likelihood of a <=50K prediction when key features (e.g., age, education-num, sex) are held constant or altered slightly—what features show the strongest alignment with the low-income prediction?
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Protective-serv"}]
+- Explanation: The model predicted <=50K with 77.13% confidence. While the base input features (e.g., age=37, education-num=10, sex='Female') are consistent with lower income, features like 'sex', 'education-num', and 'hours-per-week' have strong empirical correlations in the dataset with income levels. Changing 'sex' to 'Male' is a common pattern in income modeling where male individuals historically score higher in income. A lower 'education-num' (e.g., 9) aligns with lower educational attainment, often linked to lower earnings. Reducing 'hours-per-week' to 35 may suggest part-time or less intensive work, which correlates with lower income. 'Marital-status' being 'Never-married' is a known predictor of lower income, and switching to 'Married-civ-spouse' would likely increase income probability. 'Occupation' shifts like 'Protective-serv' (typically lower wage) retain the low-income profile. These alterations maintain consistency with low-income patterns observed in tabular datasets like the Census Income Benchmark.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

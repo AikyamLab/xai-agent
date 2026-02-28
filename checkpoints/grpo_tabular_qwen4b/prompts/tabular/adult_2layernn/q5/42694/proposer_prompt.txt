@@ -1,0 +1,54 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on TABULAR DATA.
+
+**User Question**: The model predicted the individual’s income to be less than or equal to 50K. If we mask the fnlwgt feature of this input, would the prediction change?
+
+**Model Information**:
+- Model: adult_2layernn.pth
+- Architecture: TwoLayerNN
+- Prediction: Class 0
+(Confidence: 0.5876)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5875692367553711}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4124307632446289}]
+
+**Part to be Masked**:
+fnlwgt
+
+**Input Content Description**:
+Features: age=23, workclass=Private, fnlwgt=45713, education=Some-college, education-num=10, marital-status=Never-married, occupation=Craft-repair, relationship=Other-relative, race=White, sex=Male
+
+**Task**: Design a strategy to determine whether MASKING the specified feature/column would CHANGE the model's prediction.
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Assess the importance of the queried feature/column to the prediction
+   - Reason about whether masking would significantly impact the output
+   - Estimate the likelihood of prediction change
+
+2. **External XAI Tools**: Use established explainability methods to assess importance:
+   - shap: Executes SHAP (SHapley Additive exPlanations) for tabular data. Returns feature-level importance scores based on game-theoretic values.
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for tabular data. Returns feature-level importance scores for the prediction.
+   - integrated_gradients: Executes Integrated Gradients for tabular data to compute per-feature attribution scores. Returns feature-level importance based on gradient integration from a zero baseline.
+   - sensitivity_analysis: Executes leave-one-out feature ablation to measure each feature's impact on prediction. Returns probability changes when each feature is set to zero.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for assessing masking impact (2-3 sentences)",
+    "confidence": 0.0-1.0,
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous importance analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["shap", "lime", "integrated_gradients", "sensitivity_analysis"],
+        "tool_params": {
+            "shap": {"focus_feature": "queried", "priority": 1},
+            "permutation_importance": {"focus_feature": "queried", "priority": 2}
+        },
+        "reasoning": "Why these tools for assessing masking impact on tabular"
+    }
+}
+
+Provide your strategy as a JSON object:

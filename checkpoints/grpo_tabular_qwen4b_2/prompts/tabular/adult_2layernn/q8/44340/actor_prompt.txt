@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (52.12%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=40, workclass=Private, fnlwgt=202872, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Sales, relationship=Wife, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Private.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_HS-grad (prob drop: 0.006815).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cuba: +0.0205
+  - native-country_Trinadad&Tobago: +0.0144
+  - occupation_Tech-support: +0.0135
+  - native-country_Puerto-Rico: +0.0101
+  - capital-gain: +0.0075
+- Top negative features (shap_value):
+  - native-country_Columbia: -0.0205
+  - native-country_United-States: -0.0144
+  - occupation_Transport-moving: -0.0135
+  - native-country_Portugal: -0.0101
+  - education-num: -0.0075
+- Max positive: 0.02047  Max negative: -0.02047
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0880
+  - capital-gain <= -0.15: +0.0572
+  - education-num <= -0.44: +0.0521
+  - hours-per-week <= -0.08: +0.0480
+  - education_Masters <= 0.00: +0.0369
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0532
+  - native-country_Peru <= 0.00: -0.0491
+  - native-country_Poland <= 0.00: -0.0455
+  - native-country_Dominican-Republic <= 0.00: -0.0129
+- Max positive: 0.087975  Max negative: -0.05323
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - workclass_Private: +0.0055
+  - education_HS-grad: +0.0054
+  - sex_Female: +0.0028
+  - education-num: +0.0027
+  - hours-per-week: +0.0006
+- Top negative features (attribution_score):
+  - relationship_Wife: -0.0055
+  - race_White: -0.0046
+  - native-country_United-States: -0.0029
+  - marital-status_Married-civ-spouse: -0.0015
+  - occupation_Sales: -0.0003
+- Max positive: 0.005497  Max negative: -0.005457
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education_HS-grad: drop=+0.0068  (orig=0.3825 → mod=0.3757)
+  - workclass_Private: drop=+0.0062  (orig=0.3825 → mod=0.3763)
+  - relationship_Wife: drop=-0.0062  (orig=0.3825 → mod=0.3887)
+  - marital-status_Married-civ-spouse: drop=-0.0031  (orig=0.3825 → mod=0.3856)
+  - occupation_Sales: drop=-0.0028  (orig=0.3825 → mod=0.3853)
+  - race_White: drop=-0.0027  (orig=0.3825 → mod=0.3853)
+  - sex_Female: drop=+0.0022  (orig=0.3825 → mod=0.3804)
+  - native-country_United-States: drop=-0.0021  (orig=0.3825 → mod=0.3846)
+  - education-num: drop=+0.0012  (orig=0.3825 → mod=0.3814)
+  - hours-per-week: drop=+0.0004  (orig=0.3825 → mod=0.3822)
+- Max prob_drop: 0.006815  Max prob_increase: -0.006171
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted <=50K with low confidence (0.52), and the true label is >50K, assess whether any of the provided features—such as workclass=Private, occupation=Sales, or race=White—are semantically associated with the >50K class in real-world socioeconomic terms.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In real-world socioeconomic terms, 'Private' workclass is commonly associated with lower to mid-income levels, especially in the absence of public service or high-paying government roles. 'Sales' occupation is typically linked to lower income brackets compared to professional or managerial roles. 'HS-grad' is a below-average educational level correlated with lower earnings, while 'White' race, though not directly causative in modern data analysis, has historically been associated with higher income levels in certain datasets due to structural and systemic factors — however, since the model has a 52% confidence and the label is >50K, such features act as potential confounders. The low income prediction may stem from these features collectively reinforcing a stereotype or pattern of lower earning potential. Changing these to features more strongly associated with higher income (e.g., higher education, professional occupations, longer work hours, male sex) would statistically increase the likelihood of predicting >50K. Thus, these features are semantically unrelated or negatively correlated with the >50K class in domain knowledge, and thus are candidates for being irrelevant to the correct prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like education-num=9, marital-status=Married-civ-spouse, and relationship=Wife to the target class (>50K). Are there any features with strong domain relevance that are not contributing positively to the model's decision?
+- Status: Success
+- findings: [{"feature_key": "education-num", "relevance": "high", "explanation": "Education level is a well-established predictor of income in the dataset. An education-num of 9 corresponds to 'HS-grad', which typically indicates a lower socioeconomic attainment and is associated with lower income brackets. This feature is semiotically relevant and directly supports the model's prediction of <=50K."}, {"feature_key": "marital-status", "relevance": "medium", "explanation": "Marital status can influence income through household economic structure. 'Married-civ-spouse' often correlates with stable employment and higher income, which could support a >50K prediction. However, in this case, the marital status is paired with 'Wife', which may suggest a household income shared with a spouse\u2014potentially increasing income stability. Its relevance is medium but not dominant."}, {"feature_key": "relationship", "relevance": "low", "explanation": "The 'relationship' feature is highly correlated with marital status and is often redundant. 'Wife' implies a married household, which is already captured in 'marital-status'. This feature may be semiotically redundant and thus does not add independent predictive power to the model\u2019s decision. It is likely spurious in this context."}]
+- Explanation: The feature 'education-num=9' (HS-grad) is strongly semiotically relevant to income level, as lower education levels are consistently linked to lower earnings. 'Marital-status=Married-civ-spouse' provides moderate relevance due to its association with financial stability, while 'relationship=Wife' is redundant and lacks independent predictive power. The model’s prediction of <=50K is likely reinforced by the low education level, and the spuriousness of 'relationship' may not directly contribute to the prediction, though it is not the root cause. There is no evidence that irrelevant features are actively causing the model’s error—rather, the model is likely drawing a reasonable inference from relevant demographic signals.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted <=50K with low confidence (0.52), and the true label is >50K, assess whether any of the provided features—such as workclass=Private, occupation=Sales, or race=White—are semantically associated with the >50K class in real-world socioeconomic terms.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In real-world socioeconomic terms, 'Private' workclass is commonly associated with lower to mid-income levels, especially in the absence of public service or high-paying government roles. 'Sales' occupation is typically linked to lower income brackets compared to professional or managerial roles. 'HS-grad' is a below-average educational level correlated with lower earnings, while 'White' race, though not directly causative in modern data analysis, has historically been associated with higher income levels in certain datasets due to structural and systemic factors — however, since the model has a 52% confidence and the label is >50K, such features act as potential confounders. The low income prediction may stem from these features collectively reinforcing a stereotype or pattern of lower earning potential. Changing these to features more strongly associated with higher income (e.g., higher education, professional occupations, longer work hours, male sex) would statistically increase the likelihood of predicting >50K. Thus, these features are semantically unrelated or negatively correlated with the >50K class in domain knowledge, and thus are candidates for being irrelevant to the correct prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like education-num=9, marital-status=Married-civ-spouse, and relationship=Wife to the target class (>50K). Are there any features with strong domain relevance that are not contributing positively to the model's decision?
+- Status: Success
+- findings: [{"feature_key": "education-num", "relevance": "high", "explanation": "Education level is a well-established predictor of income in the dataset. An education-num of 9 corresponds to 'HS-grad', which typically indicates a lower socioeconomic attainment and is associated with lower income brackets. This feature is semiotically relevant and directly supports the model's prediction of <=50K."}, {"feature_key": "marital-status", "relevance": "medium", "explanation": "Marital status can influence income through household economic structure. 'Married-civ-spouse' often correlates with stable employment and higher income, which could support a >50K prediction. However, in this case, the marital status is paired with 'Wife', which may suggest a household income shared with a spouse\u2014potentially increasing income stability. Its relevance is medium but not dominant."}, {"feature_key": "relationship", "relevance": "low", "explanation": "The 'relationship' feature is highly correlated with marital status and is often redundant. 'Wife' implies a married household, which is already captured in 'marital-status'. This feature may be semiotically redundant and thus does not add independent predictive power to the model\u2019s decision. It is likely spurious in this context."}]
+- Explanation: The feature 'education-num=9' (HS-grad) is strongly semiotically relevant to income level, as lower education levels are consistently linked to lower earnings. 'Marital-status=Married-civ-spouse' provides moderate relevance due to its association with financial stability, while 'relationship=Wife' is redundant and lacks independent predictive power. The model’s prediction of <=50K is likely reinforced by the low education level, and the spuriousness of 'relationship' may not directly contribute to the prediction, though it is not the root cause. There is no evidence that irrelevant features are actively causing the model’s error—rather, the model is likely drawing a reasonable inference from relevant demographic signals.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

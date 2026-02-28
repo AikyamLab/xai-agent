@@ -125,6 +125,7 @@ class Q5Evaluator(BaseEvaluator):
             original_class=str(original_class),
             modified_class=str(modified_class),
             details={
+                "soft_score": score,
                 "queried_region": queried_region,
                 "agent_says_changes": agent_says_changes,
                 "actually_changed": actually_changed,

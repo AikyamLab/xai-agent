@@ -1,0 +1,1041 @@
+{
+  "question_id": "q25",
+  "question": {
+    "model": [
+      "TabNN"
+    ],
+    "dataset": "Adult Census",
+    "modality": "tabular",
+    "row_no": [
+      13590,
+      18476
+    ],
+    "features": [
+      {
+        "age": 53,
+        "workclass": "Local-gov",
+        "fnlwgt": 175897,
+        "education": "HS-grad",
+        "education-num": 9,
+        "marital-status": "Married-civ-spouse",
+        "occupation": "Craft-repair",
+        "relationship": "Husband",
+        "race": "White",
+        "sex": "Male",
+        "capital-gain": 0,
+        "capital-loss": 0,
+        "hours-per-week": 40,
+        "native-country": "United-States"
+      },
+      {
+        "age": 39,
+        "workclass": "Private",
+        "fnlwgt": 184659,
+        "education": "HS-grad",
+        "education-num": 9,
+        "marital-status": "Married-civ-spouse",
+        "occupation": "Machine-op-inspct",
+        "relationship": "Husband",
+        "race": "White",
+        "sex": "Male",
+        "capital-gain": 0,
+        "capital-loss": 0,
+        "hours-per-week": 40,
+        "native-country": "United-States"
+      }
+    ],
+    "target": [
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      }
+    ],
+    "predicted": [
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      }
+    ],
+    "example": "The misclassified instances with row numbers 13590, 18476 have been misclassified. What shared feature makes the misclassified inputs (13590, 18476) difficult for the model?",
+    "q_type": 9,
+    "q": "What shared feature makes the misclassified inputs (13590, 18476) difficult for the model?",
+    "question": "The misclassified instances with row numbers 13590, 18476 have been misclassified. What shared feature makes the misclassified inputs (13590, 18476) difficult for the model?",
+    "question_id": "q25",
+    "is_multi_instance": true,
+    "image_indices": [
+      13590,
+      18476
+    ],
+    "num_instances": 2,
+    "targets": [
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      }
+    ],
+    "predictions": [
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      }
+    ],
+    "dataset_base_name": "adult_tabnn_q9"
+  },
+  "template": {
+    "q_type": 9,
+    "category": "spurious_features",
+    "template_text": "What shared feature makes multiple misclassified inputs difficult?"
+  },
+  "strategy": {
+    "strategy_type": "hybrid",
+    "reasoning": "A hybrid strategy combines autonomous reasoning to identify candidate shared features based on structural patterns in the misclassified instances, with XAI tools to validate and quantify feature attributions. This approach ensures both domain-specific insight and model-level evidence of spurious feature influence. Since the ground truth is unknown in both cases, we focus on identifying features that co-occur and have high model attribution despite lacking semantic relevance to income classification.",
+    "confidence": 0.92,
+    "autonomous_tasks": [
+      {
+        "task_type": "comparison",
+        "query": "Identify all features that appear in both instance 13590 and instance 18476, and assess if any feature is consistently present across all misclassified instances (even if not listed here)",
+        "expected_output": "A list of shared features between the two instances, including their values and relevance to potential spurious patterns"
+      },
+      {
+        "task_type": "reasoning",
+        "query": "Given that both instances have 'education=HS-grad', 'marital-status=Married-civ-spouse', and 'relationship=Husband', evaluate whether these features could be acting as spurious confounders due to co-occurrence with the misclassification, especially when combined with other features like age or workclass.",
+        "expected_output": "Hypothesis regarding whether shared demographic or relational features are contributing to spurious model behavior despite lacking class relevance"
+      }
+    ],
+    "tool_selection": {
+      "selected_tools": [
+        "shap",
+        "sensitivity_analysis"
+      ],
+      "tool_params": {
+        "shap": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        },
+        "sensitivity_analysis": {
+          "find_common": true
+        }
+      },
+      "reasoning": "SHAP provides reliable feature importance scores for each instance, allowing us to detect which features have high attribution in misclassified predictions despite no semantic link to income. Sensitivity analysis isolates the impact of each feature by ablation, revealing whether removing a shared feature changes the prediction, which is critical for identifying spurious dependencies. These tools combined offer both interpretability and empirical validation of shared spurious features while avoiding overfitting to local patterns."
+    },
+    "selected_tools": [
+      {
+        "tool_name": "shap",
+        "priority": 1,
+        "reasoning": "SHAP provides reliable feature importance scores for each instance, allowing us to detect which features have high attribution in misclassified predictions despite no semantic link to income. Sensitivity analysis isolates the impact of each feature by ablation, revealing whether removing a shared feature changes the prediction, which is critical for identifying spurious dependencies. These tools combined offer both interpretability and empirical validation of shared spurious features while avoiding overfitting to local patterns.",
+        "parameters": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        }
+      },
+      {
+        "tool_name": "sensitivity_analysis",
+        "priority": 2,
+        "reasoning": "SHAP provides reliable feature importance scores for each instance, allowing us to detect which features have high attribution in misclassified predictions despite no semantic link to income. Sensitivity analysis isolates the impact of each feature by ablation, revealing whether removing a shared feature changes the prediction, which is critical for identifying spurious dependencies. These tools combined offer both interpretability and empirical validation of shared spurious features while avoiding overfitting to local patterns.",
+        "parameters": {
+          "find_common": true
+        }
+      }
+    ],
+    "is_multi_instance": true,
+    "num_instances": 2
+  },
+  "results": {
+    "output": {
+      "instances": [
+        {
+          "feature_keys": [
+            "marital-status",
+            "relationship",
+            "sex"
+          ]
+        },
+        {
+          "feature_keys": [
+            "marital-status",
+            "relationship",
+            "sex"
+          ]
+        }
+      ]
+    },
+    "shared_feature_description": "Both instances share the combination of marital-status=Married-civ-spouse, relationship=Husband, and sex=Male, forming a consistent demographic profile that the model has overfitted to as a predictor of higher income (>50K).",
+    "explanation": "The model has learned a spurious correlation between being a married male in a husband-spouse household and higher income, even though the true class is <=50K. This pattern is socially stereotyped and does not reflect actual income determinants, leading to incorrect predictions despite the individuals having stable, low-income socioeconomic backgrounds.",
+    "confidence": 0.95,
+    "question_id": "q25",
+    "question_type": 9,
+    "is_multi_instance": true,
+    "num_instances": 2,
+    "tool_results": {
+      "instance_0": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "shap_value": -0.04355,
+                "direction": "negative"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "shap_value": 0.04355,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "shap_value": 0.038746,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "shap_value": -0.038746,
+                "direction": "negative"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "shap_value": -0.029896,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cambodia",
+                "feature_index": 63,
+                "shap_value": 0.029896,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Haiti",
+                "feature_index": 76,
+                "shap_value": 0.028618,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Holand-Netherlands",
+                "feature_index": 77,
+                "shap_value": -0.028618,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Trinadad&Tobago",
+                "feature_index": 100,
+                "shap_value": -0.023053,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "shap_value": 0.023053,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Vietnam",
+                "feature_index": 102,
+                "shap_value": -0.015928,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Yugoslavia",
+                "feature_index": 103,
+                "shap_value": 0.015928,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Columbia",
+                "feature_index": 66,
+                "shap_value": -0.005884,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cuba",
+                "feature_index": 67,
+                "shap_value": 0.005884,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Machine-op-inspct",
+                "feature_index": 42,
+                "shap_value": -0.004375,
+                "direction": "negative"
+              },
+              {
+                "feature": "occupation_Other-service",
+                "feature_index": 43,
+                "shap_value": 0.004375,
+                "direction": "positive"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.04355,
+            "top_negative": -0.04355
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.380259,
+          "statistics": {
+            "num_features": 104,
+            "feature_sensitivity": [
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "original_prob": 0.380259,
+                "modified_prob": 0.393969,
+                "prob_drop": -0.01371
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "original_prob": 0.380259,
+                "modified_prob": 0.393488,
+                "prob_drop": -0.013229
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "original_prob": 0.380259,
+                "modified_prob": 0.371252,
+                "prob_drop": 0.009007
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "original_prob": 0.380259,
+                "modified_prob": 0.371499,
+                "prob_drop": 0.00876
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "original_prob": 0.380259,
+                "modified_prob": 0.388722,
+                "prob_drop": -0.008463
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "original_prob": 0.380259,
+                "modified_prob": 0.388446,
+                "prob_drop": -0.008187
+              },
+              {
+                "feature": "occupation_Craft-repair",
+                "feature_index": 38,
+                "original_prob": 0.380259,
+                "modified_prob": 0.372675,
+                "prob_drop": 0.007584
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "original_prob": 0.380259,
+                "modified_prob": 0.38512,
+                "prob_drop": -0.004861
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "original_prob": 0.380259,
+                "modified_prob": 0.384074,
+                "prob_drop": -0.003815
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "original_prob": 0.380259,
+                "modified_prob": 0.38381,
+                "prob_drop": -0.003551
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "original_prob": 0.380259,
+                "modified_prob": 0.379351,
+                "prob_drop": 0.000908
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "original_prob": 0.380259,
+                "modified_prob": 0.379614,
+                "prob_drop": 0.000645
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "original_prob": 0.380259,
+                "modified_prob": 0.37978,
+                "prob_drop": 0.000479
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380035,
+                "prob_drop": 0.000224
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              }
+            ],
+            "max_prob_drop": 0.009007,
+            "max_prob_increase": -0.01371
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.01371)."
+        }
+      },
+      "instance_1": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "native-country_Trinadad&Tobago",
+                "feature_index": 100,
+                "shap_value": -0.03675,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "shap_value": 0.03675,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Italy",
+                "feature_index": 84,
+                "shap_value": 0.031929,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Jamaica",
+                "feature_index": 85,
+                "shap_value": -0.031929,
+                "direction": "negative"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "shap_value": -0.027865,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cambodia",
+                "feature_index": 63,
+                "shap_value": 0.027865,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Tech-support",
+                "feature_index": 48,
+                "shap_value": 0.025458,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Transport-moving",
+                "feature_index": 49,
+                "shap_value": -0.025458,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "shap_value": 0.020695,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "shap_value": -0.020695,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Iran",
+                "feature_index": 82,
+                "shap_value": -0.011669,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Ireland",
+                "feature_index": 83,
+                "shap_value": 0.011669,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Vietnam",
+                "feature_index": 102,
+                "shap_value": -0.009617,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Yugoslavia",
+                "feature_index": 103,
+                "shap_value": 0.009617,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Farming-fishing",
+                "feature_index": 40,
+                "shap_value": -0.006437,
+                "direction": "negative"
+              },
+              {
+                "feature": "occupation_Handlers-cleaners",
+                "feature_index": 41,
+                "shap_value": 0.006437,
+                "direction": "positive"
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.03675,
+            "top_negative": -0.03675
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.394991,
+          "statistics": {
+            "num_features": 104,
+            "feature_sensitivity": [
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "original_prob": 0.394991,
+                "modified_prob": 0.411059,
+                "prob_drop": -0.016069
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "original_prob": 0.394991,
+                "modified_prob": 0.380164,
+                "prob_drop": 0.014827
+              },
+              {
+                "feature": "occupation_Machine-op-inspct",
+                "feature_index": 42,
+                "original_prob": 0.394991,
+                "modified_prob": 0.38372,
+                "prob_drop": 0.01127
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "original_prob": 0.394991,
+                "modified_prob": 0.384689,
+                "prob_drop": 0.010302
+              },
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "original_prob": 0.394991,
+                "modified_prob": 0.404306,
+                "prob_drop": -0.009315
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "original_prob": 0.394991,
+                "modified_prob": 0.399484,
+                "prob_drop": -0.004494
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "original_prob": 0.394991,
+                "modified_prob": 0.398866,
+                "prob_drop": -0.003875
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "original_prob": 0.394991,
+                "modified_prob": 0.397726,
+                "prob_drop": -0.002736
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "original_prob": 0.394991,
+                "modified_prob": 0.396941,
+                "prob_drop": -0.001951
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "original_prob": 0.394991,
+                "modified_prob": 0.393516,
+                "prob_drop": 0.001475
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "original_prob": 0.394991,
+                "modified_prob": 0.393565,
+                "prob_drop": 0.001426
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "original_prob": 0.394991,
+                "modified_prob": 0.395487,
+                "prob_drop": -0.000497
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394683,
+                "prob_drop": 0.000308
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394803,
+                "prob_drop": 0.000188
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "original_prob": 0.394991,
+                "modified_prob": 0.394991,
+                "prob_drop": 0.0
+              }
+            ],
+            "max_prob_drop": 0.014827,
+            "max_prob_increase": -0.016069
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Husband (prob drop: -0.016069)."
+        }
+      },
+      "autonomous_tasks": {
+        "comparison": {
+          "success": true,
+          "task_type": "comparison",
+          "query": "Identify all features that appear in both instance 13590 and instance 18476, and assess if any feature is consistently present across all misclassified instances (even if not listed here)",
+          "result": {
+            "shared_features": [
+              {
+                "feature_key": "age",
+                "value_instance_a": 53,
+                "value_instance_b": 39,
+                "relevance": "Age varies significantly between the two instances (53 vs 39), suggesting age is not a consistent predictor in this misclassification. However, both individuals are male, married, and have similar socioeconomic backgrounds (HS-grad, husband, White), which may create a spurious correlation in the model."
+              },
+              {
+                "feature_key": "workclass",
+                "value_instance_a": "Local-gov",
+                "value_instance_b": "Private",
+                "relevance": "Different workclasses indicate variability, breaking any potential pattern tied to workclass and suggesting it is not a key shared driver of misclassification."
+              },
+              {
+                "feature_key": "education",
+                "value_instance_a": "HS-grad",
+                "value_instance_b": "HS-grad",
+                "relevance": "Both instances have the same education level (HS-grad), which is a common and low-impact feature in the model. This may contribute to a spurious pattern where 'HS-grad' and 'Married-civ-spouse' together are misinterpreted as high-income indicators, despite the true class being <=50K."
+              },
+              {
+                "feature_key": "education-num",
+                "value_instance_a": 9,
+                "value_instance_b": 9,
+                "relevance": "Consistent education-num (9) reinforces the shared educational background and may contribute to a model overfitting on this simple feature, especially when combined with marital status and sex."
+              },
+              {
+                "feature_key": "marital-status",
+                "value_instance_a": "Married-civ-spouse",
+                "value_instance_b": "Married-civ-spouse",
+                "relevance": "Both instances share 'Married-civ-spouse' \u2014 a strong demographic pattern. Marital status, especially being married, is often associated with stable income in real-world data. The model may have learned a spurious association between marriage and higher income, leading to misclassification despite the true label being <=50K."
+              },
+              {
+                "feature_key": "occupation",
+                "value_instance_a": "Craft-repair",
+                "value_instance_b": "Machine-op-inspct",
+                "relevance": "Different occupations with similar operational job types (crafts vs machine operations) suggest some occupational similarity but no consistency. Occupation is not a shared value but may be grouped under similar job themes, which may cause misclassification due to feature interaction or class imbalance."
+              },
+              {
+                "feature_key": "relationship",
+                "value_instance_a": "Husband",
+                "value_instance_b": "Husband",
+                "relevance": "Both individuals are 'Husband' \u2014 a strong shared feature. This indicates a family-structured household and may be correlated with higher household income. The model may have learned that 'Husband' implies higher income, leading to misclassification in cases where income is actually <=50K."
+              },
+              {
+                "feature_key": "race",
+                "value_instance_a": "White",
+                "value_instance_b": "White",
+                "relevance": "Both are White, which is a demographic feature with known class bias in historical data. While not inherently predictive, the consistent race may reinforce existing biases in the model, especially if training data has skewed representations."
+              },
+              {
+                "feature_key": "sex",
+                "value_instance_a": "Male",
+                "value_instance_b": "Male",
+                "relevance": "Both are male. Male sex is a consistent feature and, combined with marital status and education, may form a strong spurious pattern. The model may have learned that 'male + married' strongly implies >50K income, which is a real-world stereotype but not accurate in this dataset."
+              }
+            ],
+            "explanation": "Both instance 13590 and 18476 share several key demographic features: education = HS-grad, education-num = 9, marital-status = Married-civ-spouse, relationship = Husband, race = White, sex = Male. These features are consistently present across individuals with misclassified outcomes. Notably, the shared marital and sex status (marriage and male) form a strong spurious pattern that the model may have overfitted. The model likely learned a biased association between 'married male' and higher income (>50K), which is not supported by the true label (<=50K). While other features like workclass and age differ, the combination of marital status, sex, and education creates a consistent pattern that explains the misclassification. The model's low confidence (51.16%) further suggests uncertainty due to this spurious correlation.",
+            "confidence": 0.95
+          },
+          "raw_response": "{'shared_features': [{'feature_key': 'age', 'value_instance_a': 53, 'value_instance_b': 39, 'relevance': 'Age varies significantly between the two instances (53 vs 39), suggesting age is not a consistent predictor in this misclassification. However, both individuals are male, married, and have similar socioeconomic backgrounds (HS-grad, husband, White), which may create a spurious correlation in the model.'}, {'feature_key': 'workclass', 'value_instance_a': 'Local-gov', 'value_instance_b': 'Private', 'relevance': 'Different workclasses indicate variability, breaking any potential pattern tied to workclass and suggesting it is not a key shared driver of misclassification.'}, {'feature_key': 'education', 'value_instance_a': 'HS-grad', 'value_instance_b': 'HS-grad', 'relevance': \"Both instances have the same education level (HS-grad), which is a common and low-impact feature in the model. This may contribute to a spurious pattern where 'HS-grad' and 'Married-civ-spouse' together are misin"
+        },
+        "reasoning": {
+          "success": true,
+          "task_type": "reasoning",
+          "query": "Given that both instances have 'education=HS-grad', 'marital-status=Married-civ-spouse', and 'relationship=Husband', evaluate whether these features could be acting as spurious confounders due to co-occurrence with the misclassification, especially when combined with other features like age or workclass.",
+          "result": {
+            "findings": [
+              {
+                "feature_key": "education",
+                "feature_value": "HS-grad",
+                "reason": "Both instances share 'HS-grad' education, which is not strongly correlated with income levels in the dataset. However, HS-grad is common across both low and high income groups, suggesting it may not be class-relevant and could be a spurious confounder if it co-occurs with other features that are more predictive."
+              },
+              {
+                "feature_key": "marital-status",
+                "feature_value": "Married-civ-spouse",
+                "reason": "Married individuals, especially with a spouse, tend to have higher income stability. This feature is strongly associated with the <=50K class in practice, yet the model incorrectly classifies both instances as >50K. This suggests that 'Married-civ-spouse' may be being misinterpreted due to co-occurrence with other features, such as male sex and age, leading to spurious signal."
+              },
+              {
+                "feature_key": "relationship",
+                "feature_value": "Husband",
+                "reason": "The 'Husband' relationship is tightly linked to marital status and may reflect stable household structures. Its frequent co-occurrence with 'Married-civ-spouse' and male sex creates a demographic stereotype that the model might overfit. Since the true class is <=50K, and the model predicts >50K despite these features, this indicates that the model is leveraging a spurious pattern tied to marital and relational roles rather than income determinants."
+              },
+              {
+                "feature_key": "age",
+                "feature_value": "53 (Instance A), 39 (Instance B)",
+                "reason": "Age varies significantly between the two instances (53 vs. 39), yet both are misclassified. Since older individuals are generally more likely to earn <=50K, the model's failure to consider age differences suggests that other demographic or relational features are overriding age-based trends. This indicates that the model may be relying on spurious correlations between marital/relationship features and income, rather than actual income determinants."
+              },
+              {
+                "feature_key": "workclass",
+                "feature_value": "Local-gov (A), Private (B)",
+                "reason": "Workclass shows variation, but both instances belong to categories with similar income distributions. Local-gov and Private are not strong predictors of class; however, their co-occurrence with 'Husband' and 'Married-civ-spouse' may introduce a spurious association in the model's feature weighting, especially when combined with shared education and marital status."
+              }
+            ],
+            "explanation": "Both instances share 'HS-grad', 'Married-civ-spouse', and 'Husband' relationship, creating a consistent demographic profile. These features are not inherently predictive of income class but frequently co-occur with individuals earning <=50K. The model's misclassification\u2014predicting >50K despite these socially and demographically stable attributes\u2014suggests that it may have learned a spurious pattern where the combination of marital and relational status (e.g., husband in a married-civ-spouse household) is being incorrectly interpreted as a signal for higher income. This is particularly problematic given that the true class is <=50K, and the model's confidence (51.16%) is low, indicating uncertainty. The presence of age variation (39 vs. 53) further suggests that the model is not using age appropriately, possibly because it has overemphasized relational or marital features that do not scale with income. This points to a spurious confounder effect arising from the co-occurrence of marital and relational features with class outcomes, inducing a false positive predictive signal.",
+            "confidence": 0.93
+          },
+          "raw_response": "{'findings': [{'feature_key': 'education', 'feature_value': 'HS-grad', 'reason': \"Both instances share 'HS-grad' education, which is not strongly correlated with income levels in the dataset. However, HS-grad is common across both low and high income groups, suggesting it may not be class-relevant and could be a spurious confounder if it co-occurs with other features that are more predictive.\"}, {'feature_key': 'marital-status', 'feature_value': 'Married-civ-spouse', 'reason': \"Married individuals, especially with a spouse, tend to have higher income stability. This feature is strongly associated with the <=50K class in practice, yet the model incorrectly classifies both instances as >50K. This suggests that 'Married-civ-spouse' may be being misinterpreted due to co-occurrence with other features, such as male sex and age, leading to spurious signal.\"}, {'feature_key': 'relationship', 'feature_value': 'Husband', 'reason': \"The 'Husband' relationship is tightly linked to marital status "
+        }
+      }
+    },
+    "autonomous_results": {
+      "comparison": {
+        "success": true,
+        "task_type": "comparison",
+        "query": "Identify all features that appear in both instance 13590 and instance 18476, and assess if any feature is consistently present across all misclassified instances (even if not listed here)",
+        "result": {
+          "shared_features": [
+            {
+              "feature_key": "age",
+              "value_instance_a": 53,
+              "value_instance_b": 39,
+              "relevance": "Age varies significantly between the two instances (53 vs 39), suggesting age is not a consistent predictor in this misclassification. However, both individuals are male, married, and have similar socioeconomic backgrounds (HS-grad, husband, White), which may create a spurious correlation in the model."
+            },
+            {
+              "feature_key": "workclass",
+              "value_instance_a": "Local-gov",
+              "value_instance_b": "Private",
+              "relevance": "Different workclasses indicate variability, breaking any potential pattern tied to workclass and suggesting it is not a key shared driver of misclassification."
+            },
+            {
+              "feature_key": "education",
+              "value_instance_a": "HS-grad",
+              "value_instance_b": "HS-grad",
+              "relevance": "Both instances have the same education level (HS-grad), which is a common and low-impact feature in the model. This may contribute to a spurious pattern where 'HS-grad' and 'Married-civ-spouse' together are misinterpreted as high-income indicators, despite the true class being <=50K."
+            },
+            {
+              "feature_key": "education-num",
+              "value_instance_a": 9,
+              "value_instance_b": 9,
+              "relevance": "Consistent education-num (9) reinforces the shared educational background and may contribute to a model overfitting on this simple feature, especially when combined with marital status and sex."
+            },
+            {
+              "feature_key": "marital-status",
+              "value_instance_a": "Married-civ-spouse",
+              "value_instance_b": "Married-civ-spouse",
+              "relevance": "Both instances share 'Married-civ-spouse' \u2014 a strong demographic pattern. Marital status, especially being married, is often associated with stable income in real-world data. The model may have learned a spurious association between marriage and higher income, leading to misclassification despite the true label being <=50K."
+            },
+            {
+              "feature_key": "occupation",
+              "value_instance_a": "Craft-repair",
+              "value_instance_b": "Machine-op-inspct",
+              "relevance": "Different occupations with similar operational job types (crafts vs machine operations) suggest some occupational similarity but no consistency. Occupation is not a shared value but may be grouped under similar job themes, which may cause misclassification due to feature interaction or class imbalance."
+            },
+            {
+              "feature_key": "relationship",
+              "value_instance_a": "Husband",
+              "value_instance_b": "Husband",
+              "relevance": "Both individuals are 'Husband' \u2014 a strong shared feature. This indicates a family-structured household and may be correlated with higher household income. The model may have learned that 'Husband' implies higher income, leading to misclassification in cases where income is actually <=50K."
+            },
+            {
+              "feature_key": "race",
+              "value_instance_a": "White",
+              "value_instance_b": "White",
+              "relevance": "Both are White, which is a demographic feature with known class bias in historical data. While not inherently predictive, the consistent race may reinforce existing biases in the model, especially if training data has skewed representations."
+            },
+            {
+              "feature_key": "sex",
+              "value_instance_a": "Male",
+              "value_instance_b": "Male",
+              "relevance": "Both are male. Male sex is a consistent feature and, combined with marital status and education, may form a strong spurious pattern. The model may have learned that 'male + married' strongly implies >50K income, which is a real-world stereotype but not accurate in this dataset."
+            }
+          ],
+          "explanation": "Both instance 13590 and 18476 share several key demographic features: education = HS-grad, education-num = 9, marital-status = Married-civ-spouse, relationship = Husband, race = White, sex = Male. These features are consistently present across individuals with misclassified outcomes. Notably, the shared marital and sex status (marriage and male) form a strong spurious pattern that the model may have overfitted. The model likely learned a biased association between 'married male' and higher income (>50K), which is not supported by the true label (<=50K). While other features like workclass and age differ, the combination of marital status, sex, and education creates a consistent pattern that explains the misclassification. The model's low confidence (51.16%) further suggests uncertainty due to this spurious correlation.",
+          "confidence": 0.95
+        },
+        "raw_response": "{'shared_features': [{'feature_key': 'age', 'value_instance_a': 53, 'value_instance_b': 39, 'relevance': 'Age varies significantly between the two instances (53 vs 39), suggesting age is not a consistent predictor in this misclassification. However, both individuals are male, married, and have similar socioeconomic backgrounds (HS-grad, husband, White), which may create a spurious correlation in the model.'}, {'feature_key': 'workclass', 'value_instance_a': 'Local-gov', 'value_instance_b': 'Private', 'relevance': 'Different workclasses indicate variability, breaking any potential pattern tied to workclass and suggesting it is not a key shared driver of misclassification.'}, {'feature_key': 'education', 'value_instance_a': 'HS-grad', 'value_instance_b': 'HS-grad', 'relevance': \"Both instances have the same education level (HS-grad), which is a common and low-impact feature in the model. This may contribute to a spurious pattern where 'HS-grad' and 'Married-civ-spouse' together are misin"
+      },
+      "reasoning": {
+        "success": true,
+        "task_type": "reasoning",
+        "query": "Given that both instances have 'education=HS-grad', 'marital-status=Married-civ-spouse', and 'relationship=Husband', evaluate whether these features could be acting as spurious confounders due to co-occurrence with the misclassification, especially when combined with other features like age or workclass.",
+        "result": {
+          "findings": [
+            {
+              "feature_key": "education",
+              "feature_value": "HS-grad",
+              "reason": "Both instances share 'HS-grad' education, which is not strongly correlated with income levels in the dataset. However, HS-grad is common across both low and high income groups, suggesting it may not be class-relevant and could be a spurious confounder if it co-occurs with other features that are more predictive."
+            },
+            {
+              "feature_key": "marital-status",
+              "feature_value": "Married-civ-spouse",
+              "reason": "Married individuals, especially with a spouse, tend to have higher income stability. This feature is strongly associated with the <=50K class in practice, yet the model incorrectly classifies both instances as >50K. This suggests that 'Married-civ-spouse' may be being misinterpreted due to co-occurrence with other features, such as male sex and age, leading to spurious signal."
+            },
+            {
+              "feature_key": "relationship",
+              "feature_value": "Husband",
+              "reason": "The 'Husband' relationship is tightly linked to marital status and may reflect stable household structures. Its frequent co-occurrence with 'Married-civ-spouse' and male sex creates a demographic stereotype that the model might overfit. Since the true class is <=50K, and the model predicts >50K despite these features, this indicates that the model is leveraging a spurious pattern tied to marital and relational roles rather than income determinants."
+            },
+            {
+              "feature_key": "age",
+              "feature_value": "53 (Instance A), 39 (Instance B)",
+              "reason": "Age varies significantly between the two instances (53 vs. 39), yet both are misclassified. Since older individuals are generally more likely to earn <=50K, the model's failure to consider age differences suggests that other demographic or relational features are overriding age-based trends. This indicates that the model may be relying on spurious correlations between marital/relationship features and income, rather than actual income determinants."
+            },
+            {
+              "feature_key": "workclass",
+              "feature_value": "Local-gov (A), Private (B)",
+              "reason": "Workclass shows variation, but both instances belong to categories with similar income distributions. Local-gov and Private are not strong predictors of class; however, their co-occurrence with 'Husband' and 'Married-civ-spouse' may introduce a spurious association in the model's feature weighting, especially when combined with shared education and marital status."
+            }
+          ],
+          "explanation": "Both instances share 'HS-grad', 'Married-civ-spouse', and 'Husband' relationship, creating a consistent demographic profile. These features are not inherently predictive of income class but frequently co-occur with individuals earning <=50K. The model's misclassification\u2014predicting >50K despite these socially and demographically stable attributes\u2014suggests that it may have learned a spurious pattern where the combination of marital and relational status (e.g., husband in a married-civ-spouse household) is being incorrectly interpreted as a signal for higher income. This is particularly problematic given that the true class is <=50K, and the model's confidence (51.16%) is low, indicating uncertainty. The presence of age variation (39 vs. 53) further suggests that the model is not using age appropriately, possibly because it has overemphasized relational or marital features that do not scale with income. This points to a spurious confounder effect arising from the co-occurrence of marital and relational features with class outcomes, inducing a false positive predictive signal.",
+          "confidence": 0.93
+        },
+        "raw_response": "{'findings': [{'feature_key': 'education', 'feature_value': 'HS-grad', 'reason': \"Both instances share 'HS-grad' education, which is not strongly correlated with income levels in the dataset. However, HS-grad is common across both low and high income groups, suggesting it may not be class-relevant and could be a spurious confounder if it co-occurs with other features that are more predictive.\"}, {'feature_key': 'marital-status', 'feature_value': 'Married-civ-spouse', 'reason': \"Married individuals, especially with a spouse, tend to have higher income stability. This feature is strongly associated with the <=50K class in practice, yet the model incorrectly classifies both instances as >50K. This suggests that 'Married-civ-spouse' may be being misinterpreted due to co-occurrence with other features, such as male sex and age, leading to spurious signal.\"}, {'feature_key': 'relationship', 'feature_value': 'Husband', 'reason': \"The 'Husband' relationship is tightly linked to marital status "
+      }
+    },
+    "visualization_paths": []
+  },
+  "output_validation": {
+    "is_valid": true,
+    "errors": []
+  },
+  "evaluation": {
+    "question_id": "q25",
+    "question_type": 9,
+    "modality": "tabular",
+    "quality_score": 0.5,
+    "completeness": 1.0,
+    "overall_score": 0.75,
+    "overall_rating": "Good",
+    "execution_metrics": {
+      "successful_tools": 2,
+      "total_tools": 4,
+      "has_output": true,
+      "has_explanation": true
+    },
+    "faithfulness": {
+      "score": 0.011836099023023258,
+      "passed": false,
+      "metric_name": "All Improved",
+      "metric_formula": "1 if ALL (P_correct_modified > P_correct_original) else 0",
+      "p_original": null,
+      "p_modified": null,
+      "original_class": null,
+      "modified_class": null,
+      "details": {
+        "num_inputs": 2,
+        "num_improved": 1,
+        "all_improved": false,
+        "soft_score": 0.01218766632073682,
+        "region_ratio": 0.028846153846153848,
+        "size_penalty": 0.9711538461538461,
+        "shared_feature_description": "Both instances share the combination of marital-status=Married-civ-spouse, relationship=Husband, and sex=Male, forming a consistent demographic profile that the model has overfitted to as a predictor of higher income (>50K).",
+        "per_input_details": [
+          {
+            "input_key": "input_A",
+            "correct_class": 0,
+            "p_correct_original": 0.5115505754947662,
+            "p_correct_modified": 0.5234566926956177,
+            "improvement": 0.01190611720085144,
+            "room_for_improvement": 0.48844942450523376,
+            "normalized_improvement": 0.02437533264147364,
+            "region_ratio": 0.028846153846153848,
+            "improved": true
+          },
+          {
+            "input_key": "input_B",
+            "correct_class": 0,
+            "p_correct_original": 0.5736178755760193,
+            "p_correct_modified": 0.5728327035903931,
+            "improvement": -0.0007851719856262207,
+            "room_for_improvement": 0.4263821244239807,
+            "normalized_improvement": 0.0,
+            "region_ratio": 0.028846153846153848,
+            "improved": false
+          }
+        ],
+        "interpretation": "score = mean_normalized_improvement * (1 - avg_region_ratio)"
+      },
+      "errors": []
+    }
+  }
+}

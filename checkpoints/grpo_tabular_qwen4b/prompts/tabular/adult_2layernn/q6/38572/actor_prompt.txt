@@ -1,0 +1,146 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (59.62%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=188972, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Exec-managerial, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: native-country_Ireland <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_HS-grad (prob drop: 0.007166).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0139
+  - education_Bachelors: +0.0040
+  - sex_Male: +0.0039
+  - occupation_Tech-support: +0.0033
+  - native-country_Outlying-US(Guam-USVI-etc): +0.0017
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0139
+  - education_Doctorate: -0.0040
+  - native-country_Cambodia: -0.0039
+  - occupation_Transport-moving: -0.0033
+  - native-country_Peru: -0.0017
+- Max positive: 0.013909  Max negative: -0.013909
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0718
+  - capital-gain <= -0.15: +0.0718
+  - education-num <= -0.44: +0.0500
+  - hours-per-week <= -0.08: +0.0443
+  - native-country_Greece <= 0.00: +0.0015
+- Top negative features (weight):
+  - native-country_Ireland <= 0.00: -0.0792
+  - native-country_Ecuador <= 0.00: -0.0708
+  - marital-status_Divorced <= 0.00: -0.0513
+  - education_12th <= 0.00: -0.0381
+  - native-country_Dominican-Republic <= 0.00: -0.0035
+- Max positive: 0.071825  Max negative: -0.07917
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0082
+  - education_HS-grad: +0.0059
+  - sex_Female: +0.0045
+  - relationship_Unmarried: +0.0045
+  - education-num: +0.0034
+- Top negative features (attribution_score):
+  - occupation_Exec-managerial: -0.0056
+  - native-country_United-States: -0.0033
+  - race_White: -0.0024
+  - capital-loss: -0.0002
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.008232  Max negative: -0.005555
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education_HS-grad: drop=+0.0072  (orig=0.4004 → mod=0.3932)
+  - sex_Female: drop=+0.0069  (orig=0.4004 → mod=0.3935)
+  - hours-per-week: drop=+0.0064  (orig=0.4004 → mod=0.3940)
+  - occupation_Exec-managerial: drop=-0.0061  (orig=0.4004 → mod=0.4065)
+  - relationship_Unmarried: drop=+0.0052  (orig=0.4004 → mod=0.3951)
+  - workclass_Private: drop=+0.0034  (orig=0.4004 → mod=0.3970)
+  - education-num: drop=+0.0034  (orig=0.4004 → mod=0.3970)
+  - marital-status_Widowed: drop=+0.0029  (orig=0.4004 → mod=0.3975)
+  - native-country_United-States: drop=-0.0023  (orig=0.4004 → mod=0.4027)
+  - race_White: drop=-0.0011  (orig=0.4004 → mod=0.4015)
+- Max prob_drop: 0.007166  Max prob_increase: -0.006069
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence income prediction in a binary classification setting, considering societal and economic factors?
+- Status: Success
+- findings: [{"feature_key": "education-num", "impact_direction": "positive", "reason": "Higher education levels are strongly correlated with higher income. An increase in education-num (e.g., from 9 to 12 or above) typically reflects higher qualifications (e.g., Bachelor's or above), which are associated with better employment opportunities and salaries."}, {"feature_key": "hours-per-week", "impact_direction": "positive", "reason": "Higher work hours are often linked to greater income potential, especially in managerial or white-collar occupations. Increased hours suggest more commitment and may indicate higher earning capacity."}, {"feature_key": "occupation", "impact_direction": "positive", "reason": "Occupations like 'Prof-specialty' or 'Exec-managerial' have higher average incomes compared to blue-collar or lower-tier roles. Changing to a high-income occupation directly increases the likelihood of predicting >50K."}, {"feature_key": "age", "impact_direction": "positive", "reason": "Age is tied to work experience and career progression. Older individuals often have more experience, which correlates with higher income, especially in senior or managerial roles."}, {"feature_key": "sex", "impact_direction": "context-dependent", "reason": "In the historical context of this dataset, 'Female' individuals often have lower-income predictions due to gender pay gaps. However, this is a societal bias. Changing to 'Male' does not necessarily improve prediction but may reflect structural inequities rather than economic merit."}]
+- Explanation: In a binary income classification model, features related to education, work hours, occupation, and age are most strongly influenced by economic and societal factors. Higher education, experience (age), longer work hours, and high-paying occupations (like executive or professional roles) are consistently associated with greater income. Sex may reflect systemic biases rather than individual economic capability, and changes here should be approached with caution to avoid reinforcing harmful stereotypes. The strongest actionable levers for flipping the prediction are education-num, hours-per-week, and occupation.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: What changes to the current input (age, education-num, occupation, workclass, fnlwgt) would plausibly shift the model's output from <=50K to >50K, based on known socio-economic patterns?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 250000}]
+- Explanation: Based on socio-economic patterns in the dataset (Census income prediction), higher-income individuals tend to have older age, higher education levels, higher-paying occupations (such as Prof-specialty or Professions requiring advanced degrees), stable workclass affiliations (like government or private sector with higher pay), and larger adjusted weights (fnlwgt). The current instance has a modest education level (HS-grad, 9), a relatively young age (35), and an executive role (Exec-managerial), which is already a high-income category. To shift the prediction from <=50K to >50K, we increase age to reflect longer career accumulation, raise education-level to indicate more advanced training (e.g., Bachelor's or Master's), switch to a higher-paying occupation like Prof-specialty, alter workclass to a higher-income sector (Local-gov often has higher wages than Private), and increase fnlwgt to reflect a higher household or individual economic footprint. These changes are plausible and consistent with real-world income distribution trends, even though the model may not fully capture all nuances. Each modification directly strengthens the features associated with higher income brackets.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence income prediction in a binary classification setting, considering societal and economic factors?
+- Status: Success
+- findings: [{"feature_key": "education-num", "impact_direction": "positive", "reason": "Higher education levels are strongly correlated with higher income. An increase in education-num (e.g., from 9 to 12 or above) typically reflects higher qualifications (e.g., Bachelor's or above), which are associated with better employment opportunities and salaries."}, {"feature_key": "hours-per-week", "impact_direction": "positive", "reason": "Higher work hours are often linked to greater income potential, especially in managerial or white-collar occupations. Increased hours suggest more commitment and may indicate higher earning capacity."}, {"feature_key": "occupation", "impact_direction": "positive", "reason": "Occupations like 'Prof-specialty' or 'Exec-managerial' have higher average incomes compared to blue-collar or lower-tier roles. Changing to a high-income occupation directly increases the likelihood of predicting >50K."}, {"feature_key": "age", "impact_direction": "positive", "reason": "Age is tied to work experience and career progression. Older individuals often have more experience, which correlates with higher income, especially in senior or managerial roles."}, {"feature_key": "sex", "impact_direction": "context-dependent", "reason": "In the historical context of this dataset, 'Female' individuals often have lower-income predictions due to gender pay gaps. However, this is a societal bias. Changing to 'Male' does not necessarily improve prediction but may reflect structural inequities rather than economic merit."}]
+- Explanation: In a binary income classification model, features related to education, work hours, occupation, and age are most strongly influenced by economic and societal factors. Higher education, experience (age), longer work hours, and high-paying occupations (like executive or professional roles) are consistently associated with greater income. Sex may reflect systemic biases rather than individual economic capability, and changes here should be approached with caution to avoid reinforcing harmful stereotypes. The strongest actionable levers for flipping the prediction are education-num, hours-per-week, and occupation.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: What changes to the current input (age, education-num, occupation, workclass, fnlwgt) would plausibly shift the model's output from <=50K to >50K, based on known socio-economic patterns?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 250000}]
+- Explanation: Based on socio-economic patterns in the dataset (Census income prediction), higher-income individuals tend to have older age, higher education levels, higher-paying occupations (such as Prof-specialty or Professions requiring advanced degrees), stable workclass affiliations (like government or private sector with higher pay), and larger adjusted weights (fnlwgt). The current instance has a modest education level (HS-grad, 9), a relatively young age (35), and an executive role (Exec-managerial), which is already a high-income category. To shift the prediction from <=50K to >50K, we increase age to reflect longer career accumulation, raise education-level to indicate more advanced training (e.g., Bachelor's or Master's), switch to a higher-paying occupation like Prof-specialty, alter workclass to a higher-income sector (Local-gov often has higher wages than Private), and increase fnlwgt to reflect a higher household or individual economic footprint. These changes are plausible and consistent with real-world income distribution trends, even though the model may not fully capture all nuances. Each modification directly strengthens the features associated with higher income brackets.
+- Confidence: 0.93
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=35, workclass='Private', fnlwgt=188972, education='HS-grad', education-num=9, marital-status='Widowed', occupation='Exec-managerial', relationship='Unmarried', race='White', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=30, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

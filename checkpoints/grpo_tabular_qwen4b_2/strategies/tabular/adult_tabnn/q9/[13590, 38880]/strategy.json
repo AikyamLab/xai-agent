@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is chosen because it combines autonomous reasoning to identify initial shared patterns in the misclassified instances with external XAI tools to quantitatively validate and refine feature attributions. This approach ensures both semantic insight and statistical rigor in detecting spurious features that may not be intuitively obvious. The combination increases confidence in identifying features that are jointly high in attribution across misclassified cases despite lacking semantic relevance.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the feature values across instance A (13590) and instance B (38880) to identify any shared feature values or patterns that are present in both instances but not in correctly classified ones.",
+      "expected_output": "List of shared feature values (e.g., education=HS-grad, marital-status=Married-civ-spouse) that appear in both misclassified instances"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any shared features (e.g., HS-grad, Husband, Married-civ-spouse) are semantically related to income class or could serve as proxies due to spurious correlations in the dataset.",
+      "expected_output": "A rationale for why the shared features might be spurious or misleading indicators in the context of income classification"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "ablation_mode": "feature-level",
+        "evaluate_on": "misclassified_instances"
+      }
+    },
+    "reasoning": "SHAP provides consistent and interpretable feature importance scores across instances, especially useful for identifying shared high-impact features. Integrated Gradients offer smooth attribution paths from baseline to predictions, helping detect spurious feature influence. Sensitivity analysis directly measures how prediction probability changes when a feature is removed, confirming its actual (versus apparent) influence. Together, these tools validate the autonomous observations and isolate spurious features not grounded in domain knowledge."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across instances, especially useful for identifying shared high-impact features. Integrated Gradients offer smooth attribution paths from baseline to predictions, helping detect spurious feature influence. Sensitivity analysis directly measures how prediction probability changes when a feature is removed, confirming its actual (versus apparent) influence. Together, these tools validate the autonomous observations and isolate spurious features not grounded in domain knowledge.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across instances, especially useful for identifying shared high-impact features. Integrated Gradients offer smooth attribution paths from baseline to predictions, helping detect spurious feature influence. Sensitivity analysis directly measures how prediction probability changes when a feature is removed, confirming its actual (versus apparent) influence. Together, these tools validate the autonomous observations and isolate spurious features not grounded in domain knowledge.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides consistent and interpretable feature importance scores across instances, especially useful for identifying shared high-impact features. Integrated Gradients offer smooth attribution paths from baseline to predictions, helping detect spurious feature influence. Sensitivity analysis directly measures how prediction probability changes when a feature is removed, confirming its actual (versus apparent) influence. Together, these tools validate the autonomous observations and isolate spurious features not grounded in domain knowledge.",
+      "parameters": {
+        "ablation_mode": "feature-level",
+        "evaluate_on": "misclassified_instances"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

@@ -1,0 +1,118 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7728
+
+## Input Data
+Features: age=68, workclass=Self-emp-not-inc, fnlwgt=150904, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Craft-repair, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_El-Salvador.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Widowed (prob drop: 0.013049).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_El-Salvador: +0.0353
+  - sex_Male: +0.0241
+  - native-country_Haiti: +0.0156
+  - native-country_Vietnam: +0.0147
+  - capital-loss: +0.0132
+- Top negative features (shap_value):
+  - native-country_England: -0.0353
+  - native-country_Cambodia: -0.0241
+  - native-country_Holand-Netherlands: -0.0156
+  - native-country_Yugoslavia: -0.0147
+  - hours-per-week: -0.0132
+- Max positive: 0.035343  Max negative: -0.035343
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.1824
+  - capital-loss <= -0.22: +0.1263
+  - education-num <= -0.44: +0.0913
+  - marital-status_Married-civ-spouse <= 0.00: +0.0765
+  - marital-status_Married-AF-spouse <= 0.00: +0.0757
+- Top negative features (weight):
+  - age > 0.64: -0.0824
+- Max positive: 0.182428  Max negative: -0.082402
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0167
+  - marital-status_Widowed: +0.0151
+  - occupation_Craft-repair: +0.0091
+  - education-num: +0.0059
+  - education_HS-grad: +0.0051
+- Top negative features (attribution_score):
+  - age: -0.0170
+  - native-country_United-States: -0.0056
+  - sex_Female: -0.0005
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.016665  Max negative: -0.016971
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Widowed: drop=+0.0130  (orig=0.4434 → mod=0.4304)
+  - age: drop=-0.0089  (orig=0.4434 → mod=0.4523)
+  - relationship_Not-in-family: drop=+0.0081  (orig=0.4434 → mod=0.4353)
+  - occupation_Craft-repair: drop=+0.0054  (orig=0.4434 → mod=0.4381)
+  - native-country_United-States: drop=-0.0050  (orig=0.4434 → mod=0.4485)
+  - education-num: drop=+0.0038  (orig=0.4434 → mod=0.4396)
+  - workclass_Self-emp-not-inc: drop=+0.0033  (orig=0.4434 → mod=0.4401)
+  - education_HS-grad: drop=-0.0031  (orig=0.4434 → mod=0.4465)
+  - sex_Female: drop=+0.0016  (orig=0.4434 → mod=0.4418)
+  - hours-per-week: drop=+0.0014  (orig=0.4434 → mod=0.4420)
+- Max prob_drop: 0.013049  Max prob_increase: -0.008892
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income levels in the Adult dataset, such as age, education, workclass, or marital status?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 68}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "workclass", "action": "change", "new_value": "Self-emp-not-inc"}, {"feature_key": "occupation", "action": "change", "new_value": "Craft-repair"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35}]
+- Explanation: In the Adult dataset, features such as age, education level (via education-num), workclass, occupation, and hours-per-week are well-documented to have strong correlations with income. Older age and higher education levels are generally associated with higher income. Self-employment (workclass='Self-emp-not-inc') may indicate higher earning potential, while 'Craft-repair' occupation is typically associated with moderate income. Working 35 hours per week is a baseline but not sufficient to override other strong predictors like education and age. These features are consistently shown in domain studies and model analyses to influence income classification, especially in the '>=50K' vs. '<=50K' split. Given the prediction of <=50K, these factors still play a pivotal role in shaping the model's decision.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Based on the input (e.g., age=68, widowed, self-employed, HS-grad), how might these features influence the model's decision to assign <=50K income?
+- Status: Success
+- Explanation: The model predicted an income of <=50K with 77.28% confidence. Several input features in the dataset contribute to this outcome. The individual is 68 years old, which may suggest a lower income potential due to retirement or reduced work hours. The 'workclass' is 'Self-emp-not-inc', indicating self-employment without being an entrepreneurial or high-income setup, which is often associated with lower earnings. The 'education' level is 'HS-grad' (education-num=9), which is below the college or higher education levels typically linked with higher income brackets. The marital status is 'Widowed', a factor that may correlate with lower household income due to reduced family support or financial constraints. The occupation 'Craft-repair' is typically from lower to mid-level wage sectors, not high-income professions. The individual is female, and although not directly deterministic, gender can be a confounder in historical datasets with gender-based income disparities. Hours-per-week is 35, which is a standard workweek but not indicative of high earnings. All capital gains and losses are zero, suggesting no investment or income from side activities. Given these factors—lower education, self-employment, widowed status, and non-high-income occupation—the model is likely to classify income as <=50K. These features collectively align with the prediction class, reinforcing the decision.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the values of features that are typically associated with higher income (e.g., high education-num, blue-collar occupation, married) vs. features associated with lower income (e.g., low education, not in family).
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "compare", "new_value": 9, "comparison": "Below average; typically higher education-num (e.g., 10+ for higher income groups) is associated with greater income potential. HS-grad (9) is mid-tier, not strongly predictive of high income."}, {"feature_key": "occupation", "action": "compare", "new_value": "Craft-repair", "comparison": "Low income association; blue-collar or skilled trades like 'Craft-repair' are typically linked to lower incomes than managerial or professional roles (e.g., 'Exec-managerial', 'Prof-specialty')."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Widowed", "comparison": "Low income association; married or 'Husband' status is correlated with higher income. 'Widowed' is often associated with lower income due to potential loss of household support or reduced work participation."}, {"feature_key": "relationship", "action": "compare", "new_value": "Not-in-family", "comparison": "Low income association; 'Not-in-family' (e.g., living alone) is linked to lower income. Being part of a family household is generally correlated with higher income stability."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 35, "comparison": "Moderate; 35 hours per week is average and not exceptional. Higher weekly hours (e.g., >40) are sometimes associated with higher income, but 35 is neutral to slightly negative in income prediction."}]
+- Explanation: The individual has moderate education ('HS-grad') and is in a blue-collar occupation ('Craft-repair'), both of which are typically associated with lower income. The marital status ('Widowed') and relationship ('Not-in-family') further reduce income potential, as these are linked to lower household income or reduced labor market participation. While age (68) is high, it is not directly correlated with income in this dataset. The combination of these features—particularly occupation, marital status, and relationship—contributes significantly to the model's prediction of income ≤50K.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

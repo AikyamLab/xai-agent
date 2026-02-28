@@ -96,6 +96,10 @@ class BaseAgent(ABC):
         Returns:
             Parsed dictionary, or empty dict on failure
         """
+        # Pre-processing: remove invalid JSON number prefixes (+0.12 → 0.12).
+        # JSON spec forbids a leading '+' on numbers; some VLMs emit it anyway.
+        response = re.sub(r'(?<!["\w])\+(\d)', r'\1', response)
+
         # Strategy 1: existing regex approach (fast path, works for most responses)
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:

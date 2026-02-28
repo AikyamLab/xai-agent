@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change education-num, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (69.73%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6972513496875763}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3027486503124237}]
+- Part to Change: education-num
+
+## Input Data
+Features: age=18, workclass=Private, fnlwgt=219404, education=5th-6th, education-num=3, marital-status=Never-married, occupation=Farming-fishing, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=48, native-country=Mexico
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.029177).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0916
+  - native-country_Vietnam: +0.0174
+  - native-country_Columbia: +0.0173
+  - age: +0.0162
+  - marital-status_Separated: +0.0084
+- Top negative features (shap_value):
+  - hours-per-week: -0.0916
+  - native-country_Yugoslavia: -0.0174
+  - native-country_Cuba: -0.0173
+  - fnlwgt: -0.0162
+  - marital-status_Widowed: -0.0084
+- Max positive: 0.091633  Max negative: -0.091633
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0292  (orig=0.4249 → mod=0.3957)
+  - marital-status_Never-married: drop=+0.0096  (orig=0.4249 → mod=0.4153)
+  - sex_Male: drop=-0.0090  (orig=0.4249 → mod=0.4339)
+  - relationship_Not-in-family: drop=+0.0080  (orig=0.4249 → mod=0.4169)
+  - occupation_Farming-fishing: drop=+0.0067  (orig=0.4249 → mod=0.4182)
+  - workclass_Private: drop=+0.0064  (orig=0.4249 → mod=0.4184)
+  - education_5th-6th: drop=+0.0039  (orig=0.4249 → mod=0.4210)
+  - age: drop=+0.0033  (orig=0.4249 → mod=0.4215)
+  - hours-per-week: drop=-0.0029  (orig=0.4249 → mod=0.4278)
+  - native-country_Mexico: drop=+0.0028  (orig=0.4249 → mod=0.4221)
+- Max prob_drop: 0.029177  Max prob_increase: -0.009033
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of education-num in the income prediction based on the model architecture and training data patterns?
+- Status: Success
+- findings: "education-num plays a moderately important role in the income prediction, as it serves as a numerical proxy for educational attainment. Higher values of education-num are consistently associated with a higher likelihood of earning more than $50K. In the context of the TwoLayerNN model, this feature is likely captured in the hidden layer through nonlinear transformations that weight education-level features relative to labor market outcomes. The model has learned that individuals with higher education-num (e.g., 10 or above) exhibit stronger predictive signals for income >50K, even when other features like age or hours-per-week are held constant. This suggests that education-num contributes to separating the income classes in the decision boundary, though it is not the dominant predictor. Changes to education-num can alter the model\u2019s prediction, particularly when shifting from lower to higher education levels, as seen in the current case where education-num=3 (\u20185th-6th\u2019) corresponds to a prediction of <=50K."
+- Explanation: The model architecture (TwoLayerNN) learns non-linear, hierarchical patterns from tabular data. Education-num, being a continuous categorical feature derived from education levels, correlates with cognitive and vocational skills that influence income. In the training data, individuals with higher education-num tend to have higher wages, thus this feature contributes to the income classification. A change in education-num from 3 to a higher value (e.g., 12) might push the prediction from <=50K to >50K, based on observed data patterns. The current prediction (0, <=50K) with low confidence (69.73%) indicates uncertainty, possibly due to limited educational attainment in this record, reinforcing the feature's contextual sensitivity.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If education-num is removed, how would the model’s decision boundary shift, given that the current prediction is <=50K with confidence 0.697?
+- Status: Success
+- findings: "The model predicts <=50K with 69.73% confidence. Removing or changing 'education-num' would significantly impact the prediction because 'education-num' is a strong feature in income prediction models\u2014higher education levels are generally correlated with higher income. The current value is 3 ('5th-6th' education), which corresponds to a low education level and is associated with a lower income group. Removing this feature would eliminate an important signal in the model, leading to a loss of predictive power. Without this feature, the model would have to rely on other weak predictors (e.g., age, hours-per-week), which are less informative for income level than education. As a result, the model may shift its prediction toward >50K due to reduced confidence in its original <=50K prediction, or it may remain at <=50K but with lower confidence. However, given the model\u2019s current confidence and the importance of education-num, removing it would likely cause a shift toward >50K. Thus, the decision boundary would move toward >50K."
+- Explanation: The 'education-num' feature is a key predictor of income in this dataset. It captures the level of education, which is strongly correlated with income. The current value (3) indicates a low education level, consistent with the <=50K prediction. Removing this feature removes a critical discriminative attribute, leading to increased uncertainty. The model would then rely on less informative features (e.g., age, hours-per-week), which do not strongly differentiate income levels. As a result, the model's confidence in predicting <=50K decreases, and the predicted class likely shifts toward >50K due to a less robust feature set. The decision boundary shifts rightward (toward higher income), reflecting higher uncertainty and reduced support for the <=50K class.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of education-num in the income prediction based on the model architecture and training data patterns?
+- Status: Success
+- findings: "education-num plays a moderately important role in the income prediction, as it serves as a numerical proxy for educational attainment. Higher values of education-num are consistently associated with a higher likelihood of earning more than $50K. In the context of the TwoLayerNN model, this feature is likely captured in the hidden layer through nonlinear transformations that weight education-level features relative to labor market outcomes. The model has learned that individuals with higher education-num (e.g., 10 or above) exhibit stronger predictive signals for income >50K, even when other features like age or hours-per-week are held constant. This suggests that education-num contributes to separating the income classes in the decision boundary, though it is not the dominant predictor. Changes to education-num can alter the model\u2019s prediction, particularly when shifting from lower to higher education levels, as seen in the current case where education-num=3 (\u20185th-6th\u2019) corresponds to a prediction of <=50K."
+- Explanation: The model architecture (TwoLayerNN) learns non-linear, hierarchical patterns from tabular data. Education-num, being a continuous categorical feature derived from education levels, correlates with cognitive and vocational skills that influence income. In the training data, individuals with higher education-num tend to have higher wages, thus this feature contributes to the income classification. A change in education-num from 3 to a higher value (e.g., 12) might push the prediction from <=50K to >50K, based on observed data patterns. The current prediction (0, <=50K) with low confidence (69.73%) indicates uncertainty, possibly due to limited educational attainment in this record, reinforcing the feature's contextual sensitivity.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If education-num is removed, how would the model’s decision boundary shift, given that the current prediction is <=50K with confidence 0.697?
+- Status: Success
+- findings: "The model predicts <=50K with 69.73% confidence. Removing or changing 'education-num' would significantly impact the prediction because 'education-num' is a strong feature in income prediction models\u2014higher education levels are generally correlated with higher income. The current value is 3 ('5th-6th' education), which corresponds to a low education level and is associated with a lower income group. Removing this feature would eliminate an important signal in the model, leading to a loss of predictive power. Without this feature, the model would have to rely on other weak predictors (e.g., age, hours-per-week), which are less informative for income level than education. As a result, the model may shift its prediction toward >50K due to reduced confidence in its original <=50K prediction, or it may remain at <=50K but with lower confidence. However, given the model\u2019s current confidence and the importance of education-num, removing it would likely cause a shift toward >50K. Thus, the decision boundary would move toward >50K."
+- Explanation: The 'education-num' feature is a key predictor of income in this dataset. It captures the level of education, which is strongly correlated with income. The current value (3) indicates a low education level, consistent with the <=50K prediction. Removing this feature removes a critical discriminative attribute, leading to increased uncertainty. The model would then rely on less informative features (e.g., age, hours-per-week), which do not strongly differentiate income levels. As a result, the model's confidence in predicting <=50K decreases, and the predicted class likely shifts toward >50K due to a less robust feature set. The decision boundary shifts rightward (toward higher income), reflecting higher uncertainty and reduced support for the <=50K class.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

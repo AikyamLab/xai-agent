@@ -98,21 +98,53 @@ class XAIRLEnv:
               f"row={question.get('row_no', '?')}  "
               f"dataset={dataset_name}")
 
-        # Run the full XAI pipeline — handles all Q-type routing internally
-        result = self.pipeline.run(
-            question_dataset_path=question["_source_path"],
-            question_id=str(question["_question_idx"]),
-            target_model_url=model_url,
-            evaluate_faithfulness=True,
-            faithfulness_threshold=self.faithfulness_threshold,
-            enable_improvement=self.enable_improvement,
-            enable_sf=self.enable_sf,
-            sf_max_samples=self.sf_max_samples,
-        )
+        # Run the full XAI pipeline — handles all Q-type routing internally.
+        # Two failure modes are distinguished by whether any VLM call was
+        # recorded before the exception:
+        #
+        #   data_load_failed=True  (rl_vlm._transitions still empty when error
+        #                           is raised, e.g. invalid row_no):
+        #       → return a failed Trajectory immediately so do_group_rollout
+        #         can skip the remaining K-1 rollouts for this question.
+        #
+        #   data_load_failed=False (VLM was called before the error, e.g. JSON
+        #                           parse error, masking error):
+        #       → reward=0.0 with the partial transitions already recorded.
+        #         This IS a valid gradient signal (penalises the model output
+        #         that caused the failure) and training continues normally.
+        faithfulness_score = 0.0
+        try:
+            result = self.pipeline.run(
+                question_dataset_path=question["_source_path"],
+                question_id=str(question["_question_idx"]),
+                target_model_url=model_url,
+                evaluate_faithfulness=True,
+                faithfulness_threshold=self.faithfulness_threshold,
+                enable_improvement=self.enable_improvement,
+                enable_sf=self.enable_sf,
+                sf_max_samples=self.sf_max_samples,
+            )
+            faithfulness_score = _extract_faithfulness_score(result, modality=modality)
+        except Exception as exc:
+            recorded = self.rl_vlm.get_transitions()
+            if not recorded:
+                # No VLM call happened → data-load / setup failure.
+                # Signal do_group_rollout to skip remaining rollouts.
+                print(
+                    f"  [XAIRLEnv] Data-load error ({type(exc).__name__}): {exc}\n"
+                    f"  Returning data_load_failed=True — skipping remaining rollouts."
+                )
+                return Trajectory(
+                    transitions=[], total_reward=0.0, data_load_failed=True
+                )
+            # VLM was called before the error → keep partial transitions,
+            # assign reward=0.0, and continue training normally.
+            print(
+                f"  [XAIRLEnv] VLM/eval error ({type(exc).__name__}): {exc}\n"
+                f"  {len(recorded)} transition(s) already recorded. "
+                f"Assigning reward=0.0 — partial transitions used as gradient signal."
+            )
 
-        # Extract reward: final faithfulness score
-        # (improved score if improvement loop ran, otherwise first-pass score)
-        faithfulness_score = _extract_faithfulness_score(result)
         print(f"  → faithfulness reward: {faithfulness_score:.4f}")
 
         # Build Trajectory from VLM call records
@@ -153,7 +185,7 @@ class XAIRLEnv:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _extract_faithfulness_score(result: Dict[str, Any]) -> float:
+def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "") -> float:
     """
     Extract the final faithfulness score from pipeline.run() output.
 
@@ -163,18 +195,33 @@ def _extract_faithfulness_score(result: Dict[str, Any]) -> float:
       - First-pass failed → SF evaluation → reflection → improvement ran:
             reward = result["improved"]["evaluation"]["faithfulness"]["score"]
 
+    For tabular modality, ``details.soft_score`` (which has no size penalty)
+    is preferred over the penalised ``score``.  Q-types that lack a size
+    penalty (Q4, Q5, Q7, Q10) do not emit ``soft_score`` in ``details``, so
+    the fallback to ``score`` handles them transparently.
+
     If neither score is available (e.g. evaluation was skipped), returns 0.0.
     """
     # First-pass score (present when evaluate_faithfulness=True)
     evaluation = result.get("evaluation") or {}
     faith = evaluation.get("faithfulness") or {}
-    first_pass_score = float(faith.get("score") or 0.0)
+    if modality == "tabular":
+        details = faith.get("details") or {}
+        raw = details.get("soft_score")
+        first_pass_score = float(raw if raw is not None else faith.get("score") or 0.0)
+    else:
+        first_pass_score = float(faith.get("score") or 0.0)
 
     # If the improvement loop ran, take the post-reflection score as the reward
     improved = result.get("improved") or {}
-    improved_eval = improved.get("evaluation") or {}
-    improved_faith = improved_eval.get("faithfulness") or {}
-    improved_score = improved_faith.get("score")
+    improved_faith = (improved.get("evaluation") or {}).get("faithfulness") or {}
+    if modality == "tabular":
+        imp_details = improved_faith.get("details") or {}
+        imp_raw = imp_details.get("soft_score")
+        improved_score = imp_raw if imp_raw is not None else improved_faith.get("score")
+    else:
+        improved_score = improved_faith.get("score")
+
     if improved_score is not None:
         return float(improved_score)
 

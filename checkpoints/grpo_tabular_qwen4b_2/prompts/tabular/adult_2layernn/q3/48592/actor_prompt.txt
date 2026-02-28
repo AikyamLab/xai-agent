@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (62.22%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.37782520055770874}
+
+## Input Data
+Features: age=54, workclass=Private, fnlwgt=161691, education=Masters, education-num=14, marital-status=Divorced, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=2559, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: native-country_Jamaica <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.039664).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1380
+  - hours-per-week: +0.0383
+  - relationship_Not-in-family: +0.0377
+  - race_Black: +0.0367
+  - occupation_Transport-moving: +0.0109
+- Top negative features (shap_value):
+  - workclass_Private: -0.1380
+  - capital-loss: -0.0383
+  - relationship_Husband: -0.0377
+  - race_Other: -0.0367
+  - occupation_Tech-support: -0.0109
+- Max positive: 0.13801  Max negative: -0.13801
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Jamaica <= 0.00: +0.1203
+  - capital-loss > -0.22: +0.0842
+  - native-country_England <= 0.00: +0.0586
+  - education-num > 1.13: +0.0516
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0758
+  - native-country_Japan <= 0.00: -0.0592
+  - native-country_Taiwan <= 0.00: -0.0575
+  - marital-status_Divorced > 0.00: -0.0429
+  - hours-per-week <= -0.08: -0.0417
+- Max positive: 0.120265  Max negative: -0.07582
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0295
+  - education_Masters: +0.0074
+  - education-num: +0.0074
+  - native-country_United-States: +0.0045
+  - race_White: +0.0033
+- Top negative features (attribution_score):
+  - marital-status_Divorced: -0.0107
+  - workclass_Private: -0.0043
+  - occupation_Prof-specialty: -0.0029
+  - sex_Female: -0.0025
+  - relationship_Not-in-family: -0.0015
+- Max positive: 0.029496  Max negative: -0.010708
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0397  (orig=0.6507 → mod=0.6110)
+  - marital-status_Divorced: drop=-0.0100  (orig=0.6507 → mod=0.6607)
+  - education-num: drop=+0.0096  (orig=0.6507 → mod=0.6411)
+  - education_Masters: drop=+0.0087  (orig=0.6507 → mod=0.6420)
+  - sex_Female: drop=-0.0044  (orig=0.6507 → mod=0.6551)
+  - race_White: drop=+0.0040  (orig=0.6507 → mod=0.6468)
+  - native-country_United-States: drop=+0.0037  (orig=0.6507 → mod=0.6470)
+  - workclass_Private: drop=-0.0029  (orig=0.6507 → mod=0.6536)
+  - occupation_Prof-specialty: drop=-0.0022  (orig=0.6507 → mod=0.6529)
+  - relationship_Not-in-family: drop=-0.0011  (orig=0.6507 → mod=0.6518)
+- Max prob_drop: 0.039664  Max prob_increase: -0.00998
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are statistically or semantically more common among individuals earning >50K compared to those earning <=50K in the Adult dataset?
+- Status: Success
+- findings: ["education-num", "occupation", "relationship", "hours-per-week", "workclass"]
+- Explanation: In the Adult dataset, individuals earning more than $50K are statistically and semantically more likely to have higher education levels (indicated by higher 'education-num'), hold specialized or managerial occupations (e.g., 'Prof-specialty', 'Exec-managerial'), work longer hours per week, and be employed in higher-income workclasses such as 'Private' or 'Self-emp-not-inc'. The 'relationship' feature shows a strong association with being 'Not-in-family' or 'Other-relative', which correlates with financial independence and higher earnings. These features are well-documented in domain knowledge as being positively associated with higher income brackets in the dataset.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input values for features like 'age', 'education-num', 'occupation', and 'workclass' compare across the top-1 (>50K) and top-2 (<50K) predictions in terms of typical value distribution and class associations?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "age", "action": "increase", "new_value": 54}]
+- Explanation: The top-1 prediction (income >50K) is associated with higher education levels (education-num=14, corresponding to 'Masters'), a professional occupation ('Prof-specialty'), and a higher age (54), all of which are strongly correlated with higher-income outcomes in the dataset. The 'workclass=Private' is common in high-income individuals, especially in the U.S. context. In contrast, the top-2 (<50K) prediction would likely show lower education-num, lower age, or non-professional occupations. These features collectively form a pattern strongly associated with the >50K class, suggesting that education, occupation, and age are the most distinguishing factors in the model's prediction. While the exact top-2 values are not provided, the feature distributions in the top-1 prediction align with known class associations in income classification models.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are statistically or semantically more common among individuals earning >50K compared to those earning <=50K in the Adult dataset?
+- Status: Success
+- findings: ["education-num", "occupation", "relationship", "hours-per-week", "workclass"]
+- Explanation: In the Adult dataset, individuals earning more than $50K are statistically and semantically more likely to have higher education levels (indicated by higher 'education-num'), hold specialized or managerial occupations (e.g., 'Prof-specialty', 'Exec-managerial'), work longer hours per week, and be employed in higher-income workclasses such as 'Private' or 'Self-emp-not-inc'. The 'relationship' feature shows a strong association with being 'Not-in-family' or 'Other-relative', which correlates with financial independence and higher earnings. These features are well-documented in domain knowledge as being positively associated with higher income brackets in the dataset.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the input values for features like 'age', 'education-num', 'occupation', and 'workclass' compare across the top-1 (>50K) and top-2 (<50K) predictions in terms of typical value distribution and class associations?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "age", "action": "increase", "new_value": 54}]
+- Explanation: The top-1 prediction (income >50K) is associated with higher education levels (education-num=14, corresponding to 'Masters'), a professional occupation ('Prof-specialty'), and a higher age (54), all of which are strongly correlated with higher-income outcomes in the dataset. The 'workclass=Private' is common in high-income individuals, especially in the U.S. context. In contrast, the top-2 (<50K) prediction would likely show lower education-num, lower age, or non-professional occupations. These features collectively form a pattern strongly associated with the >50K class, suggesting that education, occupation, and age are the most distinguishing factors in the model's prediction. While the exact top-2 values are not provided, the feature distributions in the top-1 prediction align with known class associations in income classification models.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.37782520055770874}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

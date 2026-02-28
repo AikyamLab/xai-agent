@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (68.54%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=48, workclass=Local-gov, fnlwgt=27802, education=Masters, education-num=14, marital-status=Separated, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=1876, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss > -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.025666).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.0857
+  - hours-per-week: +0.0356
+  - relationship_Not-in-family: +0.0334
+  - workclass_State-gov: +0.0148
+  - education_5th-6th: +0.0098
+- Top negative features (shap_value):
+  - workclass_Private: -0.0857
+  - capital-loss: -0.0356
+  - relationship_Husband: -0.0334
+  - workclass_Self-emp-not-inc: -0.0148
+  - education_1st-4th: -0.0098
+- Max positive: 0.085718  Max negative: -0.085718
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss > -0.22: +0.0824
+  - education-num > 1.13: +0.0596
+  - education_1st-4th <= 0.00: +0.0537
+  - hours-per-week > 0.34: +0.0510
+  - marital-status_Divorced <= 0.00: +0.0471
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0744
+  - native-country_Cuba <= 0.00: -0.0636
+  - native-country_England <= 0.00: -0.0337
+  - education_Preschool <= 0.00: -0.0111
+- Max positive: 0.0824  Max negative: -0.074388
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0177
+  - education-num: +0.0098
+  - sex_Male: +0.0072
+  - education_Masters: +0.0070
+  - hours-per-week: +0.0045
+- Top negative features (attribution_score):
+  - marital-status_Separated: -0.0036
+  - fnlwgt: -0.0029
+  - occupation_Prof-specialty: -0.0018
+  - workclass_Local-gov: -0.0011
+  - capital-gain: -0.0001
+- Max positive: 0.017746  Max negative: -0.003581
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0257  (orig=0.6649 → mod=0.6393)
+  - education-num: drop=+0.0099  (orig=0.6649 → mod=0.6550)
+  - education_Masters: drop=+0.0074  (orig=0.6649 → mod=0.6575)
+  - sex_Male: drop=+0.0066  (orig=0.6649 → mod=0.6583)
+  - native-country_United-States: drop=+0.0047  (orig=0.6649 → mod=0.6602)
+  - hours-per-week: drop=+0.0039  (orig=0.6649 → mod=0.6610)
+  - race_White: drop=+0.0037  (orig=0.6649 → mod=0.6613)
+  - marital-status_Separated: drop=-0.0025  (orig=0.6649 → mod=0.6675)
+  - age: drop=+0.0006  (orig=0.6649 → mod=0.6643)
+  - fnlwgt: drop=+0.0003  (orig=0.6649 → mod=0.6646)
+- Max prob_drop: 0.025666  Max prob_increase: -0.002534
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'occupation=Prof-specialty' or 'relationship=Not-in-family' be semantically irrelevant to the true class <=50K in the context of income prediction?
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Unknown", "explanation": "The occupation 'Prof-specialty' may be associated with higher income in general, but in the context of income prediction, occupation is often a proxy for skill level and job type, which can be mitigated by other features like education and hours-per-week. However, in the case of a person earning <=50K, this feature may not carry sufficient discriminatory power due to the high overlap in income distributions across occupations. More importantly, occupation is inherently noisy and may not be stable across individuals (e.g., due to job changes), making it semantically less relevant when the true class is <=50K, where income is likely influenced more by demographics and work-hour patterns than by specific career titles."}, {"feature_key": "relationship", "action": "change", "new_value": "Unknown", "explanation": "The relationship status 'Not-in-family' does not directly correlate with income levels. Income is primarily influenced by individual employment status, education, work hours, and potential family responsibilities, but relationship status is an indirect social factor. In the context of predicting whether an individual earns <=50K, relationship status has minimal predictive power and is not a strong determinant of income. Thus, it is semantically irrelevant in this prediction context."}]
+- Explanation: In income prediction tasks, key determinants such as age, education, work hours, and employment type (reflected in workclass and occupation) are more directly linked to income levels. However, features like 'occupation' and 'relationship' are more reflective of personal social structure or job category than of economic outcomes. 'Prof-specialty' may imply a high-income profession, yet the model's confidence in predicting >50K suggests over-reliance on such features, possibly due to missing contextual nuances like capital-loss or lower hours-per-week. Meanwhile, 'Not-in-family' has no direct link to earning capacity and is semantically disconnected from the income distribution. Therefore, these features are semantically irrelevant in predicting the true class <=50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the model's confidence in 'education-num=14' and 'age=48' against known socioeconomic relevance to <=50K income. Are any features with high confidence but low semantic grounding present?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "14"}, {"feature_key": "age", "action": "change", "new_value": "48"}]
+- Explanation: The model shows high confidence (68.54%) in predicting '>50K' despite the true label being '<=50K'. Among the top-attributed features, 'education-num=14' and 'age=48' are both strongly associated with higher income in general, but their semantic grounding in this specific case is questionable. 'Education-num=14' (Masters) is generally correlated with higher income, but the dataset's class distribution may be skewed by other factors such as workclass, capital-loss, and marital status. 'Age=48' is near the upper end of the age range but not necessarily indicative of high income, especially when combined with 'capital-loss=1876' and 'relationship=Not-in-family', which may suggest financial instability. These features, while statistically present, lack strong direct causative link to the outcome in this context, suggesting potential over-attribution or spurious correlation. Thus, they exhibit high model confidence but low semantic grounding in predicting <=50K.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'occupation=Prof-specialty' or 'relationship=Not-in-family' be semantically irrelevant to the true class <=50K in the context of income prediction?
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Unknown", "explanation": "The occupation 'Prof-specialty' may be associated with higher income in general, but in the context of income prediction, occupation is often a proxy for skill level and job type, which can be mitigated by other features like education and hours-per-week. However, in the case of a person earning <=50K, this feature may not carry sufficient discriminatory power due to the high overlap in income distributions across occupations. More importantly, occupation is inherently noisy and may not be stable across individuals (e.g., due to job changes), making it semantically less relevant when the true class is <=50K, where income is likely influenced more by demographics and work-hour patterns than by specific career titles."}, {"feature_key": "relationship", "action": "change", "new_value": "Unknown", "explanation": "The relationship status 'Not-in-family' does not directly correlate with income levels. Income is primarily influenced by individual employment status, education, work hours, and potential family responsibilities, but relationship status is an indirect social factor. In the context of predicting whether an individual earns <=50K, relationship status has minimal predictive power and is not a strong determinant of income. Thus, it is semantically irrelevant in this prediction context."}]
+- Explanation: In income prediction tasks, key determinants such as age, education, work hours, and employment type (reflected in workclass and occupation) are more directly linked to income levels. However, features like 'occupation' and 'relationship' are more reflective of personal social structure or job category than of economic outcomes. 'Prof-specialty' may imply a high-income profession, yet the model's confidence in predicting >50K suggests over-reliance on such features, possibly due to missing contextual nuances like capital-loss or lower hours-per-week. Meanwhile, 'Not-in-family' has no direct link to earning capacity and is semantically disconnected from the income distribution. Therefore, these features are semantically irrelevant in predicting the true class <=50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the model's confidence in 'education-num=14' and 'age=48' against known socioeconomic relevance to <=50K income. Are any features with high confidence but low semantic grounding present?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "14"}, {"feature_key": "age", "action": "change", "new_value": "48"}]
+- Explanation: The model shows high confidence (68.54%) in predicting '>50K' despite the true label being '<=50K'. Among the top-attributed features, 'education-num=14' and 'age=48' are both strongly associated with higher income in general, but their semantic grounding in this specific case is questionable. 'Education-num=14' (Masters) is generally correlated with higher income, but the dataset's class distribution may be skewed by other factors such as workclass, capital-loss, and marital status. 'Age=48' is near the upper end of the age range but not necessarily indicative of high income, especially when combined with 'capital-loss=1876' and 'relationship=Not-in-family', which may suggest financial instability. These features, while statistically present, lack strong direct causative link to the outcome in this context, suggesting potential over-attribution or spurious correlation. Thus, they exhibit high model confidence but low semantic grounding in predicting <=50K.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -12,13 +12,12 @@ Wraps a Tinker SamplingClient to:
 Usage pattern:
     rl_vlm   = RLSamplingVLM(sampling_client, tokenizer, max_new_tokens=512)
     pipeline = XAIPipelineV2(vlm=rl_vlm, ...)
+    env      = XAIRLEnv(pipeline=pipeline, rl_vlm=rl_vlm)
 
     # Per rollout (k = 0 .. num_rollouts-1):
     rl_vlm.update_sampling_client(current_sampling_client)
-    rl_vlm.reset()
-    result      = pipeline.run_for_rl(question_dict, rollout_id=k)
-    transitions = rl_vlm.get_transitions()
-    reward      = result["faithfulness_score"]
+    traj = env.run_episode(question_dict, rollout_id=k)
+    # transitions and reward are inside traj.transitions / traj.total_reward
 """
 
 from __future__ import annotations

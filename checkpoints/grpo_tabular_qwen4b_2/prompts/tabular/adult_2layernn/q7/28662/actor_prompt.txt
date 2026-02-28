@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change fnlwgt, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (56.50%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.5649703741073608}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.43502962589263916}]
+- Part to Change: fnlwgt
+
+## Input Data
+Features: age=44, workclass=State-gov, fnlwgt=691903, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: fnlwgt (prob drop: -0.020873).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education-num: +0.0538
+  - workclass_State-gov: +0.0328
+  - relationship_Not-in-family: +0.0307
+  - native-country_Cuba: +0.0157
+  - native-country_Cambodia: +0.0135
+- Top negative features (shap_value):
+  - capital-gain: -0.0538
+  - workclass_Self-emp-not-inc: -0.0328
+  - relationship_Husband: -0.0307
+  - native-country_Columbia: -0.0157
+  - sex_Male: -0.0135
+- Max positive: 0.053767  Max negative: -0.053767
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - fnlwgt: drop=-0.0209  (orig=0.6376 → mod=0.6585)
+  - education_Masters: drop=+0.0070  (orig=0.6376 → mod=0.6306)
+  - relationship_Husband: drop=+0.0068  (orig=0.6376 → mod=0.6308)
+  - race_Black: drop=-0.0066  (orig=0.6376 → mod=0.6442)
+  - marital-status_Married-civ-spouse: drop=+0.0066  (orig=0.6376 → mod=0.6310)
+  - workclass_State-gov: drop=+0.0064  (orig=0.6376 → mod=0.6312)
+  - hours-per-week: drop=+0.0055  (orig=0.6376 → mod=0.6321)
+  - sex_Male: drop=+0.0035  (orig=0.6376 → mod=0.6341)
+  - occupation_Prof-specialty: drop=-0.0027  (orig=0.6376 → mod=0.6403)
+  - education-num: drop=+0.0015  (orig=0.6376 → mod=0.6361)
+- Max prob_drop: 0.006984  Max prob_increase: -0.020873
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicts '>50K' with 0.565 confidence, and the input includes fnlwgt=691903, assess whether fnlwgt is likely to act as a positive or neutral indicator for income above 50K in this dataset.
+- Status: Success
+- findings: "fnlwgt is likely neutral with respect to income above 50K in the model's learned pattern."
+- Explanation: The feature 'fnlwgt' (final weight) is a sampling weight used in the Census dataset to adjust for probability of selection and non-response, rather than a direct indicator of income. It does not represent actual income or economic activity. In tabular datasets like this, fnlwgt is typically not a meaningful predictor of income class (e.g., >50K) because it reflects the weighting of individual records for statistical balance, not the individual’s financial status. Given that the model predicts >50K with a confidence of 56.5%, and no evidence suggests that changes in fnlwgt systematically shift income predictions, the feature acts as a neutral anchor rather than a signal. Therefore, modifying fnlwgt (e.g., increasing or decreasing its value) would not meaningfully alter the model’s prediction for income class. This behavior aligns with known data science practices where fnlwgt is not used as a predictive feature in income modeling.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the prediction probabilities when fnlwgt is removed (set to NaN) vs. when it is kept at its original value, based on the model's architecture and known feature distributions.
+- Status: Success
+- findings: "Removing fnlwgt would likely decrease the probability of predicting '>50K'."
+- Explanation: fnlwgt (final weight) is a feature that represents the final weight of an individual in the dataset, often used for sampling or weighting purposes. While it is not inherently predictive of income, its value can introduce noise or correlate with other variables in ways that affect model behavior. In this case, the original value of fnlwgt=691903 is relatively high and may serve as a proxy for socioeconomic status or income level. Removing it (setting to NaN) would remove this potential signal, especially if the model has learned from correlations between fnlwgt and income through training data bias. Since the original prediction is already above 50K with moderate confidence (56.50%), the absence of fnlwgt may destabilize or reduce the model's confidence due to loss of structural information. In tabular models, especially those trained on imbalanced or weighted samples, such features can be leveraged for variance stabilization. Hence, the removal of fnlwgt is likely to decrease the prediction probability for '>50K'.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicts '>50K' with 0.565 confidence, and the input includes fnlwgt=691903, assess whether fnlwgt is likely to act as a positive or neutral indicator for income above 50K in this dataset.
+- Status: Success
+- findings: "fnlwgt is likely neutral with respect to income above 50K in the model's learned pattern."
+- Explanation: The feature 'fnlwgt' (final weight) is a sampling weight used in the Census dataset to adjust for probability of selection and non-response, rather than a direct indicator of income. It does not represent actual income or economic activity. In tabular datasets like this, fnlwgt is typically not a meaningful predictor of income class (e.g., >50K) because it reflects the weighting of individual records for statistical balance, not the individual’s financial status. Given that the model predicts >50K with a confidence of 56.5%, and no evidence suggests that changes in fnlwgt systematically shift income predictions, the feature acts as a neutral anchor rather than a signal. Therefore, modifying fnlwgt (e.g., increasing or decreasing its value) would not meaningfully alter the model’s prediction for income class. This behavior aligns with known data science practices where fnlwgt is not used as a predictive feature in income modeling.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the prediction probabilities when fnlwgt is removed (set to NaN) vs. when it is kept at its original value, based on the model's architecture and known feature distributions.
+- Status: Success
+- findings: "Removing fnlwgt would likely decrease the probability of predicting '>50K'."
+- Explanation: fnlwgt (final weight) is a feature that represents the final weight of an individual in the dataset, often used for sampling or weighting purposes. While it is not inherently predictive of income, its value can introduce noise or correlate with other variables in ways that affect model behavior. In this case, the original value of fnlwgt=691903 is relatively high and may serve as a proxy for socioeconomic status or income level. Removing it (setting to NaN) would remove this potential signal, especially if the model has learned from correlations between fnlwgt and income through training data bias. Since the original prediction is already above 50K with moderate confidence (56.50%), the absence of fnlwgt may destabilize or reduce the model's confidence due to loss of structural information. In tabular models, especially those trained on imbalanced or weighted samples, such features can be leveraged for variance stabilization. Hence, the removal of fnlwgt is likely to decrease the prediction probability for '>50K'.
+- Confidence: 0.85
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

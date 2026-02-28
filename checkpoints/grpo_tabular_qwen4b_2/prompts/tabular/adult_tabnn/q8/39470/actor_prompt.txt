@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (59.77%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=52, workclass=State-gov, fnlwgt=101119, education=11th, education-num=7, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.020476).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0719
+  - fnlwgt: +0.0337
+  - native-country_Cambodia: +0.0321
+  - native-country_United-States: +0.0272
+  - native-country_Taiwan: +0.0252
+- Top negative features (shap_value):
+  - hours-per-week: -0.0719
+  - age: -0.0337
+  - sex_Male: -0.0321
+  - native-country_Trinadad&Tobago: -0.0272
+  - native-country_Thailand: -0.0252
+- Max positive: 0.071859  Max negative: -0.071859
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2066
+  - capital-loss <= -0.22: +0.1403
+  - education-num <= -0.44: +0.0930
+  - native-country_Ecuador <= 0.00: +0.0797
+  - native-country_Taiwan <= 0.00: +0.0762
+- Top negative features (weight):
+  - age > 0.64: -0.0909
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: -0.0772
+  - native-country_Columbia <= 0.00: -0.0577
+  - native-country_Honduras <= 0.00: -0.0086
+- Max positive: 0.20663  Max negative: -0.090941
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0214
+  - fnlwgt: +0.0068
+  - occupation_Transport-moving: +0.0054
+  - education_11th: +0.0044
+  - race_White: +0.0017
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0167
+  - age: -0.0106
+  - relationship_Husband: -0.0085
+  - native-country_United-States: -0.0066
+  - sex_Male: -0.0062
+- Max positive: 0.021405  Max negative: -0.016699
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0205  (orig=0.4008 → mod=0.3803)
+  - marital-status_Married-civ-spouse: drop=-0.0144  (orig=0.4008 → mod=0.4151)
+  - education_11th: drop=+0.0077  (orig=0.4008 → mod=0.3931)
+  - occupation_Transport-moving: drop=+0.0077  (orig=0.4008 → mod=0.3931)
+  - age: drop=-0.0065  (orig=0.4008 → mod=0.4073)
+  - native-country_United-States: drop=-0.0059  (orig=0.4008 → mod=0.4066)
+  - sex_Male: drop=-0.0051  (orig=0.4008 → mod=0.4058)
+  - fnlwgt: drop=+0.0048  (orig=0.4008 → mod=0.3959)
+  - capital-loss: drop=+0.0018  (orig=0.4008 → mod=0.3989)
+  - relationship_Husband: drop=-0.0018  (orig=0.4008 → mod=0.4026)
+- Max prob_drop: 0.020476  Max prob_increase: -0.014362
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high attention to 'education-num=7' or 'occupation=Transport-moving' despite their poor semantic relevance to income level <=50K?
+- Status: Success
+- semantically_irrelevant_features: [{"feature_key": "education-num", "reason": "Education level (as encoded in 'education-num') is a weak predictor of income in the context of the dataset. A value of 7 corresponds to '11th grade', which is below high school completion. In the U.S. labor market, individuals with only 11th-grade education are statistically less likely to earn over $50K annually. However, the model may assign high attention to this feature due to correlation with other demographic variables (e.g., age, workclass), creating a spurious signal. Moreover, education-num has low predictive power compared to factors like workclass or hours-per-week, and its inclusion in attention might stem from model overfitting to weak correlations."}, {"feature_key": "occupation", "reason": "The occupation 'Transport-moving' is associated with low-income, manual labor jobs (e.g., trucking, moving services), which historically have lower earning potentials. However, the model may give high attention to this feature due to its codification in categorical embeddings that do not properly capture income relevance. In this case, there is no strong semantic or economic link between being a 'Transport-moving' worker and earning >50K. The model may misattribute relevance due to implicit feature interactions or normalization effects in tabular models (e.g., ignoring baseline income distributions)."}]
+- Explanation: The model's high attention to 'education-num=7' and 'occupation=Transport-moving' may stem from spurious correlations rather than causal or semantic relevance. 'Education-num=7' (11th grade) is linked to lower income, but the model could be overemphasizing it due to its co-occurrence with other low-income indicators (e.g., State-gov workclass, low capital gain). Similarly, 'Transport-moving' is a low-income occupation, so the model may treat it as a signal of low income, even though it lacks direct semantic or statistical causality. These features are semantically irrelevant because they do not provide meaningful or independent information about income levels—in contrast to features like 'hours-per-week' or 'workclass'—and their influence is likely due to collinearity or model bias.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the importance of 'workclass=State-gov' and 'race=White' with known semantically relevant features like 'age' or 'education-num' in predicting <=50K income.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "reason": "Age is a strongly correlated feature with income. Individuals over 50 are more likely to earn >50K, and the subject is 52 years old, which is a strong signal toward higher income. This feature is semantically and empirically relevant in income prediction."}, {"feature_key": "education-num", "relevance": "high", "reason": "Education level is a well-established predictor of income. A '11th' education level (age 14\u201317) indicates limited formal education, which is associated with lower income and lower likelihood of earning >50K. This directly contradicts the model's prediction of >50K (which should be false for this profile)."}, {"feature_key": "workclass", "relevance": "moderate", "reason": "'State-gov' is a workclass associated with lower income, typically indicating lower-paying public sector jobs. However, its predictive power is weaker than age or education. It may contain a spurious signal if other factors (like age or education) are already strong, but it does not override the dominant effects of education or age."}, {"feature_key": "race", "relevance": "low", "reason": "'White' is a demographic category with historical correlations in datasets, but in the context of income prediction, it is not a direct or independent driver. Its value here is likely to be confounded by socioeconomic factors such as education, workclass, and age. It may contribute to spurious correlations due to data bias or historical inequalities, but it does not independently signal income level. Thus, it is semantically irrelevant in this prediction context."}, {"feature_key": "hours-per-week", "relevance": "medium", "reason": "40 hours per week is average and may not strongly differentiate income groups. However, higher hours are typically associated with higher income, so it could serve as a secondary signal. Not as strong as age or education."}]
+- Explanation: The model incorrectly predicted >50K when the true label is <=50K. The key semantic features that contradict this prediction are 'education-num=7' (11th grade, low education) and 'age=52' (older adult with low education). These features strongly point to a lower income likelihood. 'workclass=State-gov' has moderate relevance, but is outweighed by education and age. 'race=White' shows no independent predictive power and may introduce spurious correlations due to biased historical data. The model's error appears to stem from overlooking the strong negative signal from education level, possibly due to spurious feature interactions or underweighting of demographic variables. Thus, the most relevant features are education-num and age, making 'race' and 'workclass' less critical in this case.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high attention to 'education-num=7' or 'occupation=Transport-moving' despite their poor semantic relevance to income level <=50K?
+- Status: Success
+- semantically_irrelevant_features: [{"feature_key": "education-num", "reason": "Education level (as encoded in 'education-num') is a weak predictor of income in the context of the dataset. A value of 7 corresponds to '11th grade', which is below high school completion. In the U.S. labor market, individuals with only 11th-grade education are statistically less likely to earn over $50K annually. However, the model may assign high attention to this feature due to correlation with other demographic variables (e.g., age, workclass), creating a spurious signal. Moreover, education-num has low predictive power compared to factors like workclass or hours-per-week, and its inclusion in attention might stem from model overfitting to weak correlations."}, {"feature_key": "occupation", "reason": "The occupation 'Transport-moving' is associated with low-income, manual labor jobs (e.g., trucking, moving services), which historically have lower earning potentials. However, the model may give high attention to this feature due to its codification in categorical embeddings that do not properly capture income relevance. In this case, there is no strong semantic or economic link between being a 'Transport-moving' worker and earning >50K. The model may misattribute relevance due to implicit feature interactions or normalization effects in tabular models (e.g., ignoring baseline income distributions)."}]
+- Explanation: The model's high attention to 'education-num=7' and 'occupation=Transport-moving' may stem from spurious correlations rather than causal or semantic relevance. 'Education-num=7' (11th grade) is linked to lower income, but the model could be overemphasizing it due to its co-occurrence with other low-income indicators (e.g., State-gov workclass, low capital gain). Similarly, 'Transport-moving' is a low-income occupation, so the model may treat it as a signal of low income, even though it lacks direct semantic or statistical causality. These features are semantically irrelevant because they do not provide meaningful or independent information about income levels—in contrast to features like 'hours-per-week' or 'workclass'—and their influence is likely due to collinearity or model bias.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the importance of 'workclass=State-gov' and 'race=White' with known semantically relevant features like 'age' or 'education-num' in predicting <=50K income.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "reason": "Age is a strongly correlated feature with income. Individuals over 50 are more likely to earn >50K, and the subject is 52 years old, which is a strong signal toward higher income. This feature is semantically and empirically relevant in income prediction."}, {"feature_key": "education-num", "relevance": "high", "reason": "Education level is a well-established predictor of income. A '11th' education level (age 14\u201317) indicates limited formal education, which is associated with lower income and lower likelihood of earning >50K. This directly contradicts the model's prediction of >50K (which should be false for this profile)."}, {"feature_key": "workclass", "relevance": "moderate", "reason": "'State-gov' is a workclass associated with lower income, typically indicating lower-paying public sector jobs. However, its predictive power is weaker than age or education. It may contain a spurious signal if other factors (like age or education) are already strong, but it does not override the dominant effects of education or age."}, {"feature_key": "race", "relevance": "low", "reason": "'White' is a demographic category with historical correlations in datasets, but in the context of income prediction, it is not a direct or independent driver. Its value here is likely to be confounded by socioeconomic factors such as education, workclass, and age. It may contribute to spurious correlations due to data bias or historical inequalities, but it does not independently signal income level. Thus, it is semantically irrelevant in this prediction context."}, {"feature_key": "hours-per-week", "relevance": "medium", "reason": "40 hours per week is average and may not strongly differentiate income groups. However, higher hours are typically associated with higher income, so it could serve as a secondary signal. Not as strong as age or education."}]
+- Explanation: The model incorrectly predicted >50K when the true label is <=50K. The key semantic features that contradict this prediction are 'education-num=7' (11th grade, low education) and 'age=52' (older adult with low education). These features strongly point to a lower income likelihood. 'workclass=State-gov' has moderate relevance, but is outweighed by education and age. 'race=White' shows no independent predictive power and may introduce spurious correlations due to biased historical data. The model's error appears to stem from overlooking the strong negative signal from education level, possibly due to spurious feature interactions or underweighting of demographic variables. Thus, the most relevant features are education-num and age, making 'race' and 'workclass' less critical in this case.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

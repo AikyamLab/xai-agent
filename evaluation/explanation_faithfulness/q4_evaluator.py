@@ -10,7 +10,7 @@ Similarity measures:
 - Tabular: Jaccard overlap weighted by rank agreement on top_features lists
 """
 
-threshold = 0.5
+threshold = 0.3
 
 from typing import Any, Dict, List, Set
 import re
@@ -127,6 +127,7 @@ class Q4Evaluator(MultiInstanceEvaluator):
             metric_name=self.metric_name,
             metric_formula=self.metric_formula,
             details={
+                "soft_score": score,
                 "features_a": features_a,
                 "features_b": features_b,
                 "similarity": similarity,

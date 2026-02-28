@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.5647
+
+## Input Data
+Features: age=37, workclass=Private, fnlwgt=227545, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=44, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Portugal.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.0085).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Puerto-Rico: +0.0145
+  - occupation_Transport-moving: +0.0129
+  - workclass_State-gov: +0.0120
+  - native-country_United-States: +0.0105
+  - native-country_Cuba: +0.0091
+- Top negative features (shap_value):
+  - native-country_Portugal: -0.0145
+  - occupation_Tech-support: -0.0129
+  - workclass_Self-emp-not-inc: -0.0120
+  - native-country_Trinadad&Tobago: -0.0105
+  - native-country_Columbia: -0.0091
+- Max positive: 0.014516  Max negative: -0.014516
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Jamaica <= 0.00: +0.0675
+  - native-country_Vietnam <= 0.00: +0.0671
+  - marital-status_Divorced <= 0.00: +0.0514
+  - native-country_Honduras <= 0.00: +0.0210
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0675
+  - capital-loss <= -0.22: -0.0523
+  - native-country_Cuba <= 0.00: -0.0486
+  - education_Preschool <= 0.00: -0.0462
+  - marital-status_Married-AF-spouse <= 0.00: -0.0334
+- Max positive: 0.067492  Max negative: -0.067495
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0058
+  - relationship_Husband: +0.0050
+  - marital-status_Married-civ-spouse: +0.0049
+  - native-country_United-States: +0.0040
+  - hours-per-week: +0.0023
+- Top negative features (attribution_score):
+  - education_Some-college: -0.0025
+  - workclass_Private: -0.0024
+  - age: -0.0005
+  - capital-gain: -0.0004
+  - education-num: -0.0002
+- Max positive: 0.005807  Max negative: -0.002487
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0085  (orig=0.6375 → mod=0.6290)
+  - sex_Male: drop=+0.0048  (orig=0.6375 → mod=0.6327)
+  - relationship_Husband: drop=+0.0045  (orig=0.6375 → mod=0.6331)
+  - occupation_Sales: drop=+0.0043  (orig=0.6375 → mod=0.6333)
+  - education_Some-college: drop=-0.0041  (orig=0.6375 → mod=0.6416)
+  - hours-per-week: drop=+0.0014  (orig=0.6375 → mod=0.6362)
+  - workclass_Private: drop=-0.0013  (orig=0.6375 → mod=0.6389)
+  - race_White: drop=-0.0012  (orig=0.6375 → mod=0.6387)
+  - native-country_United-States: drop=+0.0008  (orig=0.6375 → mod=0.6367)
+  - capital-gain: drop=-0.0007  (orig=0.6375 → mod=0.6382)
+- Max prob_drop: 0.0085  Max prob_increase: -0.004094
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which features in the input are historically linked to higher income in the adult income dataset (e.g., age, education-num, occupation, marital-status)
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 14}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: In the Adult Income Dataset (used in common ML benchmarks like the UCI Adult dataset), several features are historically correlated with higher income (>50K). Age shows a positive correlation, with older individuals more likely to earn higher incomes due to work experience. Education-num is strongly associated with income, as higher educational attainment (especially beyond high school) increases earning potential. Occupation plays a key role—professional and managerial roles (e.g., Exec-managerial, Prof-specialty) are linked to higher incomes. Marital-status influences income, as married individuals, particularly those in stable relationships, often have greater access to combined or stable income sources. Hours-per-week is also significant: higher working hours correlate with increased income, especially in high-paying jobs. The current values (age=37, education-num=10, occupation='Sales', hours-per-week=44) are moderately favorable, but increasing education and occupation to more income-earning categories significantly raises the probability of predicting '>50K'.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: Evaluate how the combination of features (e.g., male, married, sales occupation, white race) might collectively contribute to a higher income prediction compared to baseline demographics
+- Status: Success
+- Explanation: The model predicted income >50K based on a feature set that aligns with historically observed patterns in high-income individuals. Key contributing factors include: 'Male' sex, 'Married-civ-spouse' marital status, 'Private' workclass, 'Sales' occupation, 'White' race, and 'Husband' relationship—all of which are associated with higher socioeconomic status. Marital status and occupation are especially influential: 'Married-civ-spouse' indicates financial stability and potential household income sharing, while 'Sales' is a high-earning profession often linked with higher hourly wages and career advancement. The 'White' race and 'Male' sex contribute to demographic bias in historical datasets where these groups historically earned more. Additionally, the individual's age (37) is within the prime working years, and hours-per-week (44) suggest a full-time, dedicated work profile, which supports higher earnings. Although individual features may have weak marginal effects, their combination creates a strong collective signal toward higher income in the model’s learned correlations. This pattern is consistent with prior data in structured tabular income datasets where occupation, marital status, and sex interact to predict income class.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the raw feature values (e.g., age=37, education-num=10) against typical thresholds or distributions in the training data for '>50K' earners
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": 37, "comparison": "Below typical threshold; average age for '>50K' earners is typically around 45-55, suggesting this value is on the lower end and not a strong contributor."}, {"feature_key": "education-num", "action": "compare", "new_value": 10, "comparison": "Below typical threshold; '>50K' earners often have education-num \u2265 12 (e.g., Bachelor's or higher). A value of 10 (Some-college) is below the common threshold and weakens the prediction."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 44, "comparison": "Above average; typical hours-per-week for '>50K' earners is around 40-45. This value is within the typical range and contributes moderately to the prediction."}, {"feature_key": "workclass", "action": "compare", "new_value": "Private", "comparison": "Common in both groups; no strong bias toward '>50K'. Not a key differentiator."}, {"feature_key": "sex", "action": "compare", "new_value": "Male", "comparison": "Male individuals have higher likelihood of being '>50K' in historical data, especially in the U.S. context. This feature is positively correlated and contributes to the prediction."}]
+- Explanation: The model predicted income >50K with moderate confidence (56.47%). While the individual has a relatively low age and education level (Some-college, education-num=10), which are below typical thresholds for high earners, the 'hours-per-week' of 44 and the 'sex' being 'Male' align with known demographic trends. Male workers in the U.S. with higher working hours are more likely to earn above 50K. The weak signals from education and age are offset by the positive influence of sex and work hours. Thus, the most contributive features are 'sex' and 'hours-per-week', despite the overall lower education and age. Other features like 'workclass' and 'marital-status' do not strongly differentiate the group.
+- Confidence: 0.85
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

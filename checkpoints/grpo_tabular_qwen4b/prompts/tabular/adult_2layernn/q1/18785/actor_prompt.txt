@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5467
+
+## Input Data
+Features: age=61, workclass=Private, fnlwgt=146788, education=7th-8th, education-num=4, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.020895).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0632
+  - fnlwgt: +0.0251
+  - native-country_United-States: +0.0242
+  - occupation_Adm-clerical: +0.0195
+  - native-country_Taiwan: +0.0110
+- Top negative features (shap_value):
+  - hours-per-week: -0.0632
+  - age: -0.0251
+  - native-country_Trinadad&Tobago: -0.0242
+  - occupation_Armed-Forces: -0.0195
+  - native-country_Thailand: -0.0110
+- Max positive: 0.063196  Max negative: -0.063196
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0637
+  - capital-gain <= -0.15: +0.0562
+  - education-num <= -0.44: +0.0533
+  - hours-per-week <= -0.08: +0.0451
+  - education_Prof-school <= 0.00: +0.0325
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0565
+  - native-country_Poland <= 0.00: -0.0374
+  - native-country_Guatemala <= 0.00: -0.0268
+  - native-country_Dominican-Republic <= 0.00: -0.0100
+- Max positive: 0.063696  Max negative: -0.056541
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0214
+  - education_7th-8th: +0.0115
+  - workclass_Private: +0.0047
+  - occupation_Transport-moving: +0.0030
+  - hours-per-week: +0.0008
+- Top negative features (attribution_score):
+  - sex_Male: -0.0108
+  - age: -0.0077
+  - native-country_United-States: -0.0058
+  - relationship_Husband: -0.0057
+  - marital-status_Married-civ-spouse: -0.0025
+- Max positive: 0.021402  Max negative: -0.010794
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0209  (orig=0.3886 → mod=0.3677)
+  - education_7th-8th: drop=+0.0130  (orig=0.3886 → mod=0.3756)
+  - sex_Male: drop=-0.0102  (orig=0.3886 → mod=0.3988)
+  - age: drop=-0.0081  (orig=0.3886 → mod=0.3967)
+  - relationship_Husband: drop=-0.0065  (orig=0.3886 → mod=0.3951)
+  - native-country_United-States: drop=-0.0041  (orig=0.3886 → mod=0.3926)
+  - occupation_Transport-moving: drop=+0.0033  (orig=0.3886 → mod=0.3853)
+  - marital-status_Married-civ-spouse: drop=-0.0029  (orig=0.3886 → mod=0.3915)
+  - workclass_Private: drop=+0.0028  (orig=0.3886 → mod=0.3858)
+  - fnlwgt: drop=+0.0008  (orig=0.3886 → mod=0.3878)
+- Max prob_drop: 0.020895  Max prob_increase: -0.010229
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income <=50K in the Adult dataset based on domain knowledge?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 61}, {"feature_key": "education-num", "action": "change", "new_value": 4}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult dataset, income ≤50K is often associated with lower education levels, lower occupational prestige, and fewer working hours. Age can indirectly affect income, but in this case, the individual is 61 years old, which may correlate with retirement or reduced earnings. Education-num=4 (7th-8th grade) is a low level of education, strongly linked to lower income. Occupation such as 'Transport-moving' is typically non-managerial and lower-wage. Married-civ-spouse (relationship) suggests stable employment but does not necessarily boost income. Hours-per-week of 40 are moderate and not exceptional, not supporting higher income. These features collectively align with demographic and socioeconomic patterns observed in the dataset where lower education and lower occupational status are correlated with income ≤50K.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: How might the combination of education-num=4 (7th-8th), age=61, and occupation=Transport-moving influence the model's decision to classify as <=50K?
+- Status: Success
+- Explanation: The model's prediction of <=50K is strongly influenced by the combination of low educational attainment (education-num=4, corresponding to 7th-8th grade), a relatively older age (61 years), and a lower-paying occupation (Transport-moving). Individuals with only a 7th-8th grade education typically have limited access to higher-paying job opportunities and are more likely to work in manual or service-based roles with modest earnings. The age of 61 may suggest the individual is nearing retirement or has been in the workforce for a long time without career progression, which correlates with lower earning potential. The occupation 'Transport-moving' is typically associated with lower wages compared to managerial or professional roles. These socioeconomic factors collectively contribute to a profile that the model associates with lower income, supporting the classification of <=50K. While the individual is male, White, and married, these background attributes are less discriminative in this context than education, age, and occupation. Together, these features form a strong, plausible signal for low-income prediction.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the relative importance of categorical features (e.g., workclass, race, marital-status) vs. continuous features (e.g., age, education-num) in influencing income class decisions based on historical trends in the dataset?
+- Status: Success
+- findings: [{"feature_type": "categorical", "priority": 1, "reason": "Categorical features such as workclass, occupation, marital-status, race, and sex historically exhibit strong discriminative power in income prediction models. These variables capture societal and structural factors (e.g., employment sectors, family structure, demographic biases) that are tightly linked to income levels. In particular, features like 'workclass' and 'occupation' show high variance in income outcomes\u2014e.g., 'Private' vs. 'Self-emp-not-inc' or 'Prof-specialty' vs. 'Farming-fishing'\u2014and are often among the top predictors in classification tasks. The model's prediction of '\u226450K' with a 'Private' workclass, 'Transport-moving' occupation, and 'Husband' relationship aligns with known patterns where lower-earning, stable, non-management roles correlate with low income."}, {"feature_type": "continuous", "priority": 2, "reason": "Continuous features such as age, education-num, and hours-per-week offer incremental predictive value, especially for modeling income gradients. For example, higher education-num (e.g., college or graduate degree) typically correlates with higher income, and increasing age may suggest a longer work history and potential for higher earnings. However, their impact is generally more subtle and additive compared to categorical variables. In this case, the individual has age=61 and education-num=4 (7th-8th grade), which are both below average for higher-income groups. While these values contribute to the prediction, they are less decisive than categorical assignments like occupation or marital status."}]
+- Explanation: In income prediction tasks, categorical features have historically shown stronger and more immediate impact due to their ability to encode structural and socioeconomic signals—such as job type, race, and marital status—that directly relate to income distribution. These features often capture group-level disparities and are robust across diverse populations. Continuous features provide complementary information, such as the potential for higher earnings with more education or experience, but their influence is typically less discrete and more linear. Therefore, categorical features are more dominant in shaping income class decisions, particularly in a binary classification like ≤50K vs. >50K.
+- Confidence: 0.96
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

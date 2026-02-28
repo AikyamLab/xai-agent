@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (81.31%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.8130893111228943}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.1869106888771057}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=113466, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Craft-repair, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010685).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0538
+  - native-country_Vietnam: +0.0300
+  - native-country_Trinadad&Tobago: +0.0291
+  - sex_Male: +0.0199
+  - native-country_Haiti: +0.0190
+- Top negative features (shap_value):
+  - fnlwgt: -0.0538
+  - native-country_Yugoslavia: -0.0300
+  - native-country_United-States: -0.0291
+  - native-country_Cambodia: -0.0199
+  - native-country_Holand-Netherlands: -0.0190
+- Max positive: 0.053839  Max negative: -0.053839
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0107  (orig=0.4534 → mod=0.4427)
+  - relationship_Not-in-family: drop=+0.0081  (orig=0.4534 → mod=0.4453)
+  - marital-status_Never-married: drop=+0.0064  (orig=0.4534 → mod=0.4470)
+  - occupation_Craft-repair: drop=+0.0052  (orig=0.4534 → mod=0.4482)
+  - sex_Male: drop=-0.0039  (orig=0.4534 → mod=0.4574)
+  - race_White: drop=-0.0025  (orig=0.4534 → mod=0.4559)
+  - education_HS-grad: drop=+0.0020  (orig=0.4534 → mod=0.4514)
+  - workclass_Private: drop=-0.0018  (orig=0.4534 → mod=0.4552)
+  - education-num: drop=+0.0017  (orig=0.4534 → mod=0.4517)
+  - capital-gain: drop=+0.0013  (orig=0.4534 → mod=0.4521)
+- Max prob_drop: 0.010685  Max prob_increase: -0.003949
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical role of 'relationship' in predicting income in the Adult dataset?
+- Status: Success
+- findings: "The 'relationship' feature often encodes household dynamics (e.g., 'Not-in-family' vs. 'Husband'), which correlates with income due to patterns like marital status and economic dependency."
+- Explanation: In the Adult dataset, the 'relationship' feature reflects the individual's role within a household, such as 'Husband', 'Wife', or 'Not-in-family'. These roles often correlate with marital status, dependency, and household economic structure, which in turn influence income levels. For example, individuals categorized as 'Husband' are often primary earners, while 'Not-in-family' may include single, non-dependent individuals with potentially lower income. Thus, 'relationship' serves as a proxy for socio-economic role and contributes to income prediction.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Given that the current prediction is 0.81 to be <=50K and 'relationship' is 'Not-in-family', how might removal affect the prediction?
+- Status: Success
+- findings: "Removing 'relationship' might reduce the model's confidence in the <=50K class, potentially shifting the probability toward >50K if other features collectively suggest higher income potential."
+- Explanation: The 'relationship' feature, particularly when set to 'Not-in-family', may contribute to the model's inference that the individual is less likely to have high income, especially in the context of employment status (Private), education (HS-grad), and occupation (Craft-repair). Removing this feature could eliminate a key indicator of social or household status, reducing the model's ability to capture potential income-related patterns. However, with other features (e.g., age 23, male, low education, no capital gains) remaining consistent, the overall profile still aligns with lower income. The removal may lead to a slight confidence decrease in the <=50K prediction and a marginal increase in the >50K probability due to reduced feature support for the low-income assumption.
+- Confidence: 0.68
+
+### COMPARISON Task
+- Query: Compare the impact of 'relationship' to 'marital-status' when both are related to household structure.
+- Status: Success
+- findings: "Since 'relationship' and 'marital-status' are similar in meaning, removing 'relationship' could diminish the model's ability to infer household composition, possibly weakening the prediction bias toward <=50K."
+- Explanation: Both 'relationship' and 'marital-status' provide information about an individual's household role and social structure. While 'marital-status' indicates the marital condition (e.g., Never-married, Married), 'relationship' describes the person's role within a household (e.g., Not-in-family, Husband). These features are semantically related and may capture overlapping information. Removing 'relationship' may reduce the model's capacity to disambiguate household dynamics, potentially affecting the prediction, especially since the current prediction is already biased toward <=50K (81.31% confidence). The model may lose some discriminative power relevant to income estimation, particularly for individuals in non-traditional household structures.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical role of 'relationship' in predicting income in the Adult dataset?
+- Status: Success
+- findings: "The 'relationship' feature often encodes household dynamics (e.g., 'Not-in-family' vs. 'Husband'), which correlates with income due to patterns like marital status and economic dependency."
+- Explanation: In the Adult dataset, the 'relationship' feature reflects the individual's role within a household, such as 'Husband', 'Wife', or 'Not-in-family'. These roles often correlate with marital status, dependency, and household economic structure, which in turn influence income levels. For example, individuals categorized as 'Husband' are often primary earners, while 'Not-in-family' may include single, non-dependent individuals with potentially lower income. Thus, 'relationship' serves as a proxy for socio-economic role and contributes to income prediction.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Given that the current prediction is 0.81 to be <=50K and 'relationship' is 'Not-in-family', how might removal affect the prediction?
+- Status: Success
+- findings: "Removing 'relationship' might reduce the model's confidence in the <=50K class, potentially shifting the probability toward >50K if other features collectively suggest higher income potential."
+- Explanation: The 'relationship' feature, particularly when set to 'Not-in-family', may contribute to the model's inference that the individual is less likely to have high income, especially in the context of employment status (Private), education (HS-grad), and occupation (Craft-repair). Removing this feature could eliminate a key indicator of social or household status, reducing the model's ability to capture potential income-related patterns. However, with other features (e.g., age 23, male, low education, no capital gains) remaining consistent, the overall profile still aligns with lower income. The removal may lead to a slight confidence decrease in the <=50K prediction and a marginal increase in the >50K probability due to reduced feature support for the low-income assumption.
+- Confidence: 0.68
+
+### COMPARISON Task
+- Query: Compare the impact of 'relationship' to 'marital-status' when both are related to household structure.
+- Status: Success
+- findings: "Since 'relationship' and 'marital-status' are similar in meaning, removing 'relationship' could diminish the model's ability to infer household composition, possibly weakening the prediction bias toward <=50K."
+- Explanation: Both 'relationship' and 'marital-status' provide information about an individual's household role and social structure. While 'marital-status' indicates the marital condition (e.g., Never-married, Married), 'relationship' describes the person's role within a household (e.g., Not-in-family, Husband). These features are semantically related and may capture overlapping information. Removing 'relationship' may reduce the model's capacity to disambiguate household dynamics, potentially affecting the prediction, especially since the current prediction is already biased toward <=50K (81.31% confidence). The model may lose some discriminative power relevant to income estimation, particularly for individuals in non-traditional household structures.
+- Confidence: 0.85
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

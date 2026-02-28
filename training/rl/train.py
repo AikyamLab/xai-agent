@@ -49,7 +49,7 @@ from typing import List, Optional
 PROJECT_ROOT = Path(__file__).parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from training.rl.dataset   import XAIRLDataset
+from training.rl.dataset   import XAIRLDataset, parse_data_range
 from training.rl.env       import XAIRLEnv
 from training.rl.rl_vlm    import RLSamplingVLM
 from training.rl.rollout   import do_group_rollout
@@ -107,6 +107,17 @@ def parse_args():
                    help="Question types to load, e.g. --q_types 1 2 3. None → all Q1-Q10.")
     p.add_argument("--max_questions", type=int, default=None,
                    help="Cap dataset size (useful for debugging)")
+    p.add_argument("--per_dataset_q_types", type=str, nargs="*", default=None,
+                   metavar="DATASET:Q1,Q2,...",
+                   help="Per-dataset q_type overrides, e.g. "
+                        "cancer_tabnn:1,3,5,6,7,9 cancer_2layernn:1,3,5,6,7,9")
+    p.add_argument("--data_range", type=str, default="all",
+                   help="Per-dataset question range applied before merging. "
+                        "'all' → no limit (default). "
+                        "'START-END' → take questions at interleaved indices "
+                        "START..END-1 from each dataset (balanced across Q-types). "
+                        "E.g. '0-100' uses 20 questions per Q-type per dataset "
+                        "when there are 5 Q-types.")
     p.add_argument("--eval_ratio", type=float, default=0.1,
                    help="Fraction of questions held out for eval")
 
@@ -145,6 +156,14 @@ def parse_args():
     p.add_argument("--lr",             type=float, default=1e-5)
     p.add_argument("--kl_coef",        type=float, default=0.0)
     p.add_argument("--num_rollouts",   type=int,   default=4)
+    p.add_argument("--high_k_qtypes",  type=int,   nargs="+", default=[1, 3, 8, 9],
+                   help="Q-types that use --high_k rollouts instead of --num_rollouts. "
+                        "Default: 1 3 8 9 (hard tabular types).")
+    p.add_argument("--high_k",         type=int,   default=8,
+                   help="Rollout count for Q-types listed in --high_k_qtypes. Default: 8.")
+    p.add_argument("--no-stratify",    dest="stratify_by_qtype",
+                   action="store_false", default=True,
+                   help="Disable stratified-by-Q-type batch sampling (use plain shuffle).")
     p.add_argument("--batch_size",     type=int,   default=4)
     p.add_argument("--num_epochs",     type=int,   default=3)
     p.add_argument("--max_new_tokens", type=int,   default=512)
@@ -152,6 +171,20 @@ def parse_args():
     p.add_argument("--save_every",     type=int,   default=50)
     p.add_argument("--eval_every",     type=int,   default=20)
     p.add_argument("--seed",           type=int,   default=42)
+    p.add_argument("--num_workers",    type=int,   default=1,
+                   help="Parallel rollout workers per batch step (default: 1 = sequential). "
+                        "Each worker gets its own independent env from a pre-created pool. "
+                        "Recommend: set equal to batch_size for full question-level parallelism.")
+    p.add_argument("--parallel-rollouts", dest="parallel_rollouts",
+                   action="store_true", default=False,
+                   help="Run K rollouts per question in parallel. Each rollout gets its own "
+                        "env from a pre-created rollout pool. Pool size is controlled by "
+                        "--max-rollout-workers (0 = auto: batch_size × max_K).")
+    p.add_argument("--max-rollout-workers", dest="max_rollout_workers",
+                   type=int, default=0,
+                   help="Rollout env pool size when --parallel-rollouts is set. "
+                        "0 = auto (batch_size × max_K). Caps total concurrent Tinker "
+                        "API calls from rollouts. E.g. 64 = at most 64 simultaneous rollouts.")
 
     return p.parse_args()
 
@@ -164,12 +197,28 @@ async def main():
     random.seed(args.seed)
 
     # ── 1. Load dataset ───────────────────────────────────────────────────────
+    data_range = parse_data_range(args.data_range)
+    if data_range is not None:
+        start, end = data_range
+        print(f"  [data_range] Using questions {start}–{end-1} per dataset "
+              f"(balanced across Q-types, ~{(end-start)//max(len(args.q_types or [1]),1)} per Q-type).")
+
+    # Parse per_dataset_q_types: ["cancer_tabnn:1,3,5,6,7,9", ...] → dict
+    per_dataset_q_types = None
+    if args.per_dataset_q_types:
+        per_dataset_q_types = {}
+        for entry in args.per_dataset_q_types:
+            ds_name, qt_str = entry.split(":")
+            per_dataset_q_types[ds_name.strip()] = [int(x) for x in qt_str.split(",")]
+        print(f"  [per_dataset_q_types] {per_dataset_q_types}")
+
     if len(args.dataset_name) == 1:
         dataset = XAIRLDataset.from_dataset_name(
             dataset_name=args.dataset_name[0],
             mode=args.mode,
             q_types=args.q_types,
             max_questions=args.max_questions,
+            data_range=data_range,
             shuffle=True,
             seed=args.seed,
         )
@@ -178,7 +227,9 @@ async def main():
             dataset_names=args.dataset_name,
             mode=args.mode,
             q_types=args.q_types,
+            per_dataset_q_types=per_dataset_q_types,
             max_questions=args.max_questions,
+            data_range=data_range,
             shuffle=True,
             seed=args.seed,
         )
@@ -227,11 +278,44 @@ async def main():
         faithfulness_threshold=args.faithfulness_threshold,
     )
 
+    # ── 6b. Env factory for parallel rollout worker pool ──────────────────────
+    # Each worker in the pool owns an independent (RLSamplingVLM + pipeline +
+    # env) triple.  They all share the same `sampling_client` reference (safe:
+    # Tinker's client is I/O-bound and thread-safe) and `tokenizer` (read-only).
+    # The mutable per-episode state (_transitions list) lives inside each
+    # worker's own RLSamplingVLM instance, so there is no shared mutable state.
+    def make_env() -> XAIRLEnv:
+        """Create a fresh (rl_vlm, pipeline, env) for one rollout pool slot."""
+        w_rl_vlm = RLSamplingVLM(
+            sampling_client=sampling_client,   # updated per-rollout by do_group_rollout
+            tokenizer=tokenizer,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+        )
+        w_pipeline = XAIPipelineV2(
+            vlm=w_rl_vlm,
+            output_dir=args.output_dir,
+            dataset_dir=args.dataset_dir,
+            models_dir=args.models_dir,
+            mode=args.mode,
+        )
+        return XAIRLEnv(
+            pipeline=w_pipeline,
+            rl_vlm=w_rl_vlm,
+            enable_improvement=args.enable_improvement,
+            enable_sf=args.enable_sf,
+            sf_max_samples=args.sf_max_samples,
+            faithfulness_threshold=args.faithfulness_threshold,
+        )
+
     # ── 7. Build GRPO config + trainer ────────────────────────────────────────
+    rollouts_override = {qt: args.high_k for qt in (args.high_k_qtypes or [])}
     cfg = GRPOConfig(
         learning_rate=args.lr,
         kl_coef=args.kl_coef,
         num_rollouts=args.num_rollouts,
+        rollouts_override=rollouts_override,
+        stratify_by_qtype=args.stratify_by_qtype,
         max_new_tokens=args.max_new_tokens,
         temperature=args.temperature,
         batch_size=args.batch_size,
@@ -240,43 +324,98 @@ async def main():
         eval_every=args.eval_every,
         lora_rank=args.lora_rank,
         output_dir=args.output_dir,
+        num_workers=args.num_workers,
+        parallel_rollouts=args.parallel_rollouts,
+        max_rollout_workers=args.max_rollout_workers,
     )
+    # env_factory is needed whenever any form of parallelism uses a pool:
+    # - batch parallelism (num_workers > 1)
+    # - rollout parallelism (parallel_rollouts=True, even with num_workers=1)
+    need_factory = args.num_workers > 1 or args.parallel_rollouts
     trainer = GRPOTrainer(
         training_client=training_client,
         tokenizer=tokenizer,
         cfg=cfg,
+        env_factory=make_env if need_factory else None,
     )
 
     # ── 8. Eval callback ──────────────────────────────────────────────────────
     async def eval_fn(training_client, step, sampling_client):
-        """Near-greedy eval using the current policy snapshot."""
+        """
+        Near-greedy eval using the current policy snapshot.
+
+        Returns a metrics dict that grpo_trainer writes to grpo_log.jsonl
+        with type="eval".  Per-question rewards and q_type breakdown are
+        included so convergence can be analysed per question type.
+        """
+        import math as _math
+        from training.rl.rollout import do_group_rollout as _rollout
+
         eval_questions = list(eval_ds.questions)[:min(8, len(eval_ds))]
-        rewards = []
+        rewards   = []
+        per_q     = []   # list of {q_type, row_no, reward, n_transitions}
+        n_errors  = 0
 
         original_temp = env.rl_vlm.temperature
         env.rl_vlm.temperature = 0.1   # near-greedy for eval
 
         for question in eval_questions:
             try:
-                from training.rl.rollout import do_group_rollout
-                group = do_group_rollout(
+                group = _rollout(
                     env=env,
                     question=question,
                     sampling_client=sampling_client,
                     num_rollouts=1,
                 )
-                rewards.append(group.trajectories[0].total_reward)
+                traj   = group.trajectories[0]
+                reward = traj.total_reward
+                rewards.append(reward)
+                per_q.append({
+                    "q_type":       question.get("q_type"),
+                    "row_no":       question.get("row_no"),
+                    "dataset":      question.get("dataset_name"),
+                    "reward":       round(reward, 6),
+                    "n_transitions": len(traj.transitions),
+                })
             except Exception as e:
                 print(f"  Eval error: {e}")
+                n_errors += 1
 
         env.rl_vlm.temperature = original_temp
 
-        if rewards:
-            print(
-                f"  [Eval step={step}] "
-                f"mean_reward={sum(rewards)/len(rewards):.4f}  "
-                f"n={len(rewards)}"
-            )
+        if not rewards:
+            return None
+
+        mean_r = sum(rewards) / len(rewards)
+        var_r  = sum((r - mean_r) ** 2 for r in rewards) / len(rewards)
+        std_r  = _math.sqrt(var_r)
+
+        # Per-q_type breakdown
+        by_qtype: dict = {}
+        for entry in per_q:
+            qt = entry["q_type"]
+            by_qtype.setdefault(qt, []).append(entry["reward"])
+        qtype_means = {
+            f"qtype_{qt}_mean_reward": round(sum(v) / len(v), 6)
+            for qt, v in by_qtype.items()
+        }
+
+        print(
+            f"  [Eval step={step}] "
+            f"mean={mean_r:.4f}  std={std_r:.4f}  "
+            f"n={len(rewards)}  errors={n_errors}"
+        )
+
+        return {
+            "eval_mean_reward": mean_r,
+            "eval_std_reward":  std_r,
+            "eval_max_reward":  max(rewards),
+            "eval_min_reward":  min(rewards),
+            "eval_n":           len(rewards),
+            "eval_n_errors":    n_errors,
+            "eval_per_question": per_q,
+            **qtype_means,
+        }
 
     # ── 9. Train ──────────────────────────────────────────────────────────────
     await trainer.fit(

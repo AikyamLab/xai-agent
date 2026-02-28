@@ -1,0 +1,67 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach leverages both autonomous reasoning and external XAI tools to ensure robustness in identifying features that distinguish the top-1 prediction (benign) from the top-2 alternative (malignant). Autonomous analysis provides initial insights into class-specific feature tendencies, while tools like SHAP and LIME offer quantitative, model-agnostic contrastive attribution, ensuring both conceptual and empirical validation of distinctive features.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Which features are typically associated with benign tumors versus malignant tumors in the given dataset, based on the input feature values and model behavior?",
+      "expected_output": "List of features likely to differentiate benign from malignant predictions based on known biological patterns (e.g., smaller size, lower texture, reduced concavity)"
+    },
+    {
+      "task_type": "grounding",
+      "query": "Given the input values, identify which features are unusually high or low compared to typical benign or malignant cases, and highlight such discrepancies.",
+      "expected_output": "Feature names and values that deviate significantly from class-specific norms"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Based on the model\u2019s confidence and probability distribution, what types of feature changes would most likely shift the prediction from benign to malignant?",
+      "expected_output": "Explanation of feature directions (e.g., increased area or concavity) that would lead to higher malignancy probability"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "lime": {
+        "target_class": "top1"
+      },
+      "sensitivity_analysis": {
+        "target_class": "contrastive"
+      }
+    },
+    "reasoning": "SHAP is prioritized for contrastive analysis because it computes feature contributions in a game-theoretic way, directly comparing how features drive the prediction toward benign vs malignant. LIME provides local interpretability around the input instance, reinforcing the stability of the explanation. Sensitivity analysis confirms robustness by evaluating how prediction changes when features are removed, ensuring no single feature dominates the outcome without empirical grounding."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP is prioritized for contrastive analysis because it computes feature contributions in a game-theoretic way, directly comparing how features drive the prediction toward benign vs malignant. LIME provides local interpretability around the input instance, reinforcing the stability of the explanation. Sensitivity analysis confirms robustness by evaluating how prediction changes when features are removed, ensuring no single feature dominates the outcome without empirical grounding.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP is prioritized for contrastive analysis because it computes feature contributions in a game-theoretic way, directly comparing how features drive the prediction toward benign vs malignant. LIME provides local interpretability around the input instance, reinforcing the stability of the explanation. Sensitivity analysis confirms robustness by evaluating how prediction changes when features are removed, ensuring no single feature dominates the outcome without empirical grounding.",
+      "parameters": {
+        "target_class": "top1"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP is prioritized for contrastive analysis because it computes feature contributions in a game-theoretic way, directly comparing how features drive the prediction toward benign vs malignant. LIME provides local interpretability around the input instance, reinforcing the stability of the explanation. Sensitivity analysis confirms robustness by evaluating how prediction changes when features are removed, ensuring no single feature dominates the outcome without empirical grounding.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    }
+  ]
+}

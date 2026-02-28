@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (62.92%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=33, workclass=Local-gov, fnlwgt=255058, education=Bachelors, education-num=13, marital-status=Divorced, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=2339, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss > -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.030726).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1001
+  - hours-per-week: +0.0309
+  - education_5th-6th: +0.0133
+  - native-country_Yugoslavia: +0.0111
+  - native-country_Thailand: +0.0037
+- Top negative features (shap_value):
+  - workclass_Private: -0.1001
+  - capital-loss: -0.0309
+  - education_1st-4th: -0.0133
+  - native-country_Vietnam: -0.0111
+  - native-country_Taiwan: -0.0037
+- Max positive: 0.100069  Max negative: -0.100069
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss > -0.22: +0.0731
+  - native-country_Poland <= 0.00: +0.0625
+  - native-country_Scotland <= 0.00: +0.0606
+  - native-country_Peru <= 0.00: +0.0404
+  - native-country_Columbia <= 0.00: +0.0397
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0546
+  - marital-status_Divorced > 0.00: -0.0439
+  - occupation_Armed-Forces <= 0.00: -0.0201
+- Max positive: 0.073143  Max negative: -0.054558
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0280
+  - education-num: +0.0080
+  - sex_Male: +0.0067
+  - native-country_United-States: +0.0048
+  - race_White: +0.0041
+- Top negative features (attribution_score):
+  - marital-status_Divorced: -0.0087
+  - occupation_Prof-specialty: -0.0052
+  - relationship_Own-child: -0.0046
+  - age: -0.0008
+  - hours-per-week: -0.0005
+- Max positive: 0.028018  Max negative: -0.008657
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0307  (orig=0.6523 → mod=0.6216)
+  - marital-status_Divorced: drop=-0.0085  (orig=0.6523 → mod=0.6608)
+  - education-num: drop=+0.0083  (orig=0.6523 → mod=0.6440)
+  - sex_Male: drop=+0.0061  (orig=0.6523 → mod=0.6463)
+  - race_White: drop=+0.0038  (orig=0.6523 → mod=0.6485)
+  - native-country_United-States: drop=+0.0035  (orig=0.6523 → mod=0.6488)
+  - occupation_Prof-specialty: drop=-0.0035  (orig=0.6523 → mod=0.6558)
+  - relationship_Own-child: drop=-0.0028  (orig=0.6523 → mod=0.6551)
+  - workclass_Local-gov: drop=+0.0019  (orig=0.6523 → mod=0.6504)
+  - fnlwgt: drop=-0.0004  (orig=0.6523 → mod=0.6527)
+- Max prob_drop: 0.030726  Max prob_increase: -0.008537
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'workclass=Local-gov' or 'occupation=Prof-specialty' be semantically disconnected from the true class <=50K despite having high model attribution?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: The feature 'workclass=Local-gov' and 'occupation=Prof-specialty' may appear to have high model attribution due to correlation or feature engineering biases, but they are semantically disconnected from the true class <=50K. In the Adult Income dataset, 'Local-gov' workers are typically associated with public sector employment, which may be correlated with higher income, but in practice, such individuals often have lower wages due to administrative or public-sector pay scales. Similarly, 'Prof-specialty' may be a high-skill occupation, but in training data, it is often paired with low-income outcomes if over-represented in specific demographic subsets (e.g., divorced, single-parent, or low-education). These feature-value combinations can be spurious because they do not inherently reflect income level but are instead affected by confounding variables like marital status, education, or capital losses. The model may have picked up these patterns due to data leakage or co-occurrence with other features rather than causal relevance.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the relative importance of demographic features (e.g., age, sex, race) versus socioeconomic features (e.g., education-num, fnlwgt) in the context of predicting <=50K income.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "reason": "Age is a demographic feature that correlates with income trends, particularly in labor markets. While the individual is 33, which is within a typical working age, age alone does not strongly predict income level. However, it contributes to demographic patterns and may interact with education or work experience."}, {"feature_key": "sex", "action": "relevant", "reason": "Sex is a critical demographic factor in income prediction. The model predicted >50K for a male individual, but the true label was <=50K. In the dataset, males are often overrepresented in higher-income groups, so this feature carries high demographic importance and may be a confounding factor in classification."}, {"feature_key": "race", "action": "relevant", "reason": "Race, especially 'White', has historically correlated with higher income levels in the dataset. This feature is highly relevant in demographic analysis and may influence model bias. Its presence increases the risk of misclassification if not properly accounted for."}, {"feature_key": "education-num", "action": "relevant", "reason": "Education level (measured numerically) is strongly correlated with income. A 'Bachelors' degree (education-num=13) indicates higher educational attainment, which typically correlates with higher income. This feature is semantically central and must be considered pivotal in income prediction."}, {"feature_key": "hours-per-week", "action": "relevant", "reason": "Hours per week reflects work effort and can influence income. At 40 hours, this is a standard full-time schedule, and while not extreme, it does not strongly support a >50K prediction unless combined with other factors."}, {"feature_key": "capital-gain", "action": "irrelevant", "reason": "Capital gain is 0, which is common and not directly tied to a person's income level in low-earning cases. Since no gains are reported, this value does not contribute to the prediction beyond noise or chance correlation."}, {"feature_key": "capital-loss", "action": "spurious", "reason": "A capital loss of 2339 is unusual and possibly anomalous. It does not directly relate to income and may be a result of data noise or mislabeling. This feature appears to be correlated by chance and not semantically meaningful in income classification."}, {"feature_key": "fnlwgt", "action": "irrelevant", "reason": "Final weight (fnlwgt) is a sampling weight, not a direct predictor of income. It reflects survey weights and does not correlate with actual income levels. Thus, it is spurious in classification tasks."}, {"feature_key": "workclass", "action": "moderately relevant", "reason": "Workclass ('Local-gov') may indicate public sector employment, which often has lower income levels. This feature is relevant but less influential than education or sex. It may support the <=50K prediction."}, {"feature_key": "marital-status", "action": "moderately relevant", "reason": "Being 'Divorced' may be associated with lower household income, but this depends on income structure. Still, it is a demographic variable that may contribute to income modeling in certain contexts."}, {"feature_key": "occupation", "action": "relevant", "reason": "Prof-specialty suggests a high-skill, specialized job, which typically correlates with higher income. However, in this case, the model incorrectly assigned >50K when the true label was <=50K, suggesting that this feature alone is not sufficient or may be misaligned with actual pay in this dataset."}, {"feature_key": "relationship", "action": "irrelevant", "reason": "Relationship status ('Own-child') may imply lower household income, but it is a proxy feature that depends on other variables. It does not carry strong predictive power alone and appears spurious in this context."}, {"feature_key": "native-country", "action": "irrelevant", "reason": "Native-country='United-States' is common and not strongly predictive of income in this dataset. All U.S. individuals are included, so this feature does not introduce meaningful variation."}]
+- Explanation: Demographic features such as sex, race, age, and marital-status are strong drivers of income disparities in the dataset and are semantically meaningful. Education-num is a key socioeconomic indicator directly tied to income levels. Features like capital-loss, fnlwgt, and native-country are either noise, proxies, or not linked to actual earnings. The model's misprediction (predicting >50K for <=50K) may stem from overestimating the impact of socioeconomic features (e.g., education, occupation) while underweighting or misinterpreting demographic signals (e.g., sex, race) that could suppress income predictions. Capital-loss and fnlwgt appear to be spurious or correlated by chance, potentially contributing to model drift or error.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'workclass=Local-gov' or 'occupation=Prof-specialty' be semantically disconnected from the true class <=50K despite having high model attribution?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: The feature 'workclass=Local-gov' and 'occupation=Prof-specialty' may appear to have high model attribution due to correlation or feature engineering biases, but they are semantically disconnected from the true class <=50K. In the Adult Income dataset, 'Local-gov' workers are typically associated with public sector employment, which may be correlated with higher income, but in practice, such individuals often have lower wages due to administrative or public-sector pay scales. Similarly, 'Prof-specialty' may be a high-skill occupation, but in training data, it is often paired with low-income outcomes if over-represented in specific demographic subsets (e.g., divorced, single-parent, or low-education). These feature-value combinations can be spurious because they do not inherently reflect income level but are instead affected by confounding variables like marital status, education, or capital losses. The model may have picked up these patterns due to data leakage or co-occurrence with other features rather than causal relevance.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the relative importance of demographic features (e.g., age, sex, race) versus socioeconomic features (e.g., education-num, fnlwgt) in the context of predicting <=50K income.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "reason": "Age is a demographic feature that correlates with income trends, particularly in labor markets. While the individual is 33, which is within a typical working age, age alone does not strongly predict income level. However, it contributes to demographic patterns and may interact with education or work experience."}, {"feature_key": "sex", "action": "relevant", "reason": "Sex is a critical demographic factor in income prediction. The model predicted >50K for a male individual, but the true label was <=50K. In the dataset, males are often overrepresented in higher-income groups, so this feature carries high demographic importance and may be a confounding factor in classification."}, {"feature_key": "race", "action": "relevant", "reason": "Race, especially 'White', has historically correlated with higher income levels in the dataset. This feature is highly relevant in demographic analysis and may influence model bias. Its presence increases the risk of misclassification if not properly accounted for."}, {"feature_key": "education-num", "action": "relevant", "reason": "Education level (measured numerically) is strongly correlated with income. A 'Bachelors' degree (education-num=13) indicates higher educational attainment, which typically correlates with higher income. This feature is semantically central and must be considered pivotal in income prediction."}, {"feature_key": "hours-per-week", "action": "relevant", "reason": "Hours per week reflects work effort and can influence income. At 40 hours, this is a standard full-time schedule, and while not extreme, it does not strongly support a >50K prediction unless combined with other factors."}, {"feature_key": "capital-gain", "action": "irrelevant", "reason": "Capital gain is 0, which is common and not directly tied to a person's income level in low-earning cases. Since no gains are reported, this value does not contribute to the prediction beyond noise or chance correlation."}, {"feature_key": "capital-loss", "action": "spurious", "reason": "A capital loss of 2339 is unusual and possibly anomalous. It does not directly relate to income and may be a result of data noise or mislabeling. This feature appears to be correlated by chance and not semantically meaningful in income classification."}, {"feature_key": "fnlwgt", "action": "irrelevant", "reason": "Final weight (fnlwgt) is a sampling weight, not a direct predictor of income. It reflects survey weights and does not correlate with actual income levels. Thus, it is spurious in classification tasks."}, {"feature_key": "workclass", "action": "moderately relevant", "reason": "Workclass ('Local-gov') may indicate public sector employment, which often has lower income levels. This feature is relevant but less influential than education or sex. It may support the <=50K prediction."}, {"feature_key": "marital-status", "action": "moderately relevant", "reason": "Being 'Divorced' may be associated with lower household income, but this depends on income structure. Still, it is a demographic variable that may contribute to income modeling in certain contexts."}, {"feature_key": "occupation", "action": "relevant", "reason": "Prof-specialty suggests a high-skill, specialized job, which typically correlates with higher income. However, in this case, the model incorrectly assigned >50K when the true label was <=50K, suggesting that this feature alone is not sufficient or may be misaligned with actual pay in this dataset."}, {"feature_key": "relationship", "action": "irrelevant", "reason": "Relationship status ('Own-child') may imply lower household income, but it is a proxy feature that depends on other variables. It does not carry strong predictive power alone and appears spurious in this context."}, {"feature_key": "native-country", "action": "irrelevant", "reason": "Native-country='United-States' is common and not strongly predictive of income in this dataset. All U.S. individuals are included, so this feature does not introduce meaningful variation."}]
+- Explanation: Demographic features such as sex, race, age, and marital-status are strong drivers of income disparities in the dataset and are semantically meaningful. Education-num is a key socioeconomic indicator directly tied to income levels. Features like capital-loss, fnlwgt, and native-country are either noise, proxies, or not linked to actual earnings. The model's misprediction (predicting >50K for <=50K) may stem from overestimating the impact of socioeconomic features (e.g., education, occupation) while underweighting or misinterpreting demographic signals (e.g., sex, race) that could suppress income predictions. Capital-loss and fnlwgt appear to be spurious or correlated by chance, potentially contributing to model drift or error.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

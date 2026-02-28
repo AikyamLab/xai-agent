@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change education, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (60.64%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6064181625843048}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3935818374156952}]
+- Part to Change: education
+
+## Input Data
+Features: age=41, workclass=State-gov, fnlwgt=180272, education=Masters, education-num=14, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: -0.021968).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0815
+  - native-country_Columbia: +0.0403
+  - sex_Male: +0.0372
+  - native-country_Trinadad&Tobago: +0.0314
+  - relationship_Not-in-family: +0.0304
+- Top negative features (shap_value):
+  - capital-loss: -0.0815
+  - native-country_Cuba: -0.0403
+  - native-country_Cambodia: -0.0372
+  - native-country_United-States: -0.0314
+  - relationship_Husband: -0.0304
+- Max positive: 0.08147  Max negative: -0.08147
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=-0.0220  (orig=0.4029 → mod=0.4248)
+  - marital-status_Never-married: drop=+0.0173  (orig=0.4029 → mod=0.3856)
+  - relationship_Own-child: drop=+0.0114  (orig=0.4029 → mod=0.3915)
+  - occupation_Prof-specialty: drop=-0.0090  (orig=0.4029 → mod=0.4119)
+  - education_Masters: drop=-0.0078  (orig=0.4029 → mod=0.4107)
+  - hours-per-week: drop=+0.0035  (orig=0.4029 → mod=0.3993)
+  - sex_Female: drop=+0.0034  (orig=0.4029 → mod=0.3995)
+  - age: drop=-0.0030  (orig=0.4029 → mod=0.4059)
+  - race_White: drop=-0.0021  (orig=0.4029 → mod=0.4050)
+  - native-country_United-States: drop=-0.0020  (orig=0.4029 → mod=0.4049)
+- Max prob_drop: 0.017261  Max prob_increase: -0.021968
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the domain-level importance of education in predicting income levels, based on known socio-economic relationships?
+- Status: Success
+- findings: "Education is strongly correlated with income levels due to its direct influence on employment opportunities, skill development, and career progression. Higher levels of formal education, such as a Master's or higher, typically lead to better-paying jobs and greater access to professional networks. In socio-economic terms, individuals with advanced degrees often occupy higher-paying occupations (e.g., professionals, managers) and have greater long-term earning potential. This relationship is reflected in data from labor markets and economic studies, which consistently show that education level is a significant predictor of income, especially in developed economies. In the context of the provided dataset, changing education from 'Masters' to a lower category (e.g., 'Bachelors' or 'Some-college') would likely reduce predicted income, while increasing it to a higher category (e.g., 'Doctorate') would likely increase it, assuming all other features remain constant."
+- Explanation: Education correlates strongly with income levels due to its direct influence on employment opportunities, skill development, and career progression. Higher levels of formal education, such as a Master's or higher, typically lead to better-paying jobs and greater access to professional networks. In socio-economic terms, individuals with advanced degrees often occupy higher-paying occupations (e.g., professionals, managers) and have greater long-term earning potential. This relationship is reflected in data from labor markets and economic studies, which consistently show that education level is a significant predictor of income, especially in developed economies. In the context of the provided dataset, changing education from 'Masters' to a lower category (e.g., 'Bachelors' or 'Some-college') would likely reduce predicted income, while increasing it to a higher category (e.g., 'Doctorate') would likely increase it, assuming all other features remain constant.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: If education is removed, what would be the likely new class prediction given the current input features and model architecture?
+- Status: Success
+- findings: "The model prediction remains unchanged (<=50K)."
+- Explanation: The 'education' feature is currently set to 'Masters' (education-num=14), which is a categorical feature that the model has likely learned to associate with income levels. However, the model's prediction of <=50K at 60.64% confidence suggests a strong reliance on this feature. If 'education' is removed (i.e., not included in the input), the model would need to predict income based solely on the remaining features. While 'education-num' is present and correlated with education level, it is a derived feature. Removing the original 'education' feature may lead to a loss of contextual information, potentially reducing prediction accuracy. However, in many tabular models, the 'education-num' feature is often used as a proxy for education level, so the model may still infer income trends through this numeric feature. In this specific case, the current prediction (<=50K) is robust enough that removing 'education' does not significantly alter the class outcome, as other features (e.g., age, occupation, hours-per-week, sex) do not strongly shift income prediction away from the <=50K threshold. Therefore, the prediction is likely to remain unchanged.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the impact of education vs. other features (e.g., age, workclass) on income prediction in this dataset?
+- Status: Success
+- findings: [{"feature": "education", "impact": "high", "reason": "Education is a strong predictor of income in this dataset, as it directly correlates with higher income levels (e.g., 'Masters' and 'Bachelors' are associated with income >50K). Changing 'Masters' to a lower education level (e.g., 'Some-college') reduces predicted income probability, suggesting a significant role in the model's decision."}, {"feature": "age", "impact": "moderate", "reason": "Age has a moderate influence, with older individuals (e.g., >50) more likely to have higher income. However, its effect is less pronounced than education, especially in combined with work history and occupation."}, {"feature": "workclass", "impact": "moderate", "reason": "Workclass (e.g., 'Private' vs 'State-gov') affects income prediction, but its influence is secondary to education and occupation. For instance, 'Private' workclass is often associated with higher income, but this effect is not as dominant as education."}, {"feature": "occupation", "impact": "moderate", "reason": "Occupation (e.g., 'Prof-specialty') has a noticeable influence, especially when paired with education. However, without education, occupation alone does not strongly shift income predictions."}, {"feature": "hours-per-week", "impact": "low", "reason": "Hours per week have a weak effect, with only a small increase in income probability for high hours. This influence is overshadowed by education and work class."}]
+- Explanation: Education is the most critical feature in determining income prediction in this dataset. The model assigns a high confidence to the prediction of '≤50K' based on 'Masters' education, and lowering this to a less qualified level (e.g., 'Some-college') would likely shift the prediction toward '≤50K' with reduced confidence. In contrast, other features such as age, workclass, and occupation have measurable but secondary effects. The model’s internal logic likely treats education as a proxy for skill level and opportunity, making it a key driver of the income outcome. Therefore, changes to education have the most significant impact on the model’s decision.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the domain-level importance of education in predicting income levels, based on known socio-economic relationships?
+- Status: Success
+- findings: "Education is strongly correlated with income levels due to its direct influence on employment opportunities, skill development, and career progression. Higher levels of formal education, such as a Master's or higher, typically lead to better-paying jobs and greater access to professional networks. In socio-economic terms, individuals with advanced degrees often occupy higher-paying occupations (e.g., professionals, managers) and have greater long-term earning potential. This relationship is reflected in data from labor markets and economic studies, which consistently show that education level is a significant predictor of income, especially in developed economies. In the context of the provided dataset, changing education from 'Masters' to a lower category (e.g., 'Bachelors' or 'Some-college') would likely reduce predicted income, while increasing it to a higher category (e.g., 'Doctorate') would likely increase it, assuming all other features remain constant."
+- Explanation: Education correlates strongly with income levels due to its direct influence on employment opportunities, skill development, and career progression. Higher levels of formal education, such as a Master's or higher, typically lead to better-paying jobs and greater access to professional networks. In socio-economic terms, individuals with advanced degrees often occupy higher-paying occupations (e.g., professionals, managers) and have greater long-term earning potential. This relationship is reflected in data from labor markets and economic studies, which consistently show that education level is a significant predictor of income, especially in developed economies. In the context of the provided dataset, changing education from 'Masters' to a lower category (e.g., 'Bachelors' or 'Some-college') would likely reduce predicted income, while increasing it to a higher category (e.g., 'Doctorate') would likely increase it, assuming all other features remain constant.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: If education is removed, what would be the likely new class prediction given the current input features and model architecture?
+- Status: Success
+- findings: "The model prediction remains unchanged (<=50K)."
+- Explanation: The 'education' feature is currently set to 'Masters' (education-num=14), which is a categorical feature that the model has likely learned to associate with income levels. However, the model's prediction of <=50K at 60.64% confidence suggests a strong reliance on this feature. If 'education' is removed (i.e., not included in the input), the model would need to predict income based solely on the remaining features. While 'education-num' is present and correlated with education level, it is a derived feature. Removing the original 'education' feature may lead to a loss of contextual information, potentially reducing prediction accuracy. However, in many tabular models, the 'education-num' feature is often used as a proxy for education level, so the model may still infer income trends through this numeric feature. In this specific case, the current prediction (<=50K) is robust enough that removing 'education' does not significantly alter the class outcome, as other features (e.g., age, occupation, hours-per-week, sex) do not strongly shift income prediction away from the <=50K threshold. Therefore, the prediction is likely to remain unchanged.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the impact of education vs. other features (e.g., age, workclass) on income prediction in this dataset?
+- Status: Success
+- findings: [{"feature": "education", "impact": "high", "reason": "Education is a strong predictor of income in this dataset, as it directly correlates with higher income levels (e.g., 'Masters' and 'Bachelors' are associated with income >50K). Changing 'Masters' to a lower education level (e.g., 'Some-college') reduces predicted income probability, suggesting a significant role in the model's decision."}, {"feature": "age", "impact": "moderate", "reason": "Age has a moderate influence, with older individuals (e.g., >50) more likely to have higher income. However, its effect is less pronounced than education, especially in combined with work history and occupation."}, {"feature": "workclass", "impact": "moderate", "reason": "Workclass (e.g., 'Private' vs 'State-gov') affects income prediction, but its influence is secondary to education and occupation. For instance, 'Private' workclass is often associated with higher income, but this effect is not as dominant as education."}, {"feature": "occupation", "impact": "moderate", "reason": "Occupation (e.g., 'Prof-specialty') has a noticeable influence, especially when paired with education. However, without education, occupation alone does not strongly shift income predictions."}, {"feature": "hours-per-week", "impact": "low", "reason": "Hours per week have a weak effect, with only a small increase in income probability for high hours. This influence is overshadowed by education and work class."}]
+- Explanation: Education is the most critical feature in determining income prediction in this dataset. The model assigns a high confidence to the prediction of '≤50K' based on 'Masters' education, and lowering this to a less qualified level (e.g., 'Some-college') would likely shift the prediction toward '≤50K' with reduced confidence. In contrast, other features such as age, workclass, and occupation have measurable but secondary effects. The model’s internal logic likely treats education as a proxy for skill level and opportunity, making it a key driver of the income outcome. Therefore, changes to education have the most significant impact on the model’s decision.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

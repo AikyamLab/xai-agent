@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (58.86%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.4114035964012146}
+
+## Input Data
+Features: age=34, workclass=Private, fnlwgt=163110, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.007096).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0401
+  - workclass_State-gov: +0.0152
+  - native-country_United-States: +0.0130
+  - occupation_Transport-moving: +0.0110
+  - race_Other: +0.0101
+- Top negative features (shap_value):
+  - capital-loss: -0.0401
+  - workclass_Self-emp-not-inc: -0.0152
+  - native-country_Trinadad&Tobago: -0.0130
+  - occupation_Tech-support: -0.0110
+  - race_Black: -0.0101
+- Max positive: 0.040129  Max negative: -0.040129
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - occupation_Priv-house-serv <= 0.00: +0.0599
+  - marital-status_Divorced <= 0.00: +0.0569
+  - native-country_Jamaica <= 0.00: +0.0458
+  - education_1st-4th <= 0.00: +0.0451
+  - native-country_Trinadad&Tobago <= 0.00: +0.0002
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0655
+  - capital-loss <= -0.22: -0.0654
+  - native-country_Japan <= 0.00: -0.0314
+  - native-country_Honduras <= 0.00: -0.0132
+  - marital-status_Married-AF-spouse <= 0.00: -0.0086
+- Max positive: 0.059949  Max negative: -0.065462
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0075
+  - sex_Male: +0.0053
+  - marital-status_Married-civ-spouse: +0.0045
+  - relationship_Husband: +0.0036
+  - native-country_United-States: +0.0036
+- Top negative features (attribution_score):
+  - occupation_Craft-repair: -0.0020
+  - workclass_Private: -0.0017
+  - age: -0.0016
+  - capital-gain: -0.0004
+  - fnlwgt: -0.0004
+- Max positive: 0.007518  Max negative: -0.001987
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0071  (orig=0.6430 → mod=0.6359)
+  - marital-status_Married-civ-spouse: drop=+0.0057  (orig=0.6430 → mod=0.6373)
+  - relationship_Husband: drop=+0.0055  (orig=0.6430 → mod=0.6375)
+  - sex_Male: drop=+0.0045  (orig=0.6430 → mod=0.6386)
+  - occupation_Craft-repair: drop=-0.0042  (orig=0.6430 → mod=0.6473)
+  - native-country_United-States: drop=+0.0026  (orig=0.6430 → mod=0.6404)
+  - education_Bachelors: drop=+0.0022  (orig=0.6430 → mod=0.6408)
+  - workclass_Private: drop=-0.0017  (orig=0.6430 → mod=0.6447)
+  - hours-per-week: drop=+0.0016  (orig=0.6430 → mod=0.6414)
+  - race_White: drop=+0.0014  (orig=0.6430 → mod=0.6416)
+- Max prob_drop: 0.007096  Max prob_increase: -0.004248
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are known in the dataset to be strongly correlated with income >50K (e.g., education, age, workclass, occupation)?
+- Status: Success
+- findings: ["education", "age", "occupation", "workclass", "hours-per-week"]
+- Explanation: Based on domain knowledge and established datasets such as the UCI Adult Income dataset, several features are strongly correlated with income >50K. 'Education' is a strong predictor because higher education levels (e.g., Bachelors, Masters, Prof-school) are typically associated with higher income. 'Age' shows a moderate positive correlation, as older individuals often have more work experience and better earnings. 'Occupation' plays a key role, with managerial and professional roles (e.g., 'Exec-managerial', 'Prof-specialty') being linked to higher income. 'Workclass' indicates employment type; for example, 'Private' sector workers often earn more than government or self-employed. 'Hours-per-week' is positively correlated with higher income, as individuals working longer hours tend to earn more. These features are consistently found in studies analyzing income prediction in tabular data.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the values of the input features differ between the top-1 (>50K) and top-2 (<=50K) predictions when considering only the given input?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}]
+- Explanation: Although only one input instance is available in the current context (with income >50K), the task requires identifying features that distinguish the top prediction from the next-best alternative (<=50K). Based on known patterns in datasets like the Adult Income dataset, individuals predicted to earn >50K tend to have higher education levels (higher education-num), older age, longer working hours, higher capital gains, and occupations in higher-income brackets such as 'Exec-managerial'. The current input has a moderate education level (13), age of 34, 45 hours/week, and zero capital gain. To contrast this with a hypothetical <=50K case, we consider changes that are typical of the low-income group: lower education-num, younger age, fewer hours, no capital gain, and lower-status occupations. These changes reflect the typical feature differences observed in such models. Therefore, the most distinguishing features are age, education-num, hours-per-week, capital-gain, and occupation, with the latter being particularly significant due to occupation-level income disparities.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are known in the dataset to be strongly correlated with income >50K (e.g., education, age, workclass, occupation)?
+- Status: Success
+- findings: ["education", "age", "occupation", "workclass", "hours-per-week"]
+- Explanation: Based on domain knowledge and established datasets such as the UCI Adult Income dataset, several features are strongly correlated with income >50K. 'Education' is a strong predictor because higher education levels (e.g., Bachelors, Masters, Prof-school) are typically associated with higher income. 'Age' shows a moderate positive correlation, as older individuals often have more work experience and better earnings. 'Occupation' plays a key role, with managerial and professional roles (e.g., 'Exec-managerial', 'Prof-specialty') being linked to higher income. 'Workclass' indicates employment type; for example, 'Private' sector workers often earn more than government or self-employed. 'Hours-per-week' is positively correlated with higher income, as individuals working longer hours tend to earn more. These features are consistently found in studies analyzing income prediction in tabular data.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the values of the input features differ between the top-1 (>50K) and top-2 (<=50K) predictions when considering only the given input?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}]
+- Explanation: Although only one input instance is available in the current context (with income >50K), the task requires identifying features that distinguish the top prediction from the next-best alternative (<=50K). Based on known patterns in datasets like the Adult Income dataset, individuals predicted to earn >50K tend to have higher education levels (higher education-num), older age, longer working hours, higher capital gains, and occupations in higher-income brackets such as 'Exec-managerial'. The current input has a moderate education level (13), age of 34, 45 hours/week, and zero capital gain. To contrast this with a hypothetical <=50K case, we consider changes that are typical of the low-income group: lower education-num, younger age, fewer hours, no capital gain, and lower-status occupations. These changes reflect the typical feature differences observed in such models. Therefore, the most distinguishing features are age, education-num, hours-per-week, capital-gain, and occupation, with the latter being particularly significant due to occupation-level income disparities.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.4114035964012146}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

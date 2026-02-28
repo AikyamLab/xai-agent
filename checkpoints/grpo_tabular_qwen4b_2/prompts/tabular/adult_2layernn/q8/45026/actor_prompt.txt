@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (51.43%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=589809, education=Some-college, education-num=10, marital-status=Never-married, occupation=Exec-managerial, relationship=Not-in-family, race=White, sex=Male, capital-gain=13550, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: fnlwgt.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: fnlwgt (prob drop: 0.014071).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education-num: +0.0458
+  - workclass_State-gov: +0.0332
+  - workclass_Local-gov: +0.0313
+  - native-country_Hong: +0.0290
+  - native-country_Columbia: +0.0217
+- Top negative features (shap_value):
+  - capital-gain: -0.0458
+  - workclass_Self-emp-not-inc: -0.0332
+  - workclass_Federal-gov: -0.0313
+  - native-country_Honduras: -0.0290
+  - native-country_Cuba: -0.0217
+- Max positive: 0.045828  Max negative: -0.045828
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0705
+  - education_Prof-school <= 0.00: +0.0612
+  - education_Masters <= 0.00: +0.0416
+- Top negative features (weight):
+  - education_1st-4th <= 0.00: -0.0683
+  - capital-gain > -0.15: -0.0657
+  - native-country_Vietnam <= 0.00: -0.0514
+  - hours-per-week > 0.34: -0.0488
+  - marital-status_Divorced <= 0.00: -0.0472
+- Max positive: 0.070495  Max negative: -0.06825
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - fnlwgt: +0.0154
+  - marital-status_Never-married: +0.0085
+  - relationship_Not-in-family: +0.0060
+  - workclass_Private: +0.0043
+  - education_Some-college: +0.0033
+- Top negative features (attribution_score):
+  - hours-per-week: -0.0089
+  - sex_Male: -0.0089
+  - occupation_Exec-managerial: -0.0084
+  - capital-gain: -0.0076
+  - native-country_United-States: -0.0021
+- Max positive: 0.015397  Max negative: -0.008911
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - fnlwgt: drop=+0.0141  (orig=0.3809 → mod=0.3668)
+  - occupation_Exec-managerial: drop=-0.0100  (orig=0.3809 → mod=0.3909)
+  - sex_Male: drop=-0.0099  (orig=0.3809 → mod=0.3908)
+  - marital-status_Never-married: drop=+0.0094  (orig=0.3809 → mod=0.3714)
+  - capital-gain: drop=-0.0083  (orig=0.3809 → mod=0.3892)
+  - relationship_Not-in-family: drop=+0.0079  (orig=0.3809 → mod=0.3730)
+  - hours-per-week: drop=-0.0077  (orig=0.3809 → mod=0.3886)
+  - workclass_Private: drop=+0.0039  (orig=0.3809 → mod=0.3770)
+  - education_Some-college: drop=+0.0036  (orig=0.3809 → mod=0.3773)
+  - race_White: drop=-0.0015  (orig=0.3809 → mod=0.3824)
+- Max prob_drop: 0.014071  Max prob_increase: -0.009988
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'fnlwgt' (a weight feature) or 'education-num' (a numeric encoding) could be spurious features given that the true class is >50K, despite being unrelated to income directly.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "remove", "new_value": null}, {"feature_key": "education-num", "action": "remove", "new_value": null}]
+- Explanation: The feature 'fnlwgt' (final weight) is a composite weight used for data balancing and does not represent actual income or personal characteristics. It is derived from survey sampling and not directly related to income levels. Similarly, 'education-num' is a numeric encoding of education level, which is semantically relevant to income, but may have been spuriously attributed due to correlation with other features (e.g., 'education' category) or overfitting. However, since the true label is >50K and the model predicted <=50K, the misprediction may stem from the model over-relying on engineered features like 'fnlwgt' that lack semantic relevance to income. Given the absence of direct income influence, both 'fnlwgt' and 'education-num' are candidates for spurious attribution. Among these, 'fnlwgt' is most likely irrelevant due to its purely statistical role in data aggregation, making it a strong candidate for being a spurious feature in this prediction context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like 'workclass=Private' or 'occupation=Exec-managerial' to the class >50K, and assess whether their high attribution contradicts domain knowledge.
+- Status: Success
+- findings: [{"feature_key": "occupation", "semantic_relevance": 0.95, "model_attribution": 0.85, "score_difference": 0.1, "reason": "Occupation='Exec-managerial' is strongly correlated with higher incomes in domain knowledge. Executives and managers are historically associated with salaries above $50K, making this a highly relevant feature for predicting >50K income. The model's attribution of high importance aligns well with domain knowledge."}, {"feature_key": "workclass", "semantic_relevance": 0.8, "model_attribution": 0.3, "score_difference": 0.5, "reason": "Workclass='Private' is generally associated with higher income potential compared to government or self-employed, though its influence is less direct than occupation. Domain knowledge suggests private sector employment correlates moderately with higher earnings, but the model assigns significantly lower attribution, which is consistent with established patterns."}, {"feature_key": "hours-per-week", "semantic_relevance": 0.75, "model_attribution": 0.4, "score_difference": 0.35, "reason": "Higher hours-per-week (60 in this case) are typically associated with higher income, especially in managerial roles. However, the model underestimates this feature's importance, possibly due to overfitting on other features. Still, the domain relevance is strong."}, {"feature_key": "age", "semantic_relevance": 0.6, "model_attribution": 0.15, "score_difference": 0.45, "reason": "Age=35 is below the typical peak earning age (40\u201360), and while age has a marginal correlation with income, it is not a strong predictor for individuals in managerial roles. The model assigns negligible importance, which contradicts known socioeconomic patterns where age has a modest but positive effect."}, {"feature_key": "education-num", "semantic_relevance": 0.7, "model_attribution": 0.2, "score_difference": 0.5, "reason": "Education-num=10 (Some-college) is relatively low for high-income earners. Typically, higher education levels correlate with higher income. The model underweights this feature, which is a potential red flag. Despite the low education level, the high occupation suggests income potential may be overestimated by the model's learning mechanism."}]
+- Explanation: The model predicted <=50K despite the true label being >50K, and this appears to be due to underestimating features with strong domain-based relevance to high income. The occupation='Exec-managerial' is a key driver of high income, and the model attributes it appropriately. However, the model underestimates education, age, and hours-per-week—features that, when combined with high occupation, should reinforce the >50K prediction. The mismatch in attribution suggests over-reliance on less relevant or noisy features, or a failure to integrate domain knowledge about managerial roles and work intensity. This underattribution of meaningful features may have led to a conservative, incorrect prediction.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether 'fnlwgt' (a weight feature) or 'education-num' (a numeric encoding) could be spurious features given that the true class is >50K, despite being unrelated to income directly.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "remove", "new_value": null}, {"feature_key": "education-num", "action": "remove", "new_value": null}]
+- Explanation: The feature 'fnlwgt' (final weight) is a composite weight used for data balancing and does not represent actual income or personal characteristics. It is derived from survey sampling and not directly related to income levels. Similarly, 'education-num' is a numeric encoding of education level, which is semantically relevant to income, but may have been spuriously attributed due to correlation with other features (e.g., 'education' category) or overfitting. However, since the true label is >50K and the model predicted <=50K, the misprediction may stem from the model over-relying on engineered features like 'fnlwgt' that lack semantic relevance to income. Given the absence of direct income influence, both 'fnlwgt' and 'education-num' are candidates for spurious attribution. Among these, 'fnlwgt' is most likely irrelevant due to its purely statistical role in data aggregation, making it a strong candidate for being a spurious feature in this prediction context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like 'workclass=Private' or 'occupation=Exec-managerial' to the class >50K, and assess whether their high attribution contradicts domain knowledge.
+- Status: Success
+- findings: [{"feature_key": "occupation", "semantic_relevance": 0.95, "model_attribution": 0.85, "score_difference": 0.1, "reason": "Occupation='Exec-managerial' is strongly correlated with higher incomes in domain knowledge. Executives and managers are historically associated with salaries above $50K, making this a highly relevant feature for predicting >50K income. The model's attribution of high importance aligns well with domain knowledge."}, {"feature_key": "workclass", "semantic_relevance": 0.8, "model_attribution": 0.3, "score_difference": 0.5, "reason": "Workclass='Private' is generally associated with higher income potential compared to government or self-employed, though its influence is less direct than occupation. Domain knowledge suggests private sector employment correlates moderately with higher earnings, but the model assigns significantly lower attribution, which is consistent with established patterns."}, {"feature_key": "hours-per-week", "semantic_relevance": 0.75, "model_attribution": 0.4, "score_difference": 0.35, "reason": "Higher hours-per-week (60 in this case) are typically associated with higher income, especially in managerial roles. However, the model underestimates this feature's importance, possibly due to overfitting on other features. Still, the domain relevance is strong."}, {"feature_key": "age", "semantic_relevance": 0.6, "model_attribution": 0.15, "score_difference": 0.45, "reason": "Age=35 is below the typical peak earning age (40\u201360), and while age has a marginal correlation with income, it is not a strong predictor for individuals in managerial roles. The model assigns negligible importance, which contradicts known socioeconomic patterns where age has a modest but positive effect."}, {"feature_key": "education-num", "semantic_relevance": 0.7, "model_attribution": 0.2, "score_difference": 0.5, "reason": "Education-num=10 (Some-college) is relatively low for high-income earners. Typically, higher education levels correlate with higher income. The model underweights this feature, which is a potential red flag. Despite the low education level, the high occupation suggests income potential may be overestimated by the model's learning mechanism."}]
+- Explanation: The model predicted <=50K despite the true label being >50K, and this appears to be due to underestimating features with strong domain-based relevance to high income. The occupation='Exec-managerial' is a key driver of high income, and the model attributes it appropriately. However, the model underestimates education, age, and hours-per-week—features that, when combined with high occupation, should reinforce the >50K prediction. The mismatch in attribution suggests over-reliance on less relevant or noisy features, or a failure to integrate domain knowledge about managerial roles and work intensity. This underattribution of meaningful features may have led to a conservative, incorrect prediction.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

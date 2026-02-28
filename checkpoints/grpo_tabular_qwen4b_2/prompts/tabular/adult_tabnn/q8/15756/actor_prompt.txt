@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (50.68%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=62, workclass=State-gov, fnlwgt=254890, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Adm-clerical, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.015667).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0525
+  - native-country_United-States: +0.0329
+  - occupation_Tech-support: +0.0297
+  - native-country_Cambodia: +0.0204
+  - native-country_Yugoslavia: +0.0123
+- Top negative features (shap_value):
+  - age: -0.0525
+  - native-country_Trinadad&Tobago: -0.0329
+  - occupation_Transport-moving: -0.0297
+  - sex_Male: -0.0204
+  - native-country_Vietnam: -0.0123
+- Max positive: 0.052517  Max negative: -0.052517
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - age > 0.64: +0.0879
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0782
+  - 0.00 < relationship_Husband <= 1.00: +0.0650
+  - native-country_Poland <= 0.00: +0.0534
+  - native-country_Columbia <= 0.00: +0.0278
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2110
+  - capital-loss <= -0.22: -0.1515
+  - education-num <= -0.44: -0.1051
+  - native-country_Cuba <= 0.00: -0.0863
+  - native-country_China <= 0.00: -0.0091
+- Max positive: 0.087883  Max negative: -0.211043
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0185
+  - relationship_Husband: +0.0147
+  - age: +0.0119
+  - sex_Male: +0.0073
+  - native-country_United-States: +0.0071
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0125
+  - education-num: -0.0079
+  - occupation_Adm-clerical: -0.0050
+  - workclass_State-gov: -0.0033
+  - race_White: -0.0024
+- Max positive: 0.01848  Max negative: -0.012513
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0157  (orig=0.6241 → mod=0.6084)
+  - age: drop=+0.0103  (orig=0.6241 → mod=0.6138)
+  - relationship_Husband: drop=+0.0097  (orig=0.6241 → mod=0.6143)
+  - education_HS-grad: drop=-0.0083  (orig=0.6241 → mod=0.6324)
+  - native-country_United-States: drop=+0.0079  (orig=0.6241 → mod=0.6161)
+  - education-num: drop=-0.0078  (orig=0.6241 → mod=0.6319)
+  - sex_Male: drop=+0.0055  (orig=0.6241 → mod=0.6185)
+  - occupation_Adm-clerical: drop=-0.0033  (orig=0.6241 → mod=0.6273)
+  - fnlwgt: drop=+0.0029  (orig=0.6241 → mod=0.6212)
+  - workclass_State-gov: drop=-0.0015  (orig=0.6241 → mod=0.6256)
+- Max prob_drop: 0.015667  Max prob_increase: -0.008341
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=State-gov' or 'fnlwgt=254890' appear semantically unrelated to income <=50K in the context of a model predicting >50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 0}]
+- Explanation: The feature 'workclass=State-gov' may appear semantically unrelated to income <=50K because individuals in government employment (especially state government) are often not directly associated with higher income. However, in the dataset context, 'State-gov' workers might be disproportionately represented in the <=50K class due to historical data skewing or spurious correlations. Similarly, 'fnlwgt' (final weight) is a survey weighting factor, not a direct measure of income or economic status. It does not contribute to income prediction and may introduce noise or bias if used as a feature. Changing 'workclass' to 'Private' (a more typical high-income group) and setting 'fnlwgt' to 0 (a negligible or absent value) helps isolate the true income-related features. These changes suggest that 'workclass' and 'fnlwgt' may introduce spurious correlations or misleading patterns in the model's prediction, particularly when the true label is <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the true label (<=50K) versus the model's predicted class (>50K).
+- Status: Success
+- findings: [{"feature_key": "age", "action": "irrelevant", "new_value": "62", "relevance": "low", "reason": "Age = 62 is a strong predictor of earning potential in real-world contexts; older individuals are typically associated with lower hourly wages and retirement, making high income less likely. This feature contradicts the model's prediction of >50K."}, {"feature_key": "workclass", "action": "irrelevant", "new_value": "State-gov", "relevance": "low", "reason": "Individuals in 'State-gov' are often employees of state-run institutions, which historically have lower salaries than private sector or executive roles. This is semantically inconsistent with a prediction of >50K."}, {"feature_key": "education", "action": "irrelevant", "new_value": "HS-grad", "relevance": "low", "reason": "High school graduation is generally associated with lower income levels compared to higher education (e.g. Bachelors, Masters). This education level has limited support for predicting income >50K."}, {"feature_key": "education-num", "action": "irrelevant", "new_value": 9, "relevance": "low", "reason": "Education-num = 9 corresponds to HS-grad, confirming the low educational attainment, which is not semantically aligned with high income."}, {"feature_key": "marital-status", "action": "irrelevant", "new_value": "Married-civ-spouse", "relevance": "medium", "reason": "Married individuals often benefit from household support and stability, which may correlate with higher income. However, this is not a strong predictor on its own and is not contradictory in a way that clearly causes error."}, {"feature_key": "occupation", "action": "irrelevant", "new_value": "Adm-clerical", "relevance": "low", "reason": "Adm-clerical jobs are typically administrative and non-executive, with lower median salaries. This occupation is not aligned with higher income (>50K)."}, {"feature_key": "relationship", "action": "irrelevant", "new_value": "Husband", "relevance": "low", "reason": "Relationship status does not directly influence income, though it may indirectly correlate with household income. Not semantically mismatched in a decisive way."}, {"feature_key": "race", "action": "irrelevant", "new_value": "White", "relevance": "low", "reason": "Race is a demographic variable and not directly predictive of income in this domain. However, in historical data, such features may be correlated with bias or imbalance. In this case, the assignment is neutral and not inconsistent with the prediction."}, {"feature_key": "sex", "action": "irrelevant", "new_value": "Male", "relevance": "low", "reason": "Male sex is associated with higher income in many datasets, but this is context-dependent. Here, combined with other low-income indicators, it does not support >50K prediction."}, {"feature_key": "capital-gain", "action": "irrelevant", "new_value": 0, "relevance": "low", "reason": "Zero capital gain indicates no investment income, which weakens the case for high income. This is semantically inconsistent with >50K prediction."}, {"feature_key": "capital-loss", "action": "irrelevant", "new_value": 0, "relevance": "low", "reason": "No capital loss implies financial stability, but without gains, this does not support high income."}, {"feature_key": "hours-per-week", "action": "irrelevant", "new_value": 40, "relevance": "medium", "reason": "40 hours per week is a standard work week and not unusually high. While it does not strongly support high income, it is not inherently contradictory. Slight mismatch at best."}, {"feature_key": "native-country", "action": "irrelevant", "new_value": "United-States", "relevance": "low", "reason": "Native country is not strongly predictive; in the U.S., income distribution is highly variable. This does not support or contradict >50K prediction directly."}]
+- Explanation: The model predicted >50K despite a set of features (e.g., age=62, education=HS-grad, workclass=State-gov, occupation=Adm-clerical, capital-gain=0) that are semantically and domain-wise associated with lower income levels. These features do not align with the typical profile of individuals earning over $50K annually. The model's prediction appears to be influenced by insufficient or misleading feature weighting, likely due to over-reliance on features with high confidence but irrelevant correlation. The absence of high-earning indicators (e.g., high education, capital gains, executive occupation) strongly suggests that the prediction is wrong and driven by a misalignment of feature semantics with the true label of <=50K.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=State-gov' or 'fnlwgt=254890' appear semantically unrelated to income <=50K in the context of a model predicting >50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "fnlwgt", "action": "change", "new_value": 0}]
+- Explanation: The feature 'workclass=State-gov' may appear semantically unrelated to income <=50K because individuals in government employment (especially state government) are often not directly associated with higher income. However, in the dataset context, 'State-gov' workers might be disproportionately represented in the <=50K class due to historical data skewing or spurious correlations. Similarly, 'fnlwgt' (final weight) is a survey weighting factor, not a direct measure of income or economic status. It does not contribute to income prediction and may introduce noise or bias if used as a feature. Changing 'workclass' to 'Private' (a more typical high-income group) and setting 'fnlwgt' to 0 (a negligible or absent value) helps isolate the true income-related features. These changes suggest that 'workclass' and 'fnlwgt' may introduce spurious correlations or misleading patterns in the model's prediction, particularly when the true label is <=50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the true label (<=50K) versus the model's predicted class (>50K).
+- Status: Success
+- findings: [{"feature_key": "age", "action": "irrelevant", "new_value": "62", "relevance": "low", "reason": "Age = 62 is a strong predictor of earning potential in real-world contexts; older individuals are typically associated with lower hourly wages and retirement, making high income less likely. This feature contradicts the model's prediction of >50K."}, {"feature_key": "workclass", "action": "irrelevant", "new_value": "State-gov", "relevance": "low", "reason": "Individuals in 'State-gov' are often employees of state-run institutions, which historically have lower salaries than private sector or executive roles. This is semantically inconsistent with a prediction of >50K."}, {"feature_key": "education", "action": "irrelevant", "new_value": "HS-grad", "relevance": "low", "reason": "High school graduation is generally associated with lower income levels compared to higher education (e.g. Bachelors, Masters). This education level has limited support for predicting income >50K."}, {"feature_key": "education-num", "action": "irrelevant", "new_value": 9, "relevance": "low", "reason": "Education-num = 9 corresponds to HS-grad, confirming the low educational attainment, which is not semantically aligned with high income."}, {"feature_key": "marital-status", "action": "irrelevant", "new_value": "Married-civ-spouse", "relevance": "medium", "reason": "Married individuals often benefit from household support and stability, which may correlate with higher income. However, this is not a strong predictor on its own and is not contradictory in a way that clearly causes error."}, {"feature_key": "occupation", "action": "irrelevant", "new_value": "Adm-clerical", "relevance": "low", "reason": "Adm-clerical jobs are typically administrative and non-executive, with lower median salaries. This occupation is not aligned with higher income (>50K)."}, {"feature_key": "relationship", "action": "irrelevant", "new_value": "Husband", "relevance": "low", "reason": "Relationship status does not directly influence income, though it may indirectly correlate with household income. Not semantically mismatched in a decisive way."}, {"feature_key": "race", "action": "irrelevant", "new_value": "White", "relevance": "low", "reason": "Race is a demographic variable and not directly predictive of income in this domain. However, in historical data, such features may be correlated with bias or imbalance. In this case, the assignment is neutral and not inconsistent with the prediction."}, {"feature_key": "sex", "action": "irrelevant", "new_value": "Male", "relevance": "low", "reason": "Male sex is associated with higher income in many datasets, but this is context-dependent. Here, combined with other low-income indicators, it does not support >50K prediction."}, {"feature_key": "capital-gain", "action": "irrelevant", "new_value": 0, "relevance": "low", "reason": "Zero capital gain indicates no investment income, which weakens the case for high income. This is semantically inconsistent with >50K prediction."}, {"feature_key": "capital-loss", "action": "irrelevant", "new_value": 0, "relevance": "low", "reason": "No capital loss implies financial stability, but without gains, this does not support high income."}, {"feature_key": "hours-per-week", "action": "irrelevant", "new_value": 40, "relevance": "medium", "reason": "40 hours per week is a standard work week and not unusually high. While it does not strongly support high income, it is not inherently contradictory. Slight mismatch at best."}, {"feature_key": "native-country", "action": "irrelevant", "new_value": "United-States", "relevance": "low", "reason": "Native country is not strongly predictive; in the U.S., income distribution is highly variable. This does not support or contradict >50K prediction directly."}]
+- Explanation: The model predicted >50K despite a set of features (e.g., age=62, education=HS-grad, workclass=State-gov, occupation=Adm-clerical, capital-gain=0) that are semantically and domain-wise associated with lower income levels. These features do not align with the typical profile of individuals earning over $50K annually. The model's prediction appears to be influenced by insufficient or misleading feature weighting, likely due to over-reliance on features with high confidence but irrelevant correlation. The absence of high-earning indicators (e.g., high education, capital gains, executive occupation) strongly suggests that the prediction is wrong and driven by a misalignment of feature semantics with the true label of <=50K.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

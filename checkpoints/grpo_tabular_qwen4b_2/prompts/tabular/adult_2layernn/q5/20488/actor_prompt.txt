@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the capital-gain feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6597
+
+## Part to be Masked
+capital-gain
+
+## Input Data
+Features: age=64, workclass=Private, fnlwgt=321166, education=Bachelors, education-num=13, marital-status=Divorced, occupation=Sales, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=5, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.016799).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0895
+  - race_Black: +0.0430
+  - hours-per-week: +0.0244
+  - native-country_Vietnam: +0.0181
+  - native-country_Cuba: +0.0123
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0895
+  - race_Other: -0.0430
+  - capital-loss: -0.0244
+  - native-country_Yugoslavia: -0.0181
+  - native-country_Columbia: -0.0123
+- Max positive: 0.089478  Max negative: -0.089478
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0168  (orig=0.4157 → mod=0.3989)
+  - marital-status_Divorced: drop=+0.0125  (orig=0.4157 → mod=0.4033)
+  - relationship_Not-in-family: drop=+0.0087  (orig=0.4157 → mod=0.4070)
+  - education-num: drop=-0.0066  (orig=0.4157 → mod=0.4223)
+  - workclass_Private: drop=+0.0046  (orig=0.4157 → mod=0.4111)
+  - race_White: drop=-0.0046  (orig=0.4157 → mod=0.4203)
+  - age: drop=+0.0040  (orig=0.4157 → mod=0.4117)
+  - education_Bachelors: drop=-0.0037  (orig=0.4157 → mod=0.4194)
+  - sex_Female: drop=+0.0035  (orig=0.4157 → mod=0.4122)
+  - native-country_United-States: drop=-0.0033  (orig=0.4157 → mod=0.4191)
+- Max prob_drop: 0.016799  Max prob_increase: -0.006599
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-gain is not present in the input and lacks a value, and considering that income predictions in the adult dataset are more strongly influenced by factors like education, age, and work class, evaluate whether capital-gain is likely to contribute meaningfully to the prediction of <=50K.
+- Status: Success
+- findings: ["Capital-gain is unlikely to meaningfully influence the prediction of <=50K in this individual's case.", "The individual has a capital-gain value of 0, which is the default or missing value in the dataset, and there is no evidence of high or varying capital gains in their profile.", "Domain knowledge from the Adult (Census) dataset shows that income prediction is more strongly correlated with education, age, work class, and hours-per-week than with capital-gain, which is generally sparse and has low variance across individuals.", "The model prediction of <=50K (confidence: 65.97%) is robust and stable given the other strong predictors in the input (e.g., age = 64, education = 'Bachelors', workclass = 'Private', sex = 'Female').", "Masking capital-gain would therefore not be expected to alter the prediction significantly, as it does not play a dominant role in the decision-making process."]
+- Explanation: Capital-gain is a relatively rare and weak predictor in the Adult dataset. In this specific case, the individual's profile includes strong demographic and socioeconomic indicators (e.g., age, education, work class) that are more influential in determining income levels. Since capital-gain is zero and the model has already assigned a high confidence to the <=50K prediction, removing or masking this feature would not result in a meaningful change in the prediction.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: Compare the baseline prediction (<=50K with confidence 0.6597) to the expected prediction if capital-gain were absent or set to zero, based on prior knowledge of feature relevance in the adult income dataset.
+- Status: Success
+- findings: {"prediction_will_change": false, "likelihood_of_shift": 0.15, "reasoning": "In the Adult Income Dataset (Census Income), capital-gain is generally a low-variance feature with minimal influence on the income prediction compared to features like age, education-num, hours-per-week, and sex. The feature 'capital-gain' is often zero across the dataset, especially in the <=50K group. In this specific case, the individual already has capital-gain = 0, so setting it to zero (masking) does not introduce any change in the input. Since the feature is already zero and not a strong predictor, its removal or setting to zero is unlikely to alter the model\u2019s prediction. Thus, the prediction remains '<=50K' with minimal likelihood of shift."}
+- Explanation: In the Adult Income Dataset, capital-gain is typically sparse and has low predictive power. It is frequently zero, especially among individuals earning <=50K. Given that the current input already has capital-gain = 0, masking or setting it to zero would not introduce any meaningful variation in the feature space. Therefore, the model's prediction is unlikely to change. Expert analysis of feature importance in this dataset confirms that capital-gain is not a top contributor to income classification, and its absence has negligible impact on the outcome.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-gain is not present in the input and lacks a value, and considering that income predictions in the adult dataset are more strongly influenced by factors like education, age, and work class, evaluate whether capital-gain is likely to contribute meaningfully to the prediction of <=50K.
+- Status: Success
+- findings: ["Capital-gain is unlikely to meaningfully influence the prediction of <=50K in this individual's case.", "The individual has a capital-gain value of 0, which is the default or missing value in the dataset, and there is no evidence of high or varying capital gains in their profile.", "Domain knowledge from the Adult (Census) dataset shows that income prediction is more strongly correlated with education, age, work class, and hours-per-week than with capital-gain, which is generally sparse and has low variance across individuals.", "The model prediction of <=50K (confidence: 65.97%) is robust and stable given the other strong predictors in the input (e.g., age = 64, education = 'Bachelors', workclass = 'Private', sex = 'Female').", "Masking capital-gain would therefore not be expected to alter the prediction significantly, as it does not play a dominant role in the decision-making process."]
+- Explanation: Capital-gain is a relatively rare and weak predictor in the Adult dataset. In this specific case, the individual's profile includes strong demographic and socioeconomic indicators (e.g., age, education, work class) that are more influential in determining income levels. Since capital-gain is zero and the model has already assigned a high confidence to the <=50K prediction, removing or masking this feature would not result in a meaningful change in the prediction.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: Compare the baseline prediction (<=50K with confidence 0.6597) to the expected prediction if capital-gain were absent or set to zero, based on prior knowledge of feature relevance in the adult income dataset.
+- Status: Success
+- findings: {"prediction_will_change": false, "likelihood_of_shift": 0.15, "reasoning": "In the Adult Income Dataset (Census Income), capital-gain is generally a low-variance feature with minimal influence on the income prediction compared to features like age, education-num, hours-per-week, and sex. The feature 'capital-gain' is often zero across the dataset, especially in the <=50K group. In this specific case, the individual already has capital-gain = 0, so setting it to zero (masking) does not introduce any change in the input. Since the feature is already zero and not a strong predictor, its removal or setting to zero is unlikely to alter the model\u2019s prediction. Thus, the prediction remains '<=50K' with minimal likelihood of shift."}
+- Explanation: In the Adult Income Dataset, capital-gain is typically sparse and has low predictive power. It is frequently zero, especially among individuals earning <=50K. Given that the current input already has capital-gain = 0, masking or setting it to zero would not introduce any meaningful variation in the feature space. Therefore, the model's prediction is unlikely to change. Expert analysis of feature importance in this dataset confirms that capital-gain is not a top contributor to income classification, and its absence has negligible impact on the outcome.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

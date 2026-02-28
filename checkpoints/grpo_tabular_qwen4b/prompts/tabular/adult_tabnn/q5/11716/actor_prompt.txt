@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the workclass feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5519
+
+## Part to be Masked
+workclass
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=161631, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.024169).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0534
+  - native-country_Cambodia: +0.0446
+  - native-country_United-States: +0.0357
+  - native-country_Haiti: +0.0253
+  - native-country_Cuba: +0.0219
+- Top negative features (shap_value):
+  - fnlwgt: -0.0534
+  - sex_Male: -0.0446
+  - native-country_Trinadad&Tobago: -0.0357
+  - native-country_Holand-Netherlands: -0.0253
+  - native-country_Columbia: -0.0219
+- Max positive: 0.05344  Max negative: -0.05344
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=-0.0242  (orig=0.3898 → mod=0.4140)
+  - age: drop=+0.0209  (orig=0.3898 → mod=0.3689)
+  - relationship_Husband: drop=-0.0194  (orig=0.3898 → mod=0.4092)
+  - sex_Male: drop=-0.0146  (orig=0.3898 → mod=0.4045)
+  - occupation_Craft-repair: drop=+0.0072  (orig=0.3898 → mod=0.3826)
+  - native-country_United-States: drop=-0.0071  (orig=0.3898 → mod=0.3969)
+  - education_Some-college: drop=+0.0041  (orig=0.3898 → mod=0.3857)
+  - capital-gain: drop=+0.0022  (orig=0.3898 → mod=0.3877)
+  - race_White: drop=-0.0020  (orig=0.3898 → mod=0.3918)
+  - fnlwgt: drop=+0.0016  (orig=0.3898 → mod=0.3882)
+- Max prob_drop: 0.020893  Max prob_increase: -0.024169
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and feature distribution in the Adult Income dataset, assess the typical impact of workclass on income prediction, especially for Private and similar categories.
+- Status: Success
+- findings: "workclass is likely to influence the model's prediction significantly"
+- Explanation: In the Adult Income dataset, the 'workclass' feature is a strong predictor of income, particularly for categories like 'Private', which is the most common workclass. Individuals in the 'Private' sector tend to have a higher probability of earning more than $50K, especially when combined with other features like education level and hours-per-week. While the current prediction is '≤50K' with 55.19% confidence, masking 'workclass' would remove a key discriminative signal. For instance, if the workclass were changed to 'Self-emp-not-inc' or 'Local-gov', the model might shift toward predicting '>50K' due to known associations in the data. This suggests that workclass has a meaningful and non-trivial impact on income prediction, especially in balanced or high-impact feature distributions.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's prediction confidence and class probabilities before and after hypothetical masking of workclass (assuming other features remain constant), based on the observed distribution of workclass in the training data.
+- Status: Success
+- findings: "The model prediction is 0 (income \u2264 50K) with 55.19% confidence. Masking the 'workclass' feature\u2014specifically replacing it with a missing or unobserved value\u2014would introduce uncertainty in the model's feature representation. Given that workclass is a categorical feature with strong class distributional patterns in the training data (e.g., 'Private' is prevalent and often associated with lower income), removing this information could alter the prediction. However, since 'Private' is a common workclass and the model has learned consistent relationships across workclass groups, replacing it with a masked value may not drastically shift the outcome. Nevertheless, because workclass contributes to feature interactions\u2014especially with features like education, occupation, and hours-per-week\u2014its absence may reduce prediction stability. Based on the observed distribution, workclass is moderately informative but not dominant in income prediction. Therefore, we estimate that the prediction class may remain the same (\u226450K), but confidence may degrade slightly due to loss of informative feature. Thus, prediction stability is expected to be moderate with potential slight decrease in confidence."
+- Explanation: Workclass is a categorical feature that contributes to modeling income distribution. While it is not the dominant predictor, it is moderately informative in the training data. In this case, the individual's workclass is 'Private', which is common and associated with a lower-income group. Masking this feature removes a contextual cue that the model uses to refine predictions. Although the model may still predict ≤50K due to other strong features (e.g., age, sex, education), the reduced information from workclass may lead to a small drop in confidence. However, due to the model’s generalization and the prevalence of 'Private' in the dataset, the class prediction is likely to remain stable. Hence, prediction stability is expected to be moderate.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge and feature distribution in the Adult Income dataset, assess the typical impact of workclass on income prediction, especially for Private and similar categories.
+- Status: Success
+- findings: "workclass is likely to influence the model's prediction significantly"
+- Explanation: In the Adult Income dataset, the 'workclass' feature is a strong predictor of income, particularly for categories like 'Private', which is the most common workclass. Individuals in the 'Private' sector tend to have a higher probability of earning more than $50K, especially when combined with other features like education level and hours-per-week. While the current prediction is '≤50K' with 55.19% confidence, masking 'workclass' would remove a key discriminative signal. For instance, if the workclass were changed to 'Self-emp-not-inc' or 'Local-gov', the model might shift toward predicting '>50K' due to known associations in the data. This suggests that workclass has a meaningful and non-trivial impact on income prediction, especially in balanced or high-impact feature distributions.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's prediction confidence and class probabilities before and after hypothetical masking of workclass (assuming other features remain constant), based on the observed distribution of workclass in the training data.
+- Status: Success
+- findings: "The model prediction is 0 (income \u2264 50K) with 55.19% confidence. Masking the 'workclass' feature\u2014specifically replacing it with a missing or unobserved value\u2014would introduce uncertainty in the model's feature representation. Given that workclass is a categorical feature with strong class distributional patterns in the training data (e.g., 'Private' is prevalent and often associated with lower income), removing this information could alter the prediction. However, since 'Private' is a common workclass and the model has learned consistent relationships across workclass groups, replacing it with a masked value may not drastically shift the outcome. Nevertheless, because workclass contributes to feature interactions\u2014especially with features like education, occupation, and hours-per-week\u2014its absence may reduce prediction stability. Based on the observed distribution, workclass is moderately informative but not dominant in income prediction. Therefore, we estimate that the prediction class may remain the same (\u226450K), but confidence may degrade slightly due to loss of informative feature. Thus, prediction stability is expected to be moderate with potential slight decrease in confidence."
+- Explanation: Workclass is a categorical feature that contributes to modeling income distribution. While it is not the dominant predictor, it is moderately informative in the training data. In this case, the individual's workclass is 'Private', which is common and associated with a lower-income group. Masking this feature removes a contextual cue that the model uses to refine predictions. Although the model may still predict ≤50K due to other strong features (e.g., age, sex, education), the reduced information from workclass may lead to a small drop in confidence. However, due to the model’s generalization and the prevalence of 'Private' in the dataset, the class prediction is likely to remain stable. Hence, prediction stability is expected to be moderate.
+- Confidence: 0.87
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

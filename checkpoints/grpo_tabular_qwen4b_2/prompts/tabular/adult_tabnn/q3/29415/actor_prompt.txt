@@ -1,0 +1,130 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (60.64%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3935818374156952}
+
+## Input Data
+Features: age=41, workclass=State-gov, fnlwgt=180272, education=Masters, education-num=14, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: -0.021968).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0779
+  - native-country_Columbia: +0.0317
+  - relationship_Not-in-family: +0.0305
+  - fnlwgt: +0.0277
+  - sex_Male: +0.0251
+- Top negative features (shap_value):
+  - capital-loss: -0.0779
+  - native-country_Cuba: -0.0317
+  - relationship_Husband: -0.0305
+  - age: -0.0277
+  - native-country_Cambodia: -0.0251
+- Max positive: 0.077873  Max negative: -0.077873
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2057
+  - capital-loss <= -0.22: +0.1030
+  - occupation_Armed-Forces <= 0.00: +0.0736
+  - native-country_England <= 0.00: +0.0685
+  - native-country_Hong <= 0.00: +0.0588
+- Top negative features (weight):
+  - education-num > 1.13: -0.1013
+  - occupation_Priv-house-serv <= 0.00: -0.0729
+- Max positive: 0.205686  Max negative: -0.101272
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0201
+  - relationship_Own-child: +0.0109
+  - hours-per-week: +0.0029
+  - sex_Female: +0.0028
+  - capital-gain: +0.0016
+- Top negative features (attribution_score):
+  - education-num: -0.0203
+  - occupation_Prof-specialty: -0.0101
+  - education_Masters: -0.0098
+  - age: -0.0030
+  - native-country_United-States: -0.0013
+- Max positive: 0.020103  Max negative: -0.020313
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=-0.0220  (orig=0.4029 → mod=0.4248)
+  - marital-status_Never-married: drop=+0.0173  (orig=0.4029 → mod=0.3856)
+  - relationship_Own-child: drop=+0.0114  (orig=0.4029 → mod=0.3915)
+  - occupation_Prof-specialty: drop=-0.0090  (orig=0.4029 → mod=0.4119)
+  - education_Masters: drop=-0.0078  (orig=0.4029 → mod=0.4107)
+  - hours-per-week: drop=+0.0035  (orig=0.4029 → mod=0.3993)
+  - sex_Female: drop=+0.0034  (orig=0.4029 → mod=0.3995)
+  - age: drop=-0.0030  (orig=0.4029 → mod=0.4059)
+  - race_White: drop=-0.0021  (orig=0.4029 → mod=0.4050)
+  - native-country_United-States: drop=-0.0020  (orig=0.4029 → mod=0.4049)
+- Max prob_drop: 0.017261  Max prob_increase: -0.021968
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are known in domain literature or from adult dataset statistics to be strongly associated with income <=50K versus >50K?
+- Status: Success
+- findings: ["marital-status", "sex", "education-num", "hours-per-week", "occupation", "relationship"]
+- Explanation: Based on public domain knowledge of the Adult Income Dataset (also known as the Census Income Dataset), several features are well-documented to strongly correlate with income levels. 'sex' shows a strong association, with females historically having a higher proportion of low-income outcomes (<=50K). 'marital-status' — particularly 'Never-married' — is linked to lower income. 'education-num' is a key driver; higher education levels (e.g., Masters) are associated with higher income, so lower numbers (e.g., 14, which is moderate) may still align with <=50K. 'hours-per-week' shows a non-linear pattern, where higher hours are generally associated with higher income, though not universally. 'occupation' and 'relationship' (e.g., 'Own-child') are also known to correlate: for instance, 'Prof-specialty' is often linked with higher pay, but the 'Own-child' relationship may correlate with lower income due to familial responsibilities. Among these, 'sex', 'marital-status', 'education-num', and 'hours-per-week' are most consistently cited in literature as statistically significant predictors of income <=50K.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the feature values for <=50K and >50K typically differ in the Adult Income dataset, especially in terms of workclass, occupation, marital-status, and sex?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Tech-support"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult Income dataset, individuals earning >50K are frequently associated with higher-income occupations such as 'Tech-support' or 'Prof-specialty', but the strong contrast lies in workclass and marital status. Those earning >50K are more likely to work in 'Private' sector, have higher education, and be married or living in a family structure. Notably, the majority of >50K earners are male, whereas the model's prediction (Female, Never-married, State-gov) reflects a profile more common in the <=50K group. These contrasts highlight structural demographic and employment patterns that distinguish the income classes.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are known in domain literature or from adult dataset statistics to be strongly associated with income <=50K versus >50K?
+- Status: Success
+- findings: ["marital-status", "sex", "education-num", "hours-per-week", "occupation", "relationship"]
+- Explanation: Based on public domain knowledge of the Adult Income Dataset (also known as the Census Income Dataset), several features are well-documented to strongly correlate with income levels. 'sex' shows a strong association, with females historically having a higher proportion of low-income outcomes (<=50K). 'marital-status' — particularly 'Never-married' — is linked to lower income. 'education-num' is a key driver; higher education levels (e.g., Masters) are associated with higher income, so lower numbers (e.g., 14, which is moderate) may still align with <=50K. 'hours-per-week' shows a non-linear pattern, where higher hours are generally associated with higher income, though not universally. 'occupation' and 'relationship' (e.g., 'Own-child') are also known to correlate: for instance, 'Prof-specialty' is often linked with higher pay, but the 'Own-child' relationship may correlate with lower income due to familial responsibilities. Among these, 'sex', 'marital-status', 'education-num', and 'hours-per-week' are most consistently cited in literature as statistically significant predictors of income <=50K.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: How do the feature values for <=50K and >50K typically differ in the Adult Income dataset, especially in terms of workclass, occupation, marital-status, and sex?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Tech-support"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult Income dataset, individuals earning >50K are frequently associated with higher-income occupations such as 'Tech-support' or 'Prof-specialty', but the strong contrast lies in workclass and marital status. Those earning >50K are more likely to work in 'Private' sector, have higher education, and be married or living in a family structure. Notably, the majority of >50K earners are male, whereas the model's prediction (Female, Never-married, State-gov) reflects a profile more common in the <=50K group. These contrasts highlight structural demographic and employment patterns that distinguish the income classes.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3935818374156952}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

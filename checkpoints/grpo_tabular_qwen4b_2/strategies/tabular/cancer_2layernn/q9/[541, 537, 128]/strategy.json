@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to identify plausible spurious patterns in the data with external XAI tools to quantitatively validate feature attributions. This ensures both domain-aware insight and model-level evidence for shared spurious features, especially since all misclassified instances have unknown ground truth, making semantic interpretability challenging.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the feature values of instances 541, 537, and 128 across all attributes to identify any consistent numerical patterns or outliers that might indicate spurious features.",
+      "expected_output": "A list of features that show consistent values or ranges across all three instances, particularly those that appear to deviate from typical malignancy or benignity patterns."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any features (e.g., mean radius, mean concavity) correlate with the prediction outcome despite being semantically unrelated to cancer classification, and assess if these features are present in all misclassified instances.",
+      "expected_output": "Hypothesis about which features may be spurious due to strong model attribution without semantic relevance to the true diagnosis."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "method": "leave-one-out",
+        "compare_mode": "prediction_change"
+      }
+    },
+    "reasoning": "SHAP provides global feature importance with attribution consistency across instances, allowing us to detect shared features with high influence. Integrated Gradients adds gradient-based attribution to confirm the model's reliance on specific features, especially when those features are semantically unconnected. Sensitivity analysis verifies the impact of removing each feature, isolating spurious dependencies that dominate misclassifications. Together, these tools provide both statistical and mechanistic evidence for shared spurious features."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides global feature importance with attribution consistency across instances, allowing us to detect shared features with high influence. Integrated Gradients adds gradient-based attribution to confirm the model's reliance on specific features, especially when those features are semantically unconnected. Sensitivity analysis verifies the impact of removing each feature, isolating spurious dependencies that dominate misclassifications. Together, these tools provide both statistical and mechanistic evidence for shared spurious features.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides global feature importance with attribution consistency across instances, allowing us to detect shared features with high influence. Integrated Gradients adds gradient-based attribution to confirm the model's reliance on specific features, especially when those features are semantically unconnected. Sensitivity analysis verifies the impact of removing each feature, isolating spurious dependencies that dominate misclassifications. Together, these tools provide both statistical and mechanistic evidence for shared spurious features.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides global feature importance with attribution consistency across instances, allowing us to detect shared features with high influence. Integrated Gradients adds gradient-based attribution to confirm the model's reliance on specific features, especially when those features are semantically unconnected. Sensitivity analysis verifies the impact of removing each feature, isolating spurious dependencies that dominate misclassifications. Together, these tools provide both statistical and mechanistic evidence for shared spurious features.",
+      "parameters": {
+        "method": "leave-one-out",
+        "compare_mode": "prediction_change"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

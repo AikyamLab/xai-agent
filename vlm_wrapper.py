@@ -60,7 +60,7 @@ class VisionLanguageModel:
         model_id: str = "Qwen/Qwen3-VL-8B-Instruct",
         device: Optional[str] = None,
         temperature: float = 0.0,
-        max_new_tokens: int = 1024,
+        max_new_tokens: int = 2048,
         min_new_tokens: int = 1,
         top_k: int = 50,
         top_p: float = 0.9,
@@ -1343,7 +1343,7 @@ class TinkerVisionLanguageModel:
         self,
         model_id: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
         temperature: float = 0.0,
-        max_new_tokens: int = 1024,
+        max_new_tokens: int = 2048,
         top_p: float = 0.9,
         tinker_api_key: Optional[str] = None,
         **kwargs,
@@ -1439,7 +1439,7 @@ class TinkerVisionLanguageModel:
             "Always focus on the task at hand and provide structured responses as requested."
         )
 
-        if self.is_qwen_vl:
+        if "qwen" in self.model_id.lower():
             full_text = (
                 f"<|im_start|>system\n{system_message}<|im_end|>\n"
                 f"<|im_start|>user\n{prompt}<|im_end|>\n"

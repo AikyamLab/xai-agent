@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.7311
+
+## Input Data
+Features: age=48, workclass=Private, fnlwgt=166863, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.015275).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0957
+  - fnlwgt: +0.0472
+  - native-country_Hong: +0.0394
+  - native-country_Cambodia: +0.0389
+  - native-country_United-States: +0.0356
+- Top negative features (shap_value):
+  - capital-loss: -0.0957
+  - age: -0.0472
+  - native-country_Honduras: -0.0394
+  - sex_Male: -0.0389
+  - native-country_Trinadad&Tobago: -0.0356
+- Max positive: 0.095743  Max negative: -0.095743
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education-num > 1.13: +0.1037
+  - age > 0.64: +0.0897
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0797
+  - native-country_Nicaragua <= 0.00: +0.0636
+  - native-country_Columbia <= 0.00: +0.0191
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2070
+  - capital-loss <= -0.22: -0.1133
+  - education_Preschool <= 0.00: -0.0991
+  - marital-status_Married-AF-spouse <= 0.00: -0.0709
+  - native-country_Taiwan <= 0.00: -0.0666
+- Max positive: 0.103659  Max negative: -0.20699
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0191
+  - occupation_Exec-managerial: +0.0126
+  - marital-status_Married-civ-spouse: +0.0113
+  - relationship_Husband: +0.0108
+  - sex_Male: +0.0105
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0015
+  - capital-gain: -0.0012
+  - hours-per-week: -0.0003
+  - capital-loss: -0.0001
+  - race_White: -0.0001
+- Max positive: 0.019057  Max negative: -0.001492
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0153  (orig=0.6750 → mod=0.6598)
+  - relationship_Husband: drop=+0.0089  (orig=0.6750 → mod=0.6662)
+  - occupation_Exec-managerial: drop=+0.0069  (orig=0.6750 → mod=0.6681)
+  - sex_Male: drop=+0.0068  (orig=0.6750 → mod=0.6683)
+  - marital-status_Married-civ-spouse: drop=+0.0067  (orig=0.6750 → mod=0.6683)
+  - education_Masters: drop=+0.0055  (orig=0.6750 → mod=0.6695)
+  - native-country_United-States: drop=+0.0042  (orig=0.6750 → mod=0.6709)
+  - age: drop=+0.0040  (orig=0.6750 → mod=0.6710)
+  - race_White: drop=+0.0017  (orig=0.6750 → mod=0.6733)
+  - fnlwgt: drop=-0.0009  (orig=0.6750 → mod=0.6759)
+- Max prob_drop: 0.015275  Max prob_increase: -0.000902
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income >50K in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 14}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult dataset, features such as education-num, occupation, and hours-per-week are strongly correlated with income >50K. Higher education levels (e.g., Masters at education-num=14) are associated with greater earning potential. Occupations like 'Exec-managerial' are typically high-income roles. Working longer hours (e.g., 40 hours/week) are linked to higher income, especially in managerial positions. Workclass='Private' is often associated with higher earnings compared to government or self-employment. Sex='Male' is also a known demographic correlate, though it reflects societal disparities rather than direct causality. These features are consistently observed in high-income individuals in the dataset's statistical analysis and literature.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: How might occupation='Exec-managerial' and education='Masters' contribute to a high income prediction given the model's architecture and known data patterns?
+- Status: Success
+- Explanation: The model's prediction of income >50K is strongly influenced by the combination of occupation='Exec-managerial' and education='Masters'. In tabular income models (such as those used in the Census dataset), 'Exec-managerial' occupations are consistently associated with high income levels due to their position in the income hierarchy—these roles typically involve high salaries, leadership responsibilities, and significant compensation. Similarly, 'Masters' level education is correlated with higher earning potential, as it signals advanced training and specialized knowledge, which are often prerequisites for high-income professions. The interaction between these two features amplifies the prediction: individuals with both a managerial occupation and a postgraduate degree are statistically more likely to earn above 50K. Given that the model has high confidence (73.11%), and that these features align with known socioeconomic patterns in the training data, their combined effect significantly boosts the logit score for the 'income >50K' class. This feature combination is a known strong predictor in the dataset, making it a key driver of the positive prediction.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: Compare the relative impact of 'occupation' vs. 'education-num' on the prediction of '>50K' based on typical modeling insights from the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "education-num", "action": "change", "new_value": "14"}]
+- Explanation: In the Adult dataset, 'occupation' typically has a stronger predictive power for income levels than 'education-num' when considering categorical effects. Occupations like 'Exec-managerial' are directly associated with high income brackets due to their inherently higher salary potential, even when controlling for education level. While 'education-num' (e.g., 14 for 'Masters') contributes positively, its impact is often secondary to occupation-based proxies of socioeconomic status. Furthermore, in models trained on the Adult dataset, occupation is frequently a top feature in feature importance rankings, especially for the '>50K' class. Thus, changing 'occupation' to 'Exec-managerial' has a more direct and pronounced effect on the model's prediction than altering 'education-num' to its current value.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

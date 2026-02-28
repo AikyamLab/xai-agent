@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (52.84%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=40, workclass=Private, fnlwgt=184846, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Wife, race=White, sex=Female, capital-gain=5178, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain > -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Wife.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Wife (prob drop: -0.008761).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cuba: +0.0160
+  - occupation_Tech-support: +0.0120
+  - native-country_Trinadad&Tobago: +0.0105
+  - workclass_Local-gov: +0.0100
+  - race_Other: +0.0083
+- Top negative features (shap_value):
+  - native-country_Columbia: -0.0160
+  - occupation_Transport-moving: -0.0120
+  - native-country_United-States: -0.0105
+  - workclass_Federal-gov: -0.0100
+  - race_Black: -0.0083
+- Max positive: 0.016009  Max negative: -0.016009
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0677
+  - education-num <= -0.44: +0.0558
+  - native-country_Greece <= 0.00: +0.0459
+  - hours-per-week <= -0.08: +0.0439
+  - native-country_Haiti <= 0.00: +0.0438
+- Top negative features (weight):
+  - capital-gain > -0.15: -0.0692
+  - marital-status_Divorced <= 0.00: -0.0520
+  - native-country_Cambodia <= 0.00: -0.0106
+  - native-country_Guatemala <= 0.00: -0.0079
+- Max positive: 0.067653  Max negative: -0.06919
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0067
+  - workclass_Private: +0.0039
+  - education-num: +0.0032
+  - sex_Female: +0.0031
+  - occupation_Prof-specialty: +0.0017
+- Top negative features (attribution_score):
+  - relationship_Wife: -0.0077
+  - race_White: -0.0033
+  - native-country_United-States: -0.0031
+  - marital-status_Married-civ-spouse: -0.0005
+  - capital-gain: -0.0004
+- Max positive: 0.006723  Max negative: -0.007705
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Wife: drop=-0.0088  (orig=0.3842 → mod=0.3930)
+  - education_HS-grad: drop=+0.0070  (orig=0.3842 → mod=0.3772)
+  - workclass_Private: drop=+0.0046  (orig=0.3842 → mod=0.3797)
+  - race_White: drop=-0.0030  (orig=0.3842 → mod=0.3872)
+  - sex_Female: drop=+0.0025  (orig=0.3842 → mod=0.3818)
+  - education-num: drop=+0.0019  (orig=0.3842 → mod=0.3823)
+  - native-country_United-States: drop=-0.0015  (orig=0.3842 → mod=0.3857)
+  - capital-gain: drop=-0.0011  (orig=0.3842 → mod=0.3853)
+  - marital-status_Married-civ-spouse: drop=-0.0006  (orig=0.3842 → mod=0.3849)
+  - occupation_Prof-specialty: drop=-0.0005  (orig=0.3842 → mod=0.3847)
+- Max prob_drop: 0.006999  Max prob_increase: -0.008761
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether any of the input features (e.g., fnlwgt, education-num) have a structural or semantic link to the true class (>50K) despite being seemingly irrelevant in domain knowledge.
+- Status: Success
+- findings: []
+- Explanation: All features in the input are either directly or indirectly related to socioeconomic factors that correlate with income levels. For example, 'age', 'education-num', 'hours-per-week', 'capital-gain', and 'occupation' have well-documented associations with income in the context of the Adult Income Dataset. While 'fnlwgt' (final weight) is a data processing field used for sampling and normalization, it does not represent a meaningful indicator of income level and is purely instrumental in data weighting. However, it is not semantically or structurally linked to the individual's actual earnings. Similarly, 'workclass', 'marital-status', 'race', 'sex', and 'native-country' are categorical features that, although sometimes considered demographic proxies, still show known correlations in the dataset. Though some may be considered irrelevant in a strict domain sense (e.g., race or sex), they are often included due to their observed statistical associations. However, none of the features show a structural or semantic link that is both irrelevant and yet contributes to incorrect prediction. Therefore, no feature is found that is semantically irrelevant but still causes the model to mispredict the class. The model's prediction of <=50K for a true label >50K may stem from a combination of weak signal in key features (e.g., education level, occupation) or model bias, but no feature is identified as causally irrelevant despite high attribution.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the relative importance of semantically relevant features (e.g., age, sex, hours-per-week) with those that are not (e.g., fnlwgt, education-num) to identify mismatches in model attention.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": 40, "rationale": "Age is a well-established proxy for income potential; individuals in their 40s typically have higher earning capacity. A value of 40 is within the range commonly associated with higher income, making it semantically relevant."}, {"feature_key": "sex", "action": "relevant", "new_value": "Female", "rationale": "The U.S. dataset shows a well-documented disparity where females, especially in middle-management roles, are underrepresented in the >50K class. However, this feature is known to be correlated with bias, and the model may have incorrectly weighted it due to spurious associations, particularly if it was trained on non-representative data. Still, it is semantically relevant to income, though possibly influenced by bias."}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": 40, "rationale": "Higher hours per week are strongly associated with higher income. A value of 40 is moderate but not exceptional. There is no strong semantic reason to expect this to be misleading, though it may be less predictive than other features. Still, it remains a relevant feature in the income prediction context."}, {"feature_key": "education", "action": "less-relevant", "new_value": "HS-grad", "rationale": "While education is important, 'HS-grad' is a low-education level, historically linked to lower income. This value is consistent with a lower-income prediction, yet the model assigns a false label of <=50K despite this being a known demographic marker. This suggests the model may have been over-relying on education-num or fnlwgt, which are more quantitative and possibly correlated with income without direct semantic value."}, {"feature_key": "fnlwgt", "action": "irrelevant", "new_value": 184846, "rationale": "fnlwgt (final weight) is a survey-based weighting factor for data collection, not a measure of actual income or socioeconomic status. It does not reflect real-world earning capacity and is highly likely to be a spurious feature influencing the model. Its inclusion in the model likely introduced noise or bias, especially since it correlates with other features like age and education-num due to data collection practices."}]
+- Explanation: The model incorrectly predicted <=50K for a female with a high education-num, private workclass, and moderate hours-per-week. The key insight is that 'fnlwgt' is not semantically relevant to income prediction and is likely causing spurious correlations. Features like 'age', 'sex', and 'hours-per-week' are semantically relevant but may be misweighted due to structural biases. The model's low confidence (52.84%) suggests uncertainty, possibly due to the lack of sufficient signal from the relevant features. The most critical mismatch is the use of fnlwgt, which has no causal link to income but may have correlated with other features during training, leading to a misleading prediction for >50K.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate whether any of the input features (e.g., fnlwgt, education-num) have a structural or semantic link to the true class (>50K) despite being seemingly irrelevant in domain knowledge.
+- Status: Success
+- findings: []
+- Explanation: All features in the input are either directly or indirectly related to socioeconomic factors that correlate with income levels. For example, 'age', 'education-num', 'hours-per-week', 'capital-gain', and 'occupation' have well-documented associations with income in the context of the Adult Income Dataset. While 'fnlwgt' (final weight) is a data processing field used for sampling and normalization, it does not represent a meaningful indicator of income level and is purely instrumental in data weighting. However, it is not semantically or structurally linked to the individual's actual earnings. Similarly, 'workclass', 'marital-status', 'race', 'sex', and 'native-country' are categorical features that, although sometimes considered demographic proxies, still show known correlations in the dataset. Though some may be considered irrelevant in a strict domain sense (e.g., race or sex), they are often included due to their observed statistical associations. However, none of the features show a structural or semantic link that is both irrelevant and yet contributes to incorrect prediction. Therefore, no feature is found that is semantically irrelevant but still causes the model to mispredict the class. The model's prediction of <=50K for a true label >50K may stem from a combination of weak signal in key features (e.g., education level, occupation) or model bias, but no feature is identified as causally irrelevant despite high attribution.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the relative importance of semantically relevant features (e.g., age, sex, hours-per-week) with those that are not (e.g., fnlwgt, education-num) to identify mismatches in model attention.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": 40, "rationale": "Age is a well-established proxy for income potential; individuals in their 40s typically have higher earning capacity. A value of 40 is within the range commonly associated with higher income, making it semantically relevant."}, {"feature_key": "sex", "action": "relevant", "new_value": "Female", "rationale": "The U.S. dataset shows a well-documented disparity where females, especially in middle-management roles, are underrepresented in the >50K class. However, this feature is known to be correlated with bias, and the model may have incorrectly weighted it due to spurious associations, particularly if it was trained on non-representative data. Still, it is semantically relevant to income, though possibly influenced by bias."}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": 40, "rationale": "Higher hours per week are strongly associated with higher income. A value of 40 is moderate but not exceptional. There is no strong semantic reason to expect this to be misleading, though it may be less predictive than other features. Still, it remains a relevant feature in the income prediction context."}, {"feature_key": "education", "action": "less-relevant", "new_value": "HS-grad", "rationale": "While education is important, 'HS-grad' is a low-education level, historically linked to lower income. This value is consistent with a lower-income prediction, yet the model assigns a false label of <=50K despite this being a known demographic marker. This suggests the model may have been over-relying on education-num or fnlwgt, which are more quantitative and possibly correlated with income without direct semantic value."}, {"feature_key": "fnlwgt", "action": "irrelevant", "new_value": 184846, "rationale": "fnlwgt (final weight) is a survey-based weighting factor for data collection, not a measure of actual income or socioeconomic status. It does not reflect real-world earning capacity and is highly likely to be a spurious feature influencing the model. Its inclusion in the model likely introduced noise or bias, especially since it correlates with other features like age and education-num due to data collection practices."}]
+- Explanation: The model incorrectly predicted <=50K for a female with a high education-num, private workclass, and moderate hours-per-week. The key insight is that 'fnlwgt' is not semantically relevant to income prediction and is likely causing spurious correlations. Features like 'age', 'sex', and 'hours-per-week' are semantically relevant but may be misweighted due to structural biases. The model's low confidence (52.84%) suggests uncertainty, possibly due to the lack of sufficient signal from the relevant features. The most critical mismatch is the use of fnlwgt, which has no causal link to income but may have correlated with other features during training, leading to a misleading prediction for >50K.
+- Confidence: 0.93
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

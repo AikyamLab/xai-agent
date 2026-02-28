@@ -1,0 +1,112 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the tumor to be malignant. How should the instance change to flip the model into benign?
+
+## Current State
+- Current Prediction: malignant (80.71%)
+- Target Prediction: benign
+
+## Input Data
+Features: mean radius=20.48, mean texture=21.46, mean perimeter=132.5, mean area=1306.0, mean smoothness=0.08355, mean compactness=0.08348, mean concavity=0.09042, mean concave points=0.06022, mean symmetry=0.1467, mean fractal dimension=0.05177, radius error=0.6874, texture error=1.041, perimeter error=5.144, area error=83.5, smoothness error=0.007959, compactness error=0.03133, concavity error=0.04257, concave points error=0.01671, symmetry error=0.01341, fractal dimension error=0.003933, worst radius=24.22, worst texture=26.17, worst perimeter=161.7, worst area=1750.0, worst smoothness=0.1228, worst compactness=0.2311, worst concavity=0.3158, worst concave points=0.1445, worst symmetry=0.2238, worst fractal dimension=0.07127
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean smoothness.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean perimeter (prob drop: 0.017306).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean smoothness: +0.0849
+  - mean concavity: +0.0358
+  - symmetry error: +0.0338
+  - mean radius: +0.0211
+  - smoothness error: +0.0188
+- Top negative features (shap_value):
+  - mean compactness: -0.0849
+  - mean concave points: -0.0358
+  - fractal dimension error: -0.0338
+  - mean texture: -0.0211
+  - compactness error: -0.0188
+- Max positive: 0.084912  Max negative: -0.084912
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean perimeter: drop=+0.0173  (orig=0.4519 → mod=0.4346)
+  - worst radius: drop=+0.0111  (orig=0.4519 → mod=0.4408)
+  - worst symmetry: drop=-0.0098  (orig=0.4519 → mod=0.4618)
+  - worst area: drop=+0.0096  (orig=0.4519 → mod=0.4423)
+  - mean fractal dimension: drop=+0.0078  (orig=0.4519 → mod=0.4441)
+  - mean area: drop=+0.0074  (orig=0.4519 → mod=0.4445)
+  - mean smoothness: drop=-0.0073  (orig=0.4519 → mod=0.4592)
+  - mean symmetry: drop=-0.0059  (orig=0.4519 → mod=0.4578)
+  - radius error: drop=+0.0044  (orig=0.4519 → mod=0.4476)
+  - concave points error: drop=+0.0039  (orig=0.4519 → mod=0.4480)
+- Max prob_drop: 0.017306  Max prob_increase: -0.009848
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts malignant with high confidence, which tumor features are most commonly associated with malignancy in breast cancer datasets, and which features are typically lower in benign tumors?
+- Status: Success
+- findings: [{"feature_key": "worst concavity", "action": "increase", "new_value": "0.45"}, {"feature_key": "worst concave points", "action": "increase", "new_value": "0.25"}, {"feature_key": "worst radius", "action": "increase", "new_value": "30.0"}, {"feature_key": "worst texture", "action": "increase", "new_value": "25.0"}, {"feature_key": "worst perimeter", "action": "increase", "new_value": "180.0"}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher values in features related to irregularity and size, such as worst concavity, worst concave points, worst radius, worst texture, and worst perimeter. These features reflect the cell size and shape irregularities characteristic of malignancy. Benign tumors tend to be more uniform and have smoother, smaller dimensions. To flip a malignant prediction to benign, we must reduce or diminish these irregularity indicators. However, since the model predicts malignancy with high confidence, the flip requires counteracting these key malignant features by reducing them. Therefore, the correct action is to decrease the values of these features to move toward benign patterns. The proposed changes represent a reasonable adjustment to reduce malignancy indicators, such as increasing the values slightly may be misleading — correction: actually, to flip the prediction to benign, we must **decrease** the values of these features to align with benign tumor patterns. Therefore, a correction is needed: the action must be to reduce the values, not increase. This error in the response is critical. Corrected reasoning follows: to flip malignant to benign, we must reduce features associated with malignancy. Thus, the correct actions are to decrease these features. Therefore, the output below is corrected.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: What would be the effect on prediction probability if mean radius, mean texture, and mean concavity are reduced by 10%, while keeping all other features constant?
+- Status: Success
+- findings: {"predicted_class": "benign", "prediction_probability": 0.85}
+- Explanation: The model currently predicts the tumor as malignant with 80.71% confidence. Reducing mean radius, mean texture, and mean concavity by 10% would shift the feature values toward more benign patterns. In breast cancer datasets like the Wisconsin Breast Cancer dataset, features such as mean radius and mean concavity are typically higher in malignant tumors. Reducing these values moves the instance closer to the benign cluster in the feature space, thereby increasing the probability of a benign prediction. While the exact probability depends on model calibration, the directional shift is expected to increase benign confidence to approximately 85%, based on typical decision boundaries and feature importance. Therefore, the model prediction would flip from malignant to benign with increased confidence.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts malignant with high confidence, which tumor features are most commonly associated with malignancy in breast cancer datasets, and which features are typically lower in benign tumors?
+- Status: Success
+- findings: [{"feature_key": "worst concavity", "action": "increase", "new_value": "0.45"}, {"feature_key": "worst concave points", "action": "increase", "new_value": "0.25"}, {"feature_key": "worst radius", "action": "increase", "new_value": "30.0"}, {"feature_key": "worst texture", "action": "increase", "new_value": "25.0"}, {"feature_key": "worst perimeter", "action": "increase", "new_value": "180.0"}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher values in features related to irregularity and size, such as worst concavity, worst concave points, worst radius, worst texture, and worst perimeter. These features reflect the cell size and shape irregularities characteristic of malignancy. Benign tumors tend to be more uniform and have smoother, smaller dimensions. To flip a malignant prediction to benign, we must reduce or diminish these irregularity indicators. However, since the model predicts malignancy with high confidence, the flip requires counteracting these key malignant features by reducing them. Therefore, the correct action is to decrease the values of these features to move toward benign patterns. The proposed changes represent a reasonable adjustment to reduce malignancy indicators, such as increasing the values slightly may be misleading — correction: actually, to flip the prediction to benign, we must **decrease** the values of these features to align with benign tumor patterns. Therefore, a correction is needed: the action must be to reduce the values, not increase. This error in the response is critical. Corrected reasoning follows: to flip malignant to benign, we must reduce features associated with malignancy. Thus, the correct actions are to decrease these features. Therefore, the output below is corrected.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: What would be the effect on prediction probability if mean radius, mean texture, and mean concavity are reduced by 10%, while keeping all other features constant?
+- Status: Success
+- findings: {"predicted_class": "benign", "prediction_probability": 0.85}
+- Explanation: The model currently predicts the tumor as malignant with 80.71% confidence. Reducing mean radius, mean texture, and mean concavity by 10% would shift the feature values toward more benign patterns. In breast cancer datasets like the Wisconsin Breast Cancer dataset, features such as mean radius and mean concavity are typically higher in malignant tumors. Reducing these values moves the instance closer to the benign cluster in the feature space, thereby increasing the probability of a benign prediction. While the exact probability depends on model calibration, the directional shift is expected to increase benign confidence to approximately 85%, based on typical decision boundaries and feature importance. Therefore, the model prediction would flip from malignant to benign with increased confidence.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "benign".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['mean radius', 'mean texture', 'mean perimeter', 'mean area', 'mean smoothness', 'mean compactness', 'mean concavity', 'mean concave points', 'mean symmetry', 'mean fractal dimension', 'radius error', 'texture error', 'perimeter error', 'area error', 'smoothness error', 'compactness error', 'concavity error', 'concave points error', 'symmetry error', 'fractal dimension error', 'worst radius', 'worst texture', 'worst perimeter', 'worst area', 'worst smoothness', 'worst compactness', 'worst concavity', 'worst concave points', 'worst symmetry', 'worst fractal dimension']
+        // Current values: mean radius=20.48, mean texture=21.46, mean perimeter=132.5, mean area=1306.0, mean smoothness=0.08355, mean compactness=0.08348, mean concavity=0.09042, mean concave points=0.06022, mean symmetry=0.1467, mean fractal dimension=0.05177, radius error=0.6874, texture error=1.041, perimeter error=5.144, area error=83.5, smoothness error=0.007959
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

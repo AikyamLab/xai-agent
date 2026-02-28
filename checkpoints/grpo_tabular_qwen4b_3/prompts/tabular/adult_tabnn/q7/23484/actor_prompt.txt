@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change education, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (72.68%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.7268106937408447}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.2731893062591553}]
+- Part to Change: education
+
+## Input Data
+Features: age=40, workclass=Self-emp-not-inc, fnlwgt=238574, education=Prof-school, education-num=15, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.014225).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0998
+  - relationship_Wife: +0.0348
+  - native-country_Cambodia: +0.0290
+  - workclass_State-gov: +0.0284
+  - native-country_United-States: +0.0247
+- Top negative features (shap_value):
+  - capital-loss: -0.0998
+  - relationship_Unmarried: -0.0348
+  - sex_Male: -0.0290
+  - workclass_Self-emp-not-inc: -0.0284
+  - native-country_Trinadad&Tobago: -0.0247
+- Max positive: 0.099759  Max negative: -0.099759
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0142  (orig=0.6741 → mod=0.6599)
+  - marital-status_Married-civ-spouse: drop=+0.0105  (orig=0.6741 → mod=0.6636)
+  - sex_Male: drop=+0.0068  (orig=0.6741 → mod=0.6673)
+  - relationship_Husband: drop=+0.0068  (orig=0.6741 → mod=0.6673)
+  - education_Prof-school: drop=+0.0049  (orig=0.6741 → mod=0.6692)
+  - occupation_Prof-specialty: drop=+0.0043  (orig=0.6741 → mod=0.6698)
+  - native-country_United-States: drop=+0.0043  (orig=0.6741 → mod=0.6698)
+  - hours-per-week: drop=+0.0032  (orig=0.6741 → mod=0.6709)
+  - race_White: drop=+0.0022  (orig=0.6741 → mod=0.6719)
+  - fnlwgt: drop=+0.0015  (orig=0.6741 → mod=0.6726)
+- Max prob_drop: 0.014225  Max prob_increase: -0.000853
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that education is a strong predictor of income in the adult dataset, and the current value is 'Prof-school', how would removing this feature affect the model's prediction probability for >50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "remove", "new_value": null}]
+- Explanation: Education is a strong predictor of income in the adult dataset, with higher levels of education (such as 'Bachelors', 'Masters', 'Doctorate') strongly associated with income >50K. The current value 'Prof-school' (professional school) is a moderate-level education that is generally associated with higher income, though not as strongly as higher degrees. Removing the education feature would eliminate a key signal that contributed to the model's prediction of >50K. Without this feature, the model would rely on other predictors like age, workclass, occupation, and hours-per-week, which are less consistently correlated with income outcomes. Given that the original prediction was confident (72.68%), and education contributed positively to that confidence, removing it would likely reduce the prediction's accuracy and shift the model's estimate toward <=50K, though the exact shift depends on compensating features. However, without education, the model would be less informed and more uncertain. Therefore, the prediction would likely shift toward <=50K, though not completely, due to the presence of other income-related features.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the relative importance of education to other features like age, occupation, and marital-status in predicting income class.
+- Status: Success
+- feature_importance_ranking: [{"feature": "education", "importance": "high", "reason": "The model predicted income >50K with 72.68% confidence and the current value is 'Prof-school' (education-num=15), which is a strong indicator of higher income potential. 'Prof-school' belongs to a category typically associated with higher education levels and improved earning capacity. Changing this feature directly impacts the model's feature vector in a categorical, non-linear way, potentially shifting the prediction outcome significantly. Among all features, education has a strong historical and statistical correlation with income in this dataset."}, {"feature": "hours-per-week", "importance": "high", "reason": "Higher weekly hours are consistently associated with higher income. The current value (55 hours) is above the average and contributes positively to the prediction of higher income. This feature is often in strong interaction with education, as high-earning professionals (e.g., 'Prof-specialty') often work long hours. However, its effect is more linear and less categorical than education."}, {"feature": "occupation", "importance": "medium-high", "reason": "The current value is 'Prof-specialty', which is a high-income occupation. While occupation directly influences income, its effect is partially mediated by education. For instance, 'Prof-specialty' with 'Prof-school' education reinforces the high-income prediction. If education were changed, the occupation\u2019s contribution might be attenuated or recontextualized."}, {"feature": "age", "importance": "medium", "reason": "Age (40) is within the working prime, but it has a relatively weak standalone impact. The dataset shows that age alone does not strongly differentiate income beyond certain thresholds. It may contribute marginally to income prediction, but no clear nonlinear or threshold effects are observed. It is less influential than education or work hours."}, {"feature": "marital-status", "importance": "low", "reason": "Marital-status is correlated with stability and household income but does not directly predict income class in strong isolation. The current value 'Married-civ-spouse' is common and not strongly predictive. Its effect is often secondary to education and occupation."}]
+- Explanation: Education is a highly influential feature in income prediction, especially given that it directly reflects the level of qualification and training associated with high-income professions. The model's high confidence (72.68%) suggests that education plays a key role in shaping the prediction. Changing education (e.g., to 'Bachelors' or 'Masters') would likely alter the prediction outcome significantly due to its strong categorical association with income. In contrast, age and marital-status have weaker, more indirect effects. Occupation is moderately important but heavily intertwined with education. Hours-per-week is impactful due to its direct workload correlation with income but is more linear than education's categorical influence.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that education is a strong predictor of income in the adult dataset, and the current value is 'Prof-school', how would removing this feature affect the model's prediction probability for >50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "remove", "new_value": null}]
+- Explanation: Education is a strong predictor of income in the adult dataset, with higher levels of education (such as 'Bachelors', 'Masters', 'Doctorate') strongly associated with income >50K. The current value 'Prof-school' (professional school) is a moderate-level education that is generally associated with higher income, though not as strongly as higher degrees. Removing the education feature would eliminate a key signal that contributed to the model's prediction of >50K. Without this feature, the model would rely on other predictors like age, workclass, occupation, and hours-per-week, which are less consistently correlated with income outcomes. Given that the original prediction was confident (72.68%), and education contributed positively to that confidence, removing it would likely reduce the prediction's accuracy and shift the model's estimate toward <=50K, though the exact shift depends on compensating features. However, without education, the model would be less informed and more uncertain. Therefore, the prediction would likely shift toward <=50K, though not completely, due to the presence of other income-related features.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the relative importance of education to other features like age, occupation, and marital-status in predicting income class.
+- Status: Success
+- feature_importance_ranking: [{"feature": "education", "importance": "high", "reason": "The model predicted income >50K with 72.68% confidence and the current value is 'Prof-school' (education-num=15), which is a strong indicator of higher income potential. 'Prof-school' belongs to a category typically associated with higher education levels and improved earning capacity. Changing this feature directly impacts the model's feature vector in a categorical, non-linear way, potentially shifting the prediction outcome significantly. Among all features, education has a strong historical and statistical correlation with income in this dataset."}, {"feature": "hours-per-week", "importance": "high", "reason": "Higher weekly hours are consistently associated with higher income. The current value (55 hours) is above the average and contributes positively to the prediction of higher income. This feature is often in strong interaction with education, as high-earning professionals (e.g., 'Prof-specialty') often work long hours. However, its effect is more linear and less categorical than education."}, {"feature": "occupation", "importance": "medium-high", "reason": "The current value is 'Prof-specialty', which is a high-income occupation. While occupation directly influences income, its effect is partially mediated by education. For instance, 'Prof-specialty' with 'Prof-school' education reinforces the high-income prediction. If education were changed, the occupation\u2019s contribution might be attenuated or recontextualized."}, {"feature": "age", "importance": "medium", "reason": "Age (40) is within the working prime, but it has a relatively weak standalone impact. The dataset shows that age alone does not strongly differentiate income beyond certain thresholds. It may contribute marginally to income prediction, but no clear nonlinear or threshold effects are observed. It is less influential than education or work hours."}, {"feature": "marital-status", "importance": "low", "reason": "Marital-status is correlated with stability and household income but does not directly predict income class in strong isolation. The current value 'Married-civ-spouse' is common and not strongly predictive. Its effect is often secondary to education and occupation."}]
+- Explanation: Education is a highly influential feature in income prediction, especially given that it directly reflects the level of qualification and training associated with high-income professions. The model's high confidence (72.68%) suggests that education plays a key role in shaping the prediction. Changing education (e.g., to 'Bachelors' or 'Masters') would likely alter the prediction outcome significantly due to its strong categorical association with income. In contrast, age and marital-status have weaker, more indirect effects. Occupation is moderately important but heavily intertwined with education. Hours-per-week is impactful due to its direct workload correlation with income but is more linear than education's categorical influence.
+- Confidence: 0.94
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

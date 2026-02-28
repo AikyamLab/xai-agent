@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the hours-per-week feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6070
+
+## Part to be Masked
+hours-per-week
+
+## Input Data
+Features: age=41, workclass=Private, fnlwgt=160893, education=Assoc-acdm, education-num=12, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.012143).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0233
+  - native-country_France: +0.0228
+  - native-country_Vietnam: +0.0130
+  - race_Other: +0.0121
+  - native-country_Trinadad&Tobago: +0.0102
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0233
+  - native-country_Germany: -0.0228
+  - native-country_Yugoslavia: -0.0130
+  - race_Black: -0.0121
+  - native-country_United-States: -0.0102
+- Max positive: 0.02334  Max negative: -0.02334
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0121  (orig=0.4030 → mod=0.3909)
+  - sex_Female: drop=+0.0113  (orig=0.4030 → mod=0.3917)
+  - occupation_Adm-clerical: drop=+0.0091  (orig=0.4030 → mod=0.3939)
+  - relationship_Not-in-family: drop=+0.0072  (orig=0.4030 → mod=0.3958)
+  - race_White: drop=-0.0060  (orig=0.4030 → mod=0.4090)
+  - workclass_Private: drop=+0.0060  (orig=0.4030 → mod=0.3970)
+  - education-num: drop=-0.0033  (orig=0.4030 → mod=0.4063)
+  - education_Assoc-acdm: drop=+0.0028  (orig=0.4030 → mod=0.4002)
+  - hours-per-week: drop=-0.0020  (orig=0.4030 → mod=0.4050)
+  - fnlwgt: drop=-0.0009  (orig=0.4030 → mod=0.4039)
+- Max prob_drop: 0.012143  Max prob_increase: -0.006047
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input description and domain knowledge, assess whether 'hours-per-week' is likely to influence income prediction in the adult dataset.
+- Status: Success
+- findings: {"hours-per-week_impacts_prediction": true, "reasoning": "In the Adult Income Dataset (also known as the CPS dataset), 'hours-per-week' is a well-documented feature that correlates with income levels. Higher hours per week are generally associated with higher income, especially among individuals earning more than $50K. Given that the current prediction is <=50K with 60.70% confidence, masking 'hours-per-week' would remove one of the key contextual features that could influence the model\u2019s decision. The input currently has 'hours-per-week'=45, which is above the median of the dataset (typically around 35\u201340). Changing this value\u2014such as reducing it to 30 or increasing it to 60\u2014would likely alter the model\u2019s probabilistic output. Domain knowledge and empirical studies show that working more hours correlates with higher income, and models trained on this data have learned this pattern. Therefore, masking this feature would introduce uncertainty and likely shift the prediction toward >50K or alter the confidence level, indicating that 'hours-per-week' is a meaningful predictor."}
+- Explanation: In the Adult Income Dataset, 'hours-per-week' is a significant predictor of income level. Higher working hours are statistically associated with higher income brackets, particularly over $50K. Since the current prediction is <=50K, reducing hours per week (e.g., to 20 or 30) would likely decrease the model's confidence in the <=50K class, potentially shifting the prediction to >50K. Conversely, increasing hours to 60+ might increase the likelihood of a >50K outcome. Thus, masking this feature removes a critical input that directly influences the model’s decision, making it plausible that the prediction would change.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model's confidence and top-5 probabilities before and after hypothetical masking of hours-per-week (using prior knowledge of feature relevance).
+- Status: Success
+- findings: {"prediction_class_before_mask": "<=50K", "prediction_class_after_mask": "<=50K", "confidence_before_mask": 0.607, "confidence_after_mask": 0.607, "prediction_shift": "no", "confidence_shift": "no"}
+- Explanation: The 'hours-per-week' feature is present in the input and has a value of 45. Based on the context of the dataset (e.g., the Adult Census Income dataset), 'hours-per-week' is a known feature that can influence income predictions, particularly as higher hours are often associated with higher income. However, the model's prediction is already stable at <=50K with a confidence of 60.7%. Masking this feature (i.e., setting it to missing or removing its influence) would not induce a significant shift in the prediction class or confidence level, because the model has already incorporated sufficient information from other strongly predictive features (e.g., age, sex, occupation, relationship). The absence of a strong top-5 probability distribution and the relatively modest weight of 'hours-per-week' in typical models suggest that its omission would not substantially alter the output. Therefore, both the prediction class and confidence remain unchanged.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input description and domain knowledge, assess whether 'hours-per-week' is likely to influence income prediction in the adult dataset.
+- Status: Success
+- findings: {"hours-per-week_impacts_prediction": true, "reasoning": "In the Adult Income Dataset (also known as the CPS dataset), 'hours-per-week' is a well-documented feature that correlates with income levels. Higher hours per week are generally associated with higher income, especially among individuals earning more than $50K. Given that the current prediction is <=50K with 60.70% confidence, masking 'hours-per-week' would remove one of the key contextual features that could influence the model\u2019s decision. The input currently has 'hours-per-week'=45, which is above the median of the dataset (typically around 35\u201340). Changing this value\u2014such as reducing it to 30 or increasing it to 60\u2014would likely alter the model\u2019s probabilistic output. Domain knowledge and empirical studies show that working more hours correlates with higher income, and models trained on this data have learned this pattern. Therefore, masking this feature would introduce uncertainty and likely shift the prediction toward >50K or alter the confidence level, indicating that 'hours-per-week' is a meaningful predictor."}
+- Explanation: In the Adult Income Dataset, 'hours-per-week' is a significant predictor of income level. Higher working hours are statistically associated with higher income brackets, particularly over $50K. Since the current prediction is <=50K, reducing hours per week (e.g., to 20 or 30) would likely decrease the model's confidence in the <=50K class, potentially shifting the prediction to >50K. Conversely, increasing hours to 60+ might increase the likelihood of a >50K outcome. Thus, masking this feature removes a critical input that directly influences the model’s decision, making it plausible that the prediction would change.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model's confidence and top-5 probabilities before and after hypothetical masking of hours-per-week (using prior knowledge of feature relevance).
+- Status: Success
+- findings: {"prediction_class_before_mask": "<=50K", "prediction_class_after_mask": "<=50K", "confidence_before_mask": 0.607, "confidence_after_mask": 0.607, "prediction_shift": "no", "confidence_shift": "no"}
+- Explanation: The 'hours-per-week' feature is present in the input and has a value of 45. Based on the context of the dataset (e.g., the Adult Census Income dataset), 'hours-per-week' is a known feature that can influence income predictions, particularly as higher hours are often associated with higher income. However, the model's prediction is already stable at <=50K with a confidence of 60.7%. Masking this feature (i.e., setting it to missing or removing its influence) would not induce a significant shift in the prediction class or confidence level, because the model has already incorporated sufficient information from other strongly predictive features (e.g., age, sex, occupation, relationship). The absence of a strong top-5 probability distribution and the relatively modest weight of 'hours-per-week' in typical models suggest that its omission would not substantially alter the output. Therefore, both the prediction class and confidence remain unchanged.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:
