@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change education, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (69.85%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.6985082030296326}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.30149179697036743}]
+- Part to Change: education
+
+## Input Data
+Features: age=47, workclass=Private, fnlwgt=252079, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Machine-op-inspct, relationship=Husband, race=White, sex=Male, capital-gain=7688, capital-loss=0, hours-per-week=44, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: relationship_Husband (prob drop: 0.010587).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0496
+  - workclass_Local-gov: +0.0355
+  - native-country_Cambodia: +0.0349
+  - native-country_United-States: +0.0344
+  - fnlwgt: +0.0303
+- Top negative features (shap_value):
+  - capital-loss: -0.0496
+  - workclass_Federal-gov: -0.0355
+  - sex_Male: -0.0349
+  - native-country_Trinadad&Tobago: -0.0344
+  - age: -0.0303
+- Max positive: 0.049598  Max negative: -0.049598
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Husband: drop=+0.0106  (orig=0.6679 → mod=0.6573)
+  - education-num: drop=+0.0089  (orig=0.6679 → mod=0.6589)
+  - marital-status_Married-civ-spouse: drop=+0.0062  (orig=0.6679 → mod=0.6617)
+  - capital-gain: drop=+0.0056  (orig=0.6679 → mod=0.6622)
+  - occupation_Machine-op-inspct: drop=-0.0055  (orig=0.6679 → mod=0.6733)
+  - sex_Male: drop=+0.0051  (orig=0.6679 → mod=0.6628)
+  - native-country_United-States: drop=+0.0043  (orig=0.6679 → mod=0.6636)
+  - education_Bachelors: drop=+0.0042  (orig=0.6679 → mod=0.6636)
+  - race_White: drop=+0.0032  (orig=0.6679 → mod=0.6647)
+  - age: drop=+0.0028  (orig=0.6679 → mod=0.6651)
+- Max prob_drop: 0.010587  Max prob_increase: -0.005483
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the relationship between education level and income in the adult dataset?
+- Status: Success
+- findings: ["Individuals with higher education levels, such as 'Bachelors', 'Masters', or 'Doctorate', are significantly more likely to have an income greater than $50K compared to those with lower education levels like '11th' or '9th'.", "The 'education-num' feature shows a strong positive correlation with income, where higher numerical education levels (e.g., 13 for 'Bachelors') are associated with a higher probability of earning over $50K.", "In the current prediction, the individual has 'Bachelors' education (education-num=13), which contributes to the model's prediction of income >50K with a 69.85% confidence.", "Changing the education level to a lower category (e.g., 'Some-college' or '10th') would likely reduce the predicted income outcome, potentially shifting the prediction to \u226450K, based on observed trends in the dataset.", "The dataset demonstrates a strong non-linear trend where education level has a non-trivial impact on income, especially in the middle and upper education categories."]
+- Explanation: The analysis is based on observed patterns in the adult income dataset, where education level is a strong predictor of income outcomes. Higher education categories (e.g., Bachelors, Masters, Doctorate) are consistently associated with higher income, particularly above $50K. Removing or changing education to a lower level reduces the predicted income probability, as evidenced by the model’s original positive prediction under current conditions. This reflects the dataset's known correlation structure between education and income, where education acts as a key feature in determining income class.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: Given the current prediction of >50K with education=Bachelors, how might removing education affect the model's decision boundary?
+- Status: Success
+- findings: "The model prediction is >50K with education='Bachelors'. Removing the education feature would result in a loss of critical information that strongly correlates with income levels in this dataset. Education is a well-established predictor of income, especially when combined with education-num. Since the current prediction relies on the categorical feature 'education' being 'Bachelors', which is associated with higher income, eliminating this feature would likely reduce the model's ability to distinguish between high and low income groups. Without education, the model would depend on other features such as age, hours-per-week, and occupation, which are less directly predictive of income in this context. Thus, the prediction is likely to shift toward <=50K due to the reduced discriminatory power of the feature set. The outcome would not remain at >50K with high confidence."
+- Explanation: Education is a key categorical predictor in income classification models. The current prediction of >50K is supported by the 'Bachelors' education level, which historically correlates with higher income in such datasets. If education is removed, the model loses a major signal for income stratification. Even though other features like age, workclass, and hours-per-week contribute, they do not compensate fully for the strong predictive power of education. Without this feature, the model would default to a more neutral or lower-income prediction, shifting the outcome from >50K to <=50K. This shift is consistent with known feature importance in tabular income prediction tasks.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the prediction confidence with and without education to infer structural dependence?
+- Status: Success
+- findings: "The model prediction confidence decreases from 69.85% to 48.21% when education is removed. This indicates a structural dependence between the 'education' feature and the prediction outcome, suggesting that education contributes significantly to the model's confidence in predicting income >50K."
+- Explanation: The model's confidence in predicting income greater than 50K (initially 69.85%) is substantially reduced when the 'education' feature is removed, dropping to 48.21%. This decline implies that 'education' plays a key role in the model's internal decision boundaries. Since education is a strong predictor in income classification models (e.g., in datasets like Adult Census Income), its removal reduces the model's ability to distinguish between high and low income groups, leading to lower confidence. This supports the inference that education is structurally dependent on the prediction outcome.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the relationship between education level and income in the adult dataset?
+- Status: Success
+- findings: ["Individuals with higher education levels, such as 'Bachelors', 'Masters', or 'Doctorate', are significantly more likely to have an income greater than $50K compared to those with lower education levels like '11th' or '9th'.", "The 'education-num' feature shows a strong positive correlation with income, where higher numerical education levels (e.g., 13 for 'Bachelors') are associated with a higher probability of earning over $50K.", "In the current prediction, the individual has 'Bachelors' education (education-num=13), which contributes to the model's prediction of income >50K with a 69.85% confidence.", "Changing the education level to a lower category (e.g., 'Some-college' or '10th') would likely reduce the predicted income outcome, potentially shifting the prediction to \u226450K, based on observed trends in the dataset.", "The dataset demonstrates a strong non-linear trend where education level has a non-trivial impact on income, especially in the middle and upper education categories."]
+- Explanation: The analysis is based on observed patterns in the adult income dataset, where education level is a strong predictor of income outcomes. Higher education categories (e.g., Bachelors, Masters, Doctorate) are consistently associated with higher income, particularly above $50K. Removing or changing education to a lower level reduces the predicted income probability, as evidenced by the model’s original positive prediction under current conditions. This reflects the dataset's known correlation structure between education and income, where education acts as a key feature in determining income class.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: Given the current prediction of >50K with education=Bachelors, how might removing education affect the model's decision boundary?
+- Status: Success
+- findings: "The model prediction is >50K with education='Bachelors'. Removing the education feature would result in a loss of critical information that strongly correlates with income levels in this dataset. Education is a well-established predictor of income, especially when combined with education-num. Since the current prediction relies on the categorical feature 'education' being 'Bachelors', which is associated with higher income, eliminating this feature would likely reduce the model's ability to distinguish between high and low income groups. Without education, the model would depend on other features such as age, hours-per-week, and occupation, which are less directly predictive of income in this context. Thus, the prediction is likely to shift toward <=50K due to the reduced discriminatory power of the feature set. The outcome would not remain at >50K with high confidence."
+- Explanation: Education is a key categorical predictor in income classification models. The current prediction of >50K is supported by the 'Bachelors' education level, which historically correlates with higher income in such datasets. If education is removed, the model loses a major signal for income stratification. Even though other features like age, workclass, and hours-per-week contribute, they do not compensate fully for the strong predictive power of education. Without this feature, the model would default to a more neutral or lower-income prediction, shifting the outcome from >50K to <=50K. This shift is consistent with known feature importance in tabular income prediction tasks.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the prediction confidence with and without education to infer structural dependence?
+- Status: Success
+- findings: "The model prediction confidence decreases from 69.85% to 48.21% when education is removed. This indicates a structural dependence between the 'education' feature and the prediction outcome, suggesting that education contributes significantly to the model's confidence in predicting income >50K."
+- Explanation: The model's confidence in predicting income greater than 50K (initially 69.85%) is substantially reduced when the 'education' feature is removed, dropping to 48.21%. This decline implies that 'education' plays a key role in the model's internal decision boundaries. Since education is a strong predictor in income classification models (e.g., in datasets like Adult Census Income), its removal reduces the model's ability to distinguish between high and low income groups, leading to lower confidence. This supports the inference that education is structurally dependent on the prediction outcome.
+- Confidence: 0.96
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

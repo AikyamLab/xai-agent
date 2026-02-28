@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (56.34%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=40, workclass=Local-gov, fnlwgt=197012, education=Bachelors, education-num=13, marital-status=Divorced, occupation=Tech-support, relationship=Not-in-family, race=White, sex=Female, capital-gain=8614, capital-loss=0, hours-per-week=40, native-country=England
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain > -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Not-in-family.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: capital-gain (prob drop: -0.019462).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.0527
+  - hours-per-week: +0.0490
+  - race_Black: +0.0395
+  - native-country_Vietnam: +0.0395
+  - sex_Male: +0.0284
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.0527
+  - capital-loss: -0.0490
+  - race_Other: -0.0395
+  - native-country_Yugoslavia: -0.0395
+  - native-country_Cambodia: -0.0284
+- Max positive: 0.052681  Max negative: -0.052681
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.1374
+  - workclass_Federal-gov <= 0.00: +0.1035
+  - native-country_Canada <= 0.00: +0.0850
+  - relationship_Wife <= 0.00: +0.0569
+  - native-country_Scotland <= 0.00: +0.0447
+- Top negative features (weight):
+  - capital-gain > -0.15: -0.2307
+  - native-country_Hong <= 0.00: -0.0535
+  - native-country_Yugoslavia <= 0.00: -0.0262
+  - native-country_Iran <= 0.00: -0.0066
+- Max positive: 0.137367  Max negative: -0.230668
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0191
+  - marital-status_Divorced: +0.0150
+  - sex_Female: +0.0038
+  - race_White: +0.0019
+  - capital-loss: +0.0008
+- Top negative features (attribution_score):
+  - capital-gain: -0.0156
+  - education-num: -0.0141
+  - education_Bachelors: -0.0107
+  - workclass_Local-gov: -0.0051
+  - native-country_England: -0.0042
+- Max positive: 0.019149  Max negative: -0.015565
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=-0.0195  (orig=0.3925 → mod=0.4120)
+  - relationship_Not-in-family: drop=+0.0172  (orig=0.3925 → mod=0.3753)
+  - marital-status_Divorced: drop=+0.0144  (orig=0.3925 → mod=0.3781)
+  - education-num: drop=-0.0117  (orig=0.3925 → mod=0.4042)
+  - education_Bachelors: drop=-0.0081  (orig=0.3925 → mod=0.4007)
+  - occupation_Tech-support: drop=-0.0048  (orig=0.3925 → mod=0.3974)
+  - sex_Female: drop=+0.0045  (orig=0.3925 → mod=0.3881)
+  - native-country_England: drop=-0.0041  (orig=0.3925 → mod=0.3967)
+  - workclass_Local-gov: drop=-0.0031  (orig=0.3925 → mod=0.3957)
+  - age: drop=-0.0009  (orig=0.3925 → mod=0.3934)
+- Max prob_drop: 0.017211  Max prob_increase: -0.019462
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the true class is >50K, evaluate whether features like 'workclass=Local-gov' or 'occupation=Tech-support' are semantically linked to higher incomes, or if they may be correlated only due to data leakage or dataset biases.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: The features 'workclass=Local-gov' and 'occupation=Tech-support' are not semantically linked to higher incomes. 'Local-gov' is typically associated with public sector jobs, which historically have lower median incomes compared to private sector or executive roles. 'Tech-support' is a low-wage occupation with limited earning potential. These categories are more likely to be correlated with the model's poor prediction due to data leakage or distribution bias in the dataset (e.g., demographic imbalances or regional income disparities) rather than inherent income-generating characteristics. Changing them to more income-positively correlated categories (like 'Private' or 'Prof-specialty') helps assess whether the model's prediction depends on irrelevant feature biases instead of meaningful patterns.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the attribution weights of 'fnlwgt' and 'age' against known income-related features such as 'education-num' or 'marital-status' to assess whether low-semantic-value features dominate the model's decision.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "compare", "new_value": null, "reason": "fnlwgt (final weight) is a surrogate feature often used for sampling or normalization and does not directly represent socioeconomic status or income capability. Its inclusion can introduce spurious correlations, especially if the model learns that higher fnlwgt correlates with higher income due to data leakage or co-variation with other factors like education or occupation. Given the absence of income transformation or feature engineering involving fnlwgt, its high influence may indicate model overfitting to irrelevant covariates."}, {"feature_key": "age", "action": "compare", "new_value": null, "reason": "age is a weak predictor of income in this dataset, especially when controlling for education and work experience. The individual has age=40, which is within a typical range, and does not strongly differentiate between income groups. If age has higher attribution than education-num or marital-status, this suggests that the model may be over-relying on a low-semantic-value feature, which is inconsistent with known income determinants."}, {"feature_key": "education-num", "action": "compare", "new_value": null, "reason": "education-num=13 (Bachelors) is a strong predictor of income in this dataset. Individuals with a Bachelors degree are significantly more likely to earn >50K. A higher attribution to education-num than to age or fnlwgt would indicate appropriate modeling. The model\u2019s incorrect prediction (0) despite this strong feature suggests that the model may be dominated by irrelevant features."}, {"feature_key": "marital-status", "action": "compare", "new_value": null, "reason": "marital-status='Divorced' is a relatively neutral status; it does not strongly correlate with income in this dataset. If it has high attribution, it may reflect data bias or imbalance rather than meaningful influence. However, its low relevance suggests that if it is assigned significant weight, it may be contributing to the model's error due to lack of proper feature importance calibration."}]
+- Explanation: The model predicted <=50K for a true label of >50K despite having a 'Bachelors' degree and 'White' race with moderate age and work exposure. The high confidence (56.34%) and the fact that the true label is >50K suggest a misclassification. Analysis shows that 'fnlwgt' and 'age' have potentially higher attribution weights than relevant features like 'education-num', which is a strong income predictor. This imbalance indicates that the model may be over-relying on low-semantic-value or irrelevant features, leading to incorrect predictions. This is especially concerning given that education-num is a well-documented predictor in the dataset.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the true class is >50K, evaluate whether features like 'workclass=Local-gov' or 'occupation=Tech-support' are semantically linked to higher incomes, or if they may be correlated only due to data leakage or dataset biases.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: The features 'workclass=Local-gov' and 'occupation=Tech-support' are not semantically linked to higher incomes. 'Local-gov' is typically associated with public sector jobs, which historically have lower median incomes compared to private sector or executive roles. 'Tech-support' is a low-wage occupation with limited earning potential. These categories are more likely to be correlated with the model's poor prediction due to data leakage or distribution bias in the dataset (e.g., demographic imbalances or regional income disparities) rather than inherent income-generating characteristics. Changing them to more income-positively correlated categories (like 'Private' or 'Prof-specialty') helps assess whether the model's prediction depends on irrelevant feature biases instead of meaningful patterns.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the attribution weights of 'fnlwgt' and 'age' against known income-related features such as 'education-num' or 'marital-status' to assess whether low-semantic-value features dominate the model's decision.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "compare", "new_value": null, "reason": "fnlwgt (final weight) is a surrogate feature often used for sampling or normalization and does not directly represent socioeconomic status or income capability. Its inclusion can introduce spurious correlations, especially if the model learns that higher fnlwgt correlates with higher income due to data leakage or co-variation with other factors like education or occupation. Given the absence of income transformation or feature engineering involving fnlwgt, its high influence may indicate model overfitting to irrelevant covariates."}, {"feature_key": "age", "action": "compare", "new_value": null, "reason": "age is a weak predictor of income in this dataset, especially when controlling for education and work experience. The individual has age=40, which is within a typical range, and does not strongly differentiate between income groups. If age has higher attribution than education-num or marital-status, this suggests that the model may be over-relying on a low-semantic-value feature, which is inconsistent with known income determinants."}, {"feature_key": "education-num", "action": "compare", "new_value": null, "reason": "education-num=13 (Bachelors) is a strong predictor of income in this dataset. Individuals with a Bachelors degree are significantly more likely to earn >50K. A higher attribution to education-num than to age or fnlwgt would indicate appropriate modeling. The model\u2019s incorrect prediction (0) despite this strong feature suggests that the model may be dominated by irrelevant features."}, {"feature_key": "marital-status", "action": "compare", "new_value": null, "reason": "marital-status='Divorced' is a relatively neutral status; it does not strongly correlate with income in this dataset. If it has high attribution, it may reflect data bias or imbalance rather than meaningful influence. However, its low relevance suggests that if it is assigned significant weight, it may be contributing to the model's error due to lack of proper feature importance calibration."}]
+- Explanation: The model predicted <=50K for a true label of >50K despite having a 'Bachelors' degree and 'White' race with moderate age and work exposure. The high confidence (56.34%) and the fact that the true label is >50K suggest a misclassification. Analysis shows that 'fnlwgt' and 'age' have potentially higher attribution weights than relevant features like 'education-num', which is a strong income predictor. This imbalance indicates that the model may be over-relying on low-semantic-value or irrelevant features, leading to incorrect predictions. This is especially concerning given that education-num is a well-documented predictor in the dataset.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

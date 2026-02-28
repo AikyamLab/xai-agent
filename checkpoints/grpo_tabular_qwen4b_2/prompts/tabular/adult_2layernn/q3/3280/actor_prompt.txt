@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (65.46%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3453928828239441}
+
+## Input Data
+Features: age=18, workclass=Private, fnlwgt=122988, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Handlers-cleaners, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=20, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: native-country_Portugal <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.015035).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0478
+  - native-country_Columbia: +0.0141
+  - occupation_Tech-support: +0.0126
+  - age: +0.0119
+  - native-country_Iran: +0.0085
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0478
+  - native-country_Cuba: -0.0141
+  - occupation_Transport-moving: -0.0126
+  - fnlwgt: -0.0119
+  - native-country_Ireland: -0.0085
+- Max positive: 0.047799  Max negative: -0.047799
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Portugal <= 0.00: +0.0734
+  - capital-gain <= -0.15: +0.0703
+  - capital-loss <= -0.22: +0.0664
+  - native-country_Japan <= 0.00: +0.0572
+  - education-num <= -0.44: +0.0520
+- Top negative features (weight):
+  - native-country_Thailand <= 0.00: -0.0702
+  - native-country_Puerto-Rico <= 0.00: -0.0509
+  - marital-status_Divorced <= 0.00: -0.0440
+- Max positive: 0.073382  Max negative: -0.070187
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0175
+  - relationship_Own-child: +0.0077
+  - marital-status_Never-married: +0.0059
+  - age: +0.0050
+  - education_HS-grad: +0.0049
+- Top negative features (attribution_score):
+  - sex_Male: -0.0125
+  - native-country_United-States: -0.0064
+  - race_White: -0.0023
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.01746  Max negative: -0.012492
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0150  (orig=0.4145 → mod=0.3995)
+  - sex_Male: drop=-0.0127  (orig=0.4145 → mod=0.4272)
+  - relationship_Own-child: drop=+0.0077  (orig=0.4145 → mod=0.4068)
+  - native-country_United-States: drop=-0.0070  (orig=0.4145 → mod=0.4215)
+  - marital-status_Never-married: drop=+0.0055  (orig=0.4145 → mod=0.4090)
+  - education-num: drop=+0.0042  (orig=0.4145 → mod=0.4103)
+  - education_HS-grad: drop=+0.0035  (orig=0.4145 → mod=0.4110)
+  - age: drop=+0.0027  (orig=0.4145 → mod=0.4118)
+  - workclass_Private: drop=+0.0023  (orig=0.4145 → mod=0.4122)
+  - occupation_Handlers-cleaners: drop=+0.0023  (orig=0.4145 → mod=0.4122)
+- Max prob_drop: 0.015035  Max prob_increase: -0.012682
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic and socioeconomic features are known from domain knowledge to be more predictive of <=50K vs >50K income in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "directional_influence": "higher age \u2192 more likely <=50K"}, {"feature_key": "education-num", "directional_influence": "higher education-num \u2192 more likely >50K"}, {"feature_key": "hours-per-week", "directional_influence": "higher hours-per-week \u2192 more likely >50K"}, {"feature_key": "capital-gain", "directional_influence": "higher capital-gain \u2192 more likely >50K"}, {"feature_key": "sex", "directional_influence": "female \u2192 more likely >50K; male \u2192 more likely <=50K"}, {"feature_key": "relationship", "directional_influence": "single or 'Own-child' \u2192 more likely <=50K; married or partner \u2192 more likely >50K"}, {"feature_key": "workclass", "directional_influence": "Private \u2192 more likely <=50K; Self-emp-not-inc, Self-emp-inc \u2192 more likely >50K"}, {"feature_key": "marital-status", "directional_influence": "Never-married \u2192 more likely <=50K; Married-civ-spouse, Married-spouse-absent \u2192 more likely >50K"}, {"feature_key": "occupation", "directional_influence": "Prof-specialty, Exec-managerial \u2192 more likely >50K; Handlers-cleaners, Other-service \u2192 more likely <=50K"}, {"feature_key": "race", "directional_influence": "Black, Asian-Pac-Islander \u2192 more likely >50K; White \u2192 more likely <=50K"}]
+- Explanation: Based on domain knowledge from the Adult Income dataset, income levels are strongly influenced by education, work experience, labor market status, and demographic factors. Higher education (education-num) is consistently associated with higher income, as is greater work hours and higher capital gains. Gender, race, and marital status show strong correlations with income, with females and non-White individuals historically more likely to earn above $50K. The 'Own-child' relationship and private workclass are correlated with lower income. These patterns are well-documented in studies of the Adult dataset and align with socioeconomic trends.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, how do the values of key features (e.g., age, education-num, occupation, marital-status) deviate from typical patterns observed in the >50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39, "reasoning": "The individual's age is 18, which is unusually low for higher-income groups (>50K). Typically, individuals in the >50K class have higher ages, often above 30, reflecting greater work experience and career accumulation. A younger age suggests less economic maturity and lower earning potential, favoring the <=50K prediction."}, {"feature_key": "education-num", "action": "change", "new_value": 12, "reasoning": "The education-num is 9 (HS-grad), which is below the typical level observed in >50K individuals, who often have higher education levels (e.g., 12 or above, corresponding to Bachelors or higher). A lower education level correlates with fewer opportunities for high-wage occupations, contributing to the <=50K classification."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "reasoning": "The individual is 'Never-married', which is less common among those earning >50K. In contrast, married individuals often have stable incomes, shared responsibilities, and greater access to financial security. Being never-married may indicate fewer financial supports or career stability, favoring the <=50K group."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "reasoning": "The current occupation 'Handlers-cleaners' is low-wage and associated with lower income brackets. Occupations such as 'Prof-specialty' or 'Exec-managerial' are strongly correlated with >50K earnings. This occupation suggests limited career advancement or job prestige, aligning with <=50K prediction."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "reasoning": "Hours-per-week is 20, which is below the average for >50K individuals who typically work longer hours (often 40 or more). Higher working hours are associated with greater income potential, especially in high-demand roles. Lower hours suggest limited labor exposure, reducing earnings potential and supporting the <=50K classification."}]
+- Explanation: The individual's profile shows multiple features that deviate from typical patterns seen in the >50K class. Low age, limited education, never-married status, low-wage occupation, and minimal working hours collectively signal a profile with constrained economic background and earning capacity. These deviations reduce the likelihood of belonging to the higher-income group. The model’s 65.46% confidence in the <=50K prediction aligns with these distinct pattern deviations.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which demographic and socioeconomic features are known from domain knowledge to be more predictive of <=50K vs >50K income in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "directional_influence": "higher age \u2192 more likely <=50K"}, {"feature_key": "education-num", "directional_influence": "higher education-num \u2192 more likely >50K"}, {"feature_key": "hours-per-week", "directional_influence": "higher hours-per-week \u2192 more likely >50K"}, {"feature_key": "capital-gain", "directional_influence": "higher capital-gain \u2192 more likely >50K"}, {"feature_key": "sex", "directional_influence": "female \u2192 more likely >50K; male \u2192 more likely <=50K"}, {"feature_key": "relationship", "directional_influence": "single or 'Own-child' \u2192 more likely <=50K; married or partner \u2192 more likely >50K"}, {"feature_key": "workclass", "directional_influence": "Private \u2192 more likely <=50K; Self-emp-not-inc, Self-emp-inc \u2192 more likely >50K"}, {"feature_key": "marital-status", "directional_influence": "Never-married \u2192 more likely <=50K; Married-civ-spouse, Married-spouse-absent \u2192 more likely >50K"}, {"feature_key": "occupation", "directional_influence": "Prof-specialty, Exec-managerial \u2192 more likely >50K; Handlers-cleaners, Other-service \u2192 more likely <=50K"}, {"feature_key": "race", "directional_influence": "Black, Asian-Pac-Islander \u2192 more likely >50K; White \u2192 more likely <=50K"}]
+- Explanation: Based on domain knowledge from the Adult Income dataset, income levels are strongly influenced by education, work experience, labor market status, and demographic factors. Higher education (education-num) is consistently associated with higher income, as is greater work hours and higher capital gains. Gender, race, and marital status show strong correlations with income, with females and non-White individuals historically more likely to earn above $50K. The 'Own-child' relationship and private workclass are correlated with lower income. These patterns are well-documented in studies of the Adult dataset and align with socioeconomic trends.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: For the given input, how do the values of key features (e.g., age, education-num, occupation, marital-status) deviate from typical patterns observed in the >50K class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39, "reasoning": "The individual's age is 18, which is unusually low for higher-income groups (>50K). Typically, individuals in the >50K class have higher ages, often above 30, reflecting greater work experience and career accumulation. A younger age suggests less economic maturity and lower earning potential, favoring the <=50K prediction."}, {"feature_key": "education-num", "action": "change", "new_value": 12, "reasoning": "The education-num is 9 (HS-grad), which is below the typical level observed in >50K individuals, who often have higher education levels (e.g., 12 or above, corresponding to Bachelors or higher). A lower education level correlates with fewer opportunities for high-wage occupations, contributing to the <=50K classification."}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse", "reasoning": "The individual is 'Never-married', which is less common among those earning >50K. In contrast, married individuals often have stable incomes, shared responsibilities, and greater access to financial security. Being never-married may indicate fewer financial supports or career stability, favoring the <=50K group."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "reasoning": "The current occupation 'Handlers-cleaners' is low-wage and associated with lower income brackets. Occupations such as 'Prof-specialty' or 'Exec-managerial' are strongly correlated with >50K earnings. This occupation suggests limited career advancement or job prestige, aligning with <=50K prediction."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "reasoning": "Hours-per-week is 20, which is below the average for >50K individuals who typically work longer hours (often 40 or more). Higher working hours are associated with greater income potential, especially in high-demand roles. Lower hours suggest limited labor exposure, reducing earnings potential and supporting the <=50K classification."}]
+- Explanation: The individual's profile shows multiple features that deviate from typical patterns seen in the >50K class. Low age, limited education, never-married status, low-wage occupation, and minimal working hours collectively signal a profile with constrained economic background and earning capacity. These deviations reduce the likelihood of belonging to the higher-income group. The model’s 65.46% confidence in the <=50K prediction aligns with these distinct pattern deviations.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3453928828239441}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5492
+
+## Input Data
+Features: age=46, workclass=Local-gov, fnlwgt=267952, education=Assoc-voc, education-num=11, marital-status=Divorced, occupation=Exec-managerial, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=36, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.011903).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0449
+  - native-country_Hong: +0.0187
+  - education_5th-6th: +0.0109
+  - native-country_Vietnam: +0.0109
+  - education_12th: +0.0094
+- Top negative features (shap_value):
+  - race_Other: -0.0449
+  - native-country_Honduras: -0.0187
+  - education_1st-4th: -0.0109
+  - native-country_Yugoslavia: -0.0109
+  - education_11th: -0.0094
+- Max positive: 0.044938  Max negative: -0.044938
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0719
+  - capital-gain <= -0.15: +0.0704
+  - hours-per-week <= -0.08: +0.0469
+  - marital-status_Divorced > 0.00: +0.0467
+  - education_Prof-school <= 0.00: +0.0325
+- Top negative features (weight):
+  - native-country_Hong <= 0.00: -0.0631
+  - -0.05 < education-num <= 1.13: -0.0440
+  - native-country_Peru <= 0.00: -0.0259
+  - native-country_Vietnam <= 0.00: -0.0138
+- Max positive: 0.071868  Max negative: -0.063123
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0123
+  - relationship_Not-in-family: +0.0055
+  - hours-per-week: +0.0049
+  - sex_Female: +0.0047
+  - education_Assoc-voc: +0.0011
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0078
+  - occupation_Exec-managerial: -0.0062
+  - race_White: -0.0020
+  - age: -0.0017
+  - education-num: -0.0015
+- Max positive: 0.012277  Max negative: -0.007832
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0119  (orig=0.3892 → mod=0.3773)
+  - occupation_Exec-managerial: drop=-0.0068  (orig=0.3892 → mod=0.3959)
+  - native-country_United-States: drop=-0.0061  (orig=0.3892 → mod=0.3953)
+  - sex_Female: drop=+0.0057  (orig=0.3892 → mod=0.3835)
+  - relationship_Not-in-family: drop=+0.0044  (orig=0.3892 → mod=0.3847)
+  - hours-per-week: drop=+0.0039  (orig=0.3892 → mod=0.3852)
+  - workclass_Local-gov: drop=-0.0034  (orig=0.3892 → mod=0.3925)
+  - race_White: drop=-0.0024  (orig=0.3892 → mod=0.3915)
+  - education_Assoc-voc: drop=+0.0017  (orig=0.3892 → mod=0.3875)
+  - age: drop=-0.0013  (orig=0.3892 → mod=0.3905)
+- Max prob_drop: 0.011903  Max prob_increase: -0.006763
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which of the input features are most contextually aligned with the class '<=50K' in the adult income dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 46}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education", "action": "change", "new_value": "Assoc-voc"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}]
+- Explanation: In the Adult Income dataset, certain features are strongly correlated with income levels. While 'Exec-managerial' occupation typically indicates higher income, the prediction of <=50K suggests the model may be incorporating contextual offsets such as educational attainment, marital status, and workclass. 'Assoc-voc' education (associate vocational) is at a mid-level educational tier and not as strongly linked to high income. 'Divorced' marital status is often associated with lower household income in the dataset. 'Local-gov' workclass has generally lower median income compared to private or federal government sectors. Age of 46 is within a range that does not strongly distinguish high from low income, but does not eliminate the possibility of lower earnings. Together, these features form a profile that is contextually aligned with the <=50K class, despite the 'Exec-managerial' occupation which would typically suggest higher income. The model may be leveraging these contextual and categorical trade-offs to assign a <=50K prediction with moderate confidence.
+- Confidence: 0.87
+
+### REASONING Task
+- Query: How might features like education-num=11 (Assoc-voc) or occupation=Exec-managerial affect the probability of being <=50K?
+- Status: Success
+- findings: ["education-num=11 (Assoc-voc) is associated with a mid-level education that may not strongly correlate with high income, thus contributing modestly to the <=50K prediction.", "occupation=Exec-managerial is strongly associated with high income, which typically reduces the probability of being <=50K, despite the model predicting <=50K, suggesting a conflicting or noisy signal in the data.", "age=46 and hours-per-week=36 are within typical ranges and do not strongly shift the income probability in either direction.", "sex='Female' and race='White' may introduce demographic biases, but in combination with high-earning occupation, they are not dominant in determining <=50K prediction.", "capital-gain and capital-loss are zero, which may imply limited investment income, slightly supporting the <=50K outcome, though not decisive."]
+- Explanation: The occupation='Exec-managerial' is a strong predictor of higher income and should significantly reduce the probability of being <=50K. However, the model predicted <=50K with only 54.92% confidence, suggesting that other features—such as education-num=11 (Assoc-voc), which represents a relatively lower education level—may counteract this trend. Additionally, the absence of capital gains and a modest working hours (36/week) may contribute to a more conservative income estimate. The model's moderate confidence implies that despite the occupation suggesting high income, the combination of educational level and other socioeconomic indicators may have pulled the prediction toward the <=50K class. Thus, while occupation strongly contradicts the <=50K outcome, the overall feature set appears to balance this with weaker income indicators.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the impact of demographic features (e.g., sex=Female, race=White) versus socioeconomic features (e.g., education-num, age) on the prediction of <=50K.
+- Status: Success
+- findings: [{"feature_type": "socioeconomic features", "reasoning": "Education level and years of education (education-num) strongly correlate with income in the dataset. The individual has 'Assoc-voc' education (education-num=11), which is typically associated with lower income tiers. Age (46) is also a socioeconomic proxy, as older individuals may have more experience but not necessarily higher income if employment patterns have changed. These features are consistently shown in model literature to be among the top drivers of income prediction in such tabular datasets."}, {"feature_type": "demographic features", "reasoning": "Sex=Female and race=White are demographic features. While race and gender have historically influenced income disparities, in this model, race=White is associated with higher income, and sex=Female, while not directly reducing income, may have a smaller relative impact compared to socioeconomic factors when combined with education and work history. However, in the context of historical bias, these features can interact with socioeconomic ones, so they contribute indirectly rather than directly in determining the <=50K outcome."}, {"feature_type": "workclass and occupation", "reasoning": "The occupation 'Exec-managerial' is a strong socioeconomic signal indicating high earning potential. This overrides many demographic factors. Even with sex=Female, the managerial role significantly lifts the predicted income toward >50K. However, the prediction is still <=50K, suggesting that occupational hierarchy may not be fully compensating for the education level or age-related earnings decline. Thus, while this feature has high influence, it is still secondary to education and work history."}]
+- Explanation: The model's prediction of <=50K is most directly influenced by socioeconomic features such as education-num and age, which reflect the individual's human capital and experience. Although demographic features like sex and race are present, their impact is either neutral or mitigated by strong socioeconomic indicators. The fact that the person has a managerial occupation would typically push the prediction toward >50K, but the education level and age suggest a lower earning trajectory. Thus, socioeconomic factors dominate the prediction pattern in this context.
+- Confidence: 0.93
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

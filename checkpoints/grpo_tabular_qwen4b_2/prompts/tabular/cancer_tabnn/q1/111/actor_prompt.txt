@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the tumor to be malignant. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: malignant
+Confidence: 0.8369
+
+## Input Data
+Features: mean radius=15.32, mean texture=17.27, mean perimeter=103.2, mean area=713.3, mean smoothness=0.1335, mean compactness=0.2284, mean concavity=0.2448, mean concave points=0.1242, mean symmetry=0.2398, mean fractal dimension=0.07596, radius error=0.6592, texture error=1.059, perimeter error=4.061, area error=59.46, smoothness error=0.01015, compactness error=0.04588, concavity error=0.04983, concave points error=0.02127, symmetry error=0.01884, fractal dimension error=0.00866, worst radius=17.73, worst texture=22.66, worst perimeter=119.8, worst area=928.8, worst smoothness=0.1765, worst compactness=0.4503, worst concavity=0.4429, worst concave points=0.2229, worst symmetry=0.3258, worst fractal dimension=0.1191
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: smoothness error.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: worst concave points > 0.71.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: worst concave points.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean smoothness (prob drop: 0.014232).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - smoothness error: +0.0960
+  - perimeter error: +0.0673
+  - mean symmetry: +0.0450
+  - concavity error: +0.0194
+  - mean smoothness: +0.0078
+- Top negative features (shap_value):
+  - compactness error: -0.0960
+  - area error: -0.0673
+  - mean fractal dimension: -0.0450
+  - concave points error: -0.0194
+  - mean compactness: -0.0078
+- Max positive: 0.095961  Max negative: -0.095961
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst concave points > 0.71: +0.1103
+  - mean concavity > 0.53: +0.1034
+  - mean concave points > 0.65: +0.1015
+  - worst symmetry > 0.45: +0.0877
+  - worst concavity > 0.53: +0.0744
+- Top negative features (weight):
+  - mean fractal dimension > 0.47: -0.0562
+  - concavity error > 0.34: -0.0408
+  - -0.75 < worst texture <= -0.04: -0.0408
+- Max positive: 0.110278  Max negative: -0.056225
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst concave points: +0.0252
+  - mean concavity: +0.0251
+  - worst compactness: +0.0231
+  - mean smoothness: +0.0220
+  - mean concave points: +0.0216
+- Top negative features (attribution_score):
+  - mean fractal dimension: -0.0108
+  - fractal dimension error: -0.0102
+  - compactness error: -0.0098
+  - worst texture: -0.0093
+  - worst fractal dimension: -0.0042
+- Max positive: 0.025174  Max negative: -0.010795
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean smoothness: drop=+0.0142  (orig=0.4593 → mod=0.4451)
+  - mean concave points: drop=+0.0126  (orig=0.4593 → mod=0.4467)
+  - mean concavity: drop=+0.0122  (orig=0.4593 → mod=0.4472)
+  - worst compactness: drop=+0.0111  (orig=0.4593 → mod=0.4482)
+  - fractal dimension error: drop=-0.0102  (orig=0.4593 → mod=0.4695)
+  - mean fractal dimension: drop=-0.0087  (orig=0.4593 → mod=0.4680)
+  - worst concave points: drop=+0.0084  (orig=0.4593 → mod=0.4509)
+  - compactness error: drop=-0.0056  (orig=0.4593 → mod=0.4649)
+  - worst texture: drop=-0.0052  (orig=0.4593 → mod=0.4645)
+  - mean perimeter: drop=+0.0046  (orig=0.4593 → mod=0.4547)
+- Max prob_drop: 0.014232  Max prob_increase: -0.01022
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which of the input features are biologically or clinically known to be strongly associated with malignant tumors in cancer diagnosis?
+- Status: Success
+- findings: [{"feature_key": "mean concavity", "action": "increase", "new_value": "0.2448"}, {"feature_key": "mean concave points", "action": "increase", "new_value": "0.1242"}, {"feature_key": "worst radius", "action": "increase", "new_value": "20.95"}, {"feature_key": "worst perimeter", "action": "increase", "new_value": "182.3"}, {"feature_key": "worst compactness", "action": "increase", "new_value": "0.3936"}]
+- Explanation: In breast cancer diagnosis, features related to tumor morphology and cell structure are strongly correlated with malignancy. The 'mean concavity' and 'mean concave points' reflect irregular cell borders, which are more common in malignant tumors. The 'worst' metrics (e.g., worst radius, worst perimeter) indicate the most severe features observed in the most aggressive regions of the tumor and are known to be strongly associated with malignancy. 'Worst compactness' reflects the degree of cell packing and is also elevated in malignant cases. These features are well-documented in the Wisconsin Breast Cancer Dataset (UCI) and are clinically recognized as key indicators of cancer progression.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: Given that the model predicted malignancy with high confidence, which features in the input are in the upper range of malignancy indicators (e.g., high radius, high texture, high concavity)?
+- Status: Success
+- findings: [{"feature_key": "worst radius", "action": "change", "new_value": 20.5}, {"feature_key": "worst texture", "action": "change", "new_value": 20.7}, {"feature_key": "worst perimeter", "action": "change", "new_value": 137.4}, {"feature_key": "worst area", "action": "change", "new_value": 1390.0}, {"feature_key": "worst concavity", "action": "change", "new_value": 0.407}]
+- Explanation: Malignant tumors in the breast cancer dataset are typically associated with higher values in the 'worst' features (i.e., the maximum values across cells), especially in radius, texture, perimeter, area, and concavity. These features have strong positive correlations with malignancy. While the current input provides only mean values, the worst values (not provided explicitly) are assumed to be in the upper range for malignant prediction. Based on established medical literature and the Breast Cancer Wisconsin (Diagnostic) dataset, high worst radius, worst texture, worst perimeter, worst area, and worst concavity are key indicators of malignancy. Therefore, these features are prioritized as most responsible for the model's high-confidence malignant prediction (83.69%). The changes suggest adjusting the worst values to upper-tail malignant thresholds for alignment with known malignancy patterns.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the input values of malignant vs. benign tumor cases in the dataset to identify which features typically diverge between classes?
+- Status: Success
+- findings: [{"feature_key": "worst concavity", "action": "increase", "new_value": "0.35"}, {"feature_key": "worst concave points", "action": "increase", "new_value": "0.25"}, {"feature_key": "worst radius", "action": "increase", "new_value": "20"}, {"feature_key": "worst texture", "action": "increase", "new_value": "20.5"}, {"feature_key": "worst perimeter", "action": "increase", "new_value": "150"}]
+- Explanation: In breast cancer datasets (such as the Wisconsin Breast Cancer dataset), malignant tumors are typically characterized by higher values in the 'worst' features (i.e., the maximum values in each attribute), which reflect more irregular and aggressive tumor morphology. Among the provided features, 'worst concavity' and 'worst concave points' are strongly associated with malignancy, as they indicate greater irregularity in tumor shape. Similarly, 'worst radius', 'worst texture', and 'worst perimeter' also tend to be significantly higher in malignant cases. The 'mean' features show relatively small differences, suggesting that the 'worst' features are more discriminative. The observed input values (e.g., mean radius=15.32, mean concavity=0.2448) fall within the borderline range, but the malignant prediction is driven by the model's sensitivity to extreme values in the worst features, particularly those related to irregularity and size. Therefore, these features are the most responsible for the model's prediction.
+- Confidence: 0.95
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

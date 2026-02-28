@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (50.76%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=27, workclass=Private, fnlwgt=265314, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Taiwan.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.009504).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Taiwan: +0.0242
+  - native-country_United-States: +0.0102
+  - native-country_Cuba: +0.0090
+  - race_Other: +0.0072
+  - workclass_State-gov: +0.0062
+- Top negative features (shap_value):
+  - native-country_Thailand: -0.0242
+  - native-country_Trinadad&Tobago: -0.0102
+  - native-country_Columbia: -0.0090
+  - race_Black: -0.0072
+  - workclass_Self-emp-not-inc: -0.0062
+- Max positive: 0.024223  Max negative: -0.024223
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0825
+  - native-country_Cuba <= 0.00: +0.0768
+  - capital-gain <= -0.15: +0.0730
+  - education-num <= -0.44: +0.0535
+  - native-country_India <= 0.00: +0.0267
+- Top negative features (weight):
+  - native-country_Vietnam <= 0.00: -0.0583
+  - workclass_Without-pay <= 0.00: -0.0544
+  - native-country_Nicaragua <= 0.00: -0.0325
+- Max positive: 0.082496  Max negative: -0.058328
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0066
+  - age: +0.0054
+  - occupation_Transport-moving: +0.0042
+  - workclass_Private: +0.0042
+  - education-num: +0.0023
+- Top negative features (attribution_score):
+  - sex_Male: -0.0095
+  - relationship_Husband: -0.0042
+  - native-country_United-States: -0.0031
+  - marital-status_Married-civ-spouse: -0.0026
+  - hours-per-week: -0.0022
+- Max positive: 0.006592  Max negative: -0.009537
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0095  (orig=0.3793 → mod=0.3888)
+  - education_HS-grad: drop=+0.0062  (orig=0.3793 → mod=0.3731)
+  - occupation_Transport-moving: drop=+0.0057  (orig=0.3793 → mod=0.3736)
+  - age: drop=+0.0057  (orig=0.3793 → mod=0.3736)
+  - relationship_Husband: drop=-0.0040  (orig=0.3793 → mod=0.3833)
+  - marital-status_Married-civ-spouse: drop=-0.0034  (orig=0.3793 → mod=0.3827)
+  - workclass_Private: drop=+0.0032  (orig=0.3793 → mod=0.3761)
+  - fnlwgt: drop=-0.0017  (orig=0.3793 → mod=0.3811)
+  - education-num: drop=+0.0016  (orig=0.3793 → mod=0.3777)
+  - race_White: drop=+0.0012  (orig=0.3793 → mod=0.3781)
+- Max prob_drop: 0.006239  Max prob_increase: -0.009504
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Transport-moving' be spurious predictors for the income level (>50K) despite appearing in the input?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "State-gov", "reason": "In the UCI Adult Income dataset, 'Private' is the most common workclass and is strongly correlated with lower income. However, 'Private' is not inherently a spurious predictor \u2014 it is a valid and common employment category. The confusion arises because 'Private' may appear frequently in the dataset, and if the model learns from a biased distribution (e.g., most 'Private' individuals are in the <=50K class), it could overfit to this pattern. This could create a spurious association where 'Private' is correlated with lower income due to class imbalance, not domain truth. Therefore, 'Private' may serve as a spurious predictor if the model lacks robust feature engineering or interleaved sampling."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "reason": "The occupation 'Transport-moving' is typically associated with lower-income jobs such as truck drivers or movers. In the dataset, occupations like 'Prof-specialty' or 'Exec-managerial' are more likely to be linked with higher incomes (>50K). Meanwhile, 'Transport-moving' appears in the lower income bracket generally. However, if the model observes that individuals in 'Transport-moving' occupations are disproportionately assigned to '<=50K' due to data imbalance or misspecification of feature boundaries (e.g., lack of entry-level distinctions), this can create a spurious pattern. Without proper regularization or feature analysis, the model may treat 'Transport-moving' as predictive of low income due to overrepresentation in the training data \u2014 not because of causal or domain logic."}]
+- Explanation: The features 'workclass=Private' and 'occupation=Transport-moving' are not inherently spurious in domain terms — they are valid and common categories. However, their predictive power may be spurious due to data bias, class imbalance, or the model's inability to disentangle background factors (like education, age, or employment stability) from income. 'Private' is the most frequent workclass and is present in the majority of the <=50K group, leading to a strong statistical association that is not causal. Similarly, 'Transport-moving' is consistently linked with lower income in the dataset's demographic distribution. If the model does not account for confounding variables (e.g., age, education-level, hours-per-week), it may incorrectly infer that these features alone determine income. Thus, these features can act as spurious predictors due to correlation from data structure rather than inherent relationship with income.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the target label (>50K) versus the model's predicted class (<=50K).
+- Status: Success
+- findings: [{"feature_key": "age", "action": "irrelevant", "new_value": null}, {"feature_key": "workclass", "action": "irrelevant", "new_value": null}, {"feature_key": "fnlwgt", "action": "irrelevant", "new_value": null}, {"feature_key": "education", "action": "relevant", "new_value": null}, {"feature_key": "education-num", "action": "relevant", "new_value": null}, {"feature_key": "marital-status", "action": "relevant", "new_value": null}, {"feature_key": "occupation", "action": "relevant", "new_value": null}, {"feature_key": "relationship", "action": "irrelevant", "new_value": null}, {"feature_key": "race", "action": "irrelevant", "new_value": null}, {"feature_key": "sex", "action": "relevant", "new_value": null}, {"feature_key": "capital-gain", "action": "irrelevant", "new_value": null}, {"feature_key": "capital-loss", "action": "irrelevant", "new_value": null}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": null}, {"feature_key": "native-country", "action": "irrelevant", "new_value": null}]
+- Explanation: The target label (>50K income) is strongly associated with features that indicate higher socioeconomic status, such as education level (education-num), occupation, and work hours. Among the provided values, the individual has a 'HS-grad' education (education-num=9), which is associated with lower income potential, and works in 'Transport-moving', a typically lower-paying role. The 'male' sex and 'Husband' relationship may be relevant, but are not sufficiently predictive on their own. Features like 'age' (27), 'race' (White), 'native-country' (United-States), and 'capital-gain' (0) are either neutral or contextually less predictive. 'Workclass' and 'relationship' are often correlated with socioeconomic background but are not independently strong predictors. The model’s low confidence (50.76%) and incorrect prediction (<=50K) despite the true label being >50K suggest that the model may be over-relying on spurious features or failing to capture the true signal from education and occupation. Thus, the features that are semantically irrelevant or spurious include age, workclass, fnlwgt, relationship, race, capital-gain, and capital-loss. These are likely contributing noise or spurious associations.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Transport-moving' be spurious predictors for the income level (>50K) despite appearing in the input?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "State-gov", "reason": "In the UCI Adult Income dataset, 'Private' is the most common workclass and is strongly correlated with lower income. However, 'Private' is not inherently a spurious predictor \u2014 it is a valid and common employment category. The confusion arises because 'Private' may appear frequently in the dataset, and if the model learns from a biased distribution (e.g., most 'Private' individuals are in the <=50K class), it could overfit to this pattern. This could create a spurious association where 'Private' is correlated with lower income due to class imbalance, not domain truth. Therefore, 'Private' may serve as a spurious predictor if the model lacks robust feature engineering or interleaved sampling."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "reason": "The occupation 'Transport-moving' is typically associated with lower-income jobs such as truck drivers or movers. In the dataset, occupations like 'Prof-specialty' or 'Exec-managerial' are more likely to be linked with higher incomes (>50K). Meanwhile, 'Transport-moving' appears in the lower income bracket generally. However, if the model observes that individuals in 'Transport-moving' occupations are disproportionately assigned to '<=50K' due to data imbalance or misspecification of feature boundaries (e.g., lack of entry-level distinctions), this can create a spurious pattern. Without proper regularization or feature analysis, the model may treat 'Transport-moving' as predictive of low income due to overrepresentation in the training data \u2014 not because of causal or domain logic."}]
+- Explanation: The features 'workclass=Private' and 'occupation=Transport-moving' are not inherently spurious in domain terms — they are valid and common categories. However, their predictive power may be spurious due to data bias, class imbalance, or the model's inability to disentangle background factors (like education, age, or employment stability) from income. 'Private' is the most frequent workclass and is present in the majority of the <=50K group, leading to a strong statistical association that is not causal. Similarly, 'Transport-moving' is consistently linked with lower income in the dataset's demographic distribution. If the model does not account for confounding variables (e.g., age, education-level, hours-per-week), it may incorrectly infer that these features alone determine income. Thus, these features can act as spurious predictors due to correlation from data structure rather than inherent relationship with income.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the target label (>50K) versus the model's predicted class (<=50K).
+- Status: Success
+- findings: [{"feature_key": "age", "action": "irrelevant", "new_value": null}, {"feature_key": "workclass", "action": "irrelevant", "new_value": null}, {"feature_key": "fnlwgt", "action": "irrelevant", "new_value": null}, {"feature_key": "education", "action": "relevant", "new_value": null}, {"feature_key": "education-num", "action": "relevant", "new_value": null}, {"feature_key": "marital-status", "action": "relevant", "new_value": null}, {"feature_key": "occupation", "action": "relevant", "new_value": null}, {"feature_key": "relationship", "action": "irrelevant", "new_value": null}, {"feature_key": "race", "action": "irrelevant", "new_value": null}, {"feature_key": "sex", "action": "relevant", "new_value": null}, {"feature_key": "capital-gain", "action": "irrelevant", "new_value": null}, {"feature_key": "capital-loss", "action": "irrelevant", "new_value": null}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": null}, {"feature_key": "native-country", "action": "irrelevant", "new_value": null}]
+- Explanation: The target label (>50K income) is strongly associated with features that indicate higher socioeconomic status, such as education level (education-num), occupation, and work hours. Among the provided values, the individual has a 'HS-grad' education (education-num=9), which is associated with lower income potential, and works in 'Transport-moving', a typically lower-paying role. The 'male' sex and 'Husband' relationship may be relevant, but are not sufficiently predictive on their own. Features like 'age' (27), 'race' (White), 'native-country' (United-States), and 'capital-gain' (0) are either neutral or contextually less predictive. 'Workclass' and 'relationship' are often correlated with socioeconomic background but are not independently strong predictors. The model’s low confidence (50.76%) and incorrect prediction (<=50K) despite the true label being >50K suggest that the model may be over-relying on spurious features or failing to capture the true signal from education and occupation. Thus, the features that are semantically irrelevant or spurious include age, workclass, fnlwgt, relationship, race, capital-gain, and capital-loss. These are likely contributing noise or spurious associations.
+- Confidence: 0.93
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

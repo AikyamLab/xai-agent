@@ -1,0 +1,78 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to rapidly identify plausible distinguishing features based on domain knowledge and known class distributions, with external XAI tools to validate and quantify feature importance in a statistically robust way. This ensures both efficiency and accuracy in identifying features that differentiate <=50K from >50K predictions, particularly in a tabular context where feature interactions matter.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Given the input features and the known class distribution in the Adult Income dataset, what are the known socioeconomic or demographic features most strongly associated with <=50K versus >50K income?",
+      "expected_output": "A list of feature names (e.g., age, workclass, education, occupation) that are statistically or domain-wise known to distinguish <=50K from >50K income"
+    },
+    {
+      "task_type": "comparison",
+      "query": "For the given input, which features have values that are more typical of <=50K individuals compared to >50K individuals in the Adult dataset?",
+      "expected_output": "A list of feature names with value explanations showing deviations from typical >50K profiles"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "lime": {
+        "target_class": "top1"
+      },
+      "integrated_gradients": {
+        "target_class": "contrastive",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "method": "leave-one-out",
+        "output": "probability_change"
+      }
+    },
+    "reasoning": "SHAP provides robust, game-theoretic attributions for contrasts between predictions, making it ideal for identifying which features push a sample toward <=50K rather than >50K. LIME offers local interpretability for the top-1 prediction, helping confirm feature influence. Integrated Gradients offer smooth, gradient-based attributions across feature space, improving trust in attributions. Sensitivity analysis validates feature impact by isolating changes, providing numerical confidence on feature importance. Together, they cover theoretical, local, global, and causal-sensitivity dimensions of feature distinction."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides robust, game-theoretic attributions for contrasts between predictions, making it ideal for identifying which features push a sample toward <=50K rather than >50K. LIME offers local interpretability for the top-1 prediction, helping confirm feature influence. Integrated Gradients offer smooth, gradient-based attributions across feature space, improving trust in attributions. Sensitivity analysis validates feature impact by isolating changes, providing numerical confidence on feature importance. Together, they cover theoretical, local, global, and causal-sensitivity dimensions of feature distinction.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides robust, game-theoretic attributions for contrasts between predictions, making it ideal for identifying which features push a sample toward <=50K rather than >50K. LIME offers local interpretability for the top-1 prediction, helping confirm feature influence. Integrated Gradients offer smooth, gradient-based attributions across feature space, improving trust in attributions. Sensitivity analysis validates feature impact by isolating changes, providing numerical confidence on feature importance. Together, they cover theoretical, local, global, and causal-sensitivity dimensions of feature distinction.",
+      "parameters": {
+        "target_class": "top1"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides robust, game-theoretic attributions for contrasts between predictions, making it ideal for identifying which features push a sample toward <=50K rather than >50K. LIME offers local interpretability for the top-1 prediction, helping confirm feature influence. Integrated Gradients offer smooth, gradient-based attributions across feature space, improving trust in attributions. Sensitivity analysis validates feature impact by isolating changes, providing numerical confidence on feature importance. Together, they cover theoretical, local, global, and causal-sensitivity dimensions of feature distinction.",
+      "parameters": {
+        "target_class": "contrastive",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides robust, game-theoretic attributions for contrasts between predictions, making it ideal for identifying which features push a sample toward <=50K rather than >50K. LIME offers local interpretability for the top-1 prediction, helping confirm feature influence. Integrated Gradients offer smooth, gradient-based attributions across feature space, improving trust in attributions. Sensitivity analysis validates feature impact by isolating changes, providing numerical confidence on feature importance. Together, they cover theoretical, local, global, and causal-sensitivity dimensions of feature distinction.",
+      "parameters": {
+        "method": "leave-one-out",
+        "output": "probability_change"
+      }
+    }
+  ]
+}

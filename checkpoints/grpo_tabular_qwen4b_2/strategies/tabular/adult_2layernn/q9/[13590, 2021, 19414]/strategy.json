@@ -1,0 +1,84 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to identify initial shared patterns among the misclassified instances with external XAI tools to quantify feature importance and validate spurious correlations. This approach ensures both semantic and statistical grounding of shared spurious features, especially since the ground truth labels are unknown and the model\u2019s decisions may rely on coincidental patterns. The combination improves detection accuracy beyond what autonomous reasoning or tool-based methods alone can achieve.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify which columns are common across all three misclassified instances (13590, 2021, 19414) and assess whether any feature appears in all instances with a value that seems inconsistent with class semantics.",
+      "expected_output": "A list of shared features and their values across all instances, highlighting any value patterns that may suggest spurious correlations"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any shared feature (e.g., workclass, marital-status) has a value that is semantically unrelated to class distinction despite co-occurring with the same prediction outcomes.",
+      "expected_output": "A reasoned analysis identifying potential spurious features that may be driving misclassification due to coincidental patterns"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "lime": {
+        "apply_to": "all",
+        "threshold": 0.1
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP provides global feature importance with interpretability, and its intersection mode helps identify features that are both shared and highly impactful. LIME and Integrated Gradients offer local explanations to validate how each feature contributes to the prediction, particularly in cases with unknown ground truth. Sensitivity analysis quantifies the effect of removing each feature, confirming whether a feature drives misclassification even when semantically unrelated. Together, these tools validate the autonomous observations and isolate spurious features that are shared and high in attribution."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides global feature importance with interpretability, and its intersection mode helps identify features that are both shared and highly impactful. LIME and Integrated Gradients offer local explanations to validate how each feature contributes to the prediction, particularly in cases with unknown ground truth. Sensitivity analysis quantifies the effect of removing each feature, confirming whether a feature drives misclassification even when semantically unrelated. Together, these tools validate the autonomous observations and isolate spurious features that are shared and high in attribution.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides global feature importance with interpretability, and its intersection mode helps identify features that are both shared and highly impactful. LIME and Integrated Gradients offer local explanations to validate how each feature contributes to the prediction, particularly in cases with unknown ground truth. Sensitivity analysis quantifies the effect of removing each feature, confirming whether a feature drives misclassification even when semantically unrelated. Together, these tools validate the autonomous observations and isolate spurious features that are shared and high in attribution.",
+      "parameters": {
+        "apply_to": "all",
+        "threshold": 0.1
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides global feature importance with interpretability, and its intersection mode helps identify features that are both shared and highly impactful. LIME and Integrated Gradients offer local explanations to validate how each feature contributes to the prediction, particularly in cases with unknown ground truth. Sensitivity analysis quantifies the effect of removing each feature, confirming whether a feature drives misclassification even when semantically unrelated. Together, these tools validate the autonomous observations and isolate spurious features that are shared and high in attribution.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides global feature importance with interpretability, and its intersection mode helps identify features that are both shared and highly impactful. LIME and Integrated Gradients offer local explanations to validate how each feature contributes to the prediction, particularly in cases with unknown ground truth. Sensitivity analysis quantifies the effect of removing each feature, confirming whether a feature drives misclassification even when semantically unrelated. Together, these tools validate the autonomous observations and isolate spurious features that are shared and high in attribution.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

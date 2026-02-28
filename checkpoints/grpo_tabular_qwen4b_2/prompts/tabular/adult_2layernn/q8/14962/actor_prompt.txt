@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (54.12%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=66, workclass=Private, fnlwgt=135446, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.009465).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cuba: +0.0194
+  - native-country_United-States: +0.0190
+  - fnlwgt: +0.0120
+  - native-country_Puerto-Rico: +0.0069
+  - native-country_Holand-Netherlands: +0.0055
+- Top negative features (shap_value):
+  - native-country_Columbia: -0.0194
+  - native-country_Trinadad&Tobago: -0.0190
+  - age: -0.0120
+  - native-country_Portugal: -0.0069
+  - native-country_Haiti: -0.0055
+- Max positive: 0.019433  Max negative: -0.019433
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0543
+  - native-country_Iran <= 0.00: +0.0352
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0682
+  - capital-loss <= -0.22: -0.0574
+  - education-num <= -0.44: -0.0552
+  - education_Prof-school <= 0.00: -0.0442
+  - marital-status_Married-AF-spouse <= 0.00: -0.0291
+- Max positive: 0.0543  Max negative: -0.068187
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0101
+  - relationship_Husband: +0.0063
+  - native-country_United-States: +0.0050
+  - age: +0.0036
+  - marital-status_Married-civ-spouse: +0.0024
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0064
+  - workclass_Private: -0.0040
+  - education-num: -0.0031
+  - fnlwgt: -0.0013
+  - occupation_Sales: -0.0010
+- Max positive: 0.010117  Max negative: -0.006401
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0095  (orig=0.6321 → mod=0.6226)
+  - relationship_Husband: drop=+0.0072  (orig=0.6321 → mod=0.6249)
+  - education_HS-grad: drop=-0.0056  (orig=0.6321 → mod=0.6377)
+  - marital-status_Married-civ-spouse: drop=+0.0055  (orig=0.6321 → mod=0.6266)
+  - native-country_United-States: drop=+0.0035  (orig=0.6321 → mod=0.6286)
+  - workclass_Private: drop=-0.0029  (orig=0.6321 → mod=0.6350)
+  - education-num: drop=-0.0021  (orig=0.6321 → mod=0.6342)
+  - race_White: drop=+0.0010  (orig=0.6321 → mod=0.6311)
+  - capital-gain: drop=-0.0008  (orig=0.6321 → mod=0.6329)
+  - fnlwgt: drop=-0.0008  (orig=0.6321 → mod=0.6329)
+- Max prob_drop: 0.009465  Max prob_increase: -0.005577
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'age=66' or 'workclass=Private' be semantically unrelated to the true class <=50K in the context of income prediction?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "exclude", "new_value": null}, {"feature_key": "workclass", "action": "exclude", "new_value": null}, {"feature_key": "education", "action": "exclude", "new_value": null}, {"feature_key": "education-num", "action": "exclude", "new_value": null}, {"feature_key": "marital-status", "action": "exclude", "new_value": null}]
+- Explanation: In the context of income prediction (particularly in the Adult Income dataset), the true label '<=50K' refers to annual income being less than or equal to $50,000. Age, while correlated with experience and potential income, is not a direct determinant of income level in the absence of other socioeconomic factors. Workclass (e.g. 'Private') is a broad category of employment type, which may correlate with income but is not inherently semantically unrelated. However, features like education, education-num, and marital-status are more directly tied to income potential than to the class itself. That said, the model's prediction of >50K for a 'White Male' with 'HS-grad', 'Private' employment, and age=66 may be influenced by heuristic patterns (e.g., association of 'Private' with higher income), rather than a semantic link to the class. Crucially, features such as 'age' and 'workclass' do not carry semantic irrelevance to income prediction; they are actually meaningful. The correct interpretation is that *none* of these features are semantically irrelevant to income classification. However, if we interpret the question as asking which features are *most likely to introduce spurious associations* or *are not directly predictive* of income (e.g., due to demographic noise or overfitting), then features like 'age' and 'workclass' might be seen as less directly predictive than others. But based on sound domain knowledge, all features are relevant. Therefore, the initial premise of 'semantic irrelevance' is flawed. Thus, the analysis reveals that no feature is semantically irrelevant — all contribute meaningfully to income prediction. A strict list of semantically irrelevant features does not exist in this context.
+- Confidence: 0.75
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true class (<=50K) with the model's predicted confidence and classification outcome.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "High"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "relevance_mismatch": "Low"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "relevance_mismatch": "Medium"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35, "relevance_mismatch": "Low"}]
+- Explanation: The model predicted '>50K' with only 54.12% confidence despite the true label being '<=50K'. In the dataset, higher education and older age are generally associated with higher income, yet here the individual has an age of 66 and only a 'HS-grad' education, both of which are typically linked to lower income. Changing 'age' to 50 (a more typical income-ascending threshold) would reduce the model's confidence in predicting >50K. Similarly, upgrading 'education' to 'Bachelors' increases the semantic relevance to higher income, creating a stronger signal for >50K, which may have misled the model. 'Occupation' and 'hours-per-week' show limited influence due to the current values (Sales, 40 hours), which are average and not strongly indicative. 'Workclass' has low influence as 'Private' is common across income levels. The mismatch is most severe in age and education, where features with strong prior knowledge of income distribution are misaligned with the true label. This suggests the model may have overestimated the income potential due to misaligned feature interpretation.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'age=66' or 'workclass=Private' be semantically unrelated to the true class <=50K in the context of income prediction?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "exclude", "new_value": null}, {"feature_key": "workclass", "action": "exclude", "new_value": null}, {"feature_key": "education", "action": "exclude", "new_value": null}, {"feature_key": "education-num", "action": "exclude", "new_value": null}, {"feature_key": "marital-status", "action": "exclude", "new_value": null}]
+- Explanation: In the context of income prediction (particularly in the Adult Income dataset), the true label '<=50K' refers to annual income being less than or equal to $50,000. Age, while correlated with experience and potential income, is not a direct determinant of income level in the absence of other socioeconomic factors. Workclass (e.g. 'Private') is a broad category of employment type, which may correlate with income but is not inherently semantically unrelated. However, features like education, education-num, and marital-status are more directly tied to income potential than to the class itself. That said, the model's prediction of >50K for a 'White Male' with 'HS-grad', 'Private' employment, and age=66 may be influenced by heuristic patterns (e.g., association of 'Private' with higher income), rather than a semantic link to the class. Crucially, features such as 'age' and 'workclass' do not carry semantic irrelevance to income prediction; they are actually meaningful. The correct interpretation is that *none* of these features are semantically irrelevant to income classification. However, if we interpret the question as asking which features are *most likely to introduce spurious associations* or *are not directly predictive* of income (e.g., due to demographic noise or overfitting), then features like 'age' and 'workclass' might be seen as less directly predictive than others. But based on sound domain knowledge, all features are relevant. Therefore, the initial premise of 'semantic irrelevance' is flawed. Thus, the analysis reveals that no feature is semantically irrelevant — all contribute meaningfully to income prediction. A strict list of semantically irrelevant features does not exist in this context.
+- Confidence: 0.75
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true class (<=50K) with the model's predicted confidence and classification outcome.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "High"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "relevance_mismatch": "Low"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "relevance_mismatch": "Medium"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 35, "relevance_mismatch": "Low"}]
+- Explanation: The model predicted '>50K' with only 54.12% confidence despite the true label being '<=50K'. In the dataset, higher education and older age are generally associated with higher income, yet here the individual has an age of 66 and only a 'HS-grad' education, both of which are typically linked to lower income. Changing 'age' to 50 (a more typical income-ascending threshold) would reduce the model's confidence in predicting >50K. Similarly, upgrading 'education' to 'Bachelors' increases the semantic relevance to higher income, creating a stronger signal for >50K, which may have misled the model. 'Occupation' and 'hours-per-week' show limited influence due to the current values (Sales, 40 hours), which are average and not strongly indicative. 'Workclass' has low influence as 'Private' is common across income levels. The mismatch is most severe in age and education, where features with strong prior knowledge of income distribution are misaligned with the true label. This suggests the model may have overestimated the income potential due to misaligned feature interpretation.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

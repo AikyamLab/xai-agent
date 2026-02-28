@@ -1,0 +1,110 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we mask the capital-loss feature of this input, would the prediction change?
+
+## Current Prediction
+Class: >50K
+Confidence: 0.7268
+
+## Part to be Masked
+capital-loss
+
+## Input Data
+Features: age=40, workclass=Self-emp-not-inc, fnlwgt=238574, education=Prof-school, education-num=15, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.014225).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0943
+  - relationship_Wife: +0.0382
+  - native-country_Cambodia: +0.0351
+  - native-country_United-States: +0.0351
+  - native-country_Peru: +0.0301
+- Top negative features (shap_value):
+  - capital-loss: -0.0943
+  - relationship_Unmarried: -0.0382
+  - sex_Male: -0.0351
+  - native-country_Trinadad&Tobago: -0.0351
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0301
+- Max positive: 0.094339  Max negative: -0.094339
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0142  (orig=0.6741 → mod=0.6599)
+  - marital-status_Married-civ-spouse: drop=+0.0105  (orig=0.6741 → mod=0.6636)
+  - sex_Male: drop=+0.0068  (orig=0.6741 → mod=0.6673)
+  - relationship_Husband: drop=+0.0068  (orig=0.6741 → mod=0.6673)
+  - education_Prof-school: drop=+0.0049  (orig=0.6741 → mod=0.6692)
+  - occupation_Prof-specialty: drop=+0.0043  (orig=0.6741 → mod=0.6698)
+  - native-country_United-States: drop=+0.0043  (orig=0.6741 → mod=0.6698)
+  - hours-per-week: drop=+0.0032  (orig=0.6741 → mod=0.6709)
+  - race_White: drop=+0.0022  (orig=0.6741 → mod=0.6719)
+  - fnlwgt: drop=+0.0015  (orig=0.6741 → mod=0.6726)
+- Max prob_drop: 0.014225  Max prob_increase: -0.000853
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-loss is not present in the input description and the model predicts '>50K' with high confidence, assess whether capital-loss is likely to be relevant or negligible in the prediction pipeline.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: The input does not contain any value for capital-loss, and it is currently set to 0. The model predicts '>50K' with 72.68% confidence, which is high, suggesting strong pattern generalization from the training data. Since capital-loss is not present in the input and is not explicitly referenced in the feature description, it is likely that the model has learned to ignore this feature or treat it as negligible in the absence of a non-zero value. Additionally, in many income prediction datasets (such as the Adult dataset), capital-loss is often a rare or minimal feature, and its absence does not significantly alter the model's decision when other strong predictors (e.g., age, occupation, hours-per-week) are present. Therefore, masking capital-loss is unlikely to change the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's prediction stability when capital-loss is masked (set to 0 or NaN) versus when it is left as is, using domain knowledge about income prediction factors.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": "NaN", "prediction_change": "no_significant_change", "reason": "Masking capital-loss to NaN does not significantly alter the model's prediction of income >50K."}]
+- Explanation: Capital-loss is a feature representing financial losses incurred by an individual, typically from selling assets at a loss. In income prediction models, such features often have low correlation with income, especially when they are zero or absent. In this case, the input has capital-loss = 0, which is a neutral value and does not indicate a strong financial hardship or benefit. Since the model already predicted income >50K with high confidence (72.68%), and capital-loss is not strongly correlated with income in standard demographic or economic models, masking it (setting to NaN) does not introduce meaningful variation in the prediction. Furthermore, the presence of other strong predictors—such as high hours-per-week, male sex, professional occupation, and high education level—likely dominate the decision process. Thus, the model is not sensitive to changes in capital-loss.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that capital-loss is not present in the input description and the model predicts '>50K' with high confidence, assess whether capital-loss is likely to be relevant or negligible in the prediction pipeline.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": null}]
+- Explanation: The input does not contain any value for capital-loss, and it is currently set to 0. The model predicts '>50K' with 72.68% confidence, which is high, suggesting strong pattern generalization from the training data. Since capital-loss is not present in the input and is not explicitly referenced in the feature description, it is likely that the model has learned to ignore this feature or treat it as negligible in the absence of a non-zero value. Additionally, in many income prediction datasets (such as the Adult dataset), capital-loss is often a rare or minimal feature, and its absence does not significantly alter the model's decision when other strong predictors (e.g., age, occupation, hours-per-week) are present. Therefore, masking capital-loss is unlikely to change the prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's prediction stability when capital-loss is masked (set to 0 or NaN) versus when it is left as is, using domain knowledge about income prediction factors.
+- Status: Success
+- findings: [{"feature_key": "capital-loss", "action": "mask", "new_value": "NaN", "prediction_change": "no_significant_change", "reason": "Masking capital-loss to NaN does not significantly alter the model's prediction of income >50K."}]
+- Explanation: Capital-loss is a feature representing financial losses incurred by an individual, typically from selling assets at a loss. In income prediction models, such features often have low correlation with income, especially when they are zero or absent. In this case, the input has capital-loss = 0, which is a neutral value and does not indicate a strong financial hardship or benefit. Since the model already predicted income >50K with high confidence (72.68%), and capital-loss is not strongly correlated with income in standard demographic or economic models, masking it (setting to NaN) does not introduce meaningful variation in the prediction. Furthermore, the presence of other strong predictors—such as high hours-per-week, male sex, professional occupation, and high education level—likely dominate the decision process. Thus, the model is not sensitive to changes in capital-loss.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:ng your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

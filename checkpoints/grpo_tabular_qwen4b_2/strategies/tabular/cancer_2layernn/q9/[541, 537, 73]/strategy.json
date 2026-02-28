@@ -1,0 +1,84 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is chosen because autonomous reasoning can quickly identify baseline patterns and potential spurious features across misclassified instances, while XAI tools provide quantitative, model-specific feature attributions that validate and reinforce hypotheses about shared spurious correlations. This combination ensures both human insight and robust, evidence-driven feature attribution.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the values of each feature across the three misclassified instances (541, 537, 73) to identify any shared outlier patterns or extreme deviations in non-semantic features.",
+      "expected_output": "A list of features that have identical or near-identical values across all three instances, especially in the absence of semantic relation to malignancy/benignity."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any feature (e.g., mean compactness, mean concavity) consistently has high values in misclassified instances and whether such values are likely spurious due to correlation with noise or data leakage.",
+      "expected_output": "A justification for which shared feature might be spurious, based on semantic relevance and statistical patterns."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "lime": {
+        "apply_to": "all",
+        "local_explanation_size": 5
+      },
+      "integrated_gradients": {
+        "baseline": "zero",
+        "apply_to": "all"
+      },
+      "sensitivity_analysis": {
+        "ablation_mode": "leave-one-out",
+        "output_format": "probability_change"
+      }
+    },
+    "reasoning": "SHAP provides global feature importance scores across all instances, helping identify high-impact features that appear consistently in misclassifications. LIME offers local interpretability to examine how each feature contributes per instance. Integrated gradients offer continuous attribution from baseline to prediction, useful for detecting spurious features with high gradients despite low semantic relevance. Sensitivity analysis confirms whether removing a feature changes prediction outcomes, validating spuriousness. Together, these tools ensure both consistency and model-level reliability in identifying shared spurious features."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides global feature importance scores across all instances, helping identify high-impact features that appear consistently in misclassifications. LIME offers local interpretability to examine how each feature contributes per instance. Integrated gradients offer continuous attribution from baseline to prediction, useful for detecting spurious features with high gradients despite low semantic relevance. Sensitivity analysis confirms whether removing a feature changes prediction outcomes, validating spuriousness. Together, these tools ensure both consistency and model-level reliability in identifying shared spurious features.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides global feature importance scores across all instances, helping identify high-impact features that appear consistently in misclassifications. LIME offers local interpretability to examine how each feature contributes per instance. Integrated gradients offer continuous attribution from baseline to prediction, useful for detecting spurious features with high gradients despite low semantic relevance. Sensitivity analysis confirms whether removing a feature changes prediction outcomes, validating spuriousness. Together, these tools ensure both consistency and model-level reliability in identifying shared spurious features.",
+      "parameters": {
+        "apply_to": "all",
+        "local_explanation_size": 5
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides global feature importance scores across all instances, helping identify high-impact features that appear consistently in misclassifications. LIME offers local interpretability to examine how each feature contributes per instance. Integrated gradients offer continuous attribution from baseline to prediction, useful for detecting spurious features with high gradients despite low semantic relevance. Sensitivity analysis confirms whether removing a feature changes prediction outcomes, validating spuriousness. Together, these tools ensure both consistency and model-level reliability in identifying shared spurious features.",
+      "parameters": {
+        "baseline": "zero",
+        "apply_to": "all"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides global feature importance scores across all instances, helping identify high-impact features that appear consistently in misclassifications. LIME offers local interpretability to examine how each feature contributes per instance. Integrated gradients offer continuous attribution from baseline to prediction, useful for detecting spurious features with high gradients despite low semantic relevance. Sensitivity analysis confirms whether removing a feature changes prediction outcomes, validating spuriousness. Together, these tools ensure both consistency and model-level reliability in identifying shared spurious features.",
+      "parameters": {
+        "ablation_mode": "leave-one-out",
+        "output_format": "probability_change"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the tumor to be benign. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: benign
+Confidence: 0.8489
+
+## Input Data
+Features: mean radius=11.89, mean texture=21.17, mean perimeter=76.39, mean area=433.8, mean smoothness=0.09773, mean compactness=0.0812, mean concavity=0.02555, mean concave points=0.02179, mean symmetry=0.2019, mean fractal dimension=0.0629, radius error=0.2747, texture error=1.203, perimeter error=1.93, area error=19.53, smoothness error=0.009895, compactness error=0.03053, concavity error=0.0163, concave points error=0.009276, symmetry error=0.02258, fractal dimension error=0.002272, worst radius=13.05, worst texture=27.21, worst perimeter=85.09, worst area=522.9, worst smoothness=0.1426, worst compactness=0.2187, worst concavity=0.1164, worst concave points=0.08263, worst symmetry=0.3075, worst fractal dimension=0.07351
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: perimeter error.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: mean concavity <= -0.74.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst perimeter.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: mean concavity (prob drop: 0.007211).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - area error: +0.0417
+  - mean compactness: +0.0348
+  - mean texture: +0.0329
+  - worst concave points: +0.0312
+  - mean concave points: +0.0252
+- Top negative features (shap_value):
+  - perimeter error: -0.0417
+  - mean smoothness: -0.0348
+  - mean radius: -0.0329
+  - worst concavity: -0.0312
+  - mean concavity: -0.0252
+- Max positive: 0.041682  Max negative: -0.041682
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - mean concavity <= -0.74: +0.0644
+  - -0.69 < mean perimeter <= -0.24: +0.0533
+  - -0.62 < perimeter error <= -0.29: +0.0533
+  - -0.62 < radius error <= -0.29: +0.0481
+  - -0.49 < area error <= -0.35: +0.0407
+- Top negative features (weight):
+  - mean symmetry > 0.53: -0.0627
+  - -0.59 < fractal dimension error <= -0.23: -0.0345
+- Max positive: 0.064418  Max negative: -0.0627
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst perimeter: +0.0111
+  - mean concavity: +0.0109
+  - mean perimeter: +0.0088
+  - area error: +0.0076
+  - worst radius: +0.0063
+- Top negative features (attribution_score):
+  - mean symmetry: -0.0065
+  - mean texture: -0.0063
+  - worst symmetry: -0.0038
+  - worst smoothness: -0.0036
+  - worst texture: -0.0034
+- Max positive: 0.011101  Max negative: -0.00648
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean concavity: drop=+0.0072  (orig=0.7003 → mod=0.6931)
+  - worst perimeter: drop=+0.0067  (orig=0.7003 → mod=0.6936)
+  - mean perimeter: drop=+0.0053  (orig=0.7003 → mod=0.6950)
+  - area error: drop=+0.0047  (orig=0.7003 → mod=0.6956)
+  - mean area: drop=+0.0036  (orig=0.7003 → mod=0.6967)
+  - worst concavity: drop=+0.0035  (orig=0.7003 → mod=0.6968)
+  - mean concave points: drop=+0.0034  (orig=0.7003 → mod=0.6969)
+  - perimeter error: drop=+0.0032  (orig=0.7003 → mod=0.6971)
+  - worst radius: drop=+0.0031  (orig=0.7003 → mod=0.6972)
+  - mean radius: drop=+0.0028  (orig=0.7003 → mod=0.6975)
+- Max prob_drop: 0.007211  Max prob_increase: -0.002642
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which tumor features are typically associated with benign tumors in medical literature?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean perimeter", "mean area", "mean smoothness", "mean compactness", "mean concavity", "mean concave points", "mean symmetry", "mean fractal dimension", "radius error", "texture error", "perimeter error", "area error", "smoothness error", "compactness error", "concavity error", "concave points error", "symmetry error", "fractal dimension error"]
+- Explanation: In medical literature, particularly in breast cancer classification studies such as the Wisconsin Breast Cancer Dataset, benign tumors are typically characterized by low values in most of the mean and worst features related to tumor morphology. Benign tumors tend to have less invasive growth patterns, resulting in smaller size and less irregular structure. Features like mean radius, mean texture, mean perimeter, and mean area are generally lower in benign cases compared to malignant ones. Smoothness, compactness, concavity, and fractal dimension are also typically lower in benign tumors, as these reflect more regular, less complex cellular structures. The error features (e.g., radius error, texture error) are also often lower in benign tumors, indicating less variability in the measurements. Therefore, all these features are typically low or within typical benign ranges when compared to malignant tumors.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: Given the predicted class is benign (class 1), which input features in the input data are at or near the lower end of their distributions in benign cases?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 11.89}, {"feature_key": "mean texture", "action": "change", "new_value": 21.17}, {"feature_key": "mean perimeter", "action": "change", "new_value": 76.39}, {"feature_key": "mean area", "action": "change", "new_value": 433.8}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.09773}]
+- Explanation: Benign tumors are typically characterized by small, slow-growing features with low values in key morphological metrics. The provided input values for mean radius, mean texture, mean perimeter, mean area, and mean smoothness are all relatively low compared to malignant tumor profiles, which tend to have higher values in these dimensions. These features are consistently associated with benign classifications in the Breast Cancer Wisconsin (Diagnostic) dataset, where higher mean values (especially in radius, texture, and perimeter) are more indicative of malignancy. Since the model predicted benign with high confidence (84.89%), the observed feature values align with the typical range of benign tumors in the dataset, particularly in the lower quartiles of these features.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the input feature values to average or median values in benign vs malignant tumor datasets.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 12.0}, {"feature_key": "mean texture", "action": "change", "new_value": 20.0}, {"feature_key": "mean perimeter", "action": "change", "new_value": 76.0}, {"feature_key": "mean area", "action": "change", "new_value": 430.0}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.1}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), benign tumors typically have lower mean values for size-related features (like radius, perimeter, area) and more regular shapes, reflected in lower values of compactness, concavity, and fractal dimension. The provided input shows modestly low mean radius, texture, perimeter, and area, with smoothness near the lower end of the distribution. These values are significantly lower than those commonly observed in malignant tumors, which tend to have higher and more irregular measurements. The changes to the new values reflect a normalization toward benign-typical averages, showing that the model's prediction of benign is supported by features within the typical benign range.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

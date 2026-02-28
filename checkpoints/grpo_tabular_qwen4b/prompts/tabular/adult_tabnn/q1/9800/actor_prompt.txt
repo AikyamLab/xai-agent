@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.8497
+
+## Input Data
+Features: age=17, workclass=Private, fnlwgt=147069, education=11th, education-num=7, marital-status=Never-married, occupation=Other-service, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=16, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.009675).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0613
+  - capital-loss: +0.0477
+  - workclass_Self-emp-not-inc: +0.0314
+  - sex_Male: +0.0262
+  - native-country_Columbia: +0.0259
+- Top negative features (shap_value):
+  - fnlwgt: -0.0613
+  - hours-per-week: -0.0477
+  - workclass_State-gov: -0.0314
+  - native-country_Cambodia: -0.0262
+  - native-country_Cuba: -0.0259
+- Max positive: 0.061289  Max negative: -0.061289
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2056
+  - capital-loss <= -0.22: +0.1036
+  - education-num <= -0.44: +0.0986
+  - age <= -0.80: +0.0816
+  - marital-status_Married-civ-spouse <= 0.00: +0.0668
+- Top negative features (weight):
+  - native-country_Yugoslavia <= 0.00: -0.0242
+  - native-country_France <= 0.00: -0.0211
+- Max positive: 0.205612  Max negative: -0.024159
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0121
+  - age: +0.0121
+  - education-num: +0.0100
+  - relationship_Own-child: +0.0098
+  - marital-status_Never-married: +0.0097
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0038
+  - education_11th: -0.0015
+  - sex_Female: -0.0011
+  - workclass_Private: -0.0009
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.01211  Max negative: -0.003776
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0097  (orig=0.4625 → mod=0.4528)
+  - age: drop=+0.0094  (orig=0.4625 → mod=0.4531)
+  - relationship_Own-child: drop=+0.0091  (orig=0.4625 → mod=0.4534)
+  - hours-per-week: drop=+0.0086  (orig=0.4625 → mod=0.4539)
+  - marital-status_Never-married: drop=+0.0057  (orig=0.4625 → mod=0.4568)
+  - native-country_United-States: drop=-0.0025  (orig=0.4625 → mod=0.4650)
+  - occupation_Other-service: drop=+0.0025  (orig=0.4625 → mod=0.4600)
+  - workclass_Private: drop=-0.0024  (orig=0.4625 → mod=0.4649)
+  - capital-loss: drop=+0.0013  (orig=0.4625 → mod=0.4612)
+  - capital-gain: drop=+0.0012  (orig=0.4625 → mod=0.4613)
+- Max prob_drop: 0.009675  Max prob_increase: -0.002544
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features are known to be strongly associated with the '<=50K' class in the Adult Income dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult Income dataset, features such as lower education levels (e.g., 11th grade), younger age, unmarried status, and lower working hours are strongly associated with the '<=50K' income class. Conversely, higher education, older age, married status, and professional occupations are correlated with higher income (>50K). The current input shows low education-num (7), age=17 (young), unmarried status, and only 16 hours per week—these factors align with domains known to predict lower income. Changing these to higher, more favorable values demonstrates how shifts in these features can influence model predictions toward '>50K'.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: How might the combination of 'age=17', 'education-num=7' (11th grade), 'marital-status=Never-married', and 'relationship=Own-child' contribute to a prediction of '<=50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "relationship", "action": "change", "new_value": "Partner"}]
+- Explanation: The combination of 'age=17', 'education-num=7' (11th grade), 'marital-status=Never-married', and 'relationship=Own-child' aligns with known demographic patterns associated with lower income. A young age (17) indicates limited work experience and marketable skills, reducing earning potential. An education level at '11th grade' (education-num=7) reflects incomplete formal education, which correlates with lower occupational attainment and wages. Being 'Never-married' and having a 'Own-child' relationship suggests a young, likely low-income individual who may be a dependent or student, often lacking stable income sources. These factors collectively point to a demographic profile historically associated with lower income brackets in income prediction models. Changing these features to reflect older age, higher education, and stable marital status would shift the prediction toward '>50K', demonstrating how socio-demographic features directly influence model output.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the significance of 'education-num' and 'age' in influencing the '<=50K' class, given that lower education and younger age are known to correlate with this class.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 7}, {"feature_key": "age", "action": "change", "new_value": 17}]
+- Explanation: Based on domain knowledge, individuals with lower education levels and younger ages are statistically more likely to earn <=50K. The current input shows education-num=7 (11th grade) and age=17, both of which are low values associated with the <=50K class. While both features contribute to the prediction, 'education-num' is more strongly correlated with income outcomes in datasets like the Census Income dataset, where educational attainment is a key determinant of earning potential. Age also plays a role, particularly in youth, but its effect is more context-dependent. Given that the model output is 0 (<=50K) with high confidence, and that the observed values align with known demographic trends for lower income, both features are significant; however, education-num has a stronger documented correlation and thus ranks higher in influence.
+- Confidence: 0.93
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

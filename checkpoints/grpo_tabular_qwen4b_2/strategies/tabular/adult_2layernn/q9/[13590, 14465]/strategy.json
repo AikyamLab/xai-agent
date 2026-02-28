@@ -1,0 +1,67 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to quickly identify shared feature patterns across misclassified instances with external XAI tools to quantitatively validate feature attributions and detect spurious correlations. This approach ensures both pattern recognition and empirical validation of feature importance, improving accuracy in identifying spurious features that are present in all misclassified cases but semantically unrelated to class outcomes.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify all features that are identical in both misclassified instances (13590 and 14465) and are not semantically meaningful for class prediction (e.g., education-num, marital-status, relationship).",
+      "expected_output": "List of shared features that appear in both instances and are not directly relevant to income prediction."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Why might these shared features (e.g., education-num=9, marital-status=Married-civ-spouse) lead to spurious correlations in the model's predictions despite lacking semantic relevance to income?",
+      "expected_output": "Hypothesis on how these features may be falsely linked to income due to co-occurrence with other relevant features or dataset imbalances."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "permutation_importance": {
+        "find_common": true,
+        "priority": 2
+      }
+    },
+    "reasoning": "SHAP provides game-theoretic attribution scores to identify which features dominate predictions, especially in shared misclassified cases. LIME and Integrated Gradients offer local interpretability to validate feature importance in specific instances. Sensitivity analysis confirms whether setting a shared feature to zero alters predictions, indicating spuriousness. Together, they allow detection of features with high attribution but no semantic relevance."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides game-theoretic attribution scores to identify which features dominate predictions, especially in shared misclassified cases. LIME and Integrated Gradients offer local interpretability to validate feature importance in specific instances. Sensitivity analysis confirms whether setting a shared feature to zero alters predictions, indicating spuriousness. Together, they allow detection of features with high attribution but no semantic relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides game-theoretic attribution scores to identify which features dominate predictions, especially in shared misclassified cases. LIME and Integrated Gradients offer local interpretability to validate feature importance in specific instances. Sensitivity analysis confirms whether setting a shared feature to zero alters predictions, indicating spuriousness. Together, they allow detection of features with high attribution but no semantic relevance.",
+      "parameters": {}
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides game-theoretic attribution scores to identify which features dominate predictions, especially in shared misclassified cases. LIME and Integrated Gradients offer local interpretability to validate feature importance in specific instances. Sensitivity analysis confirms whether setting a shared feature to zero alters predictions, indicating spuriousness. Together, they allow detection of features with high attribution but no semantic relevance.",
+      "parameters": {}
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides game-theoretic attribution scores to identify which features dominate predictions, especially in shared misclassified cases. LIME and Integrated Gradients offer local interpretability to validate feature importance in specific instances. Sensitivity analysis confirms whether setting a shared feature to zero alters predictions, indicating spuriousness. Together, they allow detection of features with high attribution but no semantic relevance.",
+      "parameters": {}
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

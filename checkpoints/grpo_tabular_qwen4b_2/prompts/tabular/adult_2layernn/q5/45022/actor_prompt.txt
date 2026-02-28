@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the workclass feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6829
+
+## Part to be Masked
+workclass
+
+## Input Data
+Features: age=35, workclass=Self-emp-not-inc, fnlwgt=256992, education=5th-6th, education-num=3, marital-status=Married-civ-spouse, occupation=Other-service, relationship=Wife, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=15, native-country=Mexico
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.026178).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0770
+  - workclass_Self-emp-not-inc: +0.0671
+  - native-country_Japan: +0.0138
+  - race_Other: +0.0132
+  - education_5th-6th: +0.0119
+- Top negative features (shap_value):
+  - hours-per-week: -0.0770
+  - workclass_State-gov: -0.0671
+  - native-country_Laos: -0.0138
+  - race_Black: -0.0132
+  - education_1st-4th: -0.0119
+- Max positive: 0.07696  Max negative: -0.07696
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0262  (orig=0.4214 → mod=0.3952)
+  - hours-per-week: drop=+0.0215  (orig=0.4214 → mod=0.3999)
+  - relationship_Wife: drop=-0.0068  (orig=0.4214 → mod=0.4282)
+  - occupation_Other-service: drop=+0.0058  (orig=0.4214 → mod=0.4156)
+  - race_White: drop=-0.0037  (orig=0.4214 → mod=0.4251)
+  - fnlwgt: drop=-0.0019  (orig=0.4214 → mod=0.4233)
+  - education_5th-6th: drop=+0.0018  (orig=0.4214 → mod=0.4196)
+  - marital-status_Married-civ-spouse: drop=-0.0013  (orig=0.4214 → mod=0.4227)
+  - sex_Female: drop=-0.0009  (orig=0.4214 → mod=0.4222)
+  - workclass_Self-emp-not-inc: drop=+0.0008  (orig=0.4214 → mod=0.4206)
+- Max prob_drop: 0.026178  Max prob_increase: -0.006785
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that workclass is a categorical feature representing employment type (e.g., Self-emp-not-inc), and that the model predicts <=50K with high confidence (0.68), assess whether workclass contributes meaningfully to the prediction space based on known socio-economic correlations.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "workclass", "action": "change", "new_value": "Federal-gov"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "workclass", "action": "change", "new_value": "Self-emp-not-inc"}, {"feature_key": "workclass", "action": "change", "new_value": "Without-pay"}]
+- Explanation: Workclass is a strongly correlated categorical feature with income levels in socio-economic datasets. Self-employment (e.g., 'Self-emp-not-inc') is often associated with higher income potential due to variable earnings and business ownership, though it can vary by region and individual circumstances. In contrast, category values like 'Private' or 'Federal-gov' are typically linked with more stable, regulated employment and may correlate with lower income or less flexibility. While the current model predicts <=50K with 68.29% confidence, changing workclass to 'Private' or 'Federal-gov' (commonly associated with lower income elasticity) could maintain or slightly reduce the prediction of <=50K, indicating minimal change in outcome. However, switching to 'Self-emp-not-inc' — which the individual currently has — is already the model's observed value, so altering it to different categories would require assessing whether the model is sensitive to this variation. Empirical evidence from the Census Income dataset shows that workclass has a statistically significant impact on income prediction, especially when controlling for education, age, and hours per week. Thus, masking workclass would likely lead to prediction instability, suggesting that workclass contributes meaningfully to the prediction space, particularly in distinguishing self-employed individuals from employed workers with fixed wages. Therefore, the prediction is likely sensitive to workclass masking, though the model’s current confidence (68.29%) may reflect robustness across variants.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the prediction outcome when workclass is masked (set to default or removed) versus when it is preserved, based on the input and known feature correlations in the adult income dataset.
+- Status: Success
+- findings: {"prediction_stability": "likely_to_shift", "reasoning": "The workclass feature is a significant predictor in the Adult Income dataset, particularly in distinguishing between different income levels. In this case, the input has workclass='Self-emp-not-inc', which is associated with a higher likelihood of earning more than $50K, especially when combined with other demographic and socioeconomic factors like age, education, and hours-per-week. While the current model predicts '\u226450K' with 68.29% confidence, masking workclass removes a key contextual feature that influences income prediction. Without this feature, the model may default to using less informative or correlated features, potentially leading to a different prediction \u2014 especially if the model relies on workclass as a proxy for income potential. Since the original value ('Self-emp-not-inc') is not aligned with the low-income prediction, its removal introduces uncertainty and can shift the output probability toward the higher income class. Thus, a change in prediction is expected when workclass is masked."}
+- Explanation: The workclass feature is a strong predictor in the Adult Income dataset. The current value ('Self-emp-not-inc') is typically associated with higher income levels, especially when combined with features like education and hours-per-week. Masking this feature removes a key signal that influences income prediction. Given that the model currently predicts ≤50K with 68.29% confidence, removing a contributing factor (workclass) may cause the model to re-evaluate the sample with less relevant or weaker features, leading to a higher probability of predicting >50K. Therefore, a shift in prediction is expected.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that workclass is a categorical feature representing employment type (e.g., Self-emp-not-inc), and that the model predicts <=50K with high confidence (0.68), assess whether workclass contributes meaningfully to the prediction space based on known socio-economic correlations.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "workclass", "action": "change", "new_value": "Federal-gov"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "workclass", "action": "change", "new_value": "Self-emp-not-inc"}, {"feature_key": "workclass", "action": "change", "new_value": "Without-pay"}]
+- Explanation: Workclass is a strongly correlated categorical feature with income levels in socio-economic datasets. Self-employment (e.g., 'Self-emp-not-inc') is often associated with higher income potential due to variable earnings and business ownership, though it can vary by region and individual circumstances. In contrast, category values like 'Private' or 'Federal-gov' are typically linked with more stable, regulated employment and may correlate with lower income or less flexibility. While the current model predicts <=50K with 68.29% confidence, changing workclass to 'Private' or 'Federal-gov' (commonly associated with lower income elasticity) could maintain or slightly reduce the prediction of <=50K, indicating minimal change in outcome. However, switching to 'Self-emp-not-inc' — which the individual currently has — is already the model's observed value, so altering it to different categories would require assessing whether the model is sensitive to this variation. Empirical evidence from the Census Income dataset shows that workclass has a statistically significant impact on income prediction, especially when controlling for education, age, and hours per week. Thus, masking workclass would likely lead to prediction instability, suggesting that workclass contributes meaningfully to the prediction space, particularly in distinguishing self-employed individuals from employed workers with fixed wages. Therefore, the prediction is likely sensitive to workclass masking, though the model’s current confidence (68.29%) may reflect robustness across variants.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the prediction outcome when workclass is masked (set to default or removed) versus when it is preserved, based on the input and known feature correlations in the adult income dataset.
+- Status: Success
+- findings: {"prediction_stability": "likely_to_shift", "reasoning": "The workclass feature is a significant predictor in the Adult Income dataset, particularly in distinguishing between different income levels. In this case, the input has workclass='Self-emp-not-inc', which is associated with a higher likelihood of earning more than $50K, especially when combined with other demographic and socioeconomic factors like age, education, and hours-per-week. While the current model predicts '\u226450K' with 68.29% confidence, masking workclass removes a key contextual feature that influences income prediction. Without this feature, the model may default to using less informative or correlated features, potentially leading to a different prediction \u2014 especially if the model relies on workclass as a proxy for income potential. Since the original value ('Self-emp-not-inc') is not aligned with the low-income prediction, its removal introduces uncertainty and can shift the output probability toward the higher income class. Thus, a change in prediction is expected when workclass is masked."}
+- Explanation: The workclass feature is a strong predictor in the Adult Income dataset. The current value ('Self-emp-not-inc') is typically associated with higher income levels, especially when combined with features like education and hours-per-week. Masking this feature removes a key signal that influences income prediction. Given that the model currently predicts ≤50K with 68.29% confidence, removing a contributing factor (workclass) may cause the model to re-evaluate the sample with less relevant or weaker features, leading to a higher probability of predicting >50K. Therefore, a shift in prediction is expected.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

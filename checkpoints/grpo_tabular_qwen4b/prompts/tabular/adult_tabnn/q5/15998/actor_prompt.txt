@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the occupation feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6682
+
+## Part to be Masked
+occupation
+
+## Input Data
+Features: age=49, workclass=Federal-gov, fnlwgt=193998, education=Some-college, education-num=10, marital-status=Never-married, occupation=Craft-repair, relationship=Not-in-family, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Without-pay.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: workclass_Federal-gov (prob drop: -0.016577).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education_10th: +0.0504
+  - fnlwgt: +0.0420
+  - native-country_Vietnam: +0.0390
+  - sex_Male: +0.0361
+  - native-country_Columbia: +0.0329
+- Top negative features (shap_value):
+  - workclass_Without-pay: -0.0504
+  - age: -0.0420
+  - native-country_Yugoslavia: -0.0390
+  - native-country_Cambodia: -0.0361
+  - native-country_Cuba: -0.0329
+- Max positive: 0.05044  Max negative: -0.05044
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - workclass_Federal-gov: drop=-0.0166  (orig=0.4178 → mod=0.4344)
+  - relationship_Not-in-family: drop=+0.0150  (orig=0.4178 → mod=0.4028)
+  - marital-status_Never-married: drop=+0.0110  (orig=0.4178 → mod=0.4068)
+  - age: drop=-0.0093  (orig=0.4178 → mod=0.4271)
+  - sex_Male: drop=-0.0061  (orig=0.4178 → mod=0.4239)
+  - occupation_Craft-repair: drop=+0.0059  (orig=0.4178 → mod=0.4119)
+  - race_Black: drop=-0.0029  (orig=0.4178 → mod=0.4207)
+  - education_Some-college: drop=-0.0012  (orig=0.4178 → mod=0.4189)
+  - native-country_United-States: drop=+0.0009  (orig=0.4178 → mod=0.4169)
+  - hours-per-week: drop=+0.0008  (orig=0.4178 → mod=0.4170)
+- Max prob_drop: 0.014985  Max prob_increase: -0.016577
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with 66.8% confidence, and occupation is 'Craft-repair', assess whether this occupation is likely to be a significant factor in the income prediction based on known socio-economic patterns in the dataset.
+- Status: Success
+- findings: {"occupation_contributes_significantly": true, "impact_on_prediction": "high", "reasoning_basis": "In the U.S. Census Income dataset, occupation is a well-established predictor of income level. Categories such as 'Exec-managerial', 'Prof-specialty', and 'Prof-tech' are strongly associated with income >50K, while manual or craft-based occupations like 'Craft-repair' are more commonly linked to income <=50K. The model's prediction of <=50K with 66.8% confidence aligns with known socio-economic patterns where craft-repair occupations typically have lower median earnings and are underrepresented in higher-income brackets. Masking this feature would likely reduce confidence or alter the prediction due to the absence of a key discriminative feature."}
+- Explanation: Occupation contributes meaningfully to income classification in the dataset. Craft-repair, as a lower-income craft-based occupation, is statistically and socio-economically associated with income <=50K. Removing or masking this feature would eliminate a key predictor, potentially reducing prediction accuracy or leading to a less confident estimate. Given that the current prediction is already in the <=50K category and the occupation is consistent with that outcome, its omission would likely cause the model to rely more on less discriminative features, leading to a less reliable or possibly incorrect prediction.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the prediction behavior when occupation is set to missing (masked) versus when it is set to a different value (e.g., 'Prof-specialty') while keeping all other features constant.
+- Status: Success
+- findings: [{"scenario": "occupation masked (missing)", "prediction": 0, "confidence": 0.6682}, {"scenario": "occupation set to 'Prof-specialty'", "prediction": 0, "confidence": 0.6682}]
+- Explanation: The model predicts the same class (≤50K) when occupation is masked or set to 'Prof-specialty'. This indicates that occupation does not significantly influence the prediction in this instance. The consistent output suggests that either the feature is not informative for income prediction given the current feature profile, or the model has learned to downweight or ignore occupation during inference. Since no change in prediction is observed, the model demonstrates stability when occupation is altered, whether masked or replaced with a non-identical category. This supports the conclusion that occupation is not a critical or discriminative feature in this context.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with 66.8% confidence, and occupation is 'Craft-repair', assess whether this occupation is likely to be a significant factor in the income prediction based on known socio-economic patterns in the dataset.
+- Status: Success
+- findings: {"occupation_contributes_significantly": true, "impact_on_prediction": "high", "reasoning_basis": "In the U.S. Census Income dataset, occupation is a well-established predictor of income level. Categories such as 'Exec-managerial', 'Prof-specialty', and 'Prof-tech' are strongly associated with income >50K, while manual or craft-based occupations like 'Craft-repair' are more commonly linked to income <=50K. The model's prediction of <=50K with 66.8% confidence aligns with known socio-economic patterns where craft-repair occupations typically have lower median earnings and are underrepresented in higher-income brackets. Masking this feature would likely reduce confidence or alter the prediction due to the absence of a key discriminative feature."}
+- Explanation: Occupation contributes meaningfully to income classification in the dataset. Craft-repair, as a lower-income craft-based occupation, is statistically and socio-economically associated with income <=50K. Removing or masking this feature would eliminate a key predictor, potentially reducing prediction accuracy or leading to a less confident estimate. Given that the current prediction is already in the <=50K category and the occupation is consistent with that outcome, its omission would likely cause the model to rely more on less discriminative features, leading to a less reliable or possibly incorrect prediction.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the prediction behavior when occupation is set to missing (masked) versus when it is set to a different value (e.g., 'Prof-specialty') while keeping all other features constant.
+- Status: Success
+- findings: [{"scenario": "occupation masked (missing)", "prediction": 0, "confidence": 0.6682}, {"scenario": "occupation set to 'Prof-specialty'", "prediction": 0, "confidence": 0.6682}]
+- Explanation: The model predicts the same class (≤50K) when occupation is masked or set to 'Prof-specialty'. This indicates that occupation does not significantly influence the prediction in this instance. The consistent output suggests that either the feature is not informative for income prediction given the current feature profile, or the model has learned to downweight or ignore occupation during inference. Since no change in prediction is observed, the model demonstrates stability when occupation is altered, whether masked or replaced with a non-identical category. This supports the conclusion that occupation is not a critical or discriminative feature in this context.
+- Confidence: 0.95
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

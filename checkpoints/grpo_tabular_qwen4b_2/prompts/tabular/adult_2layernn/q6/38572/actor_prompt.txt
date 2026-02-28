@@ -1,0 +1,112 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (59.62%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=188972, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Exec-managerial, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Honduras.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_HS-grad (prob drop: 0.007166).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Hong: +0.0227
+  - workclass_Self-emp-not-inc: +0.0209
+  - race_Other: +0.0148
+  - native-country_El-Salvador: +0.0145
+  - occupation_Tech-support: +0.0135
+- Top negative features (shap_value):
+  - native-country_Honduras: -0.0227
+  - workclass_State-gov: -0.0209
+  - race_Black: -0.0148
+  - native-country_England: -0.0145
+  - occupation_Transport-moving: -0.0135
+- Max positive: 0.022699  Max negative: -0.022699
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education_HS-grad: drop=+0.0072  (orig=0.4004 → mod=0.3932)
+  - sex_Female: drop=+0.0069  (orig=0.4004 → mod=0.3935)
+  - hours-per-week: drop=+0.0064  (orig=0.4004 → mod=0.3940)
+  - occupation_Exec-managerial: drop=-0.0061  (orig=0.4004 → mod=0.4065)
+  - relationship_Unmarried: drop=+0.0052  (orig=0.4004 → mod=0.3951)
+  - workclass_Private: drop=+0.0034  (orig=0.4004 → mod=0.3970)
+  - education-num: drop=+0.0034  (orig=0.4004 → mod=0.3970)
+  - marital-status_Widowed: drop=+0.0029  (orig=0.4004 → mod=0.3975)
+  - native-country_United-States: drop=-0.0023  (orig=0.4004 → mod=0.4027)
+  - race_White: drop=-0.0011  (orig=0.4004 → mod=0.4015)
+- Max prob_drop: 0.007166  Max prob_increase: -0.006069
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence income prediction, given the model's architecture and known socioeconomic patterns in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "justification": "Higher age is often associated with greater work experience and income accumulation. In the Adult dataset, age shows a positive correlation with income, particularly for individuals in stable occupations. Increasing age may improve the model's prediction of high income due to accumulated earning potential."}, {"feature_key": "education-num", "justification": "Education level is a strong predictor of income. Higher education-num (e.g., college, advanced degrees) correlates with higher-paying jobs. The current value (9) corresponds to HS-grad, which is linked to lower income. Increasing this value (e.g., to 13 for some college degrees) significantly improves the likelihood of predicting >50K."}, {"feature_key": "hours-per-week", "justification": "Hours per week are strongly correlated with income in the Adult dataset. Longer working hours are associated with higher income, especially in managerial and professional roles. Increasing hours from 30 to 40+ increases the probability of being classified as >50K."}, {"feature_key": "occupation", "justification": "Occupation influences income significantly. 'Exec-managerial' is a high-income category. However, even within this category, the model may still predict lower income due to other constraints. No change to occupation is needed, but its presence validates the direction of income prediction."}, {"feature_key": "sex", "justification": "While sex is a known feature in the Adult dataset, it has a controversial and historically biased association with income. Modern models often show diminishing impact after controlling for other features. It is not a strong driver for flipping income prediction and may not be effective in changing the output without broader context."}]
+- Explanation: Based on socioeconomic patterns in the Adult dataset, features like age, education-level (education-num), and hours-per-week are consistently strong predictors of income. Education and work hours are directly tied to earning capacity and job level. Age provides indirect leverage through experience. While occupation is high-income, its predictive power is partially mediated by education and hours. Sex has minimal independent predictive power in well-calibrated models. Therefore, changes to age, education-num, and hours-per-week are most likely to influence the model's prediction from ≤50K to >50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: What would be the expected outcome if the education-num or workclass were increased, considering the gap between <=50K and >50K predictions?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 12, "expected_outcome": "The model prediction is likely to increase toward >50K. Increasing education-num from 9 to 12 (e.g., to 'Bachelor\u2019s' or higher) is associated with higher income in the dataset. This reflects a strong positive correlation between education level and income, especially in the context of the dataset where higher education typically predicts higher earnings."}, {"feature_key": "workclass", "action": "change", "new_value": "Self-emp-inc", "expected_outcome": "Changing workclass from 'Private' to 'Self-emp-inc' (self-employed with income) may increase the probability of predicting >50K. Self-employment, especially in higher-income sectors, often correlates with higher income than private-sector employment, though this depends on other factors like occupation and hours. This change has moderate impact compared to education-level increases."}]
+- Explanation: The model currently predicts <=50K with 59.62% confidence. Education-num is a well-established proxy for income potential in this dataset; increasing it from 9 (HS-grad) to 12 (e.g., Bachelor’s degree or higher) strongly correlates with higher annual income and thus increases the likelihood of predicting >50K. Workclass changes, such as from 'Private' to 'Self-emp-inc', have a moderate effect, as self-employed individuals may earn more, but the effect is less predictable and context-dependent. The strongest shift in prediction probability comes from improving education level. Hence, increasing education-num has the highest potential to flip the prediction.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence income prediction, given the model's architecture and known socioeconomic patterns in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "justification": "Higher age is often associated with greater work experience and income accumulation. In the Adult dataset, age shows a positive correlation with income, particularly for individuals in stable occupations. Increasing age may improve the model's prediction of high income due to accumulated earning potential."}, {"feature_key": "education-num", "justification": "Education level is a strong predictor of income. Higher education-num (e.g., college, advanced degrees) correlates with higher-paying jobs. The current value (9) corresponds to HS-grad, which is linked to lower income. Increasing this value (e.g., to 13 for some college degrees) significantly improves the likelihood of predicting >50K."}, {"feature_key": "hours-per-week", "justification": "Hours per week are strongly correlated with income in the Adult dataset. Longer working hours are associated with higher income, especially in managerial and professional roles. Increasing hours from 30 to 40+ increases the probability of being classified as >50K."}, {"feature_key": "occupation", "justification": "Occupation influences income significantly. 'Exec-managerial' is a high-income category. However, even within this category, the model may still predict lower income due to other constraints. No change to occupation is needed, but its presence validates the direction of income prediction."}, {"feature_key": "sex", "justification": "While sex is a known feature in the Adult dataset, it has a controversial and historically biased association with income. Modern models often show diminishing impact after controlling for other features. It is not a strong driver for flipping income prediction and may not be effective in changing the output without broader context."}]
+- Explanation: Based on socioeconomic patterns in the Adult dataset, features like age, education-level (education-num), and hours-per-week are consistently strong predictors of income. Education and work hours are directly tied to earning capacity and job level. Age provides indirect leverage through experience. While occupation is high-income, its predictive power is partially mediated by education and hours. Sex has minimal independent predictive power in well-calibrated models. Therefore, changes to age, education-num, and hours-per-week are most likely to influence the model's prediction from ≤50K to >50K.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: What would be the expected outcome if the education-num or workclass were increased, considering the gap between <=50K and >50K predictions?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 12, "expected_outcome": "The model prediction is likely to increase toward >50K. Increasing education-num from 9 to 12 (e.g., to 'Bachelor\u2019s' or higher) is associated with higher income in the dataset. This reflects a strong positive correlation between education level and income, especially in the context of the dataset where higher education typically predicts higher earnings."}, {"feature_key": "workclass", "action": "change", "new_value": "Self-emp-inc", "expected_outcome": "Changing workclass from 'Private' to 'Self-emp-inc' (self-employed with income) may increase the probability of predicting >50K. Self-employment, especially in higher-income sectors, often correlates with higher income than private-sector employment, though this depends on other factors like occupation and hours. This change has moderate impact compared to education-level increases."}]
+- Explanation: The model currently predicts <=50K with 59.62% confidence. Education-num is a well-established proxy for income potential in this dataset; increasing it from 9 (HS-grad) to 12 (e.g., Bachelor’s degree or higher) strongly correlates with higher annual income and thus increases the likelihood of predicting >50K. Workclass changes, such as from 'Private' to 'Self-emp-inc', have a moderate effect, as self-employed individuals may earn more, but the effect is less predictable and context-dependent. The strongest shift in prediction probability comes from improving education level. Hence, increasing education-num has the highest potential to flip the prediction.
+- Confidence: 0.93
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=35, workclass='Private', fnlwgt=188972, education='HS-grad', education-num=9, marital-status='Widowed', occupation='Exec-managerial', relationship='Unmarried', race='White', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=30, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

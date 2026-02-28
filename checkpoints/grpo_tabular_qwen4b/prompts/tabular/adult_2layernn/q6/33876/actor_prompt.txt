@@ -1,0 +1,144 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (63.14%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=301867, education=Some-college, education-num=10, marital-status=Never-married, occupation=Adm-clerical, relationship=Unmarried, race=Asian-Pac-Islander, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.009192).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0240
+  - native-country_France: +0.0104
+  - native-country_Trinadad&Tobago: +0.0089
+  - race_Amer-Indian-Eskimo: +0.0047
+  - relationship_Husband: +0.0046
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0240
+  - native-country_Germany: -0.0104
+  - native-country_United-States: -0.0089
+  - race_Asian-Pac-Islander: -0.0047
+  - relationship_Not-in-family: -0.0046
+- Max positive: 0.023998  Max negative: -0.023998
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0789
+  - capital-gain <= -0.15: +0.0494
+  - native-country_France <= 0.00: +0.0452
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0494
+  - native-country_Puerto-Rico <= 0.00: -0.0467
+  - native-country_Guatemala <= 0.00: -0.0224
+  - native-country_Ireland <= 0.00: -0.0187
+  - native-country_Ecuador <= 0.00: -0.0183
+- Max positive: 0.078867  Max negative: -0.049448
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0086
+  - sex_Female: +0.0058
+  - occupation_Adm-clerical: +0.0044
+  - hours-per-week: +0.0039
+  - relationship_Unmarried: +0.0030
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0021
+  - capital-loss: -0.0002
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.008623  Max negative: -0.002131
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0092  (orig=0.4089 → mod=0.3997)
+  - sex_Female: drop=+0.0058  (orig=0.4089 → mod=0.4031)
+  - occupation_Adm-clerical: drop=+0.0056  (orig=0.4089 → mod=0.4033)
+  - hours-per-week: drop=+0.0024  (orig=0.4089 → mod=0.4065)
+  - relationship_Unmarried: drop=+0.0018  (orig=0.4089 → mod=0.4071)
+  - workclass_Private: drop=+0.0015  (orig=0.4089 → mod=0.4074)
+  - race_Asian-Pac-Islander: drop=-0.0012  (orig=0.4089 → mod=0.4101)
+  - fnlwgt: drop=+0.0010  (orig=0.4089 → mod=0.4079)
+  - native-country_United-States: drop=-0.0007  (orig=0.4089 → mod=0.4096)
+  - education_Some-college: drop=+0.0004  (orig=0.4089 → mod=0.4085)
+- Max prob_drop: 0.009192  Max prob_increase: -0.001178
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to classify as <=50K, and how would increasing or modifying their values affect the predicted class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 60}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000}]
+- Explanation: The model predicts <=50K with moderate confidence (63.14%). Based on typical socio-economic patterns in this dataset, income is strongly correlated with age, education level, work hours, occupation type, and capital gains. Increasing age (to 60) reflects greater accumulated experience and experience premium. Elevating education-num (to 16) suggests higher education (e.g., Bachelor's or beyond), associated with higher earning potential. Increasing hours-per-week to 50 reflects higher work intensity, often linked with higher income. Changing occupation from 'Adm-clerical' (lower-paying) to 'Prof-specialty' (higher-paying) directly increases income potential. Capital gain increases (e.g., 10k) signal financial growth, which improves classification toward >50K. These changes collectively shift the instance toward higher-income profiles likely to be classified as >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a counterfactual where high-value features (e.g., higher education-num, higher age, higher fnlwgt) are increased—what change would most significantly shift the model toward >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "age", "action": "increase", "new_value": 50}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "capital-gain", "action": "increase", "new_value": 5000}]
+- Explanation: The model predicts <=50K with moderate confidence (63.14%). To flip the prediction toward >50K, we target features correlated with higher earnings. 'education-num' and 'age' are strong indicators of income potential—higher education levels and older age typically correlate with higher income. 'hours-per-week' reflects work intensity and is often associated with higher earnings. 'capital-gain' indicates financial success from investments, which also positively influences income prediction. Increasing these features—especially education-num (to 16, representing higher education like 'Bachelors' or 'Masters') and age (to 50)—most directly shifts the model toward a >50K prediction. These changes are within realistic ranges and align with known socioeconomic patterns in the dataset. The combination of these changes provides a strong counterfactual that flips the prediction while maintaining plausibility in the tabular domain.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to classify as <=50K, and how would increasing or modifying their values affect the predicted class?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 60}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000}]
+- Explanation: The model predicts <=50K with moderate confidence (63.14%). Based on typical socio-economic patterns in this dataset, income is strongly correlated with age, education level, work hours, occupation type, and capital gains. Increasing age (to 60) reflects greater accumulated experience and experience premium. Elevating education-num (to 16) suggests higher education (e.g., Bachelor's or beyond), associated with higher earning potential. Increasing hours-per-week to 50 reflects higher work intensity, often linked with higher income. Changing occupation from 'Adm-clerical' (lower-paying) to 'Prof-specialty' (higher-paying) directly increases income potential. Capital gain increases (e.g., 10k) signal financial growth, which improves classification toward >50K. These changes collectively shift the instance toward higher-income profiles likely to be classified as >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a counterfactual where high-value features (e.g., higher education-num, higher age, higher fnlwgt) are increased—what change would most significantly shift the model toward >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "age", "action": "increase", "new_value": 50}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "capital-gain", "action": "increase", "new_value": 5000}]
+- Explanation: The model predicts <=50K with moderate confidence (63.14%). To flip the prediction toward >50K, we target features correlated with higher earnings. 'education-num' and 'age' are strong indicators of income potential—higher education levels and older age typically correlate with higher income. 'hours-per-week' reflects work intensity and is often associated with higher earnings. 'capital-gain' indicates financial success from investments, which also positively influences income prediction. Increasing these features—especially education-num (to 16, representing higher education like 'Bachelors' or 'Masters') and age (to 50)—most directly shifts the model toward a >50K prediction. These changes are within realistic ranges and align with known socioeconomic patterns in the dataset. The combination of these changes provides a strong counterfactual that flips the prediction while maintaining plausibility in the tabular domain.
+- Confidence: 0.94
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=33, workclass='Private', fnlwgt=301867, education='Some-college', education-num=10, marital-status='Never-married', occupation='Adm-clerical', relationship='Unmarried', race='Asian-Pac-Islander', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=35, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

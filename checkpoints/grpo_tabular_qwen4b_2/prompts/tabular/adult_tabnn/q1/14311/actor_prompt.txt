@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7522
+
+## Input Data
+Features: age=28, workclass=Private, fnlwgt=230997, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Sales, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: occupation_Sales (prob drop: -0.009507).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0318
+  - native-country_Puerto-Rico: +0.0255
+  - sex_Male: +0.0253
+  - native-country_Columbia: +0.0240
+  - occupation_Tech-support: +0.0164
+- Top negative features (shap_value):
+  - fnlwgt: -0.0318
+  - native-country_Portugal: -0.0255
+  - native-country_Cambodia: -0.0253
+  - native-country_Cuba: -0.0240
+  - occupation_Transport-moving: -0.0164
+- Max positive: 0.03182  Max negative: -0.03182
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2025
+  - capital-loss <= -0.22: +0.1077
+  - age <= -0.80: +0.0945
+  - education-num <= -0.44: +0.0919
+  - marital-status_Married-civ-spouse <= 0.00: +0.0822
+- Top negative features (weight):
+  - native-country_Trinadad&Tobago <= 0.00: -0.0595
+  - native-country_Hungary <= 0.00: -0.0205
+  - native-country_Cuba <= 0.00: -0.0133
+- Max positive: 0.20247  Max negative: -0.059523
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0100
+  - age: +0.0095
+  - education_HS-grad: +0.0075
+  - relationship_Own-child: +0.0068
+  - workclass_Private: +0.0027
+- Top negative features (attribution_score):
+  - occupation_Sales: -0.0054
+  - hours-per-week: -0.0036
+  - native-country_United-States: -0.0025
+  - fnlwgt: -0.0013
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.01005  Max negative: -0.00543
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - occupation_Sales: drop=-0.0095  (orig=0.4384 → mod=0.4479)
+  - age: drop=+0.0091  (orig=0.4384 → mod=0.4293)
+  - education_HS-grad: drop=+0.0057  (orig=0.4384 → mod=0.4326)
+  - native-country_United-States: drop=-0.0047  (orig=0.4384 → mod=0.4431)
+  - relationship_Own-child: drop=+0.0038  (orig=0.4384 → mod=0.4346)
+  - marital-status_Never-married: drop=+0.0035  (orig=0.4384 → mod=0.4348)
+  - hours-per-week: drop=-0.0024  (orig=0.4384 → mod=0.4408)
+  - fnlwgt: drop=-0.0021  (orig=0.4384 → mod=0.4405)
+  - workclass_Private: drop=+0.0014  (orig=0.4384 → mod=0.4370)
+  - capital-gain: drop=+0.0012  (orig=0.4384 → mod=0.4372)
+- Max prob_drop: 0.009052  Max prob_increase: -0.009507
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income level in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Based on established research and statistical analysis of the Adult Income dataset, several features are strongly correlated with income level. Age shows a moderate positive correlation with higher income, especially above 30 years. Education level, captured by 'education-num', is strongly linked to income, with higher education levels (e.g., Bachelor's or above) increasing the likelihood of earning more than $50K. Hours per week show a positive association with income, with higher working hours correlating to higher earnings. Workclass and sex also exhibit notable correlations: for instance, individuals in 'Private' or 'Self-emp-not-inc' sectors and males generally have higher income probabilities, though the effect is moderated by other factors. While 'race' and 'native-country' are often associated in studies, they are less consistently predictive due to structural and dataset biases. Thus, the selected features are grounded in empirical findings from the Adult dataset literature and represent strong, domain-relevant predictors of income classification.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: Given that the individual is 28 years old, never married, and has a HS-grad education, how do these characteristics typically influence the model's decision to classify income as <=50K?
+- Status: Success
+- Explanation: The model predicted income <=50K for an individual who is 28 years old, has a high school education (HS-grad), is never married, works in Sales, and is a 'White' female in the United States. Key features influencing this prediction include age (28), education level (HS-grad), marital status (never-married), and occupation (Sales). In societal and demographic terms, individuals with only a high school education are historically associated with lower median incomes, especially when combined with non-traditional or non-earning roles such as being a never-married 'Own-child' or working in sales, which may not offer high earning potential. The lack of higher education or professional advancement (e.g., not in 'Prof-specialty' or 'Exec-managerial') further supports the model's lower-income classification. Additionally, gender and race considerations—particularly the presence of 'Female' and 'White'—may interact with socioeconomic factors where historically, women in non-managed roles have lower earning potential, especially in a context of limited workforce participation or promotion opportunities. While the individual works 60 hours per week, which could suggest dedication, the overall profile remains within typical demographics associated with lower income brackets, reinforcing the model’s classification.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of demographic features (e.g., sex, race, marital status) versus socioeconomic features (e.g., education-num, age) on income prediction in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80}, {"feature_key": "age", "action": "change", "new_value": 35}]
+- Explanation: In the Adult dataset, demographic features such as sex and marital status have historically shown strong associations with income levels. Female individuals, especially those who are never-married, are underrepresented in higher-income groups. Changing 'sex' to 'Male' increases the likelihood of higher income due to historical data patterns where males are more frequently predicted to earn above 50K. Marital status influences income through household stability and responsibility; married individuals typically have higher income predictions. Education-num is a strong socioeconomic predictor—higher education levels (e.g., 13 vs. 9) correlate with higher income. Age and hours-per-week also influence outcomes, with older individuals and higher working hours often associated with greater earning potential. These changes reflect known feature importance patterns in this dataset, where socioeconomic factors have a stronger predictive power than demographic ones, though demographic features still play a significant role in model bias and prediction outcomes.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

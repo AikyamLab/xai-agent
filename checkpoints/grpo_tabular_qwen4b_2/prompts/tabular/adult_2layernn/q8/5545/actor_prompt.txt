@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.44%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=243330, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Machine-op-inspct, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008815).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0263
+  - race_Other: +0.0090
+  - native-country_United-States: +0.0069
+  - native-country_Yugoslavia: +0.0036
+  - native-country_Cuba: +0.0032
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0263
+  - race_Black: -0.0090
+  - native-country_Trinadad&Tobago: -0.0069
+  - native-country_Vietnam: -0.0036
+  - native-country_Columbia: -0.0032
+- Max positive: 0.026333  Max negative: -0.026333
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0626
+  - hours-per-week > 0.34: +0.0487
+  - native-country_Dominican-Republic <= 0.00: +0.0483
+  - native-country_Vietnam <= 0.00: +0.0462
+  - native-country_Peru <= 0.00: +0.0163
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0743
+  - capital-gain <= -0.15: -0.0590
+  - education-num <= -0.44: -0.0551
+  - native-country_Canada <= 0.00: -0.0176
+- Max positive: 0.062592  Max negative: -0.074333
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0080
+  - hours-per-week: +0.0072
+  - relationship_Husband: +0.0040
+  - marital-status_Married-civ-spouse: +0.0036
+  - native-country_United-States: +0.0032
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0066
+  - workclass_Private: -0.0035
+  - age: -0.0028
+  - education-num: -0.0026
+  - occupation_Machine-op-inspct: -0.0008
+- Max positive: 0.008049  Max negative: -0.006595
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0088  (orig=0.6305 → mod=0.6217)
+  - education_HS-grad: drop=-0.0075  (orig=0.6305 → mod=0.6381)
+  - hours-per-week: drop=+0.0043  (orig=0.6305 → mod=0.6262)
+  - relationship_Husband: drop=+0.0034  (orig=0.6305 → mod=0.6271)
+  - marital-status_Married-civ-spouse: drop=+0.0033  (orig=0.6305 → mod=0.6272)
+  - age: drop=-0.0032  (orig=0.6305 → mod=0.6337)
+  - workclass_Private: drop=-0.0031  (orig=0.6305 → mod=0.6336)
+  - education-num: drop=-0.0029  (orig=0.6305 → mod=0.6334)
+  - race_White: drop=-0.0025  (orig=0.6305 → mod=0.6330)
+  - fnlwgt: drop=+0.0011  (orig=0.6305 → mod=0.6294)
+- Max prob_drop: 0.008815  Max prob_increase: -0.007548
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Machine-op-inspct' be semantically unrelated to income level <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Other"}, {"feature_key": "occupation", "action": "change", "new_value": "Unskilled-creative"}]
+- Explanation: The features 'workclass=Private' and 'occupation=Machine-op-inspct' are not semantically unrelated to income level, but they may be misinterpreted as irrelevant due to dataset leakage or lack of clear income correlation in the training distribution. However, in the context of the dataset (e.g., the UCI Adult Income dataset), 'Private' workclass is common among higher-income individuals and 'Machine-op-inspct' is a lower-wage occupation typically associated with median or below-median income. The key insight is that the model may have overestimated the predictive power of these features due to spurious correlations or imbalanced class distributions. Still, they are not semantically unrelated—rather, they are weakly predictive or context-dependent. The real issue lies in the model's confidence and possible bias toward high-income labels in data with strong class skew. Thus, no feature is truly irrelevant, but their marginal contribution to predicting <=50K is low due to lack of clear distinguishing patterns in the data. Therefore, treating them as semantically unrelated may stem from a misunderstanding of their actual relevance in the domain.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's predicted class (>=50K) with the actual class (<=50K). Are features like 'age=33' or 'education=HS-grad' consistently associated with >=50K in known population trends?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": "33", "analysis": "Age=33 is within the typical working age range but not notably high. In general population trends, older workers (especially 50+) are more likely to earn >=50K, while younger individuals (under 30) have a lower probability. Age=33 does not strongly support a >=50K prediction."}, {"feature_key": "education", "action": "compare", "new_value": "HS-grad", "analysis": "Education level 'HS-grad' (high school graduate) is associated with lower income levels in population trends. Higher education (e.g., Bachelor's or higher) is strongly correlated with >=50K income. Thus, 'HS-grad' reduces the likelihood of predicting >=50K."}, {"feature_key": "sex", "action": "compare", "new_value": "Male", "analysis": "In historical datasets like the Census Income dataset, male gender does not consistently correlate with higher income. The association is weak and often masked by other features such as education and occupation. Gender alone is not a strong predictor of income level."}, {"feature_key": "workclass", "action": "compare", "new_value": "Private", "analysis": "Private sector employment is common and generally associated with moderate income. It lacks a strong positive or negative bias toward either <=50K or >=50K, so it does not drive the prediction significantly."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 55, "analysis": "55 hours per week is relatively high but not uncommon. Higher working hours are sometimes associated with higher income, but this effect is weak and conditional on occupation and education. This feature supports a moderate chance of >=50K, but not strongly."}, {"feature_key": "occupation", "action": "compare", "new_value": "Machine-op-inspct", "analysis": "Occupation 'Machine-op-inspct' (machine operator/inspector) is typically associated with lower wage jobs and routine work. This occupation has historically shown low income potential in income datasets, decreasing the likelihood of >=50K."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Married-civ-spouse", "analysis": "Married individuals tend to have higher household income due to shared earnings. However, this feature alone does not strongly elevate individual income prediction; it contributes modestly to higher income potential."}, {"feature_key": "race", "action": "compare", "new_value": "White", "analysis": "Race='White' does not have a strong, consistent association with income levels in general population trends. Income disparities are more often explained by occupation, education, and work hours than race."}]
+- Explanation: The model predicted >=50K (class 1) for an individual with a combination of low-earning features: HS-grad education, non-professional occupation (Machine-op-inspct), age 33, and moderate work hours (55). Known population-level trends show that features such as education level and occupation are more strongly correlated with income than age or gender. 'HS-grad' and 'Machine-op-inspct' are particularly weak indicators for >=50K income. Thus, the model's prediction is inconsistent with population-level income distribution and likely reflects overconfidence in the absence of strong positive signals. There is no single 'irrelevant' feature; rather, the combination of features suggests the true label <=50K is more plausible.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Machine-op-inspct' be semantically unrelated to income level <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Other"}, {"feature_key": "occupation", "action": "change", "new_value": "Unskilled-creative"}]
+- Explanation: The features 'workclass=Private' and 'occupation=Machine-op-inspct' are not semantically unrelated to income level, but they may be misinterpreted as irrelevant due to dataset leakage or lack of clear income correlation in the training distribution. However, in the context of the dataset (e.g., the UCI Adult Income dataset), 'Private' workclass is common among higher-income individuals and 'Machine-op-inspct' is a lower-wage occupation typically associated with median or below-median income. The key insight is that the model may have overestimated the predictive power of these features due to spurious correlations or imbalanced class distributions. Still, they are not semantically unrelated—rather, they are weakly predictive or context-dependent. The real issue lies in the model's confidence and possible bias toward high-income labels in data with strong class skew. Thus, no feature is truly irrelevant, but their marginal contribution to predicting <=50K is low due to lack of clear distinguishing patterns in the data. Therefore, treating them as semantically unrelated may stem from a misunderstanding of their actual relevance in the domain.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's predicted class (>=50K) with the actual class (<=50K). Are features like 'age=33' or 'education=HS-grad' consistently associated with >=50K in known population trends?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "compare", "new_value": "33", "analysis": "Age=33 is within the typical working age range but not notably high. In general population trends, older workers (especially 50+) are more likely to earn >=50K, while younger individuals (under 30) have a lower probability. Age=33 does not strongly support a >=50K prediction."}, {"feature_key": "education", "action": "compare", "new_value": "HS-grad", "analysis": "Education level 'HS-grad' (high school graduate) is associated with lower income levels in population trends. Higher education (e.g., Bachelor's or higher) is strongly correlated with >=50K income. Thus, 'HS-grad' reduces the likelihood of predicting >=50K."}, {"feature_key": "sex", "action": "compare", "new_value": "Male", "analysis": "In historical datasets like the Census Income dataset, male gender does not consistently correlate with higher income. The association is weak and often masked by other features such as education and occupation. Gender alone is not a strong predictor of income level."}, {"feature_key": "workclass", "action": "compare", "new_value": "Private", "analysis": "Private sector employment is common and generally associated with moderate income. It lacks a strong positive or negative bias toward either <=50K or >=50K, so it does not drive the prediction significantly."}, {"feature_key": "hours-per-week", "action": "compare", "new_value": 55, "analysis": "55 hours per week is relatively high but not uncommon. Higher working hours are sometimes associated with higher income, but this effect is weak and conditional on occupation and education. This feature supports a moderate chance of >=50K, but not strongly."}, {"feature_key": "occupation", "action": "compare", "new_value": "Machine-op-inspct", "analysis": "Occupation 'Machine-op-inspct' (machine operator/inspector) is typically associated with lower wage jobs and routine work. This occupation has historically shown low income potential in income datasets, decreasing the likelihood of >=50K."}, {"feature_key": "marital-status", "action": "compare", "new_value": "Married-civ-spouse", "analysis": "Married individuals tend to have higher household income due to shared earnings. However, this feature alone does not strongly elevate individual income prediction; it contributes modestly to higher income potential."}, {"feature_key": "race", "action": "compare", "new_value": "White", "analysis": "Race='White' does not have a strong, consistent association with income levels in general population trends. Income disparities are more often explained by occupation, education, and work hours than race."}]
+- Explanation: The model predicted >=50K (class 1) for an individual with a combination of low-earning features: HS-grad education, non-professional occupation (Machine-op-inspct), age 33, and moderate work hours (55). Known population-level trends show that features such as education level and occupation are more strongly correlated with income than age or gender. 'HS-grad' and 'Machine-op-inspct' are particularly weak indicators for >=50K income. Thus, the model's prediction is inconsistent with population-level income distribution and likely reflects overconfidence in the absence of strong positive signals. There is no single 'irrelevant' feature; rather, the combination of features suggests the true label <=50K is more plausible.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

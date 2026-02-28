@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (55.28%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=162687, education=12th, education-num=8, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_12th (prob drop: 0.008696).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0223
+  - marital-status_Married-AF-spouse: +0.0175
+  - native-country_United-States: +0.0164
+  - native-country_Haiti: +0.0149
+  - age: +0.0104
+- Top negative features (shap_value):
+  - hours-per-week: -0.0223
+  - marital-status_Married-civ-spouse: -0.0175
+  - native-country_Trinadad&Tobago: -0.0164
+  - native-country_Holand-Netherlands: -0.0149
+  - fnlwgt: -0.0104
+- Max positive: 0.022316  Max negative: -0.022316
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0770
+  - capital-gain <= -0.15: +0.0605
+  - education-num <= -0.44: +0.0527
+  - native-country_Hungary <= 0.00: +0.0470
+  - hours-per-week <= -0.08: +0.0419
+- Top negative features (weight):
+  - native-country_Columbia <= 0.00: -0.0585
+  - marital-status_Divorced <= 0.00: -0.0538
+  - native-country_Guatemala <= 0.00: -0.0524
+  - race_Other <= 0.00: -0.0345
+- Max positive: 0.076962  Max negative: -0.05852
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0073
+  - education_12th: +0.0056
+  - age: +0.0052
+  - occupation_Craft-repair: +0.0038
+  - race_White: +0.0020
+- Top negative features (attribution_score):
+  - sex_Male: -0.0073
+  - native-country_United-States: -0.0073
+  - relationship_Husband: -0.0025
+  - marital-status_Married-civ-spouse: -0.0006
+  - capital-loss: -0.0003
+- Max positive: 0.007345  Max negative: -0.007323
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education_12th: drop=+0.0087  (orig=0.3900 → mod=0.3813)
+  - education-num: drop=+0.0085  (orig=0.3900 → mod=0.3815)
+  - occupation_Craft-repair: drop=+0.0074  (orig=0.3900 → mod=0.3826)
+  - sex_Male: drop=-0.0068  (orig=0.3900 → mod=0.3969)
+  - native-country_United-States: drop=-0.0050  (orig=0.3900 → mod=0.3951)
+  - age: drop=+0.0050  (orig=0.3900 → mod=0.3850)
+  - race_White: drop=+0.0038  (orig=0.3900 → mod=0.3862)
+  - relationship_Husband: drop=-0.0023  (orig=0.3900 → mod=0.3924)
+  - fnlwgt: drop=+0.0014  (orig=0.3900 → mod=0.3886)
+  - workclass_Private: drop=+0.0012  (orig=0.3900 → mod=0.3888)
+- Max prob_drop: 0.008696  Max prob_increase: -0.006839
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'education-num=8' or 'workclass=Private' contribute high attribution despite being semantically unrelated to earning >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 12, "explanation": "The feature 'education-num=8' (12th grade) may be semantically unrelated to high income, yet it can still contribute to model attribution due to correlation with demographic patterns. In the dataset, individuals with lower education levels (like 8) are disproportionately represented in lower-income groups, but the model may have learned a spurious correlation between low education and being <=50K, especially when combined with other features like age, race, and marital status. This leads to high attribution despite no direct causal relationship."}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "Workclass='Private' is common and often associated with moderate income, but it does not inherently imply earning >50K. However, among the training data, individuals in 'Private' workclass may be overrepresented in the <=50K class, especially when combined with features like age=25 and education-num=8. This may lead to a spurious correlation where the model assigns high attribution to workclass because of co-occurrence with low-income outcomes, even without semantic relevance to income."}]
+- Explanation: Despite 'education-num' and 'workclass' having little direct semantic connection to earning >50K, they may exhibit strong statistical associations with lower-income outcomes in the training data. These associations can be learned by models through spurious correlations — where features co-vary with income labels due to underlying demographic or societal biases (e.g., lower education and private employment being prevalent among lower-income groups). As such, the model may assign high attribution to these features due to pattern matching in the data, not because of intrinsic relevance to income. This highlights the danger of relying on features that are correlated with outcomes via indirect societal structures rather than direct causality.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of high-attribution features (e.g., age, education-num) to the actual class (>50K), considering known domain knowledge about income distribution by demographic factors
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "low", "reason": "The individual is 25 years old, which is below the typical threshold (often >30) associated with higher income in the context of U.S. workforce data. Younger workers in entry-level positions typically earn below $50K, making age a weak predictor for >50K income in this demographic."}, {"feature_key": "education-num", "relevance": "moderate", "reason": "The individual has '12th' education level (education-num=8), which corresponds to a high school diploma, typically associated with lower income brackets. Higher education levels (e.g., Bachelors or higher) show stronger correlation with >50K income, so this is a counter-indicator to the prediction."}, {"feature_key": "workclass", "relevance": "high", "reason": "The individual is in 'Private' workclass, which is generally associated with stable employment and moderate to high income. However, private sector jobs can vary widely in pay, and without occupation or hours data, its predictive power is limited. Still, in domain knowledge, private-sector employees are more likely to earn above $50K than self-employed or federal government employees."}, {"feature_key": "occupation", "relevance": "high", "reason": "The occupation 'Craft-repair' is typically associated with lower-end, manual labor jobs. These occupations are consistently linked to median income below $50K. This feature strongly contradicts the >50K class, suggesting a high likelihood of misclassification."}, {"feature_key": "hours-per-week", "relevance": "medium", "reason": "40 hours/week is standard and does not significantly deviate from typical work hours. While higher hours can correlate with higher earnings, this value alone is insufficient to support a >50K prediction, especially when combined with low education and entry-level occupation."}]
+- Explanation: The model incorrectly predicted the individual as <=50K when the true label was >50K. However, domain knowledge indicates that occupations like 'Craft-repair' and low education levels (12th grade) are strongly linked to lower income. Age (25) and workclass ('Private') have weaker or neutral relevance. The combination of low education, manual occupation, and young age creates a strong semantic mismatch with the >50K income class. Therefore, the model likely underweighted these high-relevance, low-income indicators, resulting in a false positive prediction for <=50K. The highest-attribution features (occupation and education-num) directly contradict the >50K class in real-world income distribution patterns.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'education-num=8' or 'workclass=Private' contribute high attribution despite being semantically unrelated to earning >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 12, "explanation": "The feature 'education-num=8' (12th grade) may be semantically unrelated to high income, yet it can still contribute to model attribution due to correlation with demographic patterns. In the dataset, individuals with lower education levels (like 8) are disproportionately represented in lower-income groups, but the model may have learned a spurious correlation between low education and being <=50K, especially when combined with other features like age, race, and marital status. This leads to high attribution despite no direct causal relationship."}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "Workclass='Private' is common and often associated with moderate income, but it does not inherently imply earning >50K. However, among the training data, individuals in 'Private' workclass may be overrepresented in the <=50K class, especially when combined with features like age=25 and education-num=8. This may lead to a spurious correlation where the model assigns high attribution to workclass because of co-occurrence with low-income outcomes, even without semantic relevance to income."}]
+- Explanation: Despite 'education-num' and 'workclass' having little direct semantic connection to earning >50K, they may exhibit strong statistical associations with lower-income outcomes in the training data. These associations can be learned by models through spurious correlations — where features co-vary with income labels due to underlying demographic or societal biases (e.g., lower education and private employment being prevalent among lower-income groups). As such, the model may assign high attribution to these features due to pattern matching in the data, not because of intrinsic relevance to income. This highlights the danger of relying on features that are correlated with outcomes via indirect societal structures rather than direct causality.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of high-attribution features (e.g., age, education-num) to the actual class (>50K), considering known domain knowledge about income distribution by demographic factors
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "low", "reason": "The individual is 25 years old, which is below the typical threshold (often >30) associated with higher income in the context of U.S. workforce data. Younger workers in entry-level positions typically earn below $50K, making age a weak predictor for >50K income in this demographic."}, {"feature_key": "education-num", "relevance": "moderate", "reason": "The individual has '12th' education level (education-num=8), which corresponds to a high school diploma, typically associated with lower income brackets. Higher education levels (e.g., Bachelors or higher) show stronger correlation with >50K income, so this is a counter-indicator to the prediction."}, {"feature_key": "workclass", "relevance": "high", "reason": "The individual is in 'Private' workclass, which is generally associated with stable employment and moderate to high income. However, private sector jobs can vary widely in pay, and without occupation or hours data, its predictive power is limited. Still, in domain knowledge, private-sector employees are more likely to earn above $50K than self-employed or federal government employees."}, {"feature_key": "occupation", "relevance": "high", "reason": "The occupation 'Craft-repair' is typically associated with lower-end, manual labor jobs. These occupations are consistently linked to median income below $50K. This feature strongly contradicts the >50K class, suggesting a high likelihood of misclassification."}, {"feature_key": "hours-per-week", "relevance": "medium", "reason": "40 hours/week is standard and does not significantly deviate from typical work hours. While higher hours can correlate with higher earnings, this value alone is insufficient to support a >50K prediction, especially when combined with low education and entry-level occupation."}]
+- Explanation: The model incorrectly predicted the individual as <=50K when the true label was >50K. However, domain knowledge indicates that occupations like 'Craft-repair' and low education levels (12th grade) are strongly linked to lower income. Age (25) and workclass ('Private') have weaker or neutral relevance. The combination of low education, manual occupation, and young age creates a strong semantic mismatch with the >50K income class. Therefore, the model likely underweighted these high-relevance, low-income indicators, resulting in a false positive prediction for <=50K. The highest-attribution features (occupation and education-num) directly contradict the >50K class in real-world income distribution patterns.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

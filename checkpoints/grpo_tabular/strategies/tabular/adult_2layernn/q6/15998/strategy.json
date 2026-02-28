@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning with external explainability tools to ensure robust identification of influential features and effective counterfactual changes. Autonomous analysis provides initial hypothesis on critical features, while XAI tools validate and refine feature importance, especially in structured tabular data where interactions and non-linearities are significant.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "Identify which features are most likely to influence the model's prediction of income being <=50K based on domain knowledge and model architecture.",
+      "expected_output": "List of high-impact features such as age, education-num, workclass, occupation, and marital-status with justification based on prior knowledge of income determinants."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given that the current prediction is close to the decision boundary (0.5287 vs 0.4713), which features should be modified to increase the likelihood of predicting '>50K'?",
+      "expected_output": "Expected modifications to increase income prediction, such as increasing education level, changing workclass to private or executive, or adjusting age to a higher value range."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare feature importance rankings from multiple XAI tools to assess consistency and identify the most indicative features for counterfactual generation.",
+      "expected_output": "Consensus across tools on top influencing features for the prediction shift."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "contrastive"
+      },
+      "sensitivity_analysis": {
+        "target_class": "target"
+      }
+    },
+    "reasoning": "SHAP provides interpretable feature attributions by treating each feature as a player in a game, offering a solid basis for understanding feature contribution. Sensitivity analysis (leave-one-out) reveals how removing or altering a feature affects the prediction, which is useful for identifying actionable changes. Together, they provide both causal and comparative insights to design effective counterfactuals."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides interpretable feature attributions by treating each feature as a player in a game, offering a solid basis for understanding feature contribution. Sensitivity analysis (leave-one-out) reveals how removing or altering a feature affects the prediction, which is useful for identifying actionable changes. Together, they provide both causal and comparative insights to design effective counterfactuals.",
+      "parameters": {
+        "target_class": "contrastive"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides interpretable feature attributions by treating each feature as a player in a game, offering a solid basis for understanding feature contribution. Sensitivity analysis (leave-one-out) reveals how removing or altering a feature affects the prediction, which is useful for identifying actionable changes. Together, they provide both causal and comparative insights to design effective counterfactuals.",
+      "parameters": {
+        "target_class": "target"
+      }
+    }
+  ]
+}

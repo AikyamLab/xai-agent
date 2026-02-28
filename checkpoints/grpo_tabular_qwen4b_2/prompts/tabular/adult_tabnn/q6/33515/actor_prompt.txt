@@ -1,0 +1,144 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (76.84%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=57, workclass=Private, fnlwgt=266189, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.017962).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0410
+  - sex_Male: +0.0174
+  - occupation_Priv-house-serv: +0.0112
+  - native-country_Honduras: +0.0103
+  - native-country_France: +0.0061
+- Top negative features (shap_value):
+  - race_Other: -0.0410
+  - native-country_Cambodia: -0.0174
+  - occupation_Prof-specialty: -0.0112
+  - native-country_Hong: -0.0103
+  - native-country_Germany: -0.0061
+- Max positive: 0.041007  Max negative: -0.041007
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2420
+  - capital-loss <= -0.22: +0.1183
+  - education-num <= -0.44: +0.1010
+  - marital-status_Married-AF-spouse <= 0.00: +0.0909
+  - marital-status_Married-civ-spouse <= 0.00: +0.0679
+- Top negative features (weight):
+  - age > 0.64: -0.0927
+  - native-country_Columbia <= 0.00: -0.0261
+  - education_1st-4th <= 0.00: -0.0206
+- Max positive: 0.241993  Max negative: -0.092696
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0174
+  - relationship_Unmarried: +0.0074
+  - education_HS-grad: +0.0056
+  - occupation_Adm-clerical: +0.0049
+  - race_White: +0.0047
+- Top negative features (attribution_score):
+  - age: -0.0132
+  - native-country_United-States: -0.0042
+  - hours-per-week: -0.0003
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: +0.0000
+- Max positive: 0.017382  Max negative: -0.013247
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0180  (orig=0.4424 → mod=0.4244)
+  - relationship_Unmarried: drop=+0.0116  (orig=0.4424 → mod=0.4307)
+  - age: drop=-0.0081  (orig=0.4424 → mod=0.4504)
+  - sex_Female: drop=+0.0068  (orig=0.4424 → mod=0.4356)
+  - education_HS-grad: drop=+0.0051  (orig=0.4424 → mod=0.4373)
+  - race_White: drop=+0.0049  (orig=0.4424 → mod=0.4375)
+  - occupation_Adm-clerical: drop=+0.0043  (orig=0.4424 → mod=0.4381)
+  - education-num: drop=+0.0035  (orig=0.4424 → mod=0.4389)
+  - workclass_Private: drop=+0.0035  (orig=0.4424 → mod=0.4389)
+  - fnlwgt: drop=+0.0026  (orig=0.4424 → mod=0.4398)
+- Max prob_drop: 0.017962  Max prob_increase: -0.008073
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are likely most influential in determining the model's prediction of <=50K, and how could modifying them (e.g., increasing education-num, workclass, or income-related proxies) shift the class to >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16, "rationale": "Higher education levels (e.g., Bachelor's or higher) are strongly correlated with higher income. Increasing education-num from 9 (HS-grad) to 16 (typically corresponding to a Bachelor's or higher) significantly improves the likelihood of modeling a >50K income."}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50, "rationale": "Higher weekly hours are consistently predictive of higher income in the dataset. Increasing hours-per-week from 42 to 50 strengthens the prediction of a >50K outcome, as work hours are a strong proxy for labor intensity and income potential."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "rationale": "Occupations like 'Prof-specialty' (e.g., professionals in specialties) are associated with higher income brackets. Changing from 'Adm-clerical' (a lower-income administrative role) to 'Prof-specialty' directly shifts the feature profile toward a higher-earning class."}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000, "rationale": "Capital gains are a direct proxy for income from investments and are positively correlated with higher income. Increasing capital-gain from 0 to 10,000 introduces a strong signal of financial success, which the model interprets as evidence of >50K income."}]
+- Explanation: The model predicts <=50K with high confidence, and the current profile shows moderate education, standard work hours, and a lower-income occupation. Key predictors of >50K income in tabular data include education level, work hours, occupation, and capital gains. By increasing education-num to reflect a higher degree, boosting work hours, switching to a high-income occupation, and adding capital gains, we directly target the most influential features. These changes align with known income patterns in the dataset and provide a realistic path to flipping the prediction.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the current feature values to typical distributions of individuals predicted to have income >50K, and identify deviations that could trigger a class flip.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Individuals with income >50K are typically characterized by higher education levels (education-num >12), longer work hours (hours-per-week >40), higher-paying occupations (e.g., Prof-specialty, Exec-managerial), stable marital status (e.g., Married-civ-spouse), and male gender. The current instance has moderate education (9), low hours (42), a lower-paying occupation (Adm-clerical), divorced status, and female sex—all of which are underrepresented in the >50K group. Adjusting these features toward typical >50K patterns increases the likelihood of a class flip. Notable deviations include the 'Female' sex and 'Unmarried' status, which are less common in high-income individuals. Changing to 'Male' and 'Married-civ-spouse' significantly impacts the model's prediction due to known demographic biases and income correlations in the dataset.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are likely most influential in determining the model's prediction of <=50K, and how could modifying them (e.g., increasing education-num, workclass, or income-related proxies) shift the class to >50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16, "rationale": "Higher education levels (e.g., Bachelor's or higher) are strongly correlated with higher income. Increasing education-num from 9 (HS-grad) to 16 (typically corresponding to a Bachelor's or higher) significantly improves the likelihood of modeling a >50K income."}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50, "rationale": "Higher weekly hours are consistently predictive of higher income in the dataset. Increasing hours-per-week from 42 to 50 strengthens the prediction of a >50K outcome, as work hours are a strong proxy for labor intensity and income potential."}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "rationale": "Occupations like 'Prof-specialty' (e.g., professionals in specialties) are associated with higher income brackets. Changing from 'Adm-clerical' (a lower-income administrative role) to 'Prof-specialty' directly shifts the feature profile toward a higher-earning class."}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000, "rationale": "Capital gains are a direct proxy for income from investments and are positively correlated with higher income. Increasing capital-gain from 0 to 10,000 introduces a strong signal of financial success, which the model interprets as evidence of >50K income."}]
+- Explanation: The model predicts <=50K with high confidence, and the current profile shows moderate education, standard work hours, and a lower-income occupation. Key predictors of >50K income in tabular data include education level, work hours, occupation, and capital gains. By increasing education-num to reflect a higher degree, boosting work hours, switching to a high-income occupation, and adding capital gains, we directly target the most influential features. These changes align with known income patterns in the dataset and provide a realistic path to flipping the prediction.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the current feature values to typical distributions of individuals predicted to have income >50K, and identify deviations that could trigger a class flip.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Individuals with income >50K are typically characterized by higher education levels (education-num >12), longer work hours (hours-per-week >40), higher-paying occupations (e.g., Prof-specialty, Exec-managerial), stable marital status (e.g., Married-civ-spouse), and male gender. The current instance has moderate education (9), low hours (42), a lower-paying occupation (Adm-clerical), divorced status, and female sex—all of which are underrepresented in the >50K group. Adjusting these features toward typical >50K patterns increases the likelihood of a class flip. Notable deviations include the 'Female' sex and 'Unmarried' status, which are less common in high-income individuals. Changing to 'Male' and 'Married-civ-spouse' significantly impacts the model's prediction due to known demographic biases and income correlations in the dataset.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=57, workclass='Private', fnlwgt=266189, education='HS-grad', education-num=9, marital-status='Divorced', occupation='Adm-clerical', relationship='Unmarried', race='White', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=42, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

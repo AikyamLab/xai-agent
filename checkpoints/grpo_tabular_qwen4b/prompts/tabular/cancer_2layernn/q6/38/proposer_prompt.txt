@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on TABULAR DATA.
+
+**User Question**: The model predicted the tumor to be benign. How should the instance change to flip the model into malignant?
+
+**Model Information**:
+- Model: cancer_2layernn.pth
+- Architecture: TwoLayerNN
+- Current Prediction: Class 1 (benign)
+(Confidence: 0.5598)
+- Target Prediction: malignant
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': 'benign', 'probability': 0.5597651600837708}, {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.44023483991622925}]
+
+**Input Content Description**:
+Features: mean radius=13.46, mean texture=18.75, mean perimeter=87.44, mean area=551.1, mean smoothness=0.1075, mean compactness=0.1138, mean concavity=0.04201, mean concave points=0.03152, mean symmetry=0.1723, mean fractal dimension=0.06317
+
+**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "benign" to "malignant".
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Identify features/columns that are critical for the current prediction
+   - Reason about what modifications would shift the prediction to the target class
+   - Propose specific change plans with feature names and new values
+
+2. **External XAI Tools**: Use established explainability methods to identify modification targets:
+   - shap: Executes SHAP (SHapley Additive exPlanations) for tabular data. Returns feature-level importance scores based on game-theoretic values.
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for tabular data. Returns feature-level importance scores for the prediction.
+   - integrated_gradients: Executes Integrated Gradients for tabular data to compute per-feature attribution scores. Returns feature-level importance based on gradient integration from a zero baseline.
+   - sensitivity_analysis: Executes leave-one-out feature ablation to measure each feature's impact on prediction. Returns probability changes when each feature is set to zero.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for finding counterfactual changes (2-3 sentences)",
+    "confidence": 0.0-1.0,
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous counterfactual analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["shap", "lime", "integrated_gradients", "sensitivity_analysis"],
+        "tool_params": {
+            "shap": {"target_class": "contrastive", "priority": 1},
+            "sensitivity_analysis": {"target_class": "target", "priority": 2}
+        },
+        "reasoning": "Why these tools for finding tabular counterfactuals"
+    }
+}
+
+Provide your strategy as a JSON object:

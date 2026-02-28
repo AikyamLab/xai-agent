@@ -1174,7 +1174,7 @@ class SHAPTextTool(BaseTool):
 
             # Explain: all words present
             sample = np.ones((1, n_words))
-            shap_values = explainer.shap_values(sample, nsamples=min(2 * n_words + 2048, 5000))
+            shap_values = explainer.shap_values(sample, nsamples=min(2 * n_words + 2048, 5000), silent=True)
 
             # Get SHAP values for target class
             if isinstance(shap_values, list):
@@ -1403,7 +1403,7 @@ class SHAPTabularTool(BaseTool):
             explainer = shap.KernelExplainer(predict_fn, background)
 
             sample = features.unsqueeze(0).cpu().numpy() if features.dim() == 1 else features.cpu().numpy()
-            shap_values = explainer.shap_values(sample, nsamples=200)
+            shap_values = explainer.shap_values(sample, nsamples=200, silent=True)
 
             # Get SHAP values for target class
             if isinstance(shap_values, list):

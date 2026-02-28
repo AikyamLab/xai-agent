@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6860
+
+## Input Data
+Features: age=58, workclass=Private, fnlwgt=141379, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.014186).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0427
+  - native-country_France: +0.0191
+  - native-country_Vietnam: +0.0177
+  - occupation_Tech-support: +0.0177
+  - native-country_Trinadad&Tobago: +0.0127
+- Top negative features (shap_value):
+  - race_Other: -0.0427
+  - native-country_Germany: -0.0191
+  - native-country_Yugoslavia: -0.0177
+  - occupation_Transport-moving: -0.0177
+  - native-country_United-States: -0.0127
+- Max positive: 0.042657  Max negative: -0.042657
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0806
+  - native-country_Haiti <= 0.00: +0.0805
+  - capital-loss <= -0.22: +0.0590
+  - marital-status_Divorced > 0.00: +0.0530
+  - education-num <= -0.44: +0.0468
+- Top negative features (weight):
+  - native-country_Vietnam <= 0.00: -0.0503
+  - native-country_Honduras <= 0.00: -0.0490
+  - native-country_Guatemala <= 0.00: -0.0352
+  - native-country_Iran <= 0.00: -0.0132
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0063
+- Max positive: 0.080609  Max negative: -0.050338
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0148
+  - education_HS-grad: +0.0093
+  - sex_Female: +0.0066
+  - relationship_Not-in-family: +0.0065
+  - occupation_Adm-clerical: +0.0055
+- Top negative features (attribution_score):
+  - race_White: -0.0040
+  - native-country_United-States: -0.0038
+  - hours-per-week: -0.0009
+  - age: -0.0005
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.014839  Max negative: -0.00399
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0142  (orig=0.4221 → mod=0.4079)
+  - education_HS-grad: drop=+0.0095  (orig=0.4221 → mod=0.4126)
+  - relationship_Not-in-family: drop=+0.0089  (orig=0.4221 → mod=0.4132)
+  - occupation_Adm-clerical: drop=+0.0079  (orig=0.4221 → mod=0.4142)
+  - sex_Female: drop=+0.0075  (orig=0.4221 → mod=0.4146)
+  - workclass_Private: drop=+0.0041  (orig=0.4221 → mod=0.4181)
+  - race_White: drop=-0.0031  (orig=0.4221 → mod=0.4252)
+  - native-country_United-States: drop=-0.0026  (orig=0.4221 → mod=0.4248)
+  - education-num: drop=+0.0022  (orig=0.4221 → mod=0.4199)
+  - age: drop=+0.0015  (orig=0.4221 → mod=0.4206)
+- Max prob_drop: 0.014186  Max prob_increase: -0.003076
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which input features from the adult dataset are most logically associated with income <=50K based on demographic and socioeconomic knowledge
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 58}, {"feature_key": "education", "action": "change", "new_value": "HS-grad"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 42}]
+- Explanation: Based on demographic and socioeconomic knowledge from the Adult Income dataset, individuals with lower levels of education (such as HS-grad), divorced marital status, and non-management occupations (like Adm-clerical) are more commonly associated with income <=50K. Age of 58 is moderately high but not exceptionally so in the context of income trends; however, it does not strongly indicate high income in this dataset. Working 42 hours per week is typical and not strongly predictive of high income. The combination of limited education, non-elite occupation, and divorced status aligns with demographic patterns indicating lower income brackets. These features are statistically and contextually linked to the lower income group in the dataset.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Evaluate how the feature 'education-num=9' (HS-grad) and 'workclass=Private' contribute to the model's prediction of <=50K, considering known patterns in the Adult dataset
+- Status: Success
+- Explanation: In the Adult dataset, 'education-num=9' (HS-grad) is associated with a lower income probability, as individuals with only a high school education typically have lower earnings compared to those with higher levels of education such as Bachelors, Masters, or Prof-school. Additionally, 'workclass=Private' is strongly correlated with lower income outcomes in the dataset, as private sector employment often reflects lower pay scales compared to government or self-employment. While 'sex='Female' and 'race='White' are neutral or slightly positive for income, the combination of lower education and private employment significantly increases the likelihood of being predicted as <=50K. The feature 'hours-per-week=42' is moderate and not strongly predictive, and the absence of capital gains or losses does not strongly shift the prediction. Thus, the model's 68.60% confidence in predicting <=50K is well-aligned with known demographic and socioeconomic patterns in the dataset.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the expected impact of 'sex=Female' versus 'race=White' on the <=50K prediction given historical biases in the dataset
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "race", "action": "change", "new_value": "African-American"}]
+- Explanation: In the context of historical bias in datasets like the Adult Income Dataset, 'sex=Female' and 'race=White' have historically been associated with lower income predictions, even when controlling for education and work experience. While the model currently assigns a '<=50K' prediction with high confidence (68.60%) for a female White individual with average socioeconomic characteristics, changing 'sex' to 'Male' may increase the predicted income due to observed gender bias in favor of men. Similarly, changing 'race' to 'African-American'—a group historically underrepresented in high-income categories—could lead to a higher probability of being predicted as '>50K' due to historical disparities in income distribution. However, this effect is not deterministic and depends on the model's learned patterns. Thus, both features exhibit potential bias: sex shows a strong historical correlation with income outcomes, and race reflects systemic structural inequities embedded in the data. The model's prediction may thus reflect these biases, especially when combined with other features like 'workclass' and 'education'.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

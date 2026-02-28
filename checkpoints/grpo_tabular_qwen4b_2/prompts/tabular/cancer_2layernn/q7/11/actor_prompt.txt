@@ -1,0 +1,98 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the tumor to be malignant. If we remove/change worst symmetry, how would the prediction change?
+
+## Current State
+- Current Prediction: malignant (91.70%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': 'malignant', 'probability': 0.9169836193323135}, {'class_idx': 1, 'class_name': 'benign', 'probability': 0.08301638066768646}]
+- Part to Change: worst symmetry
+
+## Input Data
+Features: mean radius=14.45, mean texture=20.22, mean perimeter=94.49, mean area=642.7, mean smoothness=0.09872, mean compactness=0.1206, mean concavity=0.118, mean concave points=0.0598, mean symmetry=0.195, mean fractal dimension=0.06466, radius error=0.2092, texture error=0.6509, perimeter error=1.446, area error=19.42, smoothness error=0.004044, compactness error=0.01597, concavity error=0.02, concave points error=0.007303, symmetry error=0.01522, fractal dimension error=0.001976, worst radius=18.33, worst texture=30.12, worst perimeter=117.9, worst area=1044.0, worst smoothness=0.1552, worst compactness=0.4056, worst concavity=0.4967, worst concave points=0.1838, worst symmetry=0.4753, worst fractal dimension=0.1013
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: worst perimeter.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst symmetry (prob drop: 0.034413).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - worst perimeter: +0.0280
+- Top negative features (shap_value):
+  - worst area: -0.0280
+  - mean radius: +0.0000
+  - mean texture: +0.0000
+  - mean perimeter: +0.0000
+  - mean area: +0.0000
+- Max positive: 0.028032  Max negative: -0.028032
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst symmetry: drop=+0.0344  (orig=0.4793 → mod=0.4448)
+  - worst concave points: drop=+0.0065  (orig=0.4793 → mod=0.4728)
+  - worst texture: drop=+0.0049  (orig=0.4793 → mod=0.4743)
+  - worst fractal dimension: drop=+0.0041  (orig=0.4793 → mod=0.4751)
+  - perimeter error: drop=-0.0037  (orig=0.4793 → mod=0.4830)
+  - worst compactness: drop=+0.0034  (orig=0.4793 → mod=0.4759)
+  - radius error: drop=-0.0031  (orig=0.4793 → mod=0.4824)
+  - worst smoothness: drop=+0.0027  (orig=0.4793 → mod=0.4766)
+  - texture error: drop=+0.0027  (orig=0.4793 → mod=0.4766)
+  - mean symmetry: drop=+0.0025  (orig=0.4793 → mod=0.4767)
+- Max prob_drop: 0.034413  Max prob_increase: -0.003735
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts malignancy with high confidence (0.917), and worst symmetry is not present in the current input, how might its absence affect the model's decision when compared to other features like mean symmetry or compactness?
+- Status: Success
+- findings: [{"feature_key": "worst symmetry", "action": "change", "new_value": 0.15}]
+- Explanation: The model currently predicts malignancy with high confidence (91.70%) and does not include a value for worst symmetry in the input. In breast cancer datasets like the Breast Cancer Wisconsin (Diagnostic) dataset, symmetry (both mean and worst) is a known feature associated with tumor malignancy. Lower symmetry values (e.g., deviating from 1.0) are typically indicative of malignant tumors. The absence of worst symmetry may lead to a loss of a key discriminatory feature. By introducing a moderately low value (0.15) for worst symmetry, which is within the range typically observed in malignant cases, we may reinforce the malignancy prediction. Since the model already has high confidence, this change is likely to maintain or slightly increase confidence, suggesting that worst symmetry is not redundant but rather contributes to the pattern of malignancy by reinforcing asymmetry—a hallmark of cancerous growth. This implies that even if the feature is missing, its reintroduction with a biologically plausible value could stabilize or strengthen the prediction.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: How does the importance of mean symmetry (0.195) compare to other features like mean compactness or concavity in terms of predicting malignancy?
+- Status: Success
+- findings: [{"feature_key": "mean symmetry", "action": "change", "new_value": 0.195}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1206}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.118}]
+- Explanation: Mean symmetry (0.195) has a higher value than both mean compactness (0.1206) and mean concavity (0.118), suggesting it contributes more significantly to the model's malignancy prediction. Given that the original model predicted malignancy (0 = malignant) with 91.7% confidence, and symmetry is among the key features in the model's decision logic, altering worst symmetry—especially if it becomes more or less extreme—could have a notable impact on the outcome. Since mean symmetry is numerically greater than the other two features and lies in the same range as worst symmetry (which is not directly provided but often correlates with mean symmetry), reducing or removing its influence (e.g., by changing its value) would likely diminish the model's confidence in malignancy prediction. Thus, worst symmetry is likely to play a significant role in the final classification.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts malignancy with high confidence (0.917), and worst symmetry is not present in the current input, how might its absence affect the model's decision when compared to other features like mean symmetry or compactness?
+- Status: Success
+- findings: [{"feature_key": "worst symmetry", "action": "change", "new_value": 0.15}]
+- Explanation: The model currently predicts malignancy with high confidence (91.70%) and does not include a value for worst symmetry in the input. In breast cancer datasets like the Breast Cancer Wisconsin (Diagnostic) dataset, symmetry (both mean and worst) is a known feature associated with tumor malignancy. Lower symmetry values (e.g., deviating from 1.0) are typically indicative of malignant tumors. The absence of worst symmetry may lead to a loss of a key discriminatory feature. By introducing a moderately low value (0.15) for worst symmetry, which is within the range typically observed in malignant cases, we may reinforce the malignancy prediction. Since the model already has high confidence, this change is likely to maintain or slightly increase confidence, suggesting that worst symmetry is not redundant but rather contributes to the pattern of malignancy by reinforcing asymmetry—a hallmark of cancerous growth. This implies that even if the feature is missing, its reintroduction with a biologically plausible value could stabilize or strengthen the prediction.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: How does the importance of mean symmetry (0.195) compare to other features like mean compactness or concavity in terms of predicting malignancy?
+- Status: Success
+- findings: [{"feature_key": "mean symmetry", "action": "change", "new_value": 0.195}, {"feature_key": "mean compactness", "action": "change", "new_value": 0.1206}, {"feature_key": "mean concavity", "action": "change", "new_value": 0.118}]
+- Explanation: Mean symmetry (0.195) has a higher value than both mean compactness (0.1206) and mean concavity (0.118), suggesting it contributes more significantly to the model's malignancy prediction. Given that the original model predicted malignancy (0 = malignant) with 91.7% confidence, and symmetry is among the key features in the model's decision logic, altering worst symmetry—especially if it becomes more or less extreme—could have a notable impact on the outcome. Since mean symmetry is numerically greater than the other two features and lies in the same range as worst symmetry (which is not directly provided but often correlates with mean symmetry), reducing or removing its influence (e.g., by changing its value) would likely diminish the model's confidence in malignancy prediction. Thus, worst symmetry is likely to play a significant role in the final classification.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

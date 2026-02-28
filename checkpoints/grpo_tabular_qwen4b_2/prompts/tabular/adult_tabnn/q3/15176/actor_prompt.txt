@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (69.13%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.30869269371032715}
+
+## Input Data
+Features: age=36, workclass=Private, fnlwgt=150057, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.012682).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0746
+  - native-country_United-States: +0.0399
+  - native-country_Cambodia: +0.0396
+  - occupation_Prof-specialty: +0.0294
+  - native-country_Peru: +0.0255
+- Top negative features (shap_value):
+  - capital-loss: -0.0746
+  - native-country_Trinadad&Tobago: -0.0399
+  - sex_Male: -0.0396
+  - occupation_Priv-house-serv: -0.0294
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0255
+- Max positive: 0.074563  Max negative: -0.074563
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_France <= 0.00: +0.1238
+  - native-country_Hong <= 0.00: +0.0924
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0774
+  - marital-status_Married-spouse-absent <= 0.00: +0.0736
+  - native-country_Ireland <= 0.00: +0.0425
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.1959
+  - capital-loss <= -0.22: -0.1233
+  - native-country_England <= 0.00: -0.0714
+- Max positive: 0.12378  Max negative: -0.195946
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0176
+  - sex_Male: +0.0131
+  - education-num: +0.0121
+  - education_Bachelors: +0.0112
+  - relationship_Husband: +0.0105
+- Top negative features (attribution_score):
+  - workclass_Private: -0.0032
+  - age: -0.0027
+  - fnlwgt: -0.0027
+  - capital-gain: -0.0014
+  - capital-loss: -0.0004
+- Max positive: 0.017638  Max negative: -0.00315
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0127  (orig=0.6663 → mod=0.6536)
+  - education-num: drop=+0.0092  (orig=0.6663 → mod=0.6571)
+  - sex_Male: drop=+0.0071  (orig=0.6663 → mod=0.6592)
+  - relationship_Husband: drop=+0.0068  (orig=0.6663 → mod=0.6595)
+  - occupation_Prof-specialty: drop=+0.0044  (orig=0.6663 → mod=0.6618)
+  - native-country_United-States: drop=+0.0044  (orig=0.6663 → mod=0.6619)
+  - education_Bachelors: drop=+0.0040  (orig=0.6663 → mod=0.6622)
+  - hours-per-week: drop=+0.0028  (orig=0.6663 → mod=0.6634)
+  - workclass_Private: drop=+0.0022  (orig=0.6663 → mod=0.6640)
+  - race_White: drop=+0.0021  (orig=0.6663 → mod=0.6641)
+- Max prob_drop: 0.012682  Max prob_increase: -0.001278
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge of the adult income dataset, which features are known to be strongly correlated with higher income (>50K) such as education, workclass, occupation, and age?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 13}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "age", "action": "increase", "new_value": 45}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: In the Adult Income dataset, several features are strongly correlated with income >50K. Education level (via education-num) is a key predictor—higher education levels (e.g., Bachelors or higher) are associated with higher income. Hours per week show a positive correlation with income, with individuals working over 40 hours more likely to earn >50K. Occupation, especially in specialized or managerial roles like 'Prof-specialty', is linked to higher incomes. Age also plays a role, with older individuals more likely to earn above 50K, though the effect is less pronounced than education or hours. Workclass, particularly 'Private' or 'Self-emp-inc' sectors, has been observed to correlate with higher income. The current values already represent moderate-to-high-income indicators (e.g., Bachelors, 50 hours/week), but increasing age, hours, and moving to higher-earning occupations would further distinguish the >50K prediction from the <=50K alternative.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How might the combination of education-level (Bachelors), occupation (Prof-specialty), and marital-status (Married-civ-spouse) influence the model's decision to assign a high confidence to >50K over <=50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: The combination of 'Bachelors' education, 'Prof-specialty' occupation, and 'Married-civ-spouse' marital status strongly signals high earning potential. In the context of the dataset, individuals with a bachelor's degree are consistently associated with higher incomes. The 'Prof-specialty' occupation, which belongs to high-income job categories (e.g., professionals with specialized skills), further elevates income expectations. Marital status as 'Married-civ-spouse' often correlates with stable employment and higher household income, as married individuals are more likely to have formal, long-term employment. Together, these features form a robust pattern that the model associates with income above $50K, thereby increasing confidence in the prediction. While other features like age, hours-per-week, and workclass also contribute, this trio acts as a primary signal for the model’s decision to classify the individual as >50K with high confidence.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge of the adult income dataset, which features are known to be strongly correlated with higher income (>50K) such as education, workclass, occupation, and age?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 13}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "age", "action": "increase", "new_value": 45}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}]
+- Explanation: In the Adult Income dataset, several features are strongly correlated with income >50K. Education level (via education-num) is a key predictor—higher education levels (e.g., Bachelors or higher) are associated with higher income. Hours per week show a positive correlation with income, with individuals working over 40 hours more likely to earn >50K. Occupation, especially in specialized or managerial roles like 'Prof-specialty', is linked to higher incomes. Age also plays a role, with older individuals more likely to earn above 50K, though the effect is less pronounced than education or hours. Workclass, particularly 'Private' or 'Self-emp-inc' sectors, has been observed to correlate with higher income. The current values already represent moderate-to-high-income indicators (e.g., Bachelors, 50 hours/week), but increasing age, hours, and moving to higher-earning occupations would further distinguish the >50K prediction from the <=50K alternative.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How might the combination of education-level (Bachelors), occupation (Prof-specialty), and marital-status (Married-civ-spouse) influence the model's decision to assign a high confidence to >50K over <=50K?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: The combination of 'Bachelors' education, 'Prof-specialty' occupation, and 'Married-civ-spouse' marital status strongly signals high earning potential. In the context of the dataset, individuals with a bachelor's degree are consistently associated with higher incomes. The 'Prof-specialty' occupation, which belongs to high-income job categories (e.g., professionals with specialized skills), further elevates income expectations. Marital status as 'Married-civ-spouse' often correlates with stable employment and higher household income, as married individuals are more likely to have formal, long-term employment. Together, these features form a robust pattern that the model associates with income above $50K, thereby increasing confidence in the prediction. While other features like age, hours-per-week, and workclass also contribute, this trio acts as a primary signal for the model’s decision to classify the individual as >50K with high confidence.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.30869269371032715}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

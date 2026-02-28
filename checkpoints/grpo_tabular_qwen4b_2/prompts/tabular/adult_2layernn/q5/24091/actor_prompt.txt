@@ -1,0 +1,133 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the sex feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.5435
+
+## Part to be Masked
+sex
+
+## Input Data
+Features: age=27, workclass=Self-emp-not-inc, fnlwgt=334132, education=Assoc-acdm, education-num=12, marital-status=Never-married, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=78, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: education_Preschool <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.013775).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0549
+  - native-country_Columbia: +0.0231
+  - native-country_Vietnam: +0.0146
+  - occupation_Transport-moving: +0.0128
+  - workclass_Federal-gov: +0.0078
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0549
+  - native-country_Cuba: -0.0231
+  - native-country_Yugoslavia: -0.0146
+  - occupation_Tech-support: -0.0128
+  - workclass_Local-gov: -0.0078
+- Max positive: 0.054948  Max negative: -0.054948
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0725
+  - capital-loss <= -0.22: +0.0718
+- Top negative features (weight):
+  - education_Preschool <= 0.00: -0.0805
+  - race_Amer-Indian-Eskimo <= 0.00: -0.0729
+  - native-country_Guatemala <= 0.00: -0.0516
+  - native-country_Portugal <= 0.00: -0.0495
+  - hours-per-week > 0.34: -0.0494
+- Max positive: 0.072526  Max negative: -0.080457
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0111
+  - sex_Female: +0.0056
+  - relationship_Not-in-family: +0.0050
+  - fnlwgt: +0.0044
+  - occupation_Prof-specialty: +0.0031
+- Top negative features (attribution_score):
+  - hours-per-week: -0.0159
+  - education-num: -0.0044
+  - race_White: -0.0034
+  - native-country_United-States: -0.0007
+  - capital-loss: -0.0006
+- Max positive: 0.011094  Max negative: -0.015868
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0138  (orig=0.3878 → mod=0.3740)
+  - hours-per-week: drop=-0.0093  (orig=0.3878 → mod=0.3971)
+  - relationship_Not-in-family: drop=+0.0074  (orig=0.3878 → mod=0.3804)
+  - sex_Female: drop=+0.0071  (orig=0.3878 → mod=0.3807)
+  - education-num: drop=-0.0050  (orig=0.3878 → mod=0.3929)
+  - fnlwgt: drop=+0.0049  (orig=0.3878 → mod=0.3829)
+  - race_White: drop=-0.0029  (orig=0.3878 → mod=0.3907)
+  - age: drop=+0.0019  (orig=0.3878 → mod=0.3859)
+  - occupation_Prof-specialty: drop=+0.0011  (orig=0.3878 → mod=0.3867)
+  - workclass_Self-emp-not-inc: drop=-0.0010  (orig=0.3878 → mod=0.3888)
+- Max prob_drop: 0.013775  Max prob_increase: -0.009315
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the model's confidence and prediction probabilities, assess whether the 'sex' feature has a likely influence on the classification outcome (e.g., if removing it would shift the probability from 0.54 to >0.5 or <0.5).
+- Status: Success
+- findings: "The 'sex' feature likely has a moderate influence on the model's prediction, as the model is confident (54.35%) in predicting the income as '\u226450K'. Given that the individual's sex is 'Female' and the prediction is '\u226450K', masking this feature would introduce uncertainty. In real-world datasets like the Adult Income dataset, sex has historically shown a significant association with income outcomes, even when controlling for other features. However, without explicit probability distributions or sensitivity analysis, we cannot determine whether removing 'sex' would shift the prediction probability above or below 0.5. Thus, the influence is plausible but not definitively confirmed."
+- Explanation: The model's confidence (54.35%) suggests that the prediction is not certain, leaving room for feature sensitivity. While the current input includes 'sex' as 'Female', and the prediction is '≤50K', we lack the full probability distribution over class labels when 'sex' is masked. In tabular datasets like the Adult dataset, sex is often a strong predictor of income class. However, without access to the top-5 predictions or a sensitivity analysis, we cannot quantify the exact shift in probability upon masking. Therefore, we infer a moderate, plausible influence based on domain knowledge and prediction confidence.
+- Confidence: 0.72
+
+### COMPARISON Task
+- Query: Compare the income prediction when 'sex' is masked (set to missing or uniform) versus when it is present, based on prior knowledge of tabular datasets and known biases in income classification models.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "mask", "new_value": "missing"}]
+- Explanation: In tabular datasets such as the Adult Income Dataset, sex is a well-documented proxy for socio-economic disparities and has been shown to correlate with income prediction outcomes. Models trained on such data often exhibit bias where 'Female' individuals are systematically predicted to have lower income (≤50K) compared to 'Male' individuals, even when controlling for other features. Given that the current prediction is '≤50K' with a 54.35% confidence, and the input specifies 'sex='Female', masking this feature removes an instrument of bias that may have reinforced the low-income prediction. However, since the model has already learned this pattern, removing sex might lead to a less certain or slightly redistributed prediction—potentially increasing the probability of predicting ≤50K due to the absence of a strong signal that would otherwise contribute to a higher-income assignment. Thus, the prediction direction is likely to remain the same (≤50K), but confidence may decrease slightly due to reduced feature signal. Therefore, masking sex would not reverse the prediction but may slightly reduce confidence.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the model's confidence and prediction probabilities, assess whether the 'sex' feature has a likely influence on the classification outcome (e.g., if removing it would shift the probability from 0.54 to >0.5 or <0.5).
+- Status: Success
+- findings: "The 'sex' feature likely has a moderate influence on the model's prediction, as the model is confident (54.35%) in predicting the income as '\u226450K'. Given that the individual's sex is 'Female' and the prediction is '\u226450K', masking this feature would introduce uncertainty. In real-world datasets like the Adult Income dataset, sex has historically shown a significant association with income outcomes, even when controlling for other features. However, without explicit probability distributions or sensitivity analysis, we cannot determine whether removing 'sex' would shift the prediction probability above or below 0.5. Thus, the influence is plausible but not definitively confirmed."
+- Explanation: The model's confidence (54.35%) suggests that the prediction is not certain, leaving room for feature sensitivity. While the current input includes 'sex' as 'Female', and the prediction is '≤50K', we lack the full probability distribution over class labels when 'sex' is masked. In tabular datasets like the Adult dataset, sex is often a strong predictor of income class. However, without access to the top-5 predictions or a sensitivity analysis, we cannot quantify the exact shift in probability upon masking. Therefore, we infer a moderate, plausible influence based on domain knowledge and prediction confidence.
+- Confidence: 0.72
+
+### COMPARISON Task
+- Query: Compare the income prediction when 'sex' is masked (set to missing or uniform) versus when it is present, based on prior knowledge of tabular datasets and known biases in income classification models.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "mask", "new_value": "missing"}]
+- Explanation: In tabular datasets such as the Adult Income Dataset, sex is a well-documented proxy for socio-economic disparities and has been shown to correlate with income prediction outcomes. Models trained on such data often exhibit bias where 'Female' individuals are systematically predicted to have lower income (≤50K) compared to 'Male' individuals, even when controlling for other features. Given that the current prediction is '≤50K' with a 54.35% confidence, and the input specifies 'sex='Female', masking this feature removes an instrument of bias that may have reinforced the low-income prediction. However, since the model has already learned this pattern, removing sex might lead to a less certain or slightly redistributed prediction—potentially increasing the probability of predicting ≤50K due to the absence of a strong signal that would otherwise contribute to a higher-income assignment. Thus, the prediction direction is likely to remain the same (≤50K), but confidence may decrease slightly due to reduced feature signal. Therefore, masking sex would not reverse the prediction but may slightly reduce confidence.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,144 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (78.64%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=26, workclass=Private, fnlwgt=94652, education=Some-college, education-num=10, marital-status=Never-married, occupation=Craft-repair, relationship=Own-child, race=Amer-Indian-Eskimo, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010653).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0397
+  - native-country_Columbia: +0.0262
+  - native-country_Trinadad&Tobago: +0.0231
+  - sex_Male: +0.0230
+  - native-country_Haiti: +0.0182
+- Top negative features (shap_value):
+  - fnlwgt: -0.0397
+  - native-country_Cuba: -0.0262
+  - native-country_United-States: -0.0231
+  - native-country_Cambodia: -0.0230
+  - native-country_Holand-Netherlands: -0.0182
+- Max positive: 0.03972  Max negative: -0.03972
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2356
+  - capital-loss <= -0.22: +0.1257
+  - age <= -0.80: +0.0874
+  - education_Preschool <= 0.00: +0.0688
+  - native-country_Greece <= 0.00: +0.0518
+- Top negative features (weight):
+  - native-country_Trinadad&Tobago <= 0.00: -0.0616
+  - native-country_Italy <= 0.00: -0.0550
+  - native-country_Honduras <= 0.00: -0.0049
+- Max positive: 0.235604  Max negative: -0.061582
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0125
+  - marital-status_Never-married: +0.0119
+  - relationship_Own-child: +0.0106
+  - occupation_Craft-repair: +0.0056
+  - fnlwgt: +0.0034
+- Top negative features (attribution_score):
+  - sex_Male: -0.0061
+  - race_Amer-Indian-Eskimo: -0.0040
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.012548  Max negative: -0.00613
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0107  (orig=0.4468 → mod=0.4362)
+  - marital-status_Never-married: drop=+0.0092  (orig=0.4468 → mod=0.4376)
+  - relationship_Own-child: drop=+0.0082  (orig=0.4468 → mod=0.4386)
+  - occupation_Craft-repair: drop=+0.0045  (orig=0.4468 → mod=0.4424)
+  - race_Amer-Indian-Eskimo: drop=-0.0032  (orig=0.4468 → mod=0.4500)
+  - education_Some-college: drop=+0.0029  (orig=0.4468 → mod=0.4439)
+  - sex_Male: drop=-0.0024  (orig=0.4468 → mod=0.4492)
+  - native-country_United-States: drop=+0.0021  (orig=0.4468 → mod=0.4447)
+  - workclass_Private: drop=-0.0017  (orig=0.4468 → mod=0.4485)
+  - fnlwgt: drop=+0.0015  (orig=0.4468 → mod=0.4453)
+- Max prob_drop: 0.010653  Max prob_increase: -0.003202
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to shift the model's confidence from <=50K to >50K based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: Based on domain knowledge and typical patterns in income prediction models (such as those in the Census Income dataset), several features strongly correlate with higher income. 'age' has a positive relationship with income, as older individuals often have longer work histories and higher earnings. Increasing 'education-num' to 16 (indicating a college graduate or higher) significantly improves the likelihood of higher income. 'hours-per-week' above 40 is associated with higher earnings, especially in entry-level or managerial roles. 'occupation' is a strong predictor—roles like 'Exec-managerial' are consistently linked to income over $50K. Finally, 'capital-gain' reflects investment returns, and higher values increase the model's confidence in higher income. These changes collectively push the model from a low-confidence prediction of <=50K to >50K by aligning the instance with known high-income profiles.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the current feature values to typical values observed in individuals who are predicted to earn >50K, to identify discrepancies that could reverse the prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 45}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child"}]
+- Explanation: Individuals predicted to earn over 50K tend to have higher education levels (education-num > 13), older ages (age > 35), higher working hours (hours-per-week > 40), and occupations in high-income categories such as 'Prof-specialty' or 'Exec-managerial'. The current profile has low education-num (10), young age (26), and moderate hours (40), which are associated with the <=50K class. Increasing education-num, age, and hours, along with shifting to a higher-value occupation, aligns the profile with the >50K class. The 'relationship' remains plausible as 'Own-child' due to its presence in both classes, but high-income individuals often have more stable relationships—however, in this dataset, 'Own-child' is not strongly indicative. The occupation change is the most impactful factor, as 'Craft-repair' is low-income while 'Prof-specialty' is high-income. These changes represent a realistic and data-driven shift toward the high-income class based on known feature distributions.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to shift the model's confidence from <=50K to >50K based on domain knowledge and model behavior?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: Based on domain knowledge and typical patterns in income prediction models (such as those in the Census Income dataset), several features strongly correlate with higher income. 'age' has a positive relationship with income, as older individuals often have longer work histories and higher earnings. Increasing 'education-num' to 16 (indicating a college graduate or higher) significantly improves the likelihood of higher income. 'hours-per-week' above 40 is associated with higher earnings, especially in entry-level or managerial roles. 'occupation' is a strong predictor—roles like 'Exec-managerial' are consistently linked to income over $50K. Finally, 'capital-gain' reflects investment returns, and higher values increase the model's confidence in higher income. These changes collectively push the model from a low-confidence prediction of <=50K to >50K by aligning the instance with known high-income profiles.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: Compare the current feature values to typical values observed in individuals who are predicted to earn >50K, to identify discrepancies that could reverse the prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 45}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child"}]
+- Explanation: Individuals predicted to earn over 50K tend to have higher education levels (education-num > 13), older ages (age > 35), higher working hours (hours-per-week > 40), and occupations in high-income categories such as 'Prof-specialty' or 'Exec-managerial'. The current profile has low education-num (10), young age (26), and moderate hours (40), which are associated with the <=50K class. Increasing education-num, age, and hours, along with shifting to a higher-value occupation, aligns the profile with the >50K class. The 'relationship' remains plausible as 'Own-child' due to its presence in both classes, but high-income individuals often have more stable relationships—however, in this dataset, 'Own-child' is not strongly indicative. The occupation change is the most impactful factor, as 'Craft-repair' is low-income while 'Prof-specialty' is high-income. These changes represent a realistic and data-driven shift toward the high-income class based on known feature distributions.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=26, workclass='Private', fnlwgt=94652, education='Some-college', education-num=10, marital-status='Never-married', occupation='Craft-repair', relationship='Own-child', race='Amer-Indian-Eskimo', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

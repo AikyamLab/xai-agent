@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is chosen because autonomous reasoning can quickly identify potential spurious patterns in the feature distributions, while XAI tools provide quantitative, model-agnostic attribution scores to validate and prioritize shared features. This combination ensures both pattern recognition and statistical confidence in identifying features with high attribution that are semantically unrelated to the correct class labels.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the mean radius, texture, perimeter, area, smoothness, compactness, concavity, and concave points across the three misclassified instances to identify any consistent feature values or trends that may indicate spurious correlations.",
+      "expected_output": "A list of features that show consistent or overlapping values across all instances, particularly those with high magnitude or deviation from typical malignant/benign patterns."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any of the shared features (e.g., mean radius or mean area) exhibit an artificial correlation with the prediction outcome that does not align with biological or medical semantics of cancer progression.",
+      "expected_output": "A rationale for why a particular feature may be spurious\u2014e.g., high value in all misclassifications but unrelated to actual malignancy indicators."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablation_type": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP provides consistent feature importance across instances, allowing identification of shared high-attribution features. Integrated Gradients offer gradient-based attribution sensitivity to detect spurious feature dominance. Sensitivity analysis quantifies each feature's individual impact, helping confirm whether a feature drives misclassification despite lacking semantic relevance to cancer type."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides consistent feature importance across instances, allowing identification of shared high-attribution features. Integrated Gradients offer gradient-based attribution sensitivity to detect spurious feature dominance. Sensitivity analysis quantifies each feature's individual impact, helping confirm whether a feature drives misclassification despite lacking semantic relevance to cancer type.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides consistent feature importance across instances, allowing identification of shared high-attribution features. Integrated Gradients offer gradient-based attribution sensitivity to detect spurious feature dominance. Sensitivity analysis quantifies each feature's individual impact, helping confirm whether a feature drives misclassification despite lacking semantic relevance to cancer type.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides consistent feature importance across instances, allowing identification of shared high-attribution features. Integrated Gradients offer gradient-based attribution sensitivity to detect spurious feature dominance. Sensitivity analysis quantifies each feature's individual impact, helping confirm whether a feature drives misclassification despite lacking semantic relevance to cancer type.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_type": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

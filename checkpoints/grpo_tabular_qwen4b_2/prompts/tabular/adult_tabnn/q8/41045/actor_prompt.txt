@@ -1,0 +1,133 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (52.40%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=279173, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.018542).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cambodia: +0.0348
+  - occupation_Tech-support: +0.0328
+  - native-country_United-States: +0.0322
+  - workclass_State-gov: +0.0254
+  - native-country_Peru: +0.0245
+- Top negative features (shap_value):
+  - sex_Male: -0.0348
+  - occupation_Transport-moving: -0.0328
+  - native-country_Trinadad&Tobago: -0.0322
+  - workclass_Self-emp-not-inc: -0.0254
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0245
+- Max positive: 0.034795  Max negative: -0.034795
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Dominican-Republic <= 0.00: +0.1046
+  - occupation_Priv-house-serv <= 0.00: +0.0715
+  - workclass_Without-pay <= 0.00: +0.0568
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2482
+  - occupation_Armed-Forces <= 0.00: -0.1311
+  - native-country_Japan <= 0.00: -0.1253
+  - capital-loss <= -0.22: -0.1208
+  - native-country_Greece <= 0.00: -0.1128
+- Max positive: 0.104583  Max negative: -0.248164
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0191
+  - relationship_Husband: +0.0170
+  - sex_Male: +0.0159
+  - occupation_Prof-specialty: +0.0100
+  - fnlwgt: +0.0062
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0170
+  - workclass_Private: -0.0094
+  - age: -0.0078
+  - education-num: -0.0078
+  - capital-gain: -0.0022
+- Max positive: 0.019089  Max negative: -0.017031
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0185  (orig=0.6281 → mod=0.6095)
+  - sex_Male: drop=+0.0163  (orig=0.6281 → mod=0.6118)
+  - education_HS-grad: drop=-0.0138  (orig=0.6281 → mod=0.6419)
+  - relationship_Husband: drop=+0.0134  (orig=0.6281 → mod=0.6146)
+  - education-num: drop=-0.0087  (orig=0.6281 → mod=0.6368)
+  - native-country_United-States: drop=+0.0079  (orig=0.6281 → mod=0.6202)
+  - age: drop=-0.0072  (orig=0.6281 → mod=0.6353)
+  - fnlwgt: drop=+0.0042  (orig=0.6281 → mod=0.6239)
+  - occupation_Prof-specialty: drop=+0.0040  (orig=0.6281 → mod=0.6241)
+  - hours-per-week: drop=+0.0035  (orig=0.6281 → mod=0.6246)
+- Max prob_drop: 0.018542  Max prob_increase: -0.013829
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might workclass=Private or occupation=Prof-specialty be semantically irrelevant to the correct class (<=50K) despite appearing important in the model's prediction?
+- Status: Success
+- Explanation: The feature 'workclass'='Private' and 'occupation'='Prof-specialty' may appear salient in the model's prediction due to spurious correlations in the training data. In the dataset, individuals working in 'Private' sectors or holding 'Prof-specialty' occupations are often associated with higher income, which may be a result of biased or imbalanced data distribution rather than intrinsic class-relevant features. However, the true label is <=50K, indicating the individual earns at or below $50K annually. The presence of 'Private' workclass and 'Prof-specialty' occupation does not necessarily correlate with income levels in a controlled or causal way—especially when controlling for education, age, hours-per-week, or sex. For example, many 'Private' employees with 'HS-grad' education and 60 hours per week still earn <=50K, especially if their capital gains and losses are zero. Moreover, 'Prof-specialty' occupations may be overrepresented in the >50K class due to data leakage or overfitting on class-imbalanced folds. This suggests that the model has learned a spurious correlation between these features and the label, rather than a true causative or predictive relationship. Therefore, despite their prominence in the prediction, these features are semantically irrelevant to the ground truth class in this case.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like age, education-num, and sex to the class <=50K versus features like fnlwgt or race, considering known societal and demographic patterns in the dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "keep", "new_value": "age"}, {"feature_key": "education-num", "action": "keep", "new_value": "education-num"}, {"feature_key": "sex", "action": "keep", "new_value": "sex"}, {"feature_key": "hours-per-week", "action": "keep", "new_value": "hours-per-week"}, {"feature_key": "occupation", "action": "keep", "new_value": "occupation"}]
+- Explanation: The target class in the dataset (income <=50K) is strongly influenced by demographic and educational factors. Age, education-num, and sex are semantically relevant because they reflect long-term socioeconomic trends: higher education levels and specific gender cohorts correlate with income outcomes. For instance, 'HS-grad' with age 33 and male sex may suggest lower earning potential, supporting the prediction of <=50K. In contrast, features like fnlwgt (a weight for statistical balancing) and race are either proxies or used for balancing, not direct indicators of income. Race is included in the dataset but historically correlates with systemic disparities; however, in this specific context, it is not a primary predictor due to data design and potential bias mitigation. Occupation also carries semantic weight—'Prof-specialty' suggests higher income potential, yet the model assigned <=50K, implying possible interaction with other features (e.g., sex, age). Hours per week is a strong proxy for work intensity and thus relevant. Therefore, features directly tied to labor market participation and human capital (age, education-num, sex, hours-per-week, occupation) are semantically more relevant than fnlwgt or race, which are either instrumental or socially sensitive without direct causal links to income in this case.
+- Confidence: 0.97
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might workclass=Private or occupation=Prof-specialty be semantically irrelevant to the correct class (<=50K) despite appearing important in the model's prediction?
+- Status: Success
+- Explanation: The feature 'workclass'='Private' and 'occupation'='Prof-specialty' may appear salient in the model's prediction due to spurious correlations in the training data. In the dataset, individuals working in 'Private' sectors or holding 'Prof-specialty' occupations are often associated with higher income, which may be a result of biased or imbalanced data distribution rather than intrinsic class-relevant features. However, the true label is <=50K, indicating the individual earns at or below $50K annually. The presence of 'Private' workclass and 'Prof-specialty' occupation does not necessarily correlate with income levels in a controlled or causal way—especially when controlling for education, age, hours-per-week, or sex. For example, many 'Private' employees with 'HS-grad' education and 60 hours per week still earn <=50K, especially if their capital gains and losses are zero. Moreover, 'Prof-specialty' occupations may be overrepresented in the >50K class due to data leakage or overfitting on class-imbalanced folds. This suggests that the model has learned a spurious correlation between these features and the label, rather than a true causative or predictive relationship. Therefore, despite their prominence in the prediction, these features are semantically irrelevant to the ground truth class in this case.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like age, education-num, and sex to the class <=50K versus features like fnlwgt or race, considering known societal and demographic patterns in the dataset.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "keep", "new_value": "age"}, {"feature_key": "education-num", "action": "keep", "new_value": "education-num"}, {"feature_key": "sex", "action": "keep", "new_value": "sex"}, {"feature_key": "hours-per-week", "action": "keep", "new_value": "hours-per-week"}, {"feature_key": "occupation", "action": "keep", "new_value": "occupation"}]
+- Explanation: The target class in the dataset (income <=50K) is strongly influenced by demographic and educational factors. Age, education-num, and sex are semantically relevant because they reflect long-term socioeconomic trends: higher education levels and specific gender cohorts correlate with income outcomes. For instance, 'HS-grad' with age 33 and male sex may suggest lower earning potential, supporting the prediction of <=50K. In contrast, features like fnlwgt (a weight for statistical balancing) and race are either proxies or used for balancing, not direct indicators of income. Race is included in the dataset but historically correlates with systemic disparities; however, in this specific context, it is not a primary predictor due to data design and potential bias mitigation. Occupation also carries semantic weight—'Prof-specialty' suggests higher income potential, yet the model assigned <=50K, implying possible interaction with other features (e.g., sex, age). Hours per week is a strong proxy for work intensity and thus relevant. Therefore, features directly tied to labor market participation and human capital (age, education-num, sex, hours-per-week, occupation) are semantically more relevant than fnlwgt or race, which are either instrumental or socially sensitive without direct causal links to income in this case.
+- Confidence: 0.97
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,96 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy combines autonomous reasoning to identify common patterns in the misclassified instances with external XAI tools to quantify feature importance and detect spurious correlations. This approach ensures both domain-sensibility and statistical rigor in identifying shared, non-semantic features contributing to misclassification.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the mean radius, texture, perimeter, area, smoothness, compactness, concavity, and concave points across instances 541, 537, and 291 to identify any shared numerical ranges or anomalies.",
+      "expected_output": "A list of features that consistently fall within similar ranges across all three instances, indicating possible spurious patterns."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether any feature (e.g., mean area or mean perimeter) shows high variance or strong correlation with prediction despite lacking biological or clinical relevance to malignancy.",
+      "expected_output": "Hypotheses about which features may be spurious, based on semantics and statistical patterns."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "ablation_method": "leave-one-out",
+        "target_instances": [
+          541,
+          537,
+          291
+        ]
+      }
+    },
+    "reasoning": "SHAP identifies feature importance across instances using game-theoretic attribution, and its intersection mode highlights features consistently active in misclassified cases. Integrated Gradients provide gradient-based attribution, useful for detecting unexpected influence. Sensitivity analysis quantifies how prediction probabilities shift when features are zeroed out, revealing spurious dependencies. Together, these tools validate autonomous findings with statistical precision and detect shared spurious signals despite unknown ground truths."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP identifies feature importance across instances using game-theoretic attribution, and its intersection mode highlights features consistently active in misclassified cases. Integrated Gradients provide gradient-based attribution, useful for detecting unexpected influence. Sensitivity analysis quantifies how prediction probabilities shift when features are zeroed out, revealing spurious dependencies. Together, these tools validate autonomous findings with statistical precision and detect shared spurious signals despite unknown ground truths.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP identifies feature importance across instances using game-theoretic attribution, and its intersection mode highlights features consistently active in misclassified cases. Integrated Gradients provide gradient-based attribution, useful for detecting unexpected influence. Sensitivity analysis quantifies how prediction probabilities shift when features are zeroed out, revealing spurious dependencies. Together, these tools validate autonomous findings with statistical precision and detect shared spurious signals despite unknown ground truths.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP identifies feature importance across instances using game-theoretic attribution, and its intersection mode highlights features consistently active in misclassified cases. Integrated Gradients provide gradient-based attribution, useful for detecting unexpected influence. Sensitivity analysis quantifies how prediction probabilities shift when features are zeroed out, revealing spurious dependencies. Together, these tools validate autonomous findings with statistical precision and detect shared spurious signals despite unknown ground truths.",
+      "parameters": {
+        "ablation_method": "leave-one-out",
+        "target_instances": [
+          541,
+          537,
+          291
+        ]
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}cating its spuriousness. Together, these tools validate shared spurious features that drive misclassifications via model over-reliance, even when semantically unconnected.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "mean"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides global feature importance with interpretability for tabular data and helps identify features with high impact across instances. LIME offers local explanations to validate if high attribution is consistent per instance. Integrated Gradients offer a robust gradient-based attribution method to assess feature influence. Sensitivity analysis confirms whether removing a feature changes the prediction, indicating its spuriousness. Together, these tools validate shared spurious features that drive misclassifications via model over-reliance, even when semantically unconnected.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_method": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

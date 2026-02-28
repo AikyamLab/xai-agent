@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (63.55%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=67, workclass=Self-emp-not-inc, fnlwgt=286372, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.011444).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0520
+  - hours-per-week: +0.0470
+  - native-country_Cambodia: +0.0359
+  - native-country_United-States: +0.0246
+  - occupation_Prof-specialty: +0.0236
+- Top negative features (shap_value):
+  - age: -0.0520
+  - capital-loss: -0.0470
+  - sex_Male: -0.0359
+  - native-country_Trinadad&Tobago: -0.0246
+  - occupation_Priv-house-serv: -0.0236
+- Max positive: 0.051981  Max negative: -0.051981
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0855
+  - age > 0.64: +0.0846
+  - native-country_Ireland <= 0.00: +0.0805
+  - native-country_Columbia <= 0.00: +0.0688
+  - native-country_Trinadad&Tobago <= 0.00: +0.0675
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2339
+  - native-country_Haiti <= 0.00: -0.1141
+  - capital-loss <= -0.22: -0.1100
+  - native-country_Puerto-Rico <= 0.00: -0.0219
+  - native-country_Hungary <= 0.00: -0.0136
+- Max positive: 0.08552  Max negative: -0.233949
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0158
+  - education-num: +0.0133
+  - relationship_Husband: +0.0101
+  - education_Bachelors: +0.0097
+  - sex_Male: +0.0087
+- Top negative features (attribution_score):
+  - occupation_Transport-moving: -0.0074
+  - workclass_Self-emp-not-inc: -0.0041
+  - race_White: -0.0032
+  - capital-gain: -0.0017
+  - capital-loss: -0.0012
+- Max positive: 0.015797  Max negative: -0.007447
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0114  (orig=0.6537 → mod=0.6423)
+  - marital-status_Married-civ-spouse: drop=+0.0107  (orig=0.6537 → mod=0.6430)
+  - education_Bachelors: drop=+0.0075  (orig=0.6537 → mod=0.6463)
+  - native-country_United-States: drop=+0.0069  (orig=0.6537 → mod=0.6468)
+  - occupation_Transport-moving: drop=-0.0068  (orig=0.6537 → mod=0.6605)
+  - relationship_Husband: drop=+0.0067  (orig=0.6537 → mod=0.6470)
+  - sex_Male: drop=+0.0065  (orig=0.6537 → mod=0.6473)
+  - workclass_Self-emp-not-inc: drop=-0.0039  (orig=0.6537 → mod=0.6577)
+  - fnlwgt: drop=+0.0024  (orig=0.6537 → mod=0.6513)
+  - capital-gain: drop=-0.0019  (orig=0.6537 → mod=0.6556)
+- Max prob_drop: 0.011444  Max prob_increase: -0.00676
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighting factor) be incorrectly influential in predicting income, despite having no direct relation to actual earnings?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "missing"}]
+- Explanation: fnlwgt (final weight) is a survey weighting factor used to adjust for sampling bias and does not represent actual income or earning capability. Its inclusion in the model may create a spurious correlation with income because higher-weight individuals tend to be more frequently sampled or represented in the dataset, potentially leading to correlation with the target variable. This is especially problematic when the model learns that higher fnlwgt values are associated with higher income, even though fnlwgt has no direct causal or predictive relationship with actual earnings. Removing or masking fnlwgt helps isolate true features that influence income, such as age, education, or hours-per-week. In this case, the model's prediction of >50K despite a true label of <=50K may stem from overreliance on this spurious signal.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age=67', 'education=Bachelors', and 'workclass=Self-emp-not-inc' to the true class <=50K. Which features are semantically grounded in income level?
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "High"}, {"feature_key": "education", "semantic_relevance": "High"}, {"feature_key": "workclass", "semantic_relevance": "Medium"}]
+- Explanation: The true label is <=50K, meaning the individual earns at or below $50K annually. 'age=67' is semantically grounded because older individuals often have lower income due to reduced workforce participation or retirement, making age a strong predictor of low income. 'education=Bachelors' is also highly relevant as higher education levels (e.g., Bachelor's) are generally associated with higher income, so a Bachelors degree is more likely to correlate with higher income, which makes it semantically relevant to the <=50K class as an example of a moderately educated individual with potentially limited earning potential in certain sectors. 'workclass=Self-emp-not-inc' (self-employed, not incorporated) may have variable income and is less consistently linked to income levels than age or education; self-employment can yield higher or lower earnings, so it has weaker semantic grounding for predicting <=50K. Therefore, age and education are strongly tied to income levels, while workclass has medium relevance due to ambiguity in self-employment income patterns.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighting factor) be incorrectly influential in predicting income, despite having no direct relation to actual earnings?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "missing"}]
+- Explanation: fnlwgt (final weight) is a survey weighting factor used to adjust for sampling bias and does not represent actual income or earning capability. Its inclusion in the model may create a spurious correlation with income because higher-weight individuals tend to be more frequently sampled or represented in the dataset, potentially leading to correlation with the target variable. This is especially problematic when the model learns that higher fnlwgt values are associated with higher income, even though fnlwgt has no direct causal or predictive relationship with actual earnings. Removing or masking fnlwgt helps isolate true features that influence income, such as age, education, or hours-per-week. In this case, the model's prediction of >50K despite a true label of <=50K may stem from overreliance on this spurious signal.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age=67', 'education=Bachelors', and 'workclass=Self-emp-not-inc' to the true class <=50K. Which features are semantically grounded in income level?
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "High"}, {"feature_key": "education", "semantic_relevance": "High"}, {"feature_key": "workclass", "semantic_relevance": "Medium"}]
+- Explanation: The true label is <=50K, meaning the individual earns at or below $50K annually. 'age=67' is semantically grounded because older individuals often have lower income due to reduced workforce participation or retirement, making age a strong predictor of low income. 'education=Bachelors' is also highly relevant as higher education levels (e.g., Bachelor's) are generally associated with higher income, so a Bachelors degree is more likely to correlate with higher income, which makes it semantically relevant to the <=50K class as an example of a moderately educated individual with potentially limited earning potential in certain sectors. 'workclass=Self-emp-not-inc' (self-employed, not incorporated) may have variable income and is less consistently linked to income levels than age or education; self-employment can yield higher or lower earnings, so it has weaker semantic grounding for predicting <=50K. Therefore, age and education are strongly tied to income levels, while workclass has medium relevance due to ambiguity in self-employment income patterns.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

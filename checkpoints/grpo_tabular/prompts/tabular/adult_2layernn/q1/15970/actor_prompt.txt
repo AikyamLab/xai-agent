@@ -1,0 +1,123 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.5923
+
+## Input Data
+Features: age=38, workclass=Federal-gov, fnlwgt=455379, education=12th, education-num=8, marital-status=Married-civ-spouse, occupation=Protective-serv, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=56, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Without-pay.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: workclass_Federal-gov (prob drop: 0.008222).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - education_10th: +0.0284
+  - workclass_State-gov: +0.0218
+  - native-country_Cuba: +0.0168
+  - native-country_United-States: +0.0127
+  - race_Other: +0.0121
+- Top negative features (shap_value):
+  - workclass_Without-pay: -0.0284
+  - workclass_Self-emp-not-inc: -0.0218
+  - native-country_Columbia: -0.0168
+  - native-country_Trinadad&Tobago: -0.0127
+  - race_Black: -0.0121
+- Max positive: 0.028374  Max negative: -0.028374
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0603
+  - native-country_Ireland <= 0.00: +0.0583
+  - native-country_Cambodia <= 0.00: +0.0470
+  - hours-per-week > 0.34: +0.0464
+  - marital-status_Divorced <= 0.00: +0.0446
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0735
+  - capital-gain <= -0.15: -0.0667
+  - education-num <= -0.44: -0.0518
+  - education_Masters <= 0.00: -0.0461
+  - native-country_Italy <= 0.00: -0.0459
+- Max positive: 0.060262  Max negative: -0.073476
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0090
+  - workclass_Federal-gov: +0.0082
+  - hours-per-week: +0.0071
+  - relationship_Husband: +0.0042
+  - race_White: +0.0031
+- Top negative features (attribution_score):
+  - education-num: -0.0048
+  - education_12th: -0.0045
+  - fnlwgt: -0.0039
+  - capital-gain: -0.0004
+  - age: -0.0001
+- Max positive: 0.009037  Max negative: -0.004762
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - workclass_Federal-gov: drop=+0.0082  (orig=0.6439 → mod=0.6357)
+  - sex_Male: drop=+0.0078  (orig=0.6439 → mod=0.6361)
+  - relationship_Husband: drop=+0.0058  (orig=0.6439 → mod=0.6381)
+  - hours-per-week: drop=+0.0043  (orig=0.6439 → mod=0.6396)
+  - education_12th: drop=-0.0042  (orig=0.6439 → mod=0.6481)
+  - marital-status_Married-civ-spouse: drop=+0.0040  (orig=0.6439 → mod=0.6399)
+  - race_White: drop=+0.0028  (orig=0.6439 → mod=0.6411)
+  - fnlwgt: drop=-0.0023  (orig=0.6439 → mod=0.6462)
+  - native-country_United-States: drop=+0.0018  (orig=0.6439 → mod=0.6421)
+  - occupation_Protective-serv: drop=+0.0018  (orig=0.6439 → mod=0.6421)
+- Max prob_drop: 0.008222  Max prob_increase: -0.00424
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify the most semantically relevant features from the input that could influence income prediction, based on domain knowledge.
+- Status: Success
+- feature_key: "age"
+- action: "change"
+- new_value: 40
+
+### REASONING Task
+- Query: For the given input, reason why features like 'workclass=Federal-gov', 'occupation=Protective-serv', and 'marital-status=Married-civ-spouse' might lead to a higher probability of income >50K.
+- Status: Success
+- findings: "These features are typically associated with stable, higher-paying roles and household income profiles, suggesting their likely influence on the prediction."
+- Explanation: The features 'workclass=Federal-gov', 'occupation=Protective-serv', and 'marital-status=Married-civ-spouse' are indicative of employment in stable government roles, which often provide better salaries, benefits, and job security compared to private sector jobs. 'Protective-serv' is a recognized occupation that typically includes roles such as police officers or security personnel in government agencies, often associated with above-average compensation. 'Married-civ-spouse' suggests a stable household structure that may correlate with dual-income potential or economic stability, further contributing to higher household income. Additionally, being male, White, and working full-time (56 hours/week) contributes to patterns historically linked to higher income levels in many datasets. Although the model's confidence is moderate (59.23%), these combined factors likely influenced the prediction toward income >50K.
+- Confidence: 0.75
+
+### COMPARISON Task
+- Query: Compare the feature contributions inferred from autonomous reasoning with expected model behavior in predicting income >50K.
+- Status: Success
+- findings: "Features such as 'education-num', 'workclass', and 'occupation' align with known correlates of high income; this comparison will help validate tool-generated explanations."
+- Explanation: The model predicts income >50K with moderate confidence (59.23%). Based on the input data, key features contributing to this prediction include 'education-num' (8), which is above the median for high-income individuals, 'workclass' (Federal-gov), associated with stable, higher-paying jobs, and 'occupation' (Protective-serv), which in context may suggest a position with public sector stability and benefits. While not in the highest income brackets, these features collectively support a higher income prediction. Other features such as 'hours-per-week' (56), indicating full-time work, and 'sex' (Male), which correlates with income in many datasets, also contribute. The absence of capital gains/losses and moderate 'age' (38) reduce predictive strength. Overall, the model's behavior aligns with general socioeconomic predictors, though confidence remains modest due to mixed signal strength.
+- Confidence: 0.72
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

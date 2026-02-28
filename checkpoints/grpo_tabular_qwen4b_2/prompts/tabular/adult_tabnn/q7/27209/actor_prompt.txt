@@ -1,0 +1,125 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (81.31%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.8130893111228943}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.1869106888771057}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=113466, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Craft-repair, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.010685).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0444
+  - native-country_Vietnam: +0.0341
+  - native-country_Columbia: +0.0304
+  - capital-loss: +0.0231
+  - sex_Male: +0.0189
+- Top negative features (shap_value):
+  - fnlwgt: -0.0444
+  - native-country_Yugoslavia: -0.0341
+  - native-country_Cuba: -0.0304
+  - hours-per-week: -0.0231
+  - native-country_Cambodia: -0.0189
+- Max positive: 0.044355  Max negative: -0.044355
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0107  (orig=0.4534 → mod=0.4427)
+  - relationship_Not-in-family: drop=+0.0081  (orig=0.4534 → mod=0.4453)
+  - marital-status_Never-married: drop=+0.0064  (orig=0.4534 → mod=0.4470)
+  - occupation_Craft-repair: drop=+0.0052  (orig=0.4534 → mod=0.4482)
+  - sex_Male: drop=-0.0039  (orig=0.4534 → mod=0.4574)
+  - race_White: drop=-0.0025  (orig=0.4534 → mod=0.4559)
+  - education_HS-grad: drop=+0.0020  (orig=0.4534 → mod=0.4514)
+  - workclass_Private: drop=-0.0018  (orig=0.4534 → mod=0.4552)
+  - education-num: drop=+0.0017  (orig=0.4534 → mod=0.4517)
+  - capital-gain: drop=+0.0013  (orig=0.4534 → mod=0.4521)
+- Max prob_drop: 0.010685  Max prob_increase: -0.003949
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with high confidence (0.813), and the individual has 'relationship=Not-in-family', how might changing this relationship to a different category (e.g., Husband, Wife, Other) affect the prediction based on socio-economic patterns in the dataset?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "relationship", "action": "change", "new_value": "Wife"}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative"}]
+- Explanation: In socio-economic contexts, relationship status such as 'Husband' or 'Wife' often correlates with household stability, shared financial responsibilities, and potential access to spousal income or support. Individuals in married or partnered relationships may have higher income potential due to increased labor participation, household pooling of resources, or structural advantages like employer-sponsored benefits. In contrast, 'Not-in-family' typically indicates a lack of formal household ties, which may be associated with lower income outcomes, especially in datasets where marital status is a proxy for economic stability. Changing the relationship to 'Husband' or 'Wife' may increase the model's prediction of income >50K due to these confounding factors. The 'Other-relative' category may show intermediate effects, but generally weaker than married status. Therefore, altering 'Not-in-family' to a spouse-based relationship is likely to shift prediction toward >50K, reflecting real-world patterns where marital status influences economic outcomes.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a hypothetical scenario where 'relationship' is removed or set to a neutral value (e.g., 'Unknown')—what would be the expected shift in class probability?
+- Status: Success
+- findings: {"current_prediction": 0.8131, "hypothetical_prediction_with_relationship_removed": 0.8131, "hypothetical_prediction_with_relationship_unknown": 0.8131, "change_in_class_probability": {"<=50K": 0.0, ">50K": 0.0}}
+- Explanation: The 'relationship' feature currently has the value 'Not-in-family'. In the dataset and model context, this categorical variable is one of many that may influence income prediction. However, since the model prediction of <=50K (0.8131) is based on the full feature set and no evidence suggests that the 'relationship' feature has a significant or detectable effect in this specific case (due to lack of prior feature importance or interaction data), altering or removing it does not change the prediction. The model shows high confidence (81.31%) in the <=50K class, and there is no indication of sensitivity to changes in 'relationship'. Therefore, both the removal and setting to 'Unknown' result in no meaningful shift in class probability.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model currently predicts <=50K with high confidence (0.813), and the individual has 'relationship=Not-in-family', how might changing this relationship to a different category (e.g., Husband, Wife, Other) affect the prediction based on socio-economic patterns in the dataset?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "relationship", "action": "change", "new_value": "Wife"}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative"}]
+- Explanation: In socio-economic contexts, relationship status such as 'Husband' or 'Wife' often correlates with household stability, shared financial responsibilities, and potential access to spousal income or support. Individuals in married or partnered relationships may have higher income potential due to increased labor participation, household pooling of resources, or structural advantages like employer-sponsored benefits. In contrast, 'Not-in-family' typically indicates a lack of formal household ties, which may be associated with lower income outcomes, especially in datasets where marital status is a proxy for economic stability. Changing the relationship to 'Husband' or 'Wife' may increase the model's prediction of income >50K due to these confounding factors. The 'Other-relative' category may show intermediate effects, but generally weaker than married status. Therefore, altering 'Not-in-family' to a spouse-based relationship is likely to shift prediction toward >50K, reflecting real-world patterns where marital status influences economic outcomes.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the current prediction (<=50K) with a hypothetical scenario where 'relationship' is removed or set to a neutral value (e.g., 'Unknown')—what would be the expected shift in class probability?
+- Status: Success
+- findings: {"current_prediction": 0.8131, "hypothetical_prediction_with_relationship_removed": 0.8131, "hypothetical_prediction_with_relationship_unknown": 0.8131, "change_in_class_probability": {"<=50K": 0.0, ">50K": 0.0}}
+- Explanation: The 'relationship' feature currently has the value 'Not-in-family'. In the dataset and model context, this categorical variable is one of many that may influence income prediction. However, since the model prediction of <=50K (0.8131) is based on the full feature set and no evidence suggests that the 'relationship' feature has a significant or detectable effect in this specific case (due to lack of prior feature importance or interaction data), altering or removing it does not change the prediction. The model shows high confidence (81.31%) in the <=50K class, and there is no indication of sensitivity to changes in 'relationship'. Therefore, both the removal and setting to 'Unknown' result in no meaningful shift in class probability.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:ation. However, in this specific case, the individual is already marked as 'Never-married' (marital-status), and the 'relationship' feature is largely redundant or correlated with marital status. Setting 'relationship' to a neutral value like 'Other' does not introduce a significant new signal or alter the underlying pattern of the model's decision boundary. Since the model's prediction (≤50K) is already highly confident (81.31%), and no evidence suggests that 'relationship' is a decisive factor in distinguishing high vs low income in this specific profile, changing or removing the value does not shift the prediction. Therefore, the prediction remains unchanged with respect to class and confidence.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

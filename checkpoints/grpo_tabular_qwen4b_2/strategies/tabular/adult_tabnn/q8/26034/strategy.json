@@ -1,0 +1,80 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning to identify semantically irrelevant features with empirical validation from established explainability tools to quantify their contribution. This ensures both domain-level relevance interpretation and statistical evidence of spurious influence. The combination improves robustness in detecting features that may appear important due to correlation but lack semantic connection to the target class (>50K).",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Given the true label is >50K, evaluate whether features like 'workclass=Local-gov' or 'race=White' have plausible semantic or demographic relevance to income level, and flag any that appear spurious or socially biased.",
+      "expected_output": "List of features deemed semantically irrelevant to the >50K income class based on domain knowledge"
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the semantic relevance of each feature to the target class (>50K) against its observed model contribution (confidence or attribution). Identify discrepancies where high attribution exists despite low semantic relevance.",
+      "expected_output": "A ranked list of features with high model attribution and low semantic relevance to >50K income"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "lime",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "target_class": "predicted"
+      },
+      "lime": {
+        "target_class": "predicted",
+        "explanation_samples": 100
+      },
+      "integrated_gradients": {
+        "baseline": "zero",
+        "use_benchmark": true
+      },
+      "sensitivity_analysis": {
+        "ablation_method": "leave-one-out",
+        "threshold_change": 0.05
+      }
+    },
+    "reasoning": "SHAP provides robust, game-theoretic attribution scores that reveal how each feature influences the prediction. LIME offers local interpretability and can reveal patterns in the model\u2019s decision surface. Integrated Gradients provide smooth, gradient-based attribution across the feature space, making them sensitive to spurious signals. Sensitivity analysis directly measures feature impact by ablation, helping detect whether a feature's high score is due to spurious correlation. Together, they validate and triangulate spurious feature influence beyond manual reasoning."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides robust, game-theoretic attribution scores that reveal how each feature influences the prediction. LIME offers local interpretability and can reveal patterns in the model\u2019s decision surface. Integrated Gradients provide smooth, gradient-based attribution across the feature space, making them sensitive to spurious signals. Sensitivity analysis directly measures feature impact by ablation, helping detect whether a feature's high score is due to spurious correlation. Together, they validate and triangulate spurious feature influence beyond manual reasoning.",
+      "parameters": {
+        "target_class": "predicted"
+      }
+    },
+    {
+      "tool_name": "lime",
+      "priority": 2,
+      "reasoning": "SHAP provides robust, game-theoretic attribution scores that reveal how each feature influences the prediction. LIME offers local interpretability and can reveal patterns in the model\u2019s decision surface. Integrated Gradients provide smooth, gradient-based attribution across the feature space, making them sensitive to spurious signals. Sensitivity analysis directly measures feature impact by ablation, helping detect whether a feature's high score is due to spurious correlation. Together, they validate and triangulate spurious feature influence beyond manual reasoning.",
+      "parameters": {
+        "target_class": "predicted",
+        "explanation_samples": 100
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 3,
+      "reasoning": "SHAP provides robust, game-theoretic attribution scores that reveal how each feature influences the prediction. LIME offers local interpretability and can reveal patterns in the model\u2019s decision surface. Integrated Gradients provide smooth, gradient-based attribution across the feature space, making them sensitive to spurious signals. Sensitivity analysis directly measures feature impact by ablation, helping detect whether a feature's high score is due to spurious correlation. Together, they validate and triangulate spurious feature influence beyond manual reasoning.",
+      "parameters": {
+        "baseline": "zero",
+        "use_benchmark": true
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 4,
+      "reasoning": "SHAP provides robust, game-theoretic attribution scores that reveal how each feature influences the prediction. LIME offers local interpretability and can reveal patterns in the model\u2019s decision surface. Integrated Gradients provide smooth, gradient-based attribution across the feature space, making them sensitive to spurious signals. Sensitivity analysis directly measures feature impact by ablation, helping detect whether a feature's high score is due to spurious correlation. Together, they validate and triangulate spurious feature influence beyond manual reasoning.",
+      "parameters": {
+        "ablation_method": "leave-one-out",
+        "threshold_change": 0.05
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5161
+
+## Input Data
+Features: age=34, workclass=Private, fnlwgt=125279, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Taiwan.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.010803).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Taiwan: +0.0205
+  - occupation_Tech-support: +0.0180
+  - native-country_Yugoslavia: +0.0091
+  - capital-loss: +0.0090
+  - native-country_United-States: +0.0084
+- Top negative features (shap_value):
+  - native-country_Thailand: -0.0205
+  - occupation_Transport-moving: -0.0180
+  - native-country_Vietnam: -0.0091
+  - hours-per-week: -0.0090
+  - native-country_Trinadad&Tobago: -0.0084
+- Max positive: 0.020533  Max negative: -0.020533
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0812
+  - capital-loss <= -0.22: +0.0782
+  - education-num <= -0.44: +0.0573
+  - native-country_Columbia <= 0.00: +0.0423
+  - native-country_Portugal <= 0.00: +0.0293
+- Top negative features (weight):
+  - native-country_Trinadad&Tobago <= 0.00: -0.0573
+  - marital-status_Divorced <= 0.00: -0.0554
+  - workclass_Without-pay <= 0.00: -0.0427
+  - native-country_Vietnam <= 0.00: -0.0263
+- Max positive: 0.081195  Max negative: -0.057292
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0076
+  - workclass_Private: +0.0040
+  - education-num: +0.0035
+  - occupation_Transport-moving: +0.0027
+  - fnlwgt: +0.0024
+- Top negative features (attribution_score):
+  - sex_Male: -0.0100
+  - native-country_United-States: -0.0054
+  - relationship_Husband: -0.0042
+  - marital-status_Married-civ-spouse: -0.0014
+  - race_White: -0.0011
+- Max positive: 0.007639  Max negative: -0.010047
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0108  (orig=0.3813 → mod=0.3921)
+  - education_HS-grad: drop=+0.0083  (orig=0.3813 → mod=0.3730)
+  - relationship_Husband: drop=-0.0055  (orig=0.3813 → mod=0.3868)
+  - occupation_Transport-moving: drop=+0.0046  (orig=0.3813 → mod=0.3767)
+  - native-country_United-States: drop=-0.0043  (orig=0.3813 → mod=0.3856)
+  - workclass_Private: drop=+0.0038  (orig=0.3813 → mod=0.3775)
+  - education-num: drop=+0.0031  (orig=0.3813 → mod=0.3782)
+  - fnlwgt: drop=+0.0030  (orig=0.3813 → mod=0.3783)
+  - marital-status_Married-civ-spouse: drop=-0.0022  (orig=0.3813 → mod=0.3835)
+  - age: drop=+0.0020  (orig=0.3813 → mod=0.3793)
+- Max prob_drop: 0.008328  Max prob_increase: -0.010803
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly associated with income levels in the adult dataset (e.g., age, education, workclass, sex)?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 34}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult Income Dataset (also known as the CPS-1994 dataset), several features are well-documented as strongly correlated with income level. Age is positively associated with income, with older individuals more likely to earn over 50K. Education level, particularly measured by 'education-num', is a major predictor—higher education levels (e.g., college, graduate) correlate with higher income. Workclass, such as 'Private' vs. Government or Self-employ, shows variation in income; 'Private' workers are typically associated with higher earnings. Sex has a known demographic disparity, where males historically earn more, especially in higher-paying occupations. Hours per week are also a strong factor—longer work hours correlate with higher income. These features are consistent with domain knowledge and widely used in income prediction studies. The current values reflect typical patterns for individuals earning <=50K, such as moderate age, lower education level (HS-grad), male, part-time or standard work hours, and private sector employment.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: How might having a 'Married-civ-spouse' or 'Husband' relationship, combined with 'Private' workclass and 'White' race, influence the model's classification toward '<=50K'?
+- Status: Success
+- Explanation: The model's prediction of '<=50K' for this individual is likely influenced by the combination of 'Married-civ-spouse' and 'Husband' relationship, which typically indicates stable household income sharing and potentially lower individual earnings. The 'Private' workclass suggests a common employment scenario with modest to average wages, especially in a U.S. context where private sector pay scales are often tied to standard labor market conditions. The 'White' race is a demographic factor historically associated with higher median incomes in the dataset, but in this case, it is not directly reinforcing the '>=50K' class. Instead, when combined with lower capital gains (0), no capital loss, and a moderate work hour count (40), the profile reflects a typical middle-income household. While the 'White' race may slightly increase the likelihood of higher earnings, this is counteracted by the absence of high-earning occupation or education level. The 'HS-grad' education and private sector employment, combined with stable marital status, suggest a conservative income trajectory. Therefore, the feature combination—'Married-civ-spouse', 'Husband', 'Private', and 'White'—is consistent with a lower-income prediction under the model's learned patterns, particularly when other financial indicators (like capital gain and work hours) are neutral or modest.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Which features are more likely to be correlated with high income (e.g., high education-num, high age, certain occupations), and how does the current input deviate from such patterns?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "lower", "new_value": 12}, {"feature_key": "age", "action": "lower", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "higher", "new_value": 60}, {"feature_key": "capital-gain", "action": "higher", "new_value": 1000}]
+- Explanation: High-income profiles in this dataset are typically associated with higher education levels (education-num > 12), older age (age > 40), occupations in higher-paying sectors (e.g., Prof-specialty, Exec-managerial), longer hours per week (>40), and non-zero capital gains. The current input has an education-num of 9 (HS-grad), age of 34, occupation of 'Transport-moving' (low-wage), and zero capital gain, which deviates from these patterns. Increasing education-num, age, and capital-gain, along with shifting occupation and hours per week, would more closely align with the profile of individuals predicted to earn more than $50K.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

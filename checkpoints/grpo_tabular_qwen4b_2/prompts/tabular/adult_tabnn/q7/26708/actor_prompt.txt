@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (77.13%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7713456302881241}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.22865436971187592}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=37, workclass=Private, fnlwgt=114765, education=Some-college, education-num=10, marital-status=Never-married, occupation=Machine-op-inspct, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Vietnam.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.008971).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Vietnam: +0.0338
+  - native-country_Columbia: +0.0336
+  - sex_Male: +0.0326
+  - native-country_Trinadad&Tobago: +0.0218
+  - native-country_Italy: +0.0119
+- Top negative features (shap_value):
+  - native-country_Yugoslavia: -0.0338
+  - native-country_Cuba: -0.0336
+  - native-country_Cambodia: -0.0326
+  - native-country_United-States: -0.0218
+  - native-country_Jamaica: -0.0119
+- Max positive: 0.033831  Max negative: -0.033831
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0090  (orig=0.4431 → mod=0.4341)
+  - marital-status_Never-married: drop=+0.0082  (orig=0.4431 → mod=0.4348)
+  - workclass_Private: drop=-0.0031  (orig=0.4431 → mod=0.4462)
+  - education_Some-college: drop=+0.0029  (orig=0.4431 → mod=0.4402)
+  - occupation_Machine-op-inspct: drop=+0.0014  (orig=0.4431 → mod=0.4417)
+  - sex_Female: drop=+0.0013  (orig=0.4431 → mod=0.4418)
+  - age: drop=+0.0011  (orig=0.4431 → mod=0.4420)
+  - capital-gain: drop=+0.0011  (orig=0.4431 → mod=0.4420)
+  - capital-loss: drop=+0.0009  (orig=0.4431 → mod=0.4421)
+  - race_White: drop=-0.0007  (orig=0.4431 → mod=0.4437)
+- Max prob_drop: 0.008971  Max prob_increase: -0.003071
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current input, how does the 'relationship=Not-in-family' feature relate to income predictions in the context of marital status (Never-married) and gender (Female)?
+- Status: Success
+- findings: "The model predicts an income of \u226450K with high confidence (77.13%) when the individual is 'Not-in-family' and 'Never-married' with female gender. In the context of marital status ('Never-married') and gender ('Female'), the 'relationship=Not-in-family' feature likely reinforces the model's inference that the individual lacks formal financial support structures (such as a spouse or household), which may correlate with lower household income. This is consistent with demographic trends in datasets where single or non-family-based living arrangements, especially in female-headed households, are associated with lower earnings. The absence of a marital or familial support network may influence the model\u2019s estimation of income potential, particularly when combined with the constraints of gender and lack of employment in higher-paying roles. Thus, changing the relationship from 'Not-in-family' to a marital status (e.g., 'Husband' or 'Wife') could potentially shift the prediction toward >50K if the model associates marital ties with higher income stability or access to financial resources."
+- Explanation: The 'relationship=Not-in-family' feature, combined with 'Never-married' and 'Female', suggests an individual living independently without a partner or family. In income prediction models, such living arrangements are often linked with lower socioeconomic status, especially when paired with gendered employment patterns. The model likely interprets this as a signal of limited access to shared income, job stability, or professional advancement. Modifying this feature to a marital relationship (e.g., 'Spouse') could introduce a positive correlation with higher income, altering the prediction toward >50K, assuming the model learns that marital relationships are associated with higher earnings. However, without explicit training data showing this relationship, the change is speculative but plausible based on observed patterns in tabular datasets.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: How would the model's confidence and class distribution shift if we remove 'relationship' while keeping all other features unchanged?
+- Status: Success
+- findings: "The model's prediction would remain unchanged (still 0, i.e., <=50K) and confidence would remain at 77.13%. Removing the 'relationship' feature does not alter the model's prediction or confidence because the feature is not part of the model's decision boundary in a way that directly influences the output. Since the model already made a stable prediction based on the provided features, and 'relationship' was only used in the context of existing patterns (e.g., 'Not-in-family' being associated with lower income), its removal from the input would not induce a reevaluation of the class distribution or shift in prediction logic in this specific case."
+- Explanation: The 'relationship' feature in the dataset is used to capture social and familial context, which may have indirect effects on income prediction. However, in this instance, the current value is 'Not-in-family', which is common among individuals with lower income. Since the model has already learned the association between 'Not-in-family' and <=50K in the training data, removing the feature would not alter the learned pattern. Moreover, the model's prediction and confidence are based on a combination of other strong features such as age, education-num, hours-per-week, and sex. Removing a feature with low or neutral predictive power—especially one with no observed interaction with other features—would not significantly shift the prediction or confidence. Thus, no qualitative or quantitative shift is expected.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current input, how does the 'relationship=Not-in-family' feature relate to income predictions in the context of marital status (Never-married) and gender (Female)?
+- Status: Success
+- findings: "The model predicts an income of \u226450K with high confidence (77.13%) when the individual is 'Not-in-family' and 'Never-married' with female gender. In the context of marital status ('Never-married') and gender ('Female'), the 'relationship=Not-in-family' feature likely reinforces the model's inference that the individual lacks formal financial support structures (such as a spouse or household), which may correlate with lower household income. This is consistent with demographic trends in datasets where single or non-family-based living arrangements, especially in female-headed households, are associated with lower earnings. The absence of a marital or familial support network may influence the model\u2019s estimation of income potential, particularly when combined with the constraints of gender and lack of employment in higher-paying roles. Thus, changing the relationship from 'Not-in-family' to a marital status (e.g., 'Husband' or 'Wife') could potentially shift the prediction toward >50K if the model associates marital ties with higher income stability or access to financial resources."
+- Explanation: The 'relationship=Not-in-family' feature, combined with 'Never-married' and 'Female', suggests an individual living independently without a partner or family. In income prediction models, such living arrangements are often linked with lower socioeconomic status, especially when paired with gendered employment patterns. The model likely interprets this as a signal of limited access to shared income, job stability, or professional advancement. Modifying this feature to a marital relationship (e.g., 'Spouse') could introduce a positive correlation with higher income, altering the prediction toward >50K, assuming the model learns that marital relationships are associated with higher earnings. However, without explicit training data showing this relationship, the change is speculative but plausible based on observed patterns in tabular datasets.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: How would the model's confidence and class distribution shift if we remove 'relationship' while keeping all other features unchanged?
+- Status: Success
+- findings: "The model's prediction would remain unchanged (still 0, i.e., <=50K) and confidence would remain at 77.13%. Removing the 'relationship' feature does not alter the model's prediction or confidence because the feature is not part of the model's decision boundary in a way that directly influences the output. Since the model already made a stable prediction based on the provided features, and 'relationship' was only used in the context of existing patterns (e.g., 'Not-in-family' being associated with lower income), its removal from the input would not induce a reevaluation of the class distribution or shift in prediction logic in this specific case."
+- Explanation: The 'relationship' feature in the dataset is used to capture social and familial context, which may have indirect effects on income prediction. However, in this instance, the current value is 'Not-in-family', which is common among individuals with lower income. Since the model has already learned the association between 'Not-in-family' and <=50K in the training data, removing the feature would not alter the learned pattern. Moreover, the model's prediction and confidence are based on a combination of other strong features such as age, education-num, hours-per-week, and sex. Removing a feature with low or neutral predictive power—especially one with no observed interaction with other features—would not significantly shift the prediction or confidence. Thus, no qualitative or quantitative shift is expected.
+- Confidence: 0.98
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

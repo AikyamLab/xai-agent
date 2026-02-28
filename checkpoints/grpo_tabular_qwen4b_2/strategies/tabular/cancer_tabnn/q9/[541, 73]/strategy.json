@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous pattern recognition with rigorous XAI tools to detect shared spurious features that may not be semantically meaningful but have high attribution. Autonomous analysis allows for initial pattern observation across misclassified instances, while XAI tools provide quantitative, model-internal attributions to validate spurious correlations. This ensures both qualitative insight and statistical confidence in identifying features that are influential yet misleading.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Compare the feature values of instances 541 and 73 across all input columns to identify which features are present in both with similar magnitudes or ranges.",
+      "expected_output": "A list of features that appear in both instances with overlapping value ranges or patterns (e.g., high mean radius, moderate texture, similar concavity)."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Assess whether any of the shared features (e.g., mean radius, area, compactness) are semantically related to malignancy or benignity in cancer classification, and whether their values suggest misleading correlations.",
+      "expected_output": "A reasoned assessment of whether the shared features are semantically relevant or spurious in context of cancer diagnosis."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "ablate_each": true,
+        "measure_change": "probability"
+      }
+    },
+    "reasoning": "SHAP identifies feature importance across instances and highlights shared high-attribution features. Integrated Gradients provide gradient-based attribution that captures model sensitivity to each feature, revealing spurious influence. Sensitivity analysis quantifies how much prediction changes when a feature is removed, helping confirm whether shared features drive misclassification despite lack of semantic relevance."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP identifies feature importance across instances and highlights shared high-attribution features. Integrated Gradients provide gradient-based attribution that captures model sensitivity to each feature, revealing spurious influence. Sensitivity analysis quantifies how much prediction changes when a feature is removed, helping confirm whether shared features drive misclassification despite lack of semantic relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP identifies feature importance across instances and highlights shared high-attribution features. Integrated Gradients provide gradient-based attribution that captures model sensitivity to each feature, revealing spurious influence. Sensitivity analysis quantifies how much prediction changes when a feature is removed, helping confirm whether shared features drive misclassification despite lack of semantic relevance.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP identifies feature importance across instances and highlights shared high-attribution features. Integrated Gradients provide gradient-based attribution that captures model sensitivity to each feature, revealing spurious influence. Sensitivity analysis quantifies how much prediction changes when a feature is removed, helping confirm whether shared features drive misclassification despite lack of semantic relevance.",
+      "parameters": {
+        "ablate_each": true,
+        "measure_change": "probability"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

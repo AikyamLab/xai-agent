@@ -1,0 +1,131 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (81.84%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.18157221376895905}
+
+## Input Data
+Features: age=19, workclass=Private, fnlwgt=148644, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Adm-clerical, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.01526).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0644
+  - sex_Male: +0.0207
+  - native-country_Columbia: +0.0207
+  - native-country_France: +0.0148
+  - capital-loss: +0.0144
+- Top negative features (shap_value):
+  - fnlwgt: -0.0644
+  - native-country_Cambodia: -0.0207
+  - native-country_Cuba: -0.0207
+  - native-country_Germany: -0.0148
+  - hours-per-week: -0.0144
+- Max positive: 0.06438  Max negative: -0.06438
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2033
+  - capital-loss <= -0.22: +0.1155
+  - age <= -0.80: +0.0897
+  - education-num <= -0.44: +0.0857
+  - education_1st-4th <= 0.00: +0.0661
+- Top negative features (weight):
+  - native-country_South <= 0.00: -0.0550
+  - native-country_Thailand <= 0.00: -0.0513
+  - native-country_Dominican-Republic <= 0.00: -0.0365
+- Max positive: 0.203336  Max negative: -0.054955
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0170
+  - marital-status_Never-married: +0.0088
+  - relationship_Own-child: +0.0083
+  - education_HS-grad: +0.0051
+  - occupation_Adm-clerical: +0.0035
+- Top negative features (attribution_score):
+  - race_White: -0.0021
+  - sex_Female: -0.0009
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.017003  Max negative: -0.002103
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0153  (orig=0.4547 → mod=0.4395)
+  - relationship_Own-child: drop=+0.0071  (orig=0.4547 → mod=0.4476)
+  - education_HS-grad: drop=+0.0046  (orig=0.4547 → mod=0.4501)
+  - marital-status_Never-married: drop=+0.0043  (orig=0.4547 → mod=0.4504)
+  - native-country_United-States: drop=+0.0029  (orig=0.4547 → mod=0.4519)
+  - occupation_Adm-clerical: drop=+0.0017  (orig=0.4547 → mod=0.4530)
+  - education-num: drop=+0.0016  (orig=0.4547 → mod=0.4531)
+  - race_White: drop=-0.0016  (orig=0.4547 → mod=0.4563)
+  - capital-loss: drop=+0.0014  (orig=0.4547 → mod=0.4533)
+  - capital-gain: drop=+0.0013  (orig=0.4547 → mod=0.4534)
+- Max prob_drop: 0.01526  Max prob_increase: -0.001595
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the input features, which features are known in the domain literature or dataset to be strongly associated with income levels ≤50K vs >50K, especially considering gender, education, workclass, and marital status?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: In the U.S. Census Income Dataset (used in the Adult Income Prediction task), features like age, education level (education-num), marital status, occupation, and hours-per-week are well-documented to strongly correlate with income levels. Individuals with lower education levels (e.g., HS-grad, education-num=9), younger age (age=19), unmarried status (Never-married), lower-paying occupations (e.g., Adm-clerical), and fewer working hours (40 hours/week) are consistently associated with income ≤50K. In contrast, higher education, longer hours, married status, or high-skill occupations (e.g., Prof-specialty) are strongly associated with income >50K. Changing these features toward values observed in high-income groups would increase the likelihood of predicting >50K, thus highlighting the key distinctions that move the prediction from ≤50K to >50K.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the values of features like education-num, age, marital-status, and occupation differ in their typical distribution between <=50K and >50K individuals, and which could be decisive in this case?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 39}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the target income group (>50K), individuals tend to have higher education levels (higher education-num), older ages, and more stable marital statuses such as 'Married-civ-spouse' or 'Wife'. Occupations like 'Prof-specialty' or 'Exec-managerial' are strongly associated with higher income brackets. The current individual has a low age (19), only a HS-grad (education-num=9), is 'Never-married', and holds an 'Adm-clerical' occupation—both of which are typical of the <=50K group. Changing any of these features toward the >50K distribution would significantly shift the model's prediction. Particularly, increasing education-num and age, and changing marital-status and occupation, are key drivers in distinguishing the <=50K from >50K predictions.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the input features, which features are known in the domain literature or dataset to be strongly associated with income levels ≤50K vs >50K, especially considering gender, education, workclass, and marital status?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: In the U.S. Census Income Dataset (used in the Adult Income Prediction task), features like age, education level (education-num), marital status, occupation, and hours-per-week are well-documented to strongly correlate with income levels. Individuals with lower education levels (e.g., HS-grad, education-num=9), younger age (age=19), unmarried status (Never-married), lower-paying occupations (e.g., Adm-clerical), and fewer working hours (40 hours/week) are consistently associated with income ≤50K. In contrast, higher education, longer hours, married status, or high-skill occupations (e.g., Prof-specialty) are strongly associated with income >50K. Changing these features toward values observed in high-income groups would increase the likelihood of predicting >50K, thus highlighting the key distinctions that move the prediction from ≤50K to >50K.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the values of features like education-num, age, marital-status, and occupation differ in their typical distribution between <=50K and >50K individuals, and which could be decisive in this case?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 39}, {"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the target income group (>50K), individuals tend to have higher education levels (higher education-num), older ages, and more stable marital statuses such as 'Married-civ-spouse' or 'Wife'. Occupations like 'Prof-specialty' or 'Exec-managerial' are strongly associated with higher income brackets. The current individual has a low age (19), only a HS-grad (education-num=9), is 'Never-married', and holds an 'Adm-clerical' occupation—both of which are typical of the <=50K group. Changing any of these features toward the >50K distribution would significantly shift the model's prediction. Particularly, increasing education-num and age, and changing marital-status and occupation, are key drivers in distinguishing the <=50K from >50K predictions.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.18157221376895905}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

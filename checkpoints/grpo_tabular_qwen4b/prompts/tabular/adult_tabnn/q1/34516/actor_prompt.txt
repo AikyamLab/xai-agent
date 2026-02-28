@@ -1,0 +1,123 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6773
+
+## Input Data
+Features: age=37, workclass=Private, fnlwgt=359001, education=Assoc-voc, education-num=11, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=15024, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain > -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-gain.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-gain (prob drop: 0.015485).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.0992
+  - native-country_Cambodia: +0.0369
+  - native-country_United-States: +0.0339
+  - hours-per-week: +0.0230
+  - native-country_Yugoslavia: +0.0206
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.0992
+  - sex_Male: -0.0369
+  - native-country_Trinadad&Tobago: -0.0339
+  - capital-loss: -0.0230
+  - native-country_Vietnam: -0.0206
+- Max positive: 0.099221  Max negative: -0.099221
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain > -0.15: +0.2228
+  - -0.05 < education-num <= 1.13: +0.0755
+  - native-country_Vietnam <= 0.00: +0.0723
+  - marital-status_Married-AF-spouse <= 0.00: +0.0164
+  - native-country_Portugal <= 0.00: +0.0110
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.1127
+  - native-country_China <= 0.00: -0.0726
+  - native-country_Laos <= 0.00: -0.0547
+  - relationship_Wife <= 0.00: -0.0537
+  - native-country_Guatemala <= 0.00: -0.0334
+- Max positive: 0.222767  Max negative: -0.112659
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-gain: +0.0187
+  - marital-status_Married-civ-spouse: +0.0133
+  - relationship_Husband: +0.0124
+  - sex_Male: +0.0108
+  - fnlwgt: +0.0092
+- Top negative features (attribution_score):
+  - occupation_Transport-moving: -0.0051
+  - workclass_Private: -0.0020
+  - age: -0.0013
+  - education_Assoc-voc: -0.0011
+  - capital-loss: -0.0009
+- Max positive: 0.0187  Max negative: -0.005124
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=+0.0155  (orig=0.6631 → mod=0.6476)
+  - sex_Male: drop=+0.0081  (orig=0.6631 → mod=0.6550)
+  - marital-status_Married-civ-spouse: drop=+0.0071  (orig=0.6631 → mod=0.6560)
+  - relationship_Husband: drop=+0.0065  (orig=0.6631 → mod=0.6566)
+  - hours-per-week: drop=+0.0042  (orig=0.6631 → mod=0.6589)
+  - occupation_Transport-moving: drop=-0.0039  (orig=0.6631 → mod=0.6670)
+  - fnlwgt: drop=+0.0037  (orig=0.6631 → mod=0.6594)
+  - education-num: drop=+0.0033  (orig=0.6631 → mod=0.6599)
+  - native-country_United-States: drop=+0.0018  (orig=0.6631 → mod=0.6613)
+  - education_Assoc-voc: drop=-0.0011  (orig=0.6631 → mod=0.6643)
+- Max prob_drop: 0.015485  Max prob_increase: -0.003853
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Map each input feature to its potential business or demographic significance in the context of income prediction (e.g., age, education, occupation, sex).
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": "work experience", "explanation": "Age is a proxy for work experience, with older individuals generally having more career accumulation and potentially higher income levels."}, {"feature_key": "education-num", "action": "relevant", "new_value": "skill level and career advancement", "explanation": "Higher education levels correlate with better job opportunities, specialized skills, and higher-paying positions, directly influencing income potential."}, {"feature_key": "occupation", "action": "relevant", "new_value": "income class and job type", "explanation": "Occupation directly determines job category and pay scale; for example, 'Transport-moving' is generally a lower-wage occupation compared to managerial roles, which may limit income potential."}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": "work intensity and commitment", "explanation": "Higher working hours often correlate with greater income, especially in high-demand or manual jobs, suggesting increased effort may contribute to higher earnings."}, {"feature_key": "sex", "action": "relevant", "new_value": "gender-based pay disparities", "explanation": "In many labor markets, males historically earn more than females, even with similar qualifications, which can influence income predictions, though this factor is often controversial and context-dependent."}]
+- Explanation: The features most directly impacting income prediction in this context are those that reflect human capital, work intensity, and occupational classification. Age and education provide foundational indicators of skill and experience. Occupation and hours-per-week reflect immediate job-related income potential. Sex, while a demographic factor, remains relevant in historical context due to observed pay gaps. These features collectively help explain the model's confidence in predicting income greater than 50K, with education-num and hours-per-week being particularly salient in shaping such a prediction.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Assess whether certain features (e.g., sex, race, marital-status) are likely to be correlated with income outcomes, especially given the model's prediction of '>50K' for a male White husband with middle education and private work.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "capital-gain", "action": "increase", "new_value": 20000}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-spouse-absent"}]
+- Explanation: The model predicted income >50K with high confidence (67.73%) for a male, White, married husband with an Associate's vocational education and private employment. While the base features like 'sex' and 'race' are strongly correlated with income in historical datasets (e.g., higher income among males and whites), the primary drivers of high income are more directly tied to measurable work and education indicators. Higher 'education-num' (beyond 11) correlates with better job quality and pay, especially in roles like 'Prof-specialty'. Increased 'hours-per-week' and 'capital-gain' directly signal stronger economic activity and likely higher salaries. The 'occupation' feature has a stronger impact than marital-status in income prediction; professions such as 'Prof-specialty' typically have much higher income than 'Transport-moving'. Marital-status may have a secondary effect, but 'Married-spouse-absent' is not consistently linked to higher income compared to 'Married-civ-spouse'—so changing it to a less correlated category reduces its impact on prediction. Thus, the most influential features for a high-income prediction are those signaling higher skill, effort, and profession-level earnings.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative importance of features like 'education-num', 'age', and 'occupation' by considering known socioeconomic patterns where higher-income individuals often have higher education or stable employment.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "capital-gain", "action": "increase", "new_value": 20000}, {"feature_key": "age", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}]
+- Explanation: Based on socioeconomic patterns, higher education (measured by education-num) is strongly correlated with higher income, as individuals with higher education levels often secure better-paying jobs. Increasing education-num from 11 (Assoc-voc) to 16 (e.g., Bachelors or Masters) would significantly improve income prediction. Additionally, occupation strongly influences income; 'Transport-moving' is a lower-wage job compared to 'Exec-managerial', which is associated with high income. Hours-per-week and capital-gain also contribute positively—longer work hours and higher capital gains (e.g., from investments or bonuses) are linked to higher income. Age plays a moderate role, with older individuals often having more career accumulation, but its impact is generally less direct than education or occupation. Thus, education-num and occupation are the most critical features, followed by hours-per-week and capital-gain, with age as a secondary contributor.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

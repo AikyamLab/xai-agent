@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change hours-per-week, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (53.40%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5339913964271545}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.46600860357284546}]
+- Part to Change: hours-per-week
+
+## Input Data
+Features: age=21, workclass=Private, fnlwgt=44793, education=Some-college, education-num=10, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=65, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: -0.014232).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0481
+  - native-country_Columbia: +0.0222
+  - native-country_Vietnam: +0.0200
+  - age: +0.0163
+  - occupation_Transport-moving: +0.0094
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0481
+  - native-country_Cuba: -0.0222
+  - native-country_Yugoslavia: -0.0200
+  - fnlwgt: -0.0163
+  - occupation_Tech-support: -0.0094
+- Max positive: 0.048119  Max negative: -0.048119
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=-0.0142  (orig=0.3856 → mod=0.3998)
+  - marital-status_Never-married: drop=+0.0077  (orig=0.3856 → mod=0.3778)
+  - relationship_Not-in-family: drop=+0.0072  (orig=0.3856 → mod=0.3784)
+  - sex_Male: drop=-0.0065  (orig=0.3856 → mod=0.3920)
+  - age: drop=+0.0057  (orig=0.3856 → mod=0.3798)
+  - education_Some-college: drop=+0.0040  (orig=0.3856 → mod=0.3816)
+  - occupation_Adm-clerical: drop=+0.0034  (orig=0.3856 → mod=0.3821)
+  - race_White: drop=-0.0018  (orig=0.3856 → mod=0.3874)
+  - workclass_Private: drop=+0.0017  (orig=0.3856 → mod=0.3838)
+  - fnlwgt: drop=-0.0014  (orig=0.3856 → mod=0.3870)
+- Max prob_drop: 0.007737  Max prob_increase: -0.014232
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with 53% confidence and the input includes 'hours-per-week' not explicitly provided, how would removing this feature affect the model's decision boundary in the context of male, young, non-married workers with low education level?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "remove", "new_value": null}]
+- Explanation: The model currently predicts <=50K with 53.4% confidence. The individual has a high hours-per-week value (65), which is often associated with higher income potential in labor markets. Since the feature is not explicitly provided in the decision boundary context, its absence may reduce the model's ability to capture work intensity, which is a key driver in income prediction for young, male, non-married individuals with limited education. Removing 'hours-per-week' could shift the decision boundary toward <=50K, as the model may rely more on features with lower predictive power (e.g., age, education-num) that are more indicative of lower income. Thus, the absence of hours-per-week introduces uncertainty and may weaken the model’s confidence in predicting higher income, effectively shifting the prediction toward <=50K due to unbalanced feature dynamics.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: How does the current prediction with known 'hours-per-week' compare to a hypothetical prediction where hours-per-week is set to zero or the median value for the population?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 0, "prediction_shift": "decrease"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "prediction_shift": "increase"}]
+- Explanation: The current prediction is that the individual's income is ≤50K (model output: 0, confidence: 53.40%). 'hours-per-week' is a feature that typically correlates with higher income levels in labor markets, especially when held constant across other demographics. In datasets like the Census Income dataset, individuals working more hours are more likely to earn above 50K. Setting 'hours-per-week' to 0 (a very low, unrealistic value) would likely reduce the probability of earning above 50K, resulting in a stronger prediction of ≤50K. Conversely, adjusting 'hours-per-week' to the median value (approximately 40 hours) would likely increase the chance of earning above 50K, thus shifting the prediction toward 1. Since the current value is 65 hours—already high—reducing it to 0 would make the prediction more conservative (i.e., stay at ≤50K), while lowering it to the median (40) would still push the prediction slightly toward higher income. However, given the model's baseline prediction of ≤50K and the lack of strong non-linear or interaction effects involving hours-per-week, the shift is expected to be modest. The direction of change is predictable based on domain knowledge and feature behavior.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the model predicts <=50K with 53% confidence and the input includes 'hours-per-week' not explicitly provided, how would removing this feature affect the model's decision boundary in the context of male, young, non-married workers with low education level?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "remove", "new_value": null}]
+- Explanation: The model currently predicts <=50K with 53.4% confidence. The individual has a high hours-per-week value (65), which is often associated with higher income potential in labor markets. Since the feature is not explicitly provided in the decision boundary context, its absence may reduce the model's ability to capture work intensity, which is a key driver in income prediction for young, male, non-married individuals with limited education. Removing 'hours-per-week' could shift the decision boundary toward <=50K, as the model may rely more on features with lower predictive power (e.g., age, education-num) that are more indicative of lower income. Thus, the absence of hours-per-week introduces uncertainty and may weaken the model’s confidence in predicting higher income, effectively shifting the prediction toward <=50K due to unbalanced feature dynamics.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: How does the current prediction with known 'hours-per-week' compare to a hypothetical prediction where hours-per-week is set to zero or the median value for the population?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 0, "prediction_shift": "decrease"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "prediction_shift": "increase"}]
+- Explanation: The current prediction is that the individual's income is ≤50K (model output: 0, confidence: 53.40%). 'hours-per-week' is a feature that typically correlates with higher income levels in labor markets, especially when held constant across other demographics. In datasets like the Census Income dataset, individuals working more hours are more likely to earn above 50K. Setting 'hours-per-week' to 0 (a very low, unrealistic value) would likely reduce the probability of earning above 50K, resulting in a stronger prediction of ≤50K. Conversely, adjusting 'hours-per-week' to the median value (approximately 40 hours) would likely increase the chance of earning above 50K, thus shifting the prediction toward 1. Since the current value is 65 hours—already high—reducing it to 0 would make the prediction more conservative (i.e., stay at ≤50K), while lowering it to the median (40) would still push the prediction slightly toward higher income. However, given the model's baseline prediction of ≤50K and the lack of strong non-linear or interaction effects involving hours-per-week, the shift is expected to be modest. The direction of change is predictable based on domain knowledge and feature behavior.
+- Confidence: 0.87
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

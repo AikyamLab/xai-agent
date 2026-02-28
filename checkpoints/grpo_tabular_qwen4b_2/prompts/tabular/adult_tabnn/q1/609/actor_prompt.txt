@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7455
+
+## Input Data
+Features: age=33, workclass=Local-gov, fnlwgt=217304, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Columbia.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.019234).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Columbia: +0.0397
+  - native-country_Vietnam: +0.0375
+  - hours-per-week: +0.0360
+  - native-country_Trinadad&Tobago: +0.0245
+  - sex_Male: +0.0227
+- Top negative features (shap_value):
+  - native-country_Cuba: -0.0397
+  - native-country_Yugoslavia: -0.0375
+  - capital-loss: -0.0360
+  - native-country_United-States: -0.0245
+  - native-country_Cambodia: -0.0227
+- Max positive: 0.039675  Max negative: -0.039675
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2089
+  - capital-loss <= -0.22: +0.1193
+  - native-country_Peru <= 0.00: +0.0514
+  - native-country_Canada <= 0.00: +0.0470
+  - native-country_Germany <= 0.00: +0.0302
+- Top negative features (weight):
+  - native-country_Puerto-Rico <= 0.00: -0.0580
+  - native-country_Columbia <= 0.00: -0.0505
+  - native-country_Italy <= 0.00: -0.0471
+  - native-country_Laos <= 0.00: -0.0339
+- Max positive: 0.208881  Max negative: -0.058009
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0198
+  - relationship_Not-in-family: +0.0173
+  - occupation_Adm-clerical: +0.0066
+  - age: +0.0059
+  - race_Black: +0.0019
+- Top negative features (attribution_score):
+  - sex_Male: -0.0092
+  - education-num: -0.0059
+  - education_Bachelors: -0.0050
+  - workclass_Local-gov: -0.0022
+  - fnlwgt: -0.0007
+- Max positive: 0.019798  Max negative: -0.009168
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0192  (orig=0.4367 → mod=0.4175)
+  - marital-status_Never-married: drop=+0.0181  (orig=0.4367 → mod=0.4186)
+  - age: drop=+0.0056  (orig=0.4367 → mod=0.4312)
+  - occupation_Adm-clerical: drop=+0.0052  (orig=0.4367 → mod=0.4315)
+  - native-country_United-States: drop=+0.0042  (orig=0.4367 → mod=0.4325)
+  - race_Black: drop=+0.0037  (orig=0.4367 → mod=0.4330)
+  - sex_Male: drop=-0.0023  (orig=0.4367 → mod=0.4390)
+  - workclass_Local-gov: drop=+0.0015  (orig=0.4367 → mod=0.4352)
+  - education-num: drop=-0.0009  (orig=0.4367 → mod=0.4376)
+  - capital-gain: drop=+0.0008  (orig=0.4367 → mod=0.4359)
+- Max prob_drop: 0.019234  Max prob_increase: -0.002289
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features in the adult dataset are historically known to strongly correlate with income level ≤50K based on domain knowledge?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 33}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: Based on domain knowledge from the Adult Income dataset, individuals with lower educational attainment, non-marital status, and lower occupational status (such as administrative clerical roles) are historically more likely to have incomes ≤50K. Age has a moderate but non-linear relationship, with middle-aged individuals often having more stable employment, though age alone is less decisive. Marital status, especially 'Never-married', is strongly associated with lower income levels in demographic studies. Occupation like 'Adm-clerical' typically reflects lower wage brackets. Hours-per-week, at 40, is average and not strongly predictive, but when combined with other low-wage indicators, it supports the ≤50K prediction. Education level such as 'Bachelors' is a relatively strong predictor of higher income; however, there are disparities in income outcomes based on race and gender, though race is not directly included in this list due to the sensitivity of such associations. The combination of low education, non-marital status, and lower-skill occupation forms a strong historical profile for ≤50K income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Given that the individual is male, Black, has a bachelor's degree, is never-married, works in a clerical role, and is 33 years old, how might these combinations be associated with lower income in the context of the dataset?
+- Status: Success
+- Explanation: The model predicted an income of <=50K with high confidence (74.55%). Given the individual's demographic and socioeconomic characteristics—male, Black, 33 years old, bachelor's degree, never-married, working in an 'Adm-clerical' role with 40 hours per week—the prediction may be influenced by historical patterns in the dataset that reflect systemic socio-economic disparities. While having a bachelor's degree is typically associated with higher earning potential, the intersection of race (Black) and marital status (Never-married) has been historically correlated with lower median incomes in U.S. labor data. The 'Local-gov' workclass, which often represents public sector employment, may be associated with lower wages compared to private sector or managerial roles. Additionally, the absence of capital gains or losses and the relatively low hours per week (40) may suggest limited economic mobility or part-time/insecure work, which can be more common among marginalized groups. These features collectively align with known socio-demographic biases in income datasets, where race, marital status, and employment sector act as proxies for structural barriers to higher income. Thus, the model's prediction is not solely based on individual traits but reflects complex underlying patterns shaped by historical labor market dynamics and discrimination.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the socio-demographic profile of individuals with <=50K income vs. >50K income in the known dataset trends (e.g., marital status, occupation, race, education).
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "race", "action": "change", "new_value": "Black"}]
+- Explanation: In known dataset trends (e.g., from the Census Income dataset), individuals with higher education levels and occupations in higher-paying categories (e.g., 'Prof-specialty', 'Exec-managerial') are more likely to earn >50K. The current profile shows 'Never-married', 'Adm-clerical' occupation, 'Bachelors' education, and 'Black' race—all of which are associated with lower income probabilities. While 'Bachelors' education is a positive indicator, it is often outweighed by other socio-demographic factors. 'Never-married' status and 'Adm-clerical' occupation are consistently linked to lower income brackets. Additionally, the 'Black' race category historically shows a lower income distribution compared to 'White' in this dataset. These factors collectively align with the model's prediction of <=50K income. The lack of high-paying occupation or capital gains further supports this outcome, reinforcing the confidence in the prediction.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

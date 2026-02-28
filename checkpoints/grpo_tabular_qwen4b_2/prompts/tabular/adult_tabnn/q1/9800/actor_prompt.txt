@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.8497
+
+## Input Data
+Features: age=17, workclass=Private, fnlwgt=147069, education=11th, education-num=7, marital-status=Never-married, occupation=Other-service, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=16, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.009675).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0640
+  - capital-loss: +0.0491
+  - workclass_Self-emp-not-inc: +0.0359
+  - sex_Male: +0.0247
+  - native-country_Columbia: +0.0228
+- Top negative features (shap_value):
+  - fnlwgt: -0.0640
+  - hours-per-week: -0.0491
+  - workclass_State-gov: -0.0359
+  - native-country_Cambodia: -0.0247
+  - native-country_Cuba: -0.0228
+- Max positive: 0.063968  Max negative: -0.063968
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2213
+  - capital-loss <= -0.22: +0.1113
+  - native-country_Peru <= 0.00: +0.1023
+  - education-num <= -0.44: +0.0954
+  - age <= -0.80: +0.0931
+- Top negative features (weight):
+  - native-country_Ecuador <= 0.00: -0.0273
+  - native-country_Japan <= 0.00: -0.0181
+- Max positive: 0.221255  Max negative: -0.027303
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0121
+  - age: +0.0121
+  - education-num: +0.0100
+  - relationship_Own-child: +0.0098
+  - marital-status_Never-married: +0.0097
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0038
+  - education_11th: -0.0015
+  - sex_Female: -0.0011
+  - workclass_Private: -0.0009
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.01211  Max negative: -0.003776
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0097  (orig=0.4625 → mod=0.4528)
+  - age: drop=+0.0094  (orig=0.4625 → mod=0.4531)
+  - relationship_Own-child: drop=+0.0091  (orig=0.4625 → mod=0.4534)
+  - hours-per-week: drop=+0.0086  (orig=0.4625 → mod=0.4539)
+  - marital-status_Never-married: drop=+0.0057  (orig=0.4625 → mod=0.4568)
+  - native-country_United-States: drop=-0.0025  (orig=0.4625 → mod=0.4650)
+  - occupation_Other-service: drop=+0.0025  (orig=0.4625 → mod=0.4600)
+  - workclass_Private: drop=-0.0024  (orig=0.4625 → mod=0.4649)
+  - capital-loss: drop=+0.0013  (orig=0.4625 → mod=0.4612)
+  - capital-gain: drop=+0.0012  (orig=0.4625 → mod=0.4613)
+- Max prob_drop: 0.009675  Max prob_increase: -0.002544
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which input features are biologically or socially plausible to influence income classification (e.g., age, education, sex, race)
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: Age, education level, occupation, and work hours are biologically and socially well-established factors that influence earning potential. Age correlates with work experience and career progression; higher education levels are associated with better job opportunities and higher salaries; occupation categories like 'Prof-specialty' typically command higher incomes than 'Other-service'; and longer working hours are often linked to higher income due to increased productivity or career commitment. The current values (e.g., age=17, education='11th') suggest limited earning capacity, which aligns with the model's prediction of income ≤50K. Changing these features to more income-positive values demonstrates plausible pathways to higher income, thereby grounding the prediction in real-world socioeconomic dynamics.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: Why would a 17-year-old, never-married female in a low-education level working in 'Other-service' have a lower income probability?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 17}, {"feature_key": "education", "action": "change", "new_value": "11th"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 16}]
+- Explanation: A 17-year-old individual is typically not in the labor force or in full-time employed roles, and the education level of '11th' indicates limited formal schooling, which correlates with lower skill sets and fewer income-earning opportunities. Being 'Never-married' may imply limited household or familial support systems that could influence economic stability. The occupation 'Other-service' is generally associated with lower median wages compared to managerial or technical roles. Finally, working 16 hours per week is below the typical threshold for full-time employment, which is often correlated with lower income potential. Together, these features form a profile consistent with the model's prediction of income ≤50K, as the dataset likely reflects socioeconomic patterns where education, age, employment duration, and occupation are strong predictors of income level.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the typical demographic profile of '>50K' vs '<=50K' individuals in the adult dataset
+- Status: Success
+- findings: [{"feature_key": "age", "description": "Individuals earning '>50K' tend to be significantly older, with a median age often above 40, whereas those earning '<=50K' are more frequently younger, with a median age around 30\u201335."}, {"feature_key": "education-num", "description": "Higher levels of education are strongly associated with '>50K' earnings. Individuals with 'Bachelors', 'Masters', or 'Doctorate' degrees are overrepresented among the '>50K' group, while those with lower education levels (e.g., '10th', '11th') are more common in the '<=50K' group."}, {"feature_key": "occupation", "description": "Occupations such as 'Prof-specialty', 'Exec-managerial', and 'Prof-pres' are strongly correlated with '>50K' earnings, while 'Other-service', 'Farming-fishing', and 'Adm-clerical' are more common among '<=50K' earners."}, {"feature_key": "marital-status", "description": "Marital status shows a clear pattern: individuals who are 'Married-civ-spouse', 'Married-spouse-absent', or 'Widowed' are more likely to earn '>50K', whereas 'Never-married' or 'Divorced' are more common in the '<=50K' group."}, {"feature_key": "hours-per-week", "description": "Those earning '>50K' typically work more hours per week (often above 40), while '<=50K' individuals work closer to or below 35 hours per week."}]
+- Explanation: Based on known sociodemographic patterns in the Adult Income Dataset, individuals earning above $50K are more likely to have higher educational attainment, higher ages, stable employment in high-wage occupations, and married or long-term partnered status. In contrast, individuals with lower education, younger age, and non-professional or service-sector jobs are more likely to earn $50K or less. The current case—age=17, education='11th', occupation='Other-service', marital-status='Never-married'—aligns with the typical profile of a '<=50K' individual, supporting the model's prediction.
+- Confidence: 0.98
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

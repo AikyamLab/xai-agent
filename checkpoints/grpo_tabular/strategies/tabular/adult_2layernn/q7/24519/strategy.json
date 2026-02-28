@@ -1,0 +1,50 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach is optimal because it combines autonomous reasoning about feature importance with empirical validation using XAI tools. Education-num is a numerically scaled feature and may influence model confidence; reasoning can identify its expected impact, while sensitivity analysis and SHAP can validate how removing or modifying it shifts prediction probabilities.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Given that education-num is a numeric representation of education level, and the current prediction is in favor of <=50K with moderate confidence, how would reducing this value affect the model's output if the individual is already in a lower education category?",
+      "expected_output": "Prediction likely remains <=50K, but confidence may decrease slightly due to reduced education signal, or potentially shift toward >50K if other features suggest advancement."
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the impact of education-num vs. other structural features (age, edu-level, occupation) on predicting income class.",
+      "expected_output": "Education-num will likely have high impact because it is a direct numerical proxy for education level, which is strongly correlated with income in the adult dataset."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "sensitivity_analysis",
+      "shap"
+    ],
+    "tool_params": {
+      "shap": {
+        "compute_distribution": true
+      },
+      "sensitivity_analysis": {
+        "analyze_alternatives": true
+      }
+    },
+    "reasoning": "SHAP provides global interpretability and quantifies feature importance relative to the prediction, while sensitivity analysis with leave-one-out ablation directly computes prediction changes when education-num is removed or altered. Together they provide both qualitative understanding and quantitative evidence of prediction shift."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides global interpretability and quantifies feature importance relative to the prediction, while sensitivity analysis with leave-one-out ablation directly computes prediction changes when education-num is removed or altered. Together they provide both qualitative understanding and quantitative evidence of prediction shift.",
+      "parameters": {
+        "analyze_alternatives": true
+      }
+    },
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides global interpretability and quantifies feature importance relative to the prediction, while sensitivity analysis with leave-one-out ablation directly computes prediction changes when education-num is removed or altered. Together they provide both qualitative understanding and quantitative evidence of prediction shift.",
+      "parameters": {
+        "compute_distribution": true
+      }
+    }
+  ]
+}

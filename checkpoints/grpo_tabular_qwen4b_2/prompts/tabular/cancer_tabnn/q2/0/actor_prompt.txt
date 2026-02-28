@@ -1,0 +1,100 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the tumor to be malignant. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: malignant
+Confidence: 0.9595
+
+## Input Data
+Features: mean radius=19.55, mean texture=28.77, mean perimeter=133.6, mean area=1207.0, mean smoothness=0.0926, mean compactness=0.2063, mean concavity=0.1784, mean concave points=0.1144, mean symmetry=0.1893, mean fractal dimension=0.06232, radius error=0.8426, texture error=1.199, perimeter error=7.158, area error=106.4, smoothness error=0.006356, compactness error=0.04765, concavity error=0.03863, concave points error=0.01519, symmetry error=0.01936, fractal dimension error=0.005252, worst radius=25.05, worst texture=36.27, worst perimeter=178.6, worst area=1926.0, worst smoothness=0.1281, worst compactness=0.5329, worst concavity=0.4251, worst concave points=0.1941, worst symmetry=0.2818, worst fractal dimension=0.1005
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean smoothness.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean perimeter (prob drop: 0.005902).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean smoothness: +0.0731
+  - smoothness error: +0.0613
+  - perimeter error: +0.0430
+  - worst concavity: +0.0257
+  - mean perimeter: +0.0219
+- Top negative features (shap_value):
+  - mean compactness: -0.0731
+  - compactness error: -0.0613
+  - area error: -0.0430
+  - worst concave points: -0.0257
+  - mean area: -0.0219
+- Max positive: 0.073112  Max negative: -0.073112
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean perimeter: drop=+0.0059  (orig=0.4899 → mod=0.4840)
+  - worst texture: drop=+0.0057  (orig=0.4899 → mod=0.4841)
+  - worst area: drop=+0.0049  (orig=0.4899 → mod=0.4849)
+  - worst radius: drop=+0.0031  (orig=0.4899 → mod=0.4868)
+  - mean concavity: drop=+0.0028  (orig=0.4899 → mod=0.4870)
+  - worst concave points: drop=+0.0027  (orig=0.4899 → mod=0.4872)
+  - mean concave points: drop=+0.0026  (orig=0.4899 → mod=0.4873)
+  - worst compactness: drop=+0.0021  (orig=0.4899 → mod=0.4878)
+  - worst concavity: drop=+0.0017  (orig=0.4899 → mod=0.4882)
+  - mean compactness: drop=-0.0016  (orig=0.4899 → mod=0.4915)
+- Max prob_drop: 0.005902  Max prob_increase: -0.001612
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that malignant tumors typically have higher mean radius, texture, and concavity, which features in the input are outliers or fall within benign ranges and may therefore have minimal impact on the malignant prediction?
+- Status: Success
+- findings: ["mean smoothness", "mean fractal dimension", "radius error", "texture error", "perimeter error", "area error", "smoothness error", "compactness error", "concavity error", "concave points error", "symmetry error", "fractal dimension error"]
+- Explanation: Malignant tumors are typically characterized by higher values in key features such as mean radius, mean texture, mean concavity, and worst counterparts. Among the available features, 'mean smoothness' is notably low (0.0926), which is consistent with benign tumors as malignant tumors tend to have irregular textures (higher smoothness error or lower smoothness). Similarly, 'mean fractal dimension' is low (0.06232), which is not typical of malignant tumors, as malignant tumors often show higher fractal complexity. Error features like radius, texture, perimeter, and area errors are also generally low and less discriminative, as they represent deviations and do not reliably distinguish malignancy. These features fall within benign ranges and thus may have minimal impact on the model's prediction of malignancy despite being part of the input. The worst values (e.g., worst radius, worst texture) are not included in this list because they are not available in the current input context and are not part of the provided current values.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the values of each feature against known distribution ranges for malignant vs benign tumors in breast cancer datasets. Which features are most likely to be insensitive to class change?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 15.0}, {"feature_key": "mean texture", "action": "change", "new_value": 20.0}, {"feature_key": "mean perimeter", "action": "change", "new_value": 100.0}, {"feature_key": "mean area", "action": "change", "new_value": 500.0}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.05}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher mean values for radius, texture, perimeter, area, and compactness, with mean smoothness being lower in benign cases. The current values (e.g., mean radius = 19.55, mean texture = 28.77) are in the malignant range. However, features like mean radius and mean texture are known to be strongly correlated with malignancy. In contrast, mean smoothness, while sensitive, has a relatively narrow range and is less discriminative when values are at lower ends. The features with the lowest expected contribution to malignancy prediction — particularly mean smoothness, mean fractal dimension, and certain error terms — are less discriminative. Based on established distributions, mean smoothness (0.0926) is relatively low and may not contribute significantly as malignancy is more strongly signaled by larger radius, texture, and perimeter values. Thus, changing these features to benign-like values (e.g., lower radius, texture, perimeter) has minimal impact on the model’s prediction, suggesting these features are less responsible. The error terms (e.g., smoothness error) are even less meaningful as they represent variability and are not consistently predictive. Therefore, low-contribution features are selected as those that, if altered, would not significantly shift the prediction from malignant.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that malignant tumors typically have higher mean radius, texture, and concavity, which features in the input are outliers or fall within benign ranges and may therefore have minimal impact on the malignant prediction?
+- Status: Success
+- findings: ["mean smoothness", "mean fractal dimension", "radius error", "texture error", "perimeter error", "area error", "smoothness error", "compactness error", "concavity error", "concave points error", "symmetry error", "fractal dimension error"]
+- Explanation: Malignant tumors are typically characterized by higher values in key features such as mean radius, mean texture, mean concavity, and worst counterparts. Among the available features, 'mean smoothness' is notably low (0.0926), which is consistent with benign tumors as malignant tumors tend to have irregular textures (higher smoothness error or lower smoothness). Similarly, 'mean fractal dimension' is low (0.06232), which is not typical of malignant tumors, as malignant tumors often show higher fractal complexity. Error features like radius, texture, perimeter, and area errors are also generally low and less discriminative, as they represent deviations and do not reliably distinguish malignancy. These features fall within benign ranges and thus may have minimal impact on the model's prediction of malignancy despite being part of the input. The worst values (e.g., worst radius, worst texture) are not included in this list because they are not available in the current input context and are not part of the provided current values.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the values of each feature against known distribution ranges for malignant vs benign tumors in breast cancer datasets. Which features are most likely to be insensitive to class change?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "change", "new_value": 15.0}, {"feature_key": "mean texture", "action": "change", "new_value": 20.0}, {"feature_key": "mean perimeter", "action": "change", "new_value": 100.0}, {"feature_key": "mean area", "action": "change", "new_value": 500.0}, {"feature_key": "mean smoothness", "action": "change", "new_value": 0.05}]
+- Explanation: In breast cancer datasets (e.g., Wisconsin Breast Cancer Dataset), malignant tumors typically exhibit higher mean values for radius, texture, perimeter, area, and compactness, with mean smoothness being lower in benign cases. The current values (e.g., mean radius = 19.55, mean texture = 28.77) are in the malignant range. However, features like mean radius and mean texture are known to be strongly correlated with malignancy. In contrast, mean smoothness, while sensitive, has a relatively narrow range and is less discriminative when values are at lower ends. The features with the lowest expected contribution to malignancy prediction — particularly mean smoothness, mean fractal dimension, and certain error terms — are less discriminative. Based on established distributions, mean smoothness (0.0926) is relatively low and may not contribute significantly as malignancy is more strongly signaled by larger radius, texture, and perimeter values. Thus, changing these features to benign-like values (e.g., lower radius, texture, perimeter) has minimal impact on the model’s prediction, suggesting these features are less responsible. The error terms (e.g., smoothness error) are even less meaningful as they represent variability and are not consistently predictive. Therefore, low-contribution features are selected as those that, if altered, would not significantly shift the prediction from malignant.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

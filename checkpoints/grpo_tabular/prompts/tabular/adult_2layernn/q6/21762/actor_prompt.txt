@@ -1,0 +1,126 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (70.88%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=19, workclass=Self-emp-not-inc, fnlwgt=30800, education=10th, education-num=6, marital-status=Married-spouse-absent, occupation=Adm-clerical, relationship=Unmarried, race=Amer-Indian-Eskimo, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.011258).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0378
+  - education-num: +0.0216
+  - education_Assoc-acdm: +0.0136
+  - native-country_France: +0.0128
+  - age: +0.0116
+- Top negative features (shap_value):
+  - hours-per-week: -0.0378
+  - capital-gain: -0.0216
+  - education_Assoc-voc: -0.0136
+  - native-country_Germany: -0.0128
+  - fnlwgt: -0.0116
+- Max positive: 0.037786  Max negative: -0.037786
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0113  (orig=0.4277 → mod=0.4164)
+  - fnlwgt: drop=+0.0073  (orig=0.4277 → mod=0.4204)
+  - relationship_Unmarried: drop=+0.0069  (orig=0.4277 → mod=0.4208)
+  - workclass_Self-emp-not-inc: drop=+0.0057  (orig=0.4277 → mod=0.4220)
+  - marital-status_Married-spouse-absent: drop=+0.0038  (orig=0.4277 → mod=0.4239)
+  - education_10th: drop=+0.0037  (orig=0.4277 → mod=0.4240)
+  - race_Amer-Indian-Eskimo: drop=+0.0036  (orig=0.4277 → mod=0.4241)
+  - age: drop=+0.0030  (orig=0.4277 → mod=0.4247)
+  - native-country_United-States: drop=-0.0024  (orig=0.4277 → mod=0.4301)
+  - occupation_Adm-clerical: drop=+0.0022  (orig=0.4277 → mod=0.4255)
+- Max prob_drop: 0.011258  Max prob_increase: -0.002371
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which features in the input are most likely to influence income prediction based on known socioeconomic patterns and the Model's architecture.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "capital-gain", "action": "change", "new_value": 5000}]
+- Explanation: The model prediction of income ≤50K is likely influenced by low education level (10th grade, education-num=6), a non-private workclass (Self-emp-not-inc), low-hours workweek (40), and near-zero capital gains. To flip the prediction, key socioeconomic drivers should be modified: increasing education-num to a professional level (e.g., 13 for some college or associate degree) and upgrading to a private sector job and professional occupation boost income likelihood. Increasing hours-per-week to over 40 and adding capital gains (indicative of assets) align with known predictors of high income. These changes reflect strong domain knowledge: higher education, professional work, full-time hours, and wealth generation are well-documented income drivers.
+- Confidence: 0.85
+
+### REASONING Task
+- Query: For the identified high-impact features, reason about how modifying them toward higher-income indicators would shift the model’s prediction from <=50K to >50K.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 14}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: To flip the model's prediction from <=50K to >50K, we should modify features strongly associated with higher income. Increasing 'education-num' to 14 (e.g., completing a bachelor's degree) signals higher education attainment. Changing 'workclass' to 'Private' (typically higher-income employment) and 'occupation' to 'Prof-specialty' (e.g., professional or technical roles) aligns with higher-earning profiles. Raising 'hours-per-week' to 50 suggests more extensive work hours, commonly correlated with higher earnings. Finally, introducing a non-zero 'capital-gain' (e.g., $1000) indicates asset appreciation or investment income, which can significantly influence income prediction. These changes collectively shift the feature profile toward typical high-income individuals.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction confidence (0.7088 for <=50K) with the predicted probability of >50K (0.2912) and determine the minimum shift required to cross the decision threshold.
+- Status: Success
+- findings: {"magnitude_of_change": "Moderate", "number_of_changes": "Multiple"}
+- Explanation: The model predicts <=50K with 70.88% confidence, indicating a strong bias toward lower income based on current features. To flip the prediction to >50K (requiring probability > 50%), the instance must shift toward characteristics typically associated with higher income. Current features such as age=19, education='10th' (education-num=6), workclass='Self-emp-not-inc', occupation='Adm-clerical', and sex='Female' are all below typical thresholds for high-income predictions. Significant changes would be needed in features like education (e.g., increase education-num to 13+ and education to 'Bachelors' or higher), workclass (e.g., switch to 'Private' or 'Self-emp-inc'), occupation (e.g., 'Exec-managerial' or 'Prof-specialty'), capital-gain (e.g., >0), and possibly hours-per-week (>40). A single feature change is unlikely to cross the threshold due to the low baseline confidence of >50K prediction (0.2912), suggesting a combination of multiple improvements is necessary.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which features in the input are most likely to influence income prediction based on known socioeconomic patterns and the Model's architecture.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "capital-gain", "action": "change", "new_value": 5000}]
+- Explanation: The model prediction of income ≤50K is likely influenced by low education level (10th grade, education-num=6), a non-private workclass (Self-emp-not-inc), low-hours workweek (40), and near-zero capital gains. To flip the prediction, key socioeconomic drivers should be modified: increasing education-num to a professional level (e.g., 13 for some college or associate degree) and upgrading to a private sector job and professional occupation boost income likelihood. Increasing hours-per-week to over 40 and adding capital gains (indicative of assets) align with known predictors of high income. These changes reflect strong domain knowledge: higher education, professional work, full-time hours, and wealth generation are well-documented income drivers.
+- Confidence: 0.85
+
+### REASONING Task
+- Query: For the identified high-impact features, reason about how modifying them toward higher-income indicators would shift the model’s prediction from <=50K to >50K.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 14}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: To flip the model's prediction from <=50K to >50K, we should modify features strongly associated with higher income. Increasing 'education-num' to 14 (e.g., completing a bachelor's degree) signals higher education attainment. Changing 'workclass' to 'Private' (typically higher-income employment) and 'occupation' to 'Prof-specialty' (e.g., professional or technical roles) aligns with higher-earning profiles. Raising 'hours-per-week' to 50 suggests more extensive work hours, commonly correlated with higher earnings. Finally, introducing a non-zero 'capital-gain' (e.g., $1000) indicates asset appreciation or investment income, which can significantly influence income prediction. These changes collectively shift the feature profile toward typical high-income individuals.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction confidence (0.7088 for <=50K) with the predicted probability of >50K (0.2912) and determine the minimum shift required to cross the decision threshold.
+- Status: Success
+- findings: {"magnitude_of_change": "Moderate", "number_of_changes": "Multiple"}
+- Explanation: The model predicts <=50K with 70.88% confidence, indicating a strong bias toward lower income based on current features. To flip the prediction to >50K (requiring probability > 50%), the instance must shift toward characteristics typically associated with higher income. Current features such as age=19, education='10th' (education-num=6), workclass='Self-emp-not-inc', occupation='Adm-clerical', and sex='Female' are all below typical thresholds for high-income predictions. Significant changes would be needed in features like education (e.g., increase education-num to 13+ and education to 'Bachelors' or higher), workclass (e.g., switch to 'Private' or 'Self-emp-inc'), occupation (e.g., 'Exec-managerial' or 'Prof-specialty'), capital-gain (e.g., >0), and possibly hours-per-week (>40). A single feature change is unlikely to cross the threshold due to the low baseline confidence of >50K prediction (0.2912), suggesting a combination of multiple improvements is necessary.
+- Confidence: 0.85
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=19, workclass='Self-emp-not-inc', fnlwgt=30800, education='10th', education-num=6, marital-status='Married-spouse-absent', occupation='Adm-clerical', relationship='Unmarried', race='Amer-Indian-Eskimo', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

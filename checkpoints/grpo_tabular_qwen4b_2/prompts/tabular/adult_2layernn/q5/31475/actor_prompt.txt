@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the native-country feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.6246
+
+## Part to be Masked
+native-country
+
+## Input Data
+Features: age=18, workclass=State-gov, fnlwgt=109445, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=25, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.010376).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0364
+  - native-country_Columbia: +0.0172
+  - native-country_Japan: +0.0146
+  - age: +0.0106
+  - occupation_Tech-support: +0.0094
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0364
+  - native-country_Cuba: -0.0172
+  - native-country_Laos: -0.0146
+  - fnlwgt: -0.0106
+  - occupation_Transport-moving: -0.0094
+- Max positive: 0.036358  Max negative: -0.036358
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0104  (orig=0.4072 → mod=0.3969)
+  - sex_Male: drop=-0.0099  (orig=0.4072 → mod=0.4171)
+  - native-country_United-States: drop=-0.0058  (orig=0.4072 → mod=0.4131)
+  - age: drop=+0.0055  (orig=0.4072 → mod=0.4017)
+  - relationship_Own-child: drop=+0.0040  (orig=0.4072 → mod=0.4032)
+  - marital-status_Never-married: drop=+0.0037  (orig=0.4072 → mod=0.4035)
+  - occupation_Other-service: drop=+0.0034  (orig=0.4072 → mod=0.4039)
+  - education_HS-grad: drop=+0.0032  (orig=0.4072 → mod=0.4041)
+  - fnlwgt: drop=+0.0029  (orig=0.4072 → mod=0.4043)
+  - workclass_State-gov: drop=-0.0022  (orig=0.4072 → mod=0.4095)
+- Max prob_drop: 0.010376  Max prob_increase: -0.009875
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model's prediction is <=50K with high confidence (0.6246), and the input does not specify native-country, assess whether native-country is likely to be a strong predictor in the context of the dataset and model architecture.
+- Status: Success
+- findings: {"is_native_country_influential": true, "reasoning_basis": "In the context of the U.S. Census Income dataset (used in the original Adult dataset), 'native-country' is a known categorical feature that has been empirically shown to have a non-trivial influence on income prediction. Countries such as 'India', 'Cuba', 'Honduras', and 'Philippines' are associated with higher probabilities of earning >50K, while others like 'United-States' tend to have stronger correlations with lower income groups depending on demographic interactions. Although the model currently predicts <=50K with 62.46% confidence, masking native-country introduces uncertainty about whether the model would shift its decision if the feature were removed or altered. Given that this feature is both categorical and high-cardinality (with 43 distinct values), it can act as a strong signal when combined with other features like age, education, and workclass. However, in this specific instance, the input is from 'United-States', which is a dominant category and may not strongly differentiate income outcomes due to its large representation in the dataset. Therefore, while native-country is generally influential, its impact here may be context-dependent and potentially overshadowed by more dominant predictors such as sex, education, and relationship.", "impact_on_prediction": "Moderate to high, depending on the native country and demographic interaction with other features"}
+- Explanation: Native-country is typically an influential feature in income prediction within the Adult dataset, especially when considering regional socioeconomic differences. Although the current prediction is <=50K with moderate confidence, removing or masking this feature increases uncertainty. If the individual were from a country linked to higher income (e.g., 'Cuba' or 'Iran'), the model might shift to a higher income prediction. However, since the input originates from the 'United-States', a country frequently associated with higher income variation, the feature may contribute marginally to the prediction. Still, given the model's architecture and the presence of categorical interactions, native-country is not negligible and should be considered a potential driver of prediction shift.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the observed prediction with what would be expected if native-country were absent or uniformly set to a default value (e.g., 'United-States'), considering the model's training data distribution.
+- Status: Success
+- findings: "The absence of native-country information would not lead to a significant shift in the prediction probability."
+- Explanation: The model predicted the individual's income as '<=50K' with 62.46% confidence. Native-country is a categorical feature present in the training data, and its distribution across different income groups shows that it has a moderate but not dominant influence on the outcome. In the provided input, the individual's native-country is 'United-States', which is the most common value in the training dataset. Masking or setting it to a default such as 'United-States' would not introduce a meaningful change because the majority of training samples with similar demographic profiles (e.g., age, sex, race, education) are from the United-States. Additionally, the model likely learns a balanced pattern where native-country acts as a weak or secondary signal. Therefore, removing or replacing this feature does not significantly alter the prediction probability.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model's prediction is <=50K with high confidence (0.6246), and the input does not specify native-country, assess whether native-country is likely to be a strong predictor in the context of the dataset and model architecture.
+- Status: Success
+- findings: {"is_native_country_influential": true, "reasoning_basis": "In the context of the U.S. Census Income dataset (used in the original Adult dataset), 'native-country' is a known categorical feature that has been empirically shown to have a non-trivial influence on income prediction. Countries such as 'India', 'Cuba', 'Honduras', and 'Philippines' are associated with higher probabilities of earning >50K, while others like 'United-States' tend to have stronger correlations with lower income groups depending on demographic interactions. Although the model currently predicts <=50K with 62.46% confidence, masking native-country introduces uncertainty about whether the model would shift its decision if the feature were removed or altered. Given that this feature is both categorical and high-cardinality (with 43 distinct values), it can act as a strong signal when combined with other features like age, education, and workclass. However, in this specific instance, the input is from 'United-States', which is a dominant category and may not strongly differentiate income outcomes due to its large representation in the dataset. Therefore, while native-country is generally influential, its impact here may be context-dependent and potentially overshadowed by more dominant predictors such as sex, education, and relationship.", "impact_on_prediction": "Moderate to high, depending on the native country and demographic interaction with other features"}
+- Explanation: Native-country is typically an influential feature in income prediction within the Adult dataset, especially when considering regional socioeconomic differences. Although the current prediction is <=50K with moderate confidence, removing or masking this feature increases uncertainty. If the individual were from a country linked to higher income (e.g., 'Cuba' or 'Iran'), the model might shift to a higher income prediction. However, since the input originates from the 'United-States', a country frequently associated with higher income variation, the feature may contribute marginally to the prediction. Still, given the model's architecture and the presence of categorical interactions, native-country is not negligible and should be considered a potential driver of prediction shift.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the observed prediction with what would be expected if native-country were absent or uniformly set to a default value (e.g., 'United-States'), considering the model's training data distribution.
+- Status: Success
+- findings: "The absence of native-country information would not lead to a significant shift in the prediction probability."
+- Explanation: The model predicted the individual's income as '<=50K' with 62.46% confidence. Native-country is a categorical feature present in the training data, and its distribution across different income groups shows that it has a moderate but not dominant influence on the outcome. In the provided input, the individual's native-country is 'United-States', which is the most common value in the training dataset. Masking or setting it to a default such as 'United-States' would not introduce a meaningful change because the majority of training samples with similar demographic profiles (e.g., age, sex, race, education) are from the United-States. Additionally, the model likely learns a balanced pattern where native-country acts as a weak or secondary signal. Therefore, removing or replacing this feature does not significantly alter the prediction probability.
+- Confidence: 0.92
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

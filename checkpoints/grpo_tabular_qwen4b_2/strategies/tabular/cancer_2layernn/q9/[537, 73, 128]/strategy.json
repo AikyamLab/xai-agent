@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning to identify potential spurious features by comparing feature values across misclassified instances, with external XAI tools to quantify and validate feature importance. This ensures both pattern recognition and model-level attribution, increasing the likelihood of detecting truly spurious correlations that are semantically unrelated to diagnosis yet influential in prediction.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Which features have identical or near-identical values across all three misclassified instances (537, 73, 128)?",
+      "expected_output": "List of feature names that are consistently or nearly consistently shared across the instances"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Are there any non-semantic patterns in shared features (e.g., high values in concavity or smoothness) that do not align with known cancer biology but might correlate with misclassification?",
+      "expected_output": "Hypothesis about spurious feature behavior that may drive misclassification"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablation_type": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP identifies feature importance across all instances, helping to pinpoint which features have high attribution despite being semantically irrelevant. Integrated gradients provide consistent gradient-based attribution, sensitive to subtle feature impacts. Sensitivity analysis verifies the causal influence of each feature by ablation, confirming whether removing a feature reduces prediction accuracy \u2014 which is key to detecting spuriousness. Together, they validate sparse, shared, high-impact features not aligned with biological meaning."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP identifies feature importance across all instances, helping to pinpoint which features have high attribution despite being semantically irrelevant. Integrated gradients provide consistent gradient-based attribution, sensitive to subtle feature impacts. Sensitivity analysis verifies the causal influence of each feature by ablation, confirming whether removing a feature reduces prediction accuracy \u2014 which is key to detecting spuriousness. Together, they validate sparse, shared, high-impact features not aligned with biological meaning.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP identifies feature importance across all instances, helping to pinpoint which features have high attribution despite being semantically irrelevant. Integrated gradients provide consistent gradient-based attribution, sensitive to subtle feature impacts. Sensitivity analysis verifies the causal influence of each feature by ablation, confirming whether removing a feature reduces prediction accuracy \u2014 which is key to detecting spuriousness. Together, they validate sparse, shared, high-impact features not aligned with biological meaning.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP identifies feature importance across all instances, helping to pinpoint which features have high attribution despite being semantically irrelevant. Integrated gradients provide consistent gradient-based attribution, sensitive to subtle feature impacts. Sensitivity analysis verifies the causal influence of each feature by ablation, confirming whether removing a feature reduces prediction accuracy \u2014 which is key to detecting spuriousness. Together, they validate sparse, shared, high-impact features not aligned with biological meaning.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_type": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

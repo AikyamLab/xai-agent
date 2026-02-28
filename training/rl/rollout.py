@@ -54,9 +54,15 @@ class Trajectory:
 
     The total reward is the reward of the LAST transition (episode-level).
     Intermediate transitions have reward=0 by convention.
+
+    ``data_load_failed`` is set to True when the pipeline raised an exception
+    *before* any VLM call (e.g. invalid row_no not found in dataset).  These
+    episodes produce no useful gradient signal and should be skipped entirely
+    rather than consuming additional rollout slots.
     """
-    transitions:  List[Transition]
-    total_reward: float   # = transitions[-1].reward if any
+    transitions:       List[Transition]
+    total_reward:      float   # = transitions[-1].reward if any
+    data_load_failed:  bool = False
 
 
 @dataclass
@@ -113,10 +119,86 @@ def do_group_rollout(
         env.rl_vlm.update_sampling_client(sampling_client)
         traj = env.run_episode(question, rollout_id=k)
         trajectories.append(traj)
+
+        if traj.data_load_failed:
+            # The pipeline failed before making any VLM call (e.g. invalid
+            # row_no not found in dataset).  Retrying with a different random
+            # seed will produce the same error, so skip remaining rollouts.
+            print(
+                f"  [rollout] Data-load failure on rollout {k+1}. "
+                f"Skipping remaining {num_rollouts - k - 1} rollout(s) for this question."
+            )
+            break
+
         print(
             f"  Rollout {k+1}/{num_rollouts}: "
             f"reward={traj.total_reward:.4f}  "
             f"n_transitions={len(traj.transitions)}"
         )
 
+    return TrajectoryGroup(trajectories=trajectories)
+
+
+# ── Group rollout (parallel) ──────────────────────────────────────────────────
+
+def do_group_rollout_parallel(
+    rollout_env_pool,
+    question: Dict[str, Any],
+    sampling_client,
+    num_rollouts: int = 4,
+    max_workers: int = 4,
+) -> TrajectoryGroup:
+    """
+    Execute K rollouts for the same question in parallel using an env pool.
+
+    Each rollout thread checks out an independent XAIRLEnv from
+    rollout_env_pool, runs the full episode, then returns the env to the pool.
+    Unlike do_group_rollout, all K rollouts start concurrently — there is no
+    early exit on data_load_failed (all K are already dispatched); the
+    caller's all()-check still handles skipping the group.
+
+    Args:
+        rollout_env_pool: thread-safe Queue of independent XAIRLEnv instances.
+                          Must hold at least min(num_rollouts, max_workers) envs.
+        question:         Question dict from XAIRLDataset.
+        sampling_client:  Current-policy Tinker SamplingClient.
+        num_rollouts:     K (group size).
+        max_workers:      Max concurrently running rollout threads.
+
+    Returns:
+        TrajectoryGroup with up to K trajectories (fewer if threads errored).
+    """
+    import concurrent.futures as _cf
+
+    def _run_one(k: int) -> Trajectory:
+        env = rollout_env_pool.get()
+        try:
+            env.rl_vlm.update_sampling_client(sampling_client)
+            return env.run_episode(question, rollout_id=k)
+        finally:
+            rollout_env_pool.put(env)
+
+    n_concurrent = min(num_rollouts, max_workers)
+    slot_results: List[Optional[Trajectory]] = [None] * num_rollouts
+
+    with _cf.ThreadPoolExecutor(max_workers=n_concurrent) as ex:
+        future_to_k = {ex.submit(_run_one, k): k for k in range(num_rollouts)}
+        for fut in _cf.as_completed(future_to_k):
+            k = future_to_k[fut]
+            try:
+                slot_results[k] = fut.result()
+            except Exception as exc:
+                print(f"  [rollout] Rollout {k} thread error: {exc}")
+                slot_results[k] = Trajectory(
+                    transitions=[], total_reward=0.0, data_load_failed=True
+                )
+
+    trajectories = [t for t in slot_results if t is not None]
+    for k, traj in enumerate(trajectories):
+        if not traj.data_load_failed:
+            print(
+                f"  Rollout {k+1}/{num_rollouts}: "
+                f"reward={traj.total_reward:.4f}  "
+                f"n_transitions={len(traj.transitions)}"
+            )
     return TrajectoryGroup(trajectories=trajectories)

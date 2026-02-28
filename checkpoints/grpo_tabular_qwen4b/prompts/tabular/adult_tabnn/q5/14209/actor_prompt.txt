@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we mask the race feature of this input, would the prediction change?
+
+## Current Prediction
+Class: >50K
+Confidence: 0.6932
+
+## Part to be Masked
+race
+
+## Input Data
+Features: age=31, workclass=Private, fnlwgt=197886, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.011182).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0692
+  - native-country_Cambodia: +0.0459
+  - occupation_Prof-specialty: +0.0367
+  - native-country_United-States: +0.0346
+  - native-country_Hong: +0.0320
+- Top negative features (shap_value):
+  - capital-loss: -0.0692
+  - sex_Male: -0.0459
+  - occupation_Priv-house-serv: -0.0367
+  - native-country_Trinadad&Tobago: -0.0346
+  - native-country_Honduras: -0.0320
+- Max positive: 0.069189  Max negative: -0.069189
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0112  (orig=0.6667 → mod=0.6555)
+  - education-num: drop=+0.0094  (orig=0.6667 → mod=0.6573)
+  - relationship_Husband: drop=+0.0081  (orig=0.6667 → mod=0.6586)
+  - education_Bachelors: drop=+0.0071  (orig=0.6667 → mod=0.6595)
+  - sex_Male: drop=+0.0069  (orig=0.6667 → mod=0.6598)
+  - occupation_Exec-managerial: drop=+0.0049  (orig=0.6667 → mod=0.6617)
+  - hours-per-week: drop=+0.0038  (orig=0.6667 → mod=0.6629)
+  - native-country_United-States: drop=+0.0037  (orig=0.6667 → mod=0.6629)
+  - age: drop=-0.0037  (orig=0.6667 → mod=0.6704)
+  - race_White: drop=+0.0021  (orig=0.6667 → mod=0.6645)
+- Max prob_drop: 0.011182  Max prob_increase: -0.003707
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Assess whether the 'race' feature is known to be a significant predictor in income classification based on domain knowledge and model architecture details.
+- Status: Success
+- findings: [{"feature_key": "race", "action": "mask", "new_value": "Unknown"}]
+- Explanation: Based on domain knowledge, race has historically been a sociopolitical and demographic factor associated with income disparities in many datasets, including the famous Adult Income Dataset (used in this context). In this dataset, race is a known sensitive feature that has been shown in prior studies to correlate with income outcomes, though it is often a confounder rather than a direct causal factor. Given that the model has high confidence (69.32%) in predicting income >50K and the current race value is 'White', which is typically associated with higher income in this dataset, masking this feature—by replacing it with 'Unknown'—would likely introduce uncertainty. However, since the model has been trained on historical patterns where race is included as a feature, and given that other strong predictors such as 'age', 'education', 'occupation', and 'hours-per-week' are present and likely more predictive, the impact of masking race is likely moderate. That said, because race is explicitly present in the model's feature space and has been shown in exploratory analysis to have some predictive power (even if not causal), there is a non-negligible chance the prediction could shift, especially if the model relies on learned spurious correlations. Thus, the prediction may change, but not drastically.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the predicted probability of '>50K' when race is set to 'White' versus when it is masked (set to a neutral or absent value).
+- Status: Success
+- findings: "The model predicted a probability of 69.32% for '>50K' when race is 'White'. Masking the race feature (setting it to a neutral or absent value) would likely result in a change in prediction due to race being a significant feature in the dataset. While the exact probability shift cannot be computed without re-running the model, observed patterns in similar datasets (e.g., the Census Income dataset) show that race can have a substantial influence on income predictions, particularly when marginalized groups are underrepresented. Masking race may lead to a reduction in confidence, as the model loses a key feature for making accurate decisions. A plausible estimate is that the confidence would decrease by 5% to 15%, resulting in a probability between 54% and 64% for '>50K'."
+- Explanation: Race is a known influential feature in income prediction models, especially in historical datasets where demographic disparities are embedded in the data. When race is masked (set to a neutral or missing value), the model cannot use this feature for inference, which may lead to a less confident or less accurate prediction. This is consistent with studies showing that sensitive attributes like race can affect model performance and fairness when removed. Since the original prediction was 69.32% with race='White', masking it would likely reduce confidence due to the loss of contextual information. Without retraining or re-evaluation, the exact drop is an estimate based on observed data patterns and feature importance.
+- Confidence: 0.87
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Assess whether the 'race' feature is known to be a significant predictor in income classification based on domain knowledge and model architecture details.
+- Status: Success
+- findings: [{"feature_key": "race", "action": "mask", "new_value": "Unknown"}]
+- Explanation: Based on domain knowledge, race has historically been a sociopolitical and demographic factor associated with income disparities in many datasets, including the famous Adult Income Dataset (used in this context). In this dataset, race is a known sensitive feature that has been shown in prior studies to correlate with income outcomes, though it is often a confounder rather than a direct causal factor. Given that the model has high confidence (69.32%) in predicting income >50K and the current race value is 'White', which is typically associated with higher income in this dataset, masking this feature—by replacing it with 'Unknown'—would likely introduce uncertainty. However, since the model has been trained on historical patterns where race is included as a feature, and given that other strong predictors such as 'age', 'education', 'occupation', and 'hours-per-week' are present and likely more predictive, the impact of masking race is likely moderate. That said, because race is explicitly present in the model's feature space and has been shown in exploratory analysis to have some predictive power (even if not causal), there is a non-negligible chance the prediction could shift, especially if the model relies on learned spurious correlations. Thus, the prediction may change, but not drastically.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the predicted probability of '>50K' when race is set to 'White' versus when it is masked (set to a neutral or absent value).
+- Status: Success
+- findings: "The model predicted a probability of 69.32% for '>50K' when race is 'White'. Masking the race feature (setting it to a neutral or absent value) would likely result in a change in prediction due to race being a significant feature in the dataset. While the exact probability shift cannot be computed without re-running the model, observed patterns in similar datasets (e.g., the Census Income dataset) show that race can have a substantial influence on income predictions, particularly when marginalized groups are underrepresented. Masking race may lead to a reduction in confidence, as the model loses a key feature for making accurate decisions. A plausible estimate is that the confidence would decrease by 5% to 15%, resulting in a probability between 54% and 64% for '>50K'."
+- Explanation: Race is a known influential feature in income prediction models, especially in historical datasets where demographic disparities are embedded in the data. When race is masked (set to a neutral or missing value), the model cannot use this feature for inference, which may lead to a less confident or less accurate prediction. This is consistent with studies showing that sensitive attributes like race can affect model performance and fairness when removed. Since the original prediction was 69.32% with race='White', masking it would likely reduce confidence due to the loss of contextual information. Without retraining or re-evaluation, the exact drop is an estimate based on observed data patterns and feature importance.
+- Confidence: 0.87
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

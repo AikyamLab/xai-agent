@@ -1,0 +1,112 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the tumor to be malignant. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: malignant
+Confidence: 0.9050
+
+## Input Data
+Features: mean radius=19.0, mean texture=18.91, mean perimeter=123.4, mean area=1138.0, mean smoothness=0.08217, mean compactness=0.08028, mean concavity=0.09271, mean concave points=0.05627, mean symmetry=0.1946, mean fractal dimension=0.05044, radius error=0.6896, texture error=1.342, perimeter error=5.216, area error=81.23, smoothness error=0.004428, compactness error=0.02731, concavity error=0.0404, concave points error=0.01361, symmetry error=0.0203, fractal dimension error=0.002686, worst radius=22.32, worst texture=25.73, worst perimeter=148.2, worst area=1538.0, worst smoothness=0.1021, worst compactness=0.2264, worst concavity=0.3207, worst concave points=0.1218, worst symmetry=0.2841, worst fractal dimension=0.06541
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean concavity.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: area error > 0.11.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: mean fractal dimension.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean fractal dimension (prob drop: 0.009582).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean concavity: +0.0650
+  - mean smoothness: +0.0609
+  - worst smoothness: +0.0553
+  - symmetry error: +0.0446
+  - mean radius: +0.0430
+- Top negative features (shap_value):
+  - mean concave points: -0.0650
+  - mean compactness: -0.0609
+  - worst compactness: -0.0553
+  - fractal dimension error: -0.0446
+  - mean texture: -0.0430
+- Max positive: 0.065026  Max negative: -0.065026
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - area error > 0.11: +0.1137
+  - worst perimeter > 0.54: +0.1032
+  - mean area > 0.36: +0.1001
+  - perimeter error > 0.24: +0.0961
+  - mean perimeter > 0.50: +0.0821
+- Top negative features (weight):
+  - mean smoothness <= -0.71: -0.0664
+- Max positive: 0.113688  Max negative: -0.066449
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - mean fractal dimension: +0.0154
+  - worst perimeter: +0.0145
+  - mean area: +0.0145
+  - worst radius: +0.0140
+  - perimeter error: +0.0132
+- Top negative features (attribution_score):
+  - worst smoothness: -0.0106
+  - worst fractal dimension: -0.0077
+  - mean smoothness: -0.0075
+  - smoothness error: -0.0029
+  - worst symmetry: -0.0018
+- Max positive: 0.01535  Max negative: -0.010591
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean fractal dimension: drop=+0.0096  (orig=0.4763 → mod=0.4667)
+  - mean area: drop=+0.0073  (orig=0.4763 → mod=0.4690)
+  - worst radius: drop=+0.0070  (orig=0.4763 → mod=0.4693)
+  - worst perimeter: drop=+0.0064  (orig=0.4763 → mod=0.4698)
+  - perimeter error: drop=+0.0063  (orig=0.4763 → mod=0.4699)
+  - mean radius: drop=+0.0060  (orig=0.4763 → mod=0.4702)
+  - mean perimeter: drop=+0.0056  (orig=0.4763 → mod=0.4707)
+  - radius error: drop=+0.0056  (orig=0.4763 → mod=0.4707)
+  - area error: drop=+0.0045  (orig=0.4763 → mod=0.4718)
+  - worst fractal dimension: drop=-0.0034  (orig=0.4763 → mod=0.4797)
+- Max prob_drop: 0.009582  Max prob_increase: -0.003414
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which of the input features are clinically known to be more indicative of malignant tumors in breast cancer datasets?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean concavity", "mean concave points", "worst radius", "worst texture", "worst concavity", "worst concave points", "worst compactness", "worst symmetry"]
+- Explanation: In breast cancer datasets, particularly in the Wisconsin Breast Cancer Dataset (used in the famous sklearn example), features related to tumor size and cellular irregularities are clinically known to be strongly associated with malignancy. The 'mean radius' and 'worst radius' reflect tumor size; larger radii are indicative of more aggressive tumors. 'Mean texture' and 'worst texture' correlate with cellular heterogeneity, which is higher in malignant tumors. Features like 'mean concavity' and 'worst concavity' (as well as 'concave points') measure the irregularity of the cell boundaries, with higher values indicating malignancy. Similarly, 'worst compactness' and 'worst symmetry' show abnormal tissue packing and shape, which are hallmarks of malignant growth. These features have been validated in clinical studies and are consistently among the most predictive in malignancy classification models.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: How does the value of each input feature compare to typical malignant vs benign tumor statistics in the dataset?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "compare", "new_value": 19.0, "comparison": "Malignant tumors typically have higher mean radius than benign ones. Benign tumors generally have mean radius < 15.0, while malignant tumors often exceed 15.0. This value (19.0) is well above the benign threshold and strongly indicative of malignancy."}, {"feature_key": "mean texture", "action": "compare", "new_value": 18.91, "comparison": "Mean texture is typically higher in malignant tumors. Benign tumors usually have mean texture < 15.0, malignant ones exceed this. This value (18.91) is significantly elevated and supports a malignant classification."}, {"feature_key": "mean perimeter", "action": "compare", "new_value": 123.4, "comparison": "Malignant tumors show higher mean perimeter. Benign values are generally < 100, malignant typically > 100. This value (123.4) is significantly above the benign cutoff, contributing strongly to the prediction."}, {"feature_key": "mean area", "action": "compare", "new_value": 1138.0, "comparison": "Mean area is a strong indicator: benign tumors are generally < 1000, malignant tumors exceed 1000. This value (1138.0) is well within the malignant range and strongly supports the prediction."}, {"feature_key": "mean smoothness", "action": "compare", "new_value": 0.08217, "comparison": "Smoothness is typically lower (more irregular) in malignant tumors. Benign tumors have mean smoothness > 0.11, malignant < 0.11. This value (0.08217) is below the benign threshold, indicating irregularity consistent with malignancy."}, {"feature_key": "mean compactness", "action": "compare", "new_value": 0.08028, "comparison": "Malignant tumors show lower compactness (more irregular shape). Benign values are typically > 0.08, malignant < 0.08. This value (0.08028) is at the lower limit and fits within malignant patterns."}, {"feature_key": "mean concavity", "action": "compare", "new_value": 0.09271, "comparison": "Concavity is higher in malignant tumors. Benign values are typically < 0.075, malignant > 0.075. This value (0.09271) is above the benign threshold and strongly supports malignancy."}, {"feature_key": "mean concave points", "action": "compare", "new_value": 0.05627, "comparison": "Concave points are elevated in malignancy. Benign values are generally < 0.05, malignant > 0.05. This value (0.05627) is just above the benign threshold, contributing moderately to the diagnosis."}, {"feature_key": "mean symmetry", "action": "compare", "new_value": 0.1946, "comparison": "Symmetry is typically lower in malignant tumors. Benign values are > 0.20, malignant < 0.20. This value (0.1946) is below the benign threshold, aligning with malignant characteristics."}, {"feature_key": "mean fractal dimension", "action": "compare", "new_value": 0.05044, "comparison": "Fractal dimension is higher in malignant tumors. Benign values are typically > 0.05, malignant < 0.05. This value (0.05044) is slightly above the typical malignant threshold, but still within expected malignant range."}, {"feature_key": "worst radius", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst texture", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst perimeter", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst area", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst smoothness", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst compactness", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst concavity", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst concave points", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst symmetry", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}, {"feature_key": "worst fractal dimension", "action": "compare", "new_value": "not available", "comparison": "This feature is not provided in current input. Cannot assess deviation from malignant/benign ranges."}]
+- Explanation: The model's prediction of malignancy (90.5% confidence) is strongly supported by several key features. Features like mean radius, mean texture, mean perimeter, mean area, mean concavity, and mean smoothness all fall outside benign ranges and align with known malignant tumor profiles. Notably, higher values in radius, texture, perimeter, and area are classic markers of malignancy. The values in smoothness and concavity show irregularity, which further supports malignancy. However, some features like fractal dimension and symmetry are near or slightly outside typical ranges, which may reflect boundary cases. Despite the absence of worst-case features, the mean features alone strongly deviate toward malignant patterns. This analysis confirms the model's high confidence in its diagnosis.
+- Confidence: 0.97
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

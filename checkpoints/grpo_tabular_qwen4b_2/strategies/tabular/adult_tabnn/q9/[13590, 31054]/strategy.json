@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning to identify obvious shared features across misclassified instances with external XAI tools to quantify feature importance and detect spurious correlations. This ensures both domain-aware pattern recognition and robust, model-learned attribution scores, improving the detection of truly spurious and shared features that are not semantically relevant to the target class.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify all features present in both instance 13590 and instance 31054 that are identical or shared across all misclassified instances.",
+      "expected_output": "A list of shared feature names (e.g., education-num=9, marital-status=Married-civ-spouse) that appear in all misclassified instances"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether the shared features (e.g., HS-grad, Husband, Craft-repair) have any known or plausible semantic link to income class, or if they represent spurious correlations in the dataset.",
+      "expected_output": "A judgment on whether the shared features are semantically related to income or represent background noise/spurious correlations"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablate_mode": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP provides model-learned feature importance with consistent attribution across instances, integrated gradients offer smooth feature attribution from baseline, and sensitivity analysis quantifies how prediction stability changes when features are removed. Together, they detect which shared features are not semantically meaningful but are high-importance in the model's decision process, revealing spurious correlations."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides model-learned feature importance with consistent attribution across instances, integrated gradients offer smooth feature attribution from baseline, and sensitivity analysis quantifies how prediction stability changes when features are removed. Together, they detect which shared features are not semantically meaningful but are high-importance in the model's decision process, revealing spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides model-learned feature importance with consistent attribution across instances, integrated gradients offer smooth feature attribution from baseline, and sensitivity analysis quantifies how prediction stability changes when features are removed. Together, they detect which shared features are not semantically meaningful but are high-importance in the model's decision process, revealing spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides model-learned feature importance with consistent attribution across instances, integrated gradients offer smooth feature attribution from baseline, and sensitivity analysis quantifies how prediction stability changes when features are removed. Together, they detect which shared features are not semantically meaningful but are high-importance in the model's decision process, revealing spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "ablate_mode": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

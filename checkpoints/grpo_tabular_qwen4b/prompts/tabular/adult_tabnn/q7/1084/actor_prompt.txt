@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (74.01%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7401141226291656}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.25988587737083435}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=239577, education=Some-college, education-num=10, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=52, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.022737).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0745
+  - sex_Male: +0.0341
+  - native-country_Columbia: +0.0322
+  - native-country_Trinadad&Tobago: +0.0199
+  - workclass_State-gov: +0.0187
+- Top negative features (shap_value):
+  - fnlwgt: -0.0745
+  - native-country_Cambodia: -0.0341
+  - native-country_Cuba: -0.0322
+  - native-country_United-States: -0.0199
+  - workclass_Self-emp-not-inc: -0.0187
+- Max positive: 0.074539  Max negative: -0.074539
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0227  (orig=0.4354 → mod=0.4127)
+  - marital-status_Never-married: drop=+0.0153  (orig=0.4354 → mod=0.4201)
+  - relationship_Own-child: drop=+0.0104  (orig=0.4354 → mod=0.4250)
+  - sex_Male: drop=-0.0045  (orig=0.4354 → mod=0.4399)
+  - hours-per-week: drop=-0.0042  (orig=0.4354 → mod=0.4396)
+  - occupation_Prof-specialty: drop=-0.0032  (orig=0.4354 → mod=0.4386)
+  - capital-gain: drop=+0.0024  (orig=0.4354 → mod=0.4330)
+  - education_Some-college: drop=+0.0022  (orig=0.4354 → mod=0.4332)
+  - native-country_United-States: drop=+0.0019  (orig=0.4354 → mod=0.4335)
+  - capital-loss: drop=+0.0017  (orig=0.4354 → mod=0.4337)
+- Max prob_drop: 0.022737  Max prob_increase: -0.004494
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical distribution of income for individuals with marital-status='Never-married' in the training data?
+- Status: Success
+- findings: {"proportion_50k_or_less": 0.754, "proportion_above_50k": 0.246}
+- Explanation: Based on the training dataset distribution, individuals with marital-status='Never-married' have a high proportion (75.4%) of earning <=50K and a lower proportion (24.6%) earning >50K. This suggests that, in the dataset, being 'Never-married' is strongly associated with lower income levels, which aligns with the model's current prediction of <=50K for the individual in question. This distribution is consistent across the full dataset and supports the stability of the prediction under the current marital-status value.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: How does marital-status generally influence income in the context of other demographic features like age, sex, and occupation?
+- Status: Success
+- findings: "Marital status is positively correlated with higher income levels, particularly among individuals with stable employment and higher education. Those who are 'Married-civ-spouse' or 'Married-spouse-absent' tend to have a higher probability of earning more than $50K compared to 'Never-married' or 'Divorced' individuals. This correlation holds even when controlling for age, sex, occupation, and education level, suggesting that marital status may act as a proxy for socioeconomic stability and access to financial support systems."
+- Explanation: In the context of the dataset, individuals who are married (especially married-civ-spouse or married-spouse-absent) show a stronger tendency to earn more than $50K, despite similar age, education, and occupation distributions. This could be due to structural factors such as shared household income, reduced work hours, or access to social benefits. In contrast, 'Never-married' individuals, like the current case where marital-status='Never-married', are more likely to be predicted with an income ≤50K. The effect is amplified when combined with other factors like 'Own-child' relationship or low education-num, which are associated with lower earnings. Thus, changing marital-status from 'Never-married' to a married category may significantly increase the model's predicted income >50K, especially with stable employment and high education.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What is the expected prediction class if marital-status is removed and other features remain unchanged?
+- Status: Success
+- prediction: "<=50K"
+- Confidence: 0.92
+- Explanation: The model originally predicted the individual's income as <=50K with a confidence of 74.01%. The feature 'marital-status' is currently set to 'Never-married'. Removing or changing this feature would not alter the prediction class unless there is a direct categorical dependency in the model that links marital status to income. However, in the absence of any evidence that marital-status significantly influences the prediction (and given that the model already achieved high confidence on the current prediction), changing or removing marital-status does not lead to a shift in the predicted class. Thus, the prediction remains <=50K with nearly identical confidence levels. The model's confidence is robust to such changes in this specific context.
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the typical distribution of income for individuals with marital-status='Never-married' in the training data?
+- Status: Success
+- findings: {"proportion_50k_or_less": 0.754, "proportion_above_50k": 0.246}
+- Explanation: Based on the training dataset distribution, individuals with marital-status='Never-married' have a high proportion (75.4%) of earning <=50K and a lower proportion (24.6%) earning >50K. This suggests that, in the dataset, being 'Never-married' is strongly associated with lower income levels, which aligns with the model's current prediction of <=50K for the individual in question. This distribution is consistent across the full dataset and supports the stability of the prediction under the current marital-status value.
+- Confidence: 0.98
+
+### REASONING Task
+- Query: How does marital-status generally influence income in the context of other demographic features like age, sex, and occupation?
+- Status: Success
+- findings: "Marital status is positively correlated with higher income levels, particularly among individuals with stable employment and higher education. Those who are 'Married-civ-spouse' or 'Married-spouse-absent' tend to have a higher probability of earning more than $50K compared to 'Never-married' or 'Divorced' individuals. This correlation holds even when controlling for age, sex, occupation, and education level, suggesting that marital status may act as a proxy for socioeconomic stability and access to financial support systems."
+- Explanation: In the context of the dataset, individuals who are married (especially married-civ-spouse or married-spouse-absent) show a stronger tendency to earn more than $50K, despite similar age, education, and occupation distributions. This could be due to structural factors such as shared household income, reduced work hours, or access to social benefits. In contrast, 'Never-married' individuals, like the current case where marital-status='Never-married', are more likely to be predicted with an income ≤50K. The effect is amplified when combined with other factors like 'Own-child' relationship or low education-num, which are associated with lower earnings. Thus, changing marital-status from 'Never-married' to a married category may significantly increase the model's predicted income >50K, especially with stable employment and high education.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What is the expected prediction class if marital-status is removed and other features remain unchanged?
+- Status: Success
+- prediction: "<=50K"
+- Confidence: 0.92
+- Explanation: The model originally predicted the individual's income as <=50K with a confidence of 74.01%. The feature 'marital-status' is currently set to 'Never-married'. Removing or changing this feature would not alter the prediction class unless there is a direct categorical dependency in the model that links marital status to income. However, in the absence of any evidence that marital-status significantly influences the prediction (and given that the model already achieved high confidence on the current prediction), changing or removing marital-status does not lead to a shift in the predicted class. Thus, the prediction remains <=50K with nearly identical confidence levels. The model's confidence is robust to such changes in this specific context.
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

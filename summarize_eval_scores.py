@@ -11,7 +11,7 @@ from collections import defaultdict
 
 EVAL_ROOT = Path(
     "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-    "/dpo_eval_outputs2/evaluations"
+    "/baseline_outputs/Qwen4B/evaluations"
 )
 
 # SCORE_KEYS = ["overall_score", "quality_score", "completeness"]
@@ -58,8 +58,15 @@ def summarize(data):
                     "n": n,
                 }
 
-                for key in SCORE_KEYS:
-                    row[key] = avg([r.get(key) for r in records])
+                # soft_score lives at faithfulness.details.soft_score
+                row["soft_score"] = avg(
+                    [
+                        r.get(FAITHFULNESS_KEY, {}).get("details", {}).get("soft_score")
+                        if isinstance(r.get(FAITHFULNESS_KEY), dict)
+                        else None
+                        for r in records
+                    ]
+                )
 
                 # faithfulness.score (may be absent)
                 row["faithfulness_score"] = avg(
@@ -93,8 +100,9 @@ def print_table(rows):
         "dataset": 18,
         "q_type": 7,
         "n": 5,
-        "faithfulness_score": 18,
-        "faithfulness_pass_rate": 22,
+        "faithfulness_score": 12,
+        "soft_score": 12,
+        "faithfulness_pass_rate": 12,
     }
 
     header = (
@@ -103,7 +111,8 @@ def print_table(rows):
         f"{'q_type':<{col_widths['q_type']}}"
         f"{'n':>{col_widths['n']}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
-        f"{'faith_pass%':>{col_widths['faithfulness_pass_rate']}}"
+        f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     sep = "-" * len(header)
 
@@ -118,12 +127,15 @@ def print_table(rows):
             print()
         prev_key = key
 
+        soft = row.get("soft_score", float("nan"))
+        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
         print(
             f"{row['modality']:<{col_widths['modality']}}"
             f"{row['dataset']:<{col_widths['dataset']}}"
             f"{row['q_type']:<{col_widths['q_type']}}"
             f"{row['n']:>{col_widths['n']}}"
             f"{row['faithfulness_score']:>{col_widths['faithfulness_score']}.4f}"
+            + soft_str +
             f"{row['faithfulness_pass_rate']*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
 
@@ -138,7 +150,8 @@ def print_table(rows):
         f"{'dataset':<{col_widths['dataset']}}"
         f"{'n_total':>{7}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
-        f"{'faith_pass%':>{col_widths['faithfulness_pass_rate']}}"
+        f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     print("-" * len(agg_header))
     print(agg_header)
@@ -154,11 +167,14 @@ def print_table(rows):
                 return float("nan")
             return sum(r[key] * r["n"] for r in group if r[key] == r[key]) / total_w
 
+        soft = weighted_avg("soft_score")
+        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
         print(
             f"{modality:<{col_widths['modality']}}"
             f"{dataset:<{col_widths['dataset']}}"
             f"{n_total:>{7}}"
             f"{weighted_avg('faithfulness_score'):>{col_widths['faithfulness_score']}.4f}"
+            + soft_str +
             f"{weighted_avg('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
 
@@ -171,7 +187,8 @@ def print_table(rows):
         f"{'q_type':<{col_widths['q_type']}}"
         f"{'n_total':>{7}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
-        f"{'faith_pass%':>{col_widths['faithfulness_pass_rate']}}"
+        f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     print("-" * len(qtype_header))
     print(qtype_header)
@@ -190,10 +207,13 @@ def print_table(rows):
                 return float("nan")
             return sum(r[key] * r["n"] for r in valid_rows) / total_n
 
+        soft = weighted_avg_q("soft_score")
+        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
         print(
             f"{q_type:<{col_widths['q_type']}}"
             f"{n_total:>{7}}"
             f"{weighted_avg_q('faithfulness_score'):>{col_widths['faithfulness_score']}.4f}"
+            + soft_str +
             f"{weighted_avg_q('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
     print("-" * len(qtype_header))

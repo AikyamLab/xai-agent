@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6052
+
+## Input Data
+Features: age=46, workclass=Private, fnlwgt=191204, education=Assoc-voc, education-num=11, marital-status=Never-married, occupation=Exec-managerial, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Honduras.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: occupation_Exec-managerial.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: occupation_Exec-managerial (prob drop: -0.020307).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Hong: +0.0488
+  - native-country_Columbia: +0.0364
+  - sex_Male: +0.0358
+  - fnlwgt: +0.0291
+  - native-country_Trinadad&Tobago: +0.0216
+- Top negative features (shap_value):
+  - native-country_Honduras: -0.0488
+  - native-country_Cuba: -0.0364
+  - native-country_Cambodia: -0.0358
+  - age: -0.0291
+  - native-country_United-States: -0.0216
+- Max positive: 0.048842  Max negative: -0.048842
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2547
+  - capital-loss <= -0.22: +0.1233
+  - native-country_Cambodia <= 0.00: +0.0802
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0711
+  - marital-status_Married-civ-spouse <= 0.00: +0.0667
+- Top negative features (weight):
+  - -0.05 < education-num <= 1.13: -0.0660
+  - native-country_South <= 0.00: -0.0353
+- Max positive: 0.25467  Max negative: -0.066044
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0189
+  - relationship_Own-child: +0.0074
+  - race_White: +0.0049
+  - sex_Female: +0.0036
+  - capital-gain: +0.0018
+- Top negative features (attribution_score):
+  - occupation_Exec-managerial: -0.0197
+  - age: -0.0091
+  - native-country_United-States: -0.0054
+  - education-num: -0.0047
+  - workclass_Private: -0.0033
+- Max positive: 0.018922  Max negative: -0.019684
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - occupation_Exec-managerial: drop=-0.0203  (orig=0.4026 → mod=0.4229)
+  - marital-status_Never-married: drop=+0.0159  (orig=0.4026 → mod=0.3867)
+  - age: drop=-0.0111  (orig=0.4026 → mod=0.4136)
+  - workclass_Private: drop=-0.0076  (orig=0.4026 → mod=0.4102)
+  - native-country_United-States: drop=-0.0063  (orig=0.4026 → mod=0.4088)
+  - sex_Female: drop=+0.0053  (orig=0.4026 → mod=0.3972)
+  - education-num: drop=-0.0041  (orig=0.4026 → mod=0.4066)
+  - relationship_Own-child: drop=+0.0033  (orig=0.4026 → mod=0.3992)
+  - capital-loss: drop=+0.0030  (orig=0.4026 → mod=0.3996)
+  - race_White: drop=+0.0016  (orig=0.4026 → mod=0.4009)
+- Max prob_drop: 0.015895  Max prob_increase: -0.020307
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are likely correlated with the '<=50K' class based on domain knowledge and known demographic patterns?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "correlated_with", "new_value": "11"}, {"feature_key": "age", "action": "correlated_with", "new_value": "46"}, {"feature_key": "occupation", "action": "correlated_with", "new_value": "Exec-managerial"}, {"feature_key": "marital-status", "action": "correlated_with", "new_value": "Never-married"}, {"feature_key": "hours-per-week", "action": "correlated_with", "new_value": "40"}]
+- Explanation: Based on domain knowledge and known demographic patterns in income prediction data (such as the UCI Adult Income dataset), higher education levels (e.g., education-num=11, Assoc-voc) are generally associated with higher earning potential. Similarly, executive and managerial occupations (e.g., Exec-managerial) are strongly correlated with higher income. Age of 46 is mid-career and may fall within a range where income is stable but not exceptionally high. Marriage status of 'Never-married' is often linked to lower income due to lack of household support or shared financial responsibilities. Hours per week (40) are average and not particularly high, so they do not strongly push toward high income. These features collectively support the model's prediction of <=50K, as the individual is in a high-earning occupation but lacks elements like higher education (beyond vocational level), stable marital status, or high work hours, which could elevate income.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Why might a female, never-married individual with an Associate's degree and executive managerial occupation be predicted to have income <=50K?
+- Status: Success
+- findings: [{"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "education", "action": "change", "new_value": "Bachelors"}, {"feature_key": "age", "action": "change", "new_value": 55}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}]
+- Explanation: The model's prediction of income <=50K for a female, never-married individual with an Associate's degree and executive managerial occupation may stem from several key trade-offs. While 'Exec-managerial' occupation typically correlates with higher income, the individual's marital status ('Never-married') introduces a strong demographic bias in the model—such status is historically associated with lower income levels, especially for females. The Associate's degree, compared to higher levels like Bachelors or Masters, reduces the expected earning capacity. Additionally, the absence of capital gains and a moderate workweek (40 hours) may limit upward mobility. These features collectively reinforce the model's low-income prediction. Changing marital status to 'Married-civ-spouse' would likely increase income prediction due to social and economic stability. Elevating education to 'Bachelors' and increasing hours per week to 60 could further shift the prediction toward >50K, suggesting that the model is sensitive to education level, work hours, and marital stability. Thus, the prediction reflects a combination of structural biases in demographic features and the relatively modest educational attainment.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the given input against high- and low-income profiles in the Adult dataset to identify outlier or normative patterns.
+- Status: Success
+- findings: ["The individual is 46 years old, which is within the typical age range for both income groups but slightly older than the average in the <=50K group.", "Workclass = 'Private' is common in both income groups, with a higher prevalence in the <=50K class.", "Education is 'Assoc-voc' (education-num=11), which is below the median education level (often associated with higher education-num levels like 10 or above), aligning more with lower-income profiles.", "Marital-status = 'Never-married' is a strong indicator of lower income; this category is significantly more common in the <=50K group.", "Occupation = 'Exec-managerial' is unusual for a <=50K prediction. This occupation is typically linked to higher income (>50K), indicating a potential outlier or misalignment in the model\u2019s probability estimation.", "Relationship = 'Own-child' suggests limited financial support, which is more typical of lower-income individuals.", "Race = 'White' and sex = 'Female' are neutral in predictive power but do not strongly differentiate income classes in the Adult dataset.", "Capital-gain and capital-loss are both zero, which is common in <=50K profiles, but does not strongly distinguish the class.", "Hours-per-week = 40 is within the average range, not unusual for either group.", "Native-country = 'United-States' is prevalent across both groups and does not contribute to income prediction differences."]
+- Explanation: The individual's profile shows several features that align with typical <=50K profiles—such as lower education level, never-married status, and no capital gains. However, the occupation 'Exec-managerial' is a significant outlier, as such roles are typically associated with higher income (>50K). This suggests a potential inconsistency between the model's prediction and the feature values, possibly indicating a bias or error in the prediction despite plausible income-level indicators. The combination of high-earning occupation and low-income prediction creates a normative discrepancy, which may require further investigation into feature interactions or model calibration.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

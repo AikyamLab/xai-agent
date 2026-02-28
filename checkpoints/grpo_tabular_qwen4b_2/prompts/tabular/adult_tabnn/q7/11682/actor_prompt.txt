@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change education-num, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (82.40%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.8239647597074509}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.17603524029254913}]
+- Part to Change: education-num
+
+## Input Data
+Features: age=30, workclass=Private, fnlwgt=139838, education=10th, education-num=6, marital-status=Separated, occupation=Other-service, relationship=Not-in-family, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.012709).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0679
+  - native-country_Vietnam: +0.0337
+  - native-country_Japan: +0.0244
+  - sex_Male: +0.0203
+  - native-country_Dominican-Republic: +0.0113
+- Top negative features (shap_value):
+  - hours-per-week: -0.0679
+  - native-country_Yugoslavia: -0.0337
+  - native-country_Laos: -0.0244
+  - native-country_Cambodia: -0.0203
+  - native-country_Ecuador: -0.0113
+- Max positive: 0.067928  Max negative: -0.067928
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0127  (orig=0.4561 → mod=0.4434)
+  - relationship_Not-in-family: drop=+0.0082  (orig=0.4561 → mod=0.4479)
+  - occupation_Other-service: drop=+0.0077  (orig=0.4561 → mod=0.4485)
+  - marital-status_Separated: drop=+0.0050  (orig=0.4561 → mod=0.4511)
+  - race_Black: drop=+0.0046  (orig=0.4561 → mod=0.4515)
+  - workclass_Private: drop=+0.0022  (orig=0.4561 → mod=0.4539)
+  - age: drop=+0.0019  (orig=0.4561 → mod=0.4542)
+  - education_10th: drop=-0.0019  (orig=0.4561 → mod=0.4580)
+  - native-country_United-States: drop=-0.0015  (orig=0.4561 → mod=0.4576)
+  - capital-loss: drop=+0.0011  (orig=0.4561 → mod=0.4550)
+- Max prob_drop: 0.012709  Max prob_increase: -0.001857
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of education-num in the original prediction based on the model's architecture and input?
+- Status: Success
+- findings: "education-num plays a significant role in the model's prediction of income level, as it is a continuous feature that encodes the level of education an individual has. The original prediction of <=50K (label 0) is influenced by the value of education-num=6, which corresponds to '10th grade'. In many income prediction models, higher education levels are strongly associated with higher income, and thus, lower education-num values (like 6) are typically correlated with lower predicted earnings. Changing education-num to a higher value (e.g., 12 for 'Bachelor') would likely increase the probability of predicting >50K, while reducing it (e.g., to 4 for '9th grade') would reinforce the <=50K classification. Given the current feature values and the model\u2019s confidence (82.40%), the model is well-grounded in the assumption that lower education-num correlates with lower income, consistent with domain knowledge and training data patterns."
+- Explanation: education-num is a key predictor in income classification models because it directly correlates with human capital and workforce capability. The model uses this feature in a weighted decision pathway—likely through tree-based or linear models—where lower education-num values reduce the predicted income probability. The current value of 6 (10th grade) is below average for higher-income groups, supporting the <=50K prediction. Thus, altering education-num would shift the model's output by modifying the feature's contribution to the decision boundary. Changes to education-num would thus have a direct, measurable impact on the prediction, particularly in models sensitive to educational proxies of income potential.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: If education-num is removed, how would the model's confidence in predicting <=50K or >50K likely shift, given the current feature set?
+- Status: Success
+- findings: {"shift": "decrease in confidence for <=50K", "magnitude": "moderate"}
+- Explanation: The feature 'education-num' is a strong predictor of income level in this dataset, as education level is closely correlated with earning potential. The current model predicts <=50K with 82.40% confidence, which relies on the contextual information from education-num (currently 6, corresponding to '10th'). Removing this feature removes a key signal that helps the model distinguish income levels. Without it, the model must rely on weaker or more ambiguous features (e.g., age, hours-per-week, race), leading to a reduction in predictive certainty. This results in a moderate decrease in confidence for the <=50K prediction, as the model's ability to generalize income outcomes becomes less precise.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the absence of education-num compare to other features with lower or higher importance in the model?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 7}, {"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: Education-num is a numeric encoding of education level and is directly linked to the categorical 'education' field. Since the model predicted '<=50K' with high confidence (82.40%), and education-level is a known strong predictor in income classification (as seen in the UCI Adult Income dataset), changing education-num to a higher value (e.g., 7, corresponding to 'Bachelors' or higher) would likely increase the probability of predicting '>50K'. This demonstrates that education-num carries substantial predictive power. Among other features, age and hours-per-week are also strong predictors, but their impact is more stable and less directly tied to categorical educational attainment. In contrast, removing or changing education-num would disrupt a key pathway in the model's decision logic. Therefore, education-num is not redundant—it is a critical feature. The top-5 predictions were not available, but based on domain knowledge and feature correlation, education-num ranks among the most important features in income prediction models, second only to age and hours-per-week in influence.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of education-num in the original prediction based on the model's architecture and input?
+- Status: Success
+- findings: "education-num plays a significant role in the model's prediction of income level, as it is a continuous feature that encodes the level of education an individual has. The original prediction of <=50K (label 0) is influenced by the value of education-num=6, which corresponds to '10th grade'. In many income prediction models, higher education levels are strongly associated with higher income, and thus, lower education-num values (like 6) are typically correlated with lower predicted earnings. Changing education-num to a higher value (e.g., 12 for 'Bachelor') would likely increase the probability of predicting >50K, while reducing it (e.g., to 4 for '9th grade') would reinforce the <=50K classification. Given the current feature values and the model\u2019s confidence (82.40%), the model is well-grounded in the assumption that lower education-num correlates with lower income, consistent with domain knowledge and training data patterns."
+- Explanation: education-num is a key predictor in income classification models because it directly correlates with human capital and workforce capability. The model uses this feature in a weighted decision pathway—likely through tree-based or linear models—where lower education-num values reduce the predicted income probability. The current value of 6 (10th grade) is below average for higher-income groups, supporting the <=50K prediction. Thus, altering education-num would shift the model's output by modifying the feature's contribution to the decision boundary. Changes to education-num would thus have a direct, measurable impact on the prediction, particularly in models sensitive to educational proxies of income potential.
+- Confidence: 0.96
+
+### REASONING Task
+- Query: If education-num is removed, how would the model's confidence in predicting <=50K or >50K likely shift, given the current feature set?
+- Status: Success
+- findings: {"shift": "decrease in confidence for <=50K", "magnitude": "moderate"}
+- Explanation: The feature 'education-num' is a strong predictor of income level in this dataset, as education level is closely correlated with earning potential. The current model predicts <=50K with 82.40% confidence, which relies on the contextual information from education-num (currently 6, corresponding to '10th'). Removing this feature removes a key signal that helps the model distinguish income levels. Without it, the model must rely on weaker or more ambiguous features (e.g., age, hours-per-week, race), leading to a reduction in predictive certainty. This results in a moderate decrease in confidence for the <=50K prediction, as the model's ability to generalize income outcomes becomes less precise.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: How does the absence of education-num compare to other features with lower or higher importance in the model?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 7}, {"feature_key": "age", "action": "change", "new_value": 50}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000}]
+- Explanation: Education-num is a numeric encoding of education level and is directly linked to the categorical 'education' field. Since the model predicted '<=50K' with high confidence (82.40%), and education-level is a known strong predictor in income classification (as seen in the UCI Adult Income dataset), changing education-num to a higher value (e.g., 7, corresponding to 'Bachelors' or higher) would likely increase the probability of predicting '>50K'. This demonstrates that education-num carries substantial predictive power. Among other features, age and hours-per-week are also strong predictors, but their impact is more stable and less directly tied to categorical educational attainment. In contrast, removing or changing education-num would disrupt a key pathway in the model's decision logic. Therefore, education-num is not redundant—it is a critical feature. The top-5 predictions were not available, but based on domain knowledge and feature correlation, education-num ranks among the most important features in income prediction models, second only to age and hours-per-week in influence.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

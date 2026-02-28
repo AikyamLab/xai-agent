@@ -1,0 +1,103 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7047
+
+## Input Data
+Features: age=21, workclass=Private, fnlwgt=83704, education=12th, education-num=8, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.01858).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0472
+  - age: +0.0454
+  - native-country_Cambodia: +0.0413
+  - native-country_United-States: +0.0334
+  - marital-status_Married-AF-spouse: +0.0256
+- Top negative features (shap_value):
+  - hours-per-week: -0.0472
+  - fnlwgt: -0.0454
+  - sex_Male: -0.0413
+  - native-country_Trinadad&Tobago: -0.0334
+  - marital-status_Married-civ-spouse: -0.0256
+- Max positive: 0.04717  Max negative: -0.04717
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2272
+  - capital-loss <= -0.22: +0.1104
+  - education-num <= -0.44: +0.1060
+  - age <= -0.80: +0.0827
+  - native-country_Canada <= 0.00: +0.0618
+- Top negative features (weight):
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0994
+  - native-country_Vietnam <= 0.00: -0.0707
+  - native-country_India <= 0.00: -0.0351
+  - native-country_El-Salvador <= 0.00: -0.0331
+- Max positive: 0.22723  Max negative: -0.099392
+- Total features: 10
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0186  (orig=0.4267 → mod=0.4081)
+  - education-num: drop=+0.0154  (orig=0.4267 → mod=0.4113)
+  - education_12th: drop=+0.0100  (orig=0.4267 → mod=0.4167)
+  - marital-status_Married-civ-spouse: drop=-0.0093  (orig=0.4267 → mod=0.4360)
+  - sex_Male: drop=-0.0077  (orig=0.4267 → mod=0.4344)
+  - fnlwgt: drop=+0.0075  (orig=0.4267 → mod=0.4192)
+  - relationship_Husband: drop=-0.0071  (orig=0.4267 → mod=0.4338)
+  - occupation_Craft-repair: drop=+0.0056  (orig=0.4267 → mod=0.4211)
+  - native-country_United-States: drop=-0.0028  (orig=0.4267 → mod=0.4295)
+  - capital-gain: drop=+0.0025  (orig=0.4267 → mod=0.4242)
+- Max prob_drop: 0.01858  Max prob_increase: -0.009267
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are likely to have a strong influence on income prediction based on the adult dataset and prior knowledge of socio-economic factors?
+- Status: Success
+- findings: ["age", "education-num", "workclass", "occupation", "marital-status", "sex"]
+- Explanation: Based on the adult dataset and socio-economic factors, features such as age, education-num, workclass, occupation, marital-status, and sex are typically strong predictors of income. Younger individuals (age=21) tend to have lower incomes; lower education levels (education-num=8, '12th') are associated with reduced earning potential; 'Private' workclass and 'Craft-repair' occupation often correlate with lower incomes; 'Married-civ-spouse' and 'Male' sex are factors that historically influence income levels in the dataset. Capital gains and losses are zero, so they do not contribute to this prediction.
+- Confidence: 0.85
+
+### REASONING Task
+- Query: Why is it likely that education-num and workclass are important predictors for income class <=50K in this case?
+- Status: Success
+- findings: {"explanation": "Lower education-num (8 = 12th grade) and private workclass are associated with lower-income outcomes, supporting the model's prediction.", "confidence": 0.85}
+
+### COMPARISON Task
+- Query: How does the relationship status 'Married-civ-spouse' compare to 'Never-married' in terms of income prediction in this model's context?
+- Status: Success
+- findings: "Analysis showing that married individuals might have higher income expectations, but in this case, other features may outweigh this effect."
+- Explanation: In many models, 'Married-civ-spouse' is associated with higher income due to factors like stable employment and dual-income households. However, in this instance, the prediction of income ≤50K is likely driven by lower-impact features such as age (21), education level ('12th', education-num=8), occupation ('Craft-repair'), and lack of capital gains or losses. These factors may outweigh the positive signal from marital status, suggesting that while marriage is generally correlated with higher income, it is not sufficient to override other key determinants in this case.
+- Confidence: 0.78
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

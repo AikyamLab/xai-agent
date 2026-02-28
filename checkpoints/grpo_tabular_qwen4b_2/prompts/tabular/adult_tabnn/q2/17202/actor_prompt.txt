@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.7883
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=98155, education=Some-college, education-num=10, marital-status=Never-married, occupation=Transport-moving, relationship=Unmarried, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.00935).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0422
+  - native-country_Columbia: +0.0345
+  - sex_Male: +0.0226
+  - native-country_Taiwan: +0.0183
+  - native-country_Trinadad&Tobago: +0.0173
+- Top negative features (shap_value):
+  - fnlwgt: -0.0422
+  - native-country_Cuba: -0.0345
+  - native-country_Cambodia: -0.0226
+  - native-country_Thailand: -0.0183
+  - native-country_United-States: -0.0173
+- Max positive: 0.042228  Max negative: -0.042228
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2077
+  - age <= -0.80: +0.0856
+  - capital-loss <= -0.22: +0.0843
+  - marital-status_Married-civ-spouse <= 0.00: +0.0653
+  - native-country_India <= 0.00: +0.0622
+- Top negative features (weight):
+  - native-country_El-Salvador <= 0.00: -0.0713
+  - native-country_Columbia <= 0.00: -0.0431
+  - native-country_Ireland <= 0.00: -0.0214
+- Max positive: 0.207681  Max negative: -0.071321
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0122
+  - age: +0.0120
+  - relationship_Unmarried: +0.0061
+  - fnlwgt: +0.0050
+  - education_Some-college: +0.0049
+- Top negative features (attribution_score):
+  - sex_Male: -0.0056
+  - race_White: -0.0011
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.012169  Max negative: -0.005592
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0094  (orig=0.4473 → mod=0.4379)
+  - marital-status_Never-married: drop=+0.0068  (orig=0.4473 → mod=0.4405)
+  - relationship_Unmarried: drop=+0.0052  (orig=0.4473 → mod=0.4421)
+  - race_White: drop=-0.0038  (orig=0.4473 → mod=0.4511)
+  - fnlwgt: drop=+0.0037  (orig=0.4473 → mod=0.4436)
+  - sex_Male: drop=-0.0033  (orig=0.4473 → mod=0.4506)
+  - education_Some-college: drop=+0.0031  (orig=0.4473 → mod=0.4442)
+  - occupation_Transport-moving: drop=+0.0031  (orig=0.4473 → mod=0.4442)
+  - capital-gain: drop=+0.0019  (orig=0.4473 → mod=0.4453)
+  - capital-loss: drop=+0.0012  (orig=0.4473 → mod=0.4461)
+- Max prob_drop: 0.00935  Max prob_increase: -0.003777
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the prediction of <=50K, which of the input features are traditionally known to have low correlation with income in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": 98155}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "native-country", "action": "change", "new_value": "United-States"}]
+- Explanation: In the Adult dataset, features like 'fnlwgt' (final weight) are not directly related to income and are typically used for sampling adjustment rather than income prediction. 'Education' and 'education-num' are more strongly correlated with income, so 'education' being 'Some-college' may have moderate influence, but the category itself is not the most predictive. 'Marital-status' and 'occupation' have shown moderate to strong correlations in studies, with 'Never-married' and 'Transport-moving' being less predictive than other categories. 'Native-country' has weak correlation due to sparse data in some categories. Therefore, features such as 'fnlwgt' are traditionally known to have minimal impact on income prediction, despite being present in the data. The rest of the features are more consistently associated with income outcomes in empirical literature.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the feature values in the input (age=25, workclass=Private, etc.) with typical patterns in the Adult dataset where income is <=50K versus >50K.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}]
+- Explanation: In the Adult dataset, individuals with income <=50K are typically characterized by lower educational attainment, lower hours per week, and less likely to work in high-paying occupations. The current input has age=25 (young), education-num=10 (some college), hours-per-week=40 (moderate), occupation='Transport-moving' (low-paying), and capital-gain=0 — all of which align with typical <=50K patterns. To identify features least responsible for predicting <=50K, we compare these values to the more common patterns in the >50K class. Features like higher education-num (e.g., 13+), higher hours-per-week (>50), higher capital gains, and occupations such as 'Prof-specialty' or 'Exec-managerial' are more often associated with income >50K. Therefore, the current values are in the common range for <=50K, suggesting that the model's prediction is well-supported. The least influential features are those that do not diverge significantly from the norm for <=50K, such as 'age' and 'workclass' (Private), which are common in both classes. Thus, changing these to values more typical of >50K would not significantly impact the prediction, indicating they are least responsible for the outcome.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the prediction of <=50K, which of the input features are traditionally known to have low correlation with income in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": 98155}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "native-country", "action": "change", "new_value": "United-States"}]
+- Explanation: In the Adult dataset, features like 'fnlwgt' (final weight) are not directly related to income and are typically used for sampling adjustment rather than income prediction. 'Education' and 'education-num' are more strongly correlated with income, so 'education' being 'Some-college' may have moderate influence, but the category itself is not the most predictive. 'Marital-status' and 'occupation' have shown moderate to strong correlations in studies, with 'Never-married' and 'Transport-moving' being less predictive than other categories. 'Native-country' has weak correlation due to sparse data in some categories. Therefore, features such as 'fnlwgt' are traditionally known to have minimal impact on income prediction, despite being present in the data. The rest of the features are more consistently associated with income outcomes in empirical literature.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the feature values in the input (age=25, workclass=Private, etc.) with typical patterns in the Adult dataset where income is <=50K versus >50K.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}]
+- Explanation: In the Adult dataset, individuals with income <=50K are typically characterized by lower educational attainment, lower hours per week, and less likely to work in high-paying occupations. The current input has age=25 (young), education-num=10 (some college), hours-per-week=40 (moderate), occupation='Transport-moving' (low-paying), and capital-gain=0 — all of which align with typical <=50K patterns. To identify features least responsible for predicting <=50K, we compare these values to the more common patterns in the >50K class. Features like higher education-num (e.g., 13+), higher hours-per-week (>50), higher capital gains, and occupations such as 'Prof-specialty' or 'Exec-managerial' are more often associated with income >50K. Therefore, the current values are in the common range for <=50K, suggesting that the model's prediction is well-supported. The least influential features are those that do not diverge significantly from the norm for <=50K, such as 'age' and 'workclass' (Private), which are common in both classes. Thus, changing these to values more typical of >50K would not significantly impact the prediction, indicating they are least responsible for the outcome.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:
