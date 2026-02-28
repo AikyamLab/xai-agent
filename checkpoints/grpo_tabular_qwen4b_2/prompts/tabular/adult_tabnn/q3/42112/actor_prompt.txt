@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (80.23%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.19767475128173828}
+
+## Input Data
+Features: age=31, workclass=Private, fnlwgt=147284, education=Doctorate, education-num=16, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=1977, hours-per-week=99, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.02281).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1242
+  - hours-per-week: +0.1023
+  - native-country_Cambodia: +0.0398
+  - workclass_State-gov: +0.0357
+  - occupation_Sales: +0.0347
+- Top negative features (shap_value):
+  - workclass_Private: -0.1242
+  - capital-loss: -0.1023
+  - sex_Male: -0.0398
+  - workclass_Self-emp-not-inc: -0.0357
+  - occupation_Protective-serv: -0.0347
+- Max positive: 0.124239  Max negative: -0.124239
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss > -0.22: +0.1137
+  - education-num > 1.13: +0.1137
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0741
+  - occupation_Farming-fishing <= 0.00: +0.0486
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.1791
+  - native-country_Haiti <= 0.00: -0.1403
+  - marital-status_Married-AF-spouse <= 0.00: -0.1256
+  - native-country_Germany <= 0.00: -0.0956
+  - education_Preschool <= 0.00: -0.0892
+- Max positive: 0.113737  Max negative: -0.17907
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-loss: +0.0290
+  - education-num: +0.0233
+  - marital-status_Married-civ-spouse: +0.0146
+  - sex_Male: +0.0136
+  - relationship_Husband: +0.0102
+- Top negative features (attribution_score):
+  - age: -0.0073
+  - workclass_Private: -0.0039
+  - hours-per-week: -0.0024
+  - fnlwgt: -0.0021
+  - capital-gain: -0.0018
+- Max positive: 0.029013  Max negative: -0.007263
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0228  (orig=0.6905 → mod=0.6677)
+  - education-num: drop=+0.0161  (orig=0.6905 → mod=0.6743)
+  - sex_Male: drop=+0.0078  (orig=0.6905 → mod=0.6827)
+  - marital-status_Married-civ-spouse: drop=+0.0072  (orig=0.6905 → mod=0.6833)
+  - education_Doctorate: drop=+0.0049  (orig=0.6905 → mod=0.6856)
+  - relationship_Husband: drop=+0.0044  (orig=0.6905 → mod=0.6860)
+  - occupation_Prof-specialty: drop=+0.0038  (orig=0.6905 → mod=0.6867)
+  - native-country_United-States: drop=+0.0038  (orig=0.6905 → mod=0.6867)
+  - age: drop=-0.0033  (orig=0.6905 → mod=0.6938)
+  - hours-per-week: drop=+0.0025  (orig=0.6905 → mod=0.6879)
+- Max prob_drop: 0.02281  Max prob_increase: -0.003317
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income (>50K) in the context of the Adult Income dataset?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 99}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult Income dataset, higher income (>50K) is strongly associated with higher education levels (reflected in education-num), long working hours (hours-per-week), and specific high-paying occupations like 'Prof-specialty'. Being male and having a 'Husband' relationship (indicating stable employment context) also correlates with higher income. These features are well-documented in both statistical analyses and domain knowledge of the dataset. Education-num=16 (Doctorate) and hours-per-week=99 are particularly high outliers compared to average values in the dataset, reinforcing their role in distinguishing high-income predictions.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the input feature values for the top-1 (>50K) and top-2 (<=50K) predictions compare, focusing only on features with known income-relevance?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}, {"feature_key": "capital-loss", "action": "change", "new_value": 0}]
+- Explanation: The top-1 prediction (income >50K) is distinguished from the top-2 prediction (income <=50K) by several key features associated with higher income potential. Age, education level (as measured by education-num), and work hours are strongly correlated with higher income. The top-1 individual has a higher age (39 vs 31), slightly lower education-num (16 vs 13), but significantly higher hours-per-week (99 vs 80), suggesting more work intensity. Additionally, capital-gain increases from 0 to 2000 and capital-loss decreases from 1977 to 0, indicating better financial stability, which is a known positive signal in income prediction. These changes collectively shift the feature profile toward higher earning potential, aligning with the model's confidence in the >50K outcome.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with higher income (>50K) in the context of the Adult Income dataset?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 99}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Husband"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult Income dataset, higher income (>50K) is strongly associated with higher education levels (reflected in education-num), long working hours (hours-per-week), and specific high-paying occupations like 'Prof-specialty'. Being male and having a 'Husband' relationship (indicating stable employment context) also correlates with higher income. These features are well-documented in both statistical analyses and domain knowledge of the dataset. Education-num=16 (Doctorate) and hours-per-week=99 are particularly high outliers compared to average values in the dataset, reinforcing their role in distinguishing high-income predictions.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the input feature values for the top-1 (>50K) and top-2 (<=50K) predictions compare, focusing only on features with known income-relevance?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80}, {"feature_key": "capital-gain", "action": "change", "new_value": 2000}, {"feature_key": "capital-loss", "action": "change", "new_value": 0}]
+- Explanation: The top-1 prediction (income >50K) is distinguished from the top-2 prediction (income <=50K) by several key features associated with higher income potential. Age, education level (as measured by education-num), and work hours are strongly correlated with higher income. The top-1 individual has a higher age (39 vs 31), slightly lower education-num (16 vs 13), but significantly higher hours-per-week (99 vs 80), suggesting more work intensity. Additionally, capital-gain increases from 0 to 2000 and capital-loss decreases from 1977 to 0, indicating better financial stability, which is a known positive signal in income prediction. These changes collectively shift the feature profile toward higher earning potential, aligning with the model's confidence in the >50K outcome.
+- Confidence: 0.95
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.19767475128173828}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

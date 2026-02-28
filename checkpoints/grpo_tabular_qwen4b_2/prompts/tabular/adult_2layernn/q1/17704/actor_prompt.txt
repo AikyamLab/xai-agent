@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6463
+
+## Input Data
+Features: age=41, workclass=Private, fnlwgt=184102, education=11th, education-num=7, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.014623).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0406
+  - capital-loss: +0.0344
+  - education_Some-college: +0.0272
+  - native-country_Cuba: +0.0180
+  - native-country_Vietnam: +0.0162
+- Top negative features (shap_value):
+  - race_Other: -0.0406
+  - hours-per-week: -0.0344
+  - marital-status_Divorced: -0.0272
+  - native-country_Columbia: -0.0180
+  - native-country_Yugoslavia: -0.0162
+- Max positive: 0.040636  Max negative: -0.040636
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0749
+  - capital-loss <= -0.22: +0.0740
+  - marital-status_Divorced > 0.00: +0.0561
+  - education-num <= -0.44: +0.0509
+  - native-country_Taiwan <= 0.00: +0.0447
+- Top negative features (weight):
+  - native-country_Poland <= 0.00: -0.0695
+  - native-country_Puerto-Rico <= 0.00: -0.0554
+  - education_Preschool <= 0.00: -0.0011
+- Max positive: 0.074944  Max negative: -0.069475
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0137
+  - marital-status_Divorced: +0.0128
+  - education_11th: +0.0072
+  - relationship_Not-in-family: +0.0055
+  - occupation_Other-service: +0.0048
+- Top negative features (attribution_score):
+  - sex_Male: -0.0102
+  - native-country_United-States: -0.0056
+  - race_White: -0.0009
+  - age: -0.0007
+  - fnlwgt: -0.0001
+- Max positive: 0.013701  Max negative: -0.010201
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0146  (orig=0.4125 → mod=0.3979)
+  - marital-status_Divorced: drop=+0.0122  (orig=0.4125 → mod=0.4003)
+  - sex_Male: drop=-0.0098  (orig=0.4125 → mod=0.4223)
+  - education_11th: drop=+0.0097  (orig=0.4125 → mod=0.4027)
+  - relationship_Not-in-family: drop=+0.0065  (orig=0.4125 → mod=0.4060)
+  - occupation_Other-service: drop=+0.0051  (orig=0.4125 → mod=0.4074)
+  - native-country_United-States: drop=-0.0045  (orig=0.4125 → mod=0.4170)
+  - workclass_Private: drop=+0.0038  (orig=0.4125 → mod=0.4086)
+  - capital-loss: drop=+0.0008  (orig=0.4125 → mod=0.4116)
+  - capital-gain: drop=+0.0007  (orig=0.4125 → mod=0.4118)
+- Max prob_drop: 0.014623  Max prob_increase: -0.009822
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which input features are known to correlate with income ≤50K in public datasets like the Adult Census Income?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "correlates_with", "new_value": "lower age"}, {"feature_key": "education-num", "action": "correlates_with", "new_value": "lower education level"}, {"feature_key": "workclass", "action": "correlates_with", "new_value": "Private"}, {"feature_key": "marital-status", "action": "correlates_with", "new_value": "Divorced"}, {"feature_key": "occupation", "action": "correlates_with", "new_value": "Other-service"}]
+- Explanation: In public datasets like the Adult Census Income, individuals with income ≤50K are commonly associated with lower education levels (lower education-num), younger or mid-age cohorts (age), non-privileged workclass (e.g., Private), divorced marital status, and occupations such as 'Other-service' that are generally lower-paying. These features are well-documented in literature and feature importance analyses of the dataset. Specifically, lower education-num and age correlate with lower income, while marital status and occupation provide contextual signals about socioeconomic position. Workclass='Private' is common in the ≤50K group, though it is not exclusive to it. These associations are derived from known statistical patterns and prior model analyses on the Adult dataset.
+- Confidence: 0.94
+
+### REASONING Task
+- Query: Given the input features, why might 'education-num=7' or 'marital-status=Divorced' contribute to the '<=50K' prediction?
+- Status: Success
+- Explanation: The prediction of '<=50K' for this individual is likely influenced by the combination of 'education-num=7' and 'marital-status=Divorced'. In the context of the dataset (original UCI Adult Income dataset), 'education-num' represents years of education, with lower values indicating less formal education. An 'education-num' of 7 corresponds to the '11th' grade, which is below the typical high school completion level (12th grade), and is strongly associated with lower income potential. Additionally, 'marital-status=Divorced' is linked to lower household stability, which in historical data correlates with reduced access to financial support or employer benefits, and is statistically associated with lower income brackets. These features collectively align with the model's learned patterns that lower education levels and non-marital or divorced status reflect socioeconomic indicators more common among individuals earning below $50K. While other features such as 'age=41' and 'hours-per-week=40' are neutral or moderate, the interaction between limited education and divorced marital status significantly contributes to the model's confidence in the '<=50K' class.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of 'age=41' and 'fnlwgt=184102' in influencing income class, especially in the context of the model's architecture and training data?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 41}, {"feature_key": "fnlwgt", "action": "change", "new_value": 184102}]
+- Explanation: In the context of the model's architecture and training data, 'age' is more directly correlated with income prediction than 'fnlwgt'. While 'fnlwgt' (final weight) serves as a proxy for income level in some datasets and may influence model calibration, it is typically a derived or auxiliary feature that does not directly represent socioeconomic or labor market attributes. On the other hand, 'age' is a strong indicator of work experience and career stage, which are predictive of income. A value of 41 is within a moderate range—neither very young nor elderly—and does not carry strong bias toward '<=50K' in most income models. However, in the absence of higher education or high-paying occupations, such as 'Exec-managerial', the age alone does not significantly drive higher income. In contrast, 'fnlwgt' is often correlated with income but is not causally impacting income; it's more of a normalization factor used during training and does not directly influence the model's categorical decision. Therefore, while both features are present in the input, 'age=41' has a more interpretable and direct influence on the income class prediction, especially in this context where education and occupation are low (e.g., '11th' education, 'Other-service' occupation). Thus, the model's decision to predict '<=50K' is more likely driven by the lower value of 'age' in the context of limited educational attainment and employment status.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

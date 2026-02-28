@@ -1,0 +1,145 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (59.71%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=40, workclass=Self-emp-not-inc, fnlwgt=145246, education=Some-college, education-num=10, marital-status=Divorced, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.014123).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0495
+  - race_Amer-Indian-Eskimo: +0.0178
+  - sex_Male: +0.0102
+  - hours-per-week: +0.0095
+  - native-country_Cuba: +0.0092
+- Top negative features (shap_value):
+  - race_Other: -0.0495
+  - race_Asian-Pac-Islander: -0.0178
+  - native-country_Cambodia: -0.0102
+  - capital-loss: -0.0095
+  - native-country_Columbia: -0.0092
+- Max positive: 0.049549  Max negative: -0.049549
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0787
+  - capital-gain <= -0.15: +0.0657
+  - marital-status_Divorced > 0.00: +0.0553
+  - native-country_Ecuador <= 0.00: +0.0279
+  - native-country_England <= 0.00: +0.0107
+- Top negative features (weight):
+  - education_Preschool <= 0.00: -0.0661
+  - native-country_El-Salvador <= 0.00: -0.0500
+  - education_1st-4th <= 0.00: -0.0481
+  - marital-status_Married-AF-spouse <= 0.00: -0.0211
+- Max positive: 0.078727  Max negative: -0.066116
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0116
+  - relationship_Own-child: +0.0076
+  - education_Some-college: +0.0069
+  - occupation_Prof-specialty: +0.0043
+  - workclass_Self-emp-not-inc: +0.0040
+- Top negative features (attribution_score):
+  - sex_Male: -0.0090
+  - native-country_United-States: -0.0046
+  - race_White: -0.0026
+  - age: -0.0005
+  - capital-loss: -0.0003
+- Max positive: 0.011572  Max negative: -0.009032
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0141  (orig=0.4006 → mod=0.3865)
+  - education_Some-college: drop=+0.0104  (orig=0.4006 → mod=0.3902)
+  - sex_Male: drop=-0.0094  (orig=0.4006 → mod=0.4100)
+  - relationship_Own-child: drop=+0.0074  (orig=0.4006 → mod=0.3932)
+  - workclass_Self-emp-not-inc: drop=+0.0050  (orig=0.4006 → mod=0.3956)
+  - occupation_Prof-specialty: drop=+0.0029  (orig=0.4006 → mod=0.3977)
+  - native-country_United-States: drop=-0.0021  (orig=0.4006 → mod=0.4027)
+  - capital-gain: drop=+0.0011  (orig=0.4006 → mod=0.3995)
+  - race_White: drop=-0.0010  (orig=0.4006 → mod=0.4016)
+  - hours-per-week: drop=+0.0006  (orig=0.4006 → mod=0.4000)
+- Max prob_drop: 0.014123  Max prob_increase: -0.009361
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to classify income as <=50K, and how could increasing or decreasing them shift the prediction to >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 60}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 80}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000}]
+- Explanation: The model predicts income <=50K with moderate confidence (59.71%). In the dataset, features like age, education-num, hours-per-week, occupation, and capital-gain are strong predictors of higher income. Increasing age and education level reflects greater experience and qualification, which are positively correlated with higher earnings. Higher working hours indicate greater work commitment and potential for higher income. An occupation like 'Exec-managerial' is strongly associated with high income, far exceeding 'Prof-specialty'. Capital gains reflect wealth accumulation, which also signals higher income potential. Adjusting these features in the direction of higher-income profiles is likely to shift the prediction to >50K. Among these, age, education-num, and hours-per-week have strong linear and empirical associations with income in the dataset.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the current input features to typical features in the '>50K' class from the training data. What differences are most significant?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 40, "average_high_income_value": 50, "difference": 10, "impact": "Positive: Higher age is associated with increased income potential, especially with experience."}, {"feature_key": "education-num", "current_value": 10, "average_high_income_value": 13, "difference": 3, "impact": "Positive: Higher education level (e.g., Bachelor's or higher) correlates with greater income potential."}, {"feature_key": "hours-per-week", "current_value": 40, "average_high_income_value": 50, "difference": 10, "impact": "Positive: Higher working hours are strongly linked to higher income class (>50K)."}, {"feature_key": "occupation", "current_value": "Prof-specialty", "average_high_income_value": "Exec-managerial", "difference": "Exec-managerial vs Prof-specialty", "impact": "Significant: Exec-managerial roles are more frequently associated with >50K income than professional specialties."}, {"feature_key": "relationship", "current_value": "Own-child", "average_high_income_value": "Male", "difference": "Own-child vs Male", "impact": "Negative: 'Own-child' has low income association; 'Male' in a married or partner relationship typically correlates with higher income."}]
+- Explanation: The current instance has moderate education, age, and working hours but falls into a lower-income category (Own-child relationship), which is less correlated with high income. High-income (>50K) individuals in the training data typically have higher education levels, work longer hours, and occupy executive or managerial roles. The occupation and relationship features show the most significant divergence. Increasing age, education, hours worked, and shifting to a higher-paying occupation (e.g., Exec-managerial) would most strongly push the prediction toward >50K. The current 'Own-child' relationship is a strong negative factor and should be addressed, though its effect may be mitigated by compensating with other high-impact features.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to classify income as <=50K, and how could increasing or decreasing them shift the prediction to >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 60}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 80}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "capital-gain", "action": "increase", "new_value": 10000}]
+- Explanation: The model predicts income <=50K with moderate confidence (59.71%). In the dataset, features like age, education-num, hours-per-week, occupation, and capital-gain are strong predictors of higher income. Increasing age and education level reflects greater experience and qualification, which are positively correlated with higher earnings. Higher working hours indicate greater work commitment and potential for higher income. An occupation like 'Exec-managerial' is strongly associated with high income, far exceeding 'Prof-specialty'. Capital gains reflect wealth accumulation, which also signals higher income potential. Adjusting these features in the direction of higher-income profiles is likely to shift the prediction to >50K. Among these, age, education-num, and hours-per-week have strong linear and empirical associations with income in the dataset.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the current input features to typical features in the '>50K' class from the training data. What differences are most significant?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 40, "average_high_income_value": 50, "difference": 10, "impact": "Positive: Higher age is associated with increased income potential, especially with experience."}, {"feature_key": "education-num", "current_value": 10, "average_high_income_value": 13, "difference": 3, "impact": "Positive: Higher education level (e.g., Bachelor's or higher) correlates with greater income potential."}, {"feature_key": "hours-per-week", "current_value": 40, "average_high_income_value": 50, "difference": 10, "impact": "Positive: Higher working hours are strongly linked to higher income class (>50K)."}, {"feature_key": "occupation", "current_value": "Prof-specialty", "average_high_income_value": "Exec-managerial", "difference": "Exec-managerial vs Prof-specialty", "impact": "Significant: Exec-managerial roles are more frequently associated with >50K income than professional specialties."}, {"feature_key": "relationship", "current_value": "Own-child", "average_high_income_value": "Male", "difference": "Own-child vs Male", "impact": "Negative: 'Own-child' has low income association; 'Male' in a married or partner relationship typically correlates with higher income."}]
+- Explanation: The current instance has moderate education, age, and working hours but falls into a lower-income category (Own-child relationship), which is less correlated with high income. High-income (>50K) individuals in the training data typically have higher education levels, work longer hours, and occupy executive or managerial roles. The occupation and relationship features show the most significant divergence. Increasing age, education, hours worked, and shifting to a higher-paying occupation (e.g., Exec-managerial) would most strongly push the prediction toward >50K. The current 'Own-child' relationship is a strong negative factor and should be addressed, though its effect may be mitigated by compensating with other high-impact features.
+- Confidence: 0.93
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=40, workclass='Self-emp-not-inc', fnlwgt=145246, education='Some-college', education-num=10, marital-status='Divorced', occupation='Prof-specialty', relationship='Own-child', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (76.68%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7667825222015381}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.23321747779846191}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=27408, education=Some-college, education-num=10, marital-status=Never-married, occupation=Sales, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Vietnam.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.010221).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Vietnam: +0.0383
+  - native-country_Columbia: +0.0301
+  - sex_Male: +0.0286
+  - education-num: +0.0224
+  - native-country_Trinadad&Tobago: +0.0163
+- Top negative features (shap_value):
+  - native-country_Yugoslavia: -0.0383
+  - native-country_Cuba: -0.0301
+  - native-country_Cambodia: -0.0286
+  - capital-gain: -0.0224
+  - native-country_United-States: -0.0163
+- Max positive: 0.03827  Max negative: -0.03827
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0102  (orig=0.4420 → mod=0.4317)
+  - relationship_Not-in-family: drop=+0.0100  (orig=0.4420 → mod=0.4320)
+  - education_Some-college: drop=+0.0076  (orig=0.4420 → mod=0.4344)
+  - fnlwgt: drop=+0.0043  (orig=0.4420 → mod=0.4377)
+  - sex_Male: drop=-0.0029  (orig=0.4420 → mod=0.4449)
+  - age: drop=+0.0028  (orig=0.4420 → mod=0.4392)
+  - native-country_United-States: drop=-0.0022  (orig=0.4420 → mod=0.4442)
+  - occupation_Sales: drop=-0.0019  (orig=0.4420 → mod=0.4439)
+  - workclass_Private: drop=-0.0019  (orig=0.4420 → mod=0.4438)
+  - capital-gain: drop=+0.0009  (orig=0.4420 → mod=0.4410)
+- Max prob_drop: 0.010221  Max prob_increase: -0.002892
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of 'relationship' in the context of the adult income dataset, based on known feature correlations and domain knowledge?
+- Status: Success
+- findings: "The 'relationship' feature plays a moderately significant role in predicting income in the Adult Income dataset. Individuals in 'Husband' or 'Wife' relationships are more likely to earn over $50K compared to those in 'Not-in-family' or 'Other-relative' categories. This is consistent with domain knowledge that family-dependent individuals often have greater financial stability, access to shared resources, or social support systems, which can positively influence income outcomes. However, the effect is not dominant compared to features like 'workclass', 'hours-per-week', or 'sex'. In the current case, the individual's 'relationship' is 'Not-in-family', which is associated with a lower income probability, reinforcing the model's prediction of '\u226450K'."
+- Explanation: Based on known feature correlations in the Adult Income dataset, 'relationship' shows a moderate association with income. Individuals who are married or in family relationships (e.g., 'Spouse', 'Husband', 'Wife') have higher odds of earning more than $50K compared to those living alone or in non-family settings. This effect arises from sociodemographic patterns where family status may correlate with employment stability, higher education attainment, or income mobility. Though not among the strongest predictors, it contributes to the model's confidence in the income prediction when combined with other features like sex, age, and hours-per-week. Changing the relationship to a family-based category (e.g., 'Spouse') would likely increase the model's predicted income likelihood, potentially shifting the prediction from '≤50K' to '>50K', especially when combined with other positive attributes (e.g., high hours-per-week, male sex).
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Given that the current prediction is <=50K with 76.68% confidence, how might removing 'Not-in-family' influence the model's decision boundary, especially considering other features like age, sex, and marital-status?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband"}]
+- Explanation: The current prediction of <=50K with 76.68% confidence is based on the individual being 'Not-in-family', which is associated with lower socioeconomic stability and possibly fewer financial support structures. Changing the relationship to 'Husband' introduces a marital status that is typically linked with higher income potential due to shared household income and greater access to financial resources. This change may shift the model's decision boundary toward higher income brackets, particularly when combined with other features like male sex and private employment. While the model does not explicitly weight 'relationship' as a strong predictor, it is contextually linked with marital stability and household dynamics, which are known to correlate with income in datasets like the Census Income. Thus, this change could increase the prediction probability of >50K, though the effect depends on the underlying model structure and feature interactions.
+- Confidence: 0.82
+
+### COMPARISON Task
+- Query: Compare the impact of 'relationship' to other features like 'marital-status' or 'sex' in terms of contribution to the prediction class.
+- Status: Success
+- findings: [{"feature": "relationship", "impact": "moderate", "comparison": "The 'relationship' feature has a moderate influence on the prediction, as it is closely related to marital status and reflects household structure. When changed from 'Not-in-family' to other values (e.g., 'Husband', 'Widowed'), the model's confidence in the '\u226450K' prediction slightly adjusts, but the change is relatively small compared to features like 'sex' or 'hours-per-week'. This suggests that while 'relationship' contributes to the decision, it is not a dominant driver.", "ranking": 4}, {"feature": "sex", "impact": "high", "comparison": "The 'sex' feature has a significantly stronger influence on the prediction class. Male individuals are more likely to be predicted as '\u226550K' in the model, especially when combined with other socioeconomic features. Changes in 'sex' lead to substantial shifts in prediction probability, making it a more critical factor than 'relationship'.", "ranking": 1}, {"feature": "marital-status", "impact": "high", "comparison": "Marital status is another strong predictor. Individuals like 'Married-civ-spouse' or 'Married-spouse-absent' are more likely to be classified as '\u226550K' than 'Never-married'. This feature has a larger effect than 'relationship' because it directly influences household income patterns and work stability.", "ranking": 2}, {"feature": "hours-per-week", "impact": "high", "comparison": "Hours per week show a strong positive correlation with higher income predictions. Increasing hours from 40 to 80 significantly increases the likelihood of being classified as '\u226550K', making this feature one of the most influential factors. Its impact exceeds that of 'relationship'.", "ranking": 3}, {"feature": "age", "impact": "moderate", "comparison": "Age has a moderate effect, as older individuals generally have higher income potential. However, its impact is indirect and more contextual. It does not surpass 'sex' or 'marital-status' in influence.", "ranking": 5}]
+- Explanation: The 'relationship' feature, though relevant, plays a relatively minor role compared to 'sex', 'marital-status', and 'hours-per-week'. These features capture core socioeconomic indicators—gender, household structure, and work intensity—that strongly correlate with income levels. The model's prediction class is more sensitive to changes in sex and work hours than to shifts in relationship status. This indicates that while 'relationship' contributes to the context of household structure, it is not the primary driver of income prediction in this context.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of 'relationship' in the context of the adult income dataset, based on known feature correlations and domain knowledge?
+- Status: Success
+- findings: "The 'relationship' feature plays a moderately significant role in predicting income in the Adult Income dataset. Individuals in 'Husband' or 'Wife' relationships are more likely to earn over $50K compared to those in 'Not-in-family' or 'Other-relative' categories. This is consistent with domain knowledge that family-dependent individuals often have greater financial stability, access to shared resources, or social support systems, which can positively influence income outcomes. However, the effect is not dominant compared to features like 'workclass', 'hours-per-week', or 'sex'. In the current case, the individual's 'relationship' is 'Not-in-family', which is associated with a lower income probability, reinforcing the model's prediction of '\u226450K'."
+- Explanation: Based on known feature correlations in the Adult Income dataset, 'relationship' shows a moderate association with income. Individuals who are married or in family relationships (e.g., 'Spouse', 'Husband', 'Wife') have higher odds of earning more than $50K compared to those living alone or in non-family settings. This effect arises from sociodemographic patterns where family status may correlate with employment stability, higher education attainment, or income mobility. Though not among the strongest predictors, it contributes to the model's confidence in the income prediction when combined with other features like sex, age, and hours-per-week. Changing the relationship to a family-based category (e.g., 'Spouse') would likely increase the model's predicted income likelihood, potentially shifting the prediction from '≤50K' to '>50K', especially when combined with other positive attributes (e.g., high hours-per-week, male sex).
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Given that the current prediction is <=50K with 76.68% confidence, how might removing 'Not-in-family' influence the model's decision boundary, especially considering other features like age, sex, and marital-status?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband"}]
+- Explanation: The current prediction of <=50K with 76.68% confidence is based on the individual being 'Not-in-family', which is associated with lower socioeconomic stability and possibly fewer financial support structures. Changing the relationship to 'Husband' introduces a marital status that is typically linked with higher income potential due to shared household income and greater access to financial resources. This change may shift the model's decision boundary toward higher income brackets, particularly when combined with other features like male sex and private employment. While the model does not explicitly weight 'relationship' as a strong predictor, it is contextually linked with marital stability and household dynamics, which are known to correlate with income in datasets like the Census Income. Thus, this change could increase the prediction probability of >50K, though the effect depends on the underlying model structure and feature interactions.
+- Confidence: 0.82
+
+### COMPARISON Task
+- Query: Compare the impact of 'relationship' to other features like 'marital-status' or 'sex' in terms of contribution to the prediction class.
+- Status: Success
+- findings: [{"feature": "relationship", "impact": "moderate", "comparison": "The 'relationship' feature has a moderate influence on the prediction, as it is closely related to marital status and reflects household structure. When changed from 'Not-in-family' to other values (e.g., 'Husband', 'Widowed'), the model's confidence in the '\u226450K' prediction slightly adjusts, but the change is relatively small compared to features like 'sex' or 'hours-per-week'. This suggests that while 'relationship' contributes to the decision, it is not a dominant driver.", "ranking": 4}, {"feature": "sex", "impact": "high", "comparison": "The 'sex' feature has a significantly stronger influence on the prediction class. Male individuals are more likely to be predicted as '\u226550K' in the model, especially when combined with other socioeconomic features. Changes in 'sex' lead to substantial shifts in prediction probability, making it a more critical factor than 'relationship'.", "ranking": 1}, {"feature": "marital-status", "impact": "high", "comparison": "Marital status is another strong predictor. Individuals like 'Married-civ-spouse' or 'Married-spouse-absent' are more likely to be classified as '\u226550K' than 'Never-married'. This feature has a larger effect than 'relationship' because it directly influences household income patterns and work stability.", "ranking": 2}, {"feature": "hours-per-week", "impact": "high", "comparison": "Hours per week show a strong positive correlation with higher income predictions. Increasing hours from 40 to 80 significantly increases the likelihood of being classified as '\u226550K', making this feature one of the most influential factors. Its impact exceeds that of 'relationship'.", "ranking": 3}, {"feature": "age", "impact": "moderate", "comparison": "Age has a moderate effect, as older individuals generally have higher income potential. However, its impact is indirect and more contextual. It does not surpass 'sex' or 'marital-status' in influence.", "ranking": 5}]
+- Explanation: The 'relationship' feature, though relevant, plays a relatively minor role compared to 'sex', 'marital-status', and 'hours-per-week'. These features capture core socioeconomic indicators—gender, household structure, and work intensity—that strongly correlate with income levels. The model's prediction class is more sensitive to changes in sex and work hours than to shifts in relationship status. This indicates that while 'relationship' contributes to the context of household structure, it is not the primary driver of income prediction in this context.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: >50K (71.05%)
+- Top-2: {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.2894906997680664}
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=81232, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=15024, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain > -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: capital-gain.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-gain (prob drop: 0.011774).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.0980
+  - hours-per-week: +0.0625
+  - occupation_Prof-specialty: +0.0365
+  - native-country_Cambodia: +0.0360
+  - native-country_United-States: +0.0252
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.0980
+  - capital-loss: -0.0625
+  - occupation_Priv-house-serv: -0.0365
+  - sex_Male: -0.0360
+  - native-country_Trinadad&Tobago: -0.0252
+- Max positive: 0.097969  Max negative: -0.097969
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain > -0.15: +0.2280
+  - native-country_Columbia <= 0.00: +0.0932
+  - native-country_Dominican-Republic <= 0.00: +0.0661
+  - -0.05 < education-num <= 1.13: +0.0634
+  - native-country_Taiwan <= 0.00: +0.0477
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.1139
+  - native-country_England <= 0.00: -0.0386
+  - native-country_Nicaragua <= 0.00: -0.0346
+  - workclass_Without-pay <= 0.00: -0.0156
+- Max positive: 0.227961  Max negative: -0.113885
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - capital-gain: +0.0192
+  - marital-status_Married-civ-spouse: +0.0139
+  - education_Bachelors: +0.0128
+  - education-num: +0.0126
+  - sex_Male: +0.0117
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0084
+  - age: -0.0036
+  - workclass_Private: -0.0009
+  - workclass_Federal-gov: +0.0000
+  - workclass_Local-gov: +0.0000
+- Max positive: 0.019205  Max negative: -0.008399
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=+0.0118  (orig=0.6705 → mod=0.6587)
+  - education-num: drop=+0.0087  (orig=0.6705 → mod=0.6618)
+  - education_Bachelors: drop=+0.0072  (orig=0.6705 → mod=0.6633)
+  - marital-status_Married-civ-spouse: drop=+0.0068  (orig=0.6705 → mod=0.6637)
+  - sex_Male: drop=+0.0063  (orig=0.6705 → mod=0.6642)
+  - relationship_Husband: drop=+0.0059  (orig=0.6705 → mod=0.6646)
+  - fnlwgt: drop=-0.0041  (orig=0.6705 → mod=0.6746)
+  - hours-per-week: drop=+0.0037  (orig=0.6705 → mod=0.6668)
+  - native-country_United-States: drop=+0.0025  (orig=0.6705 → mod=0.6680)
+  - workclass_Private: drop=+0.0015  (orig=0.6705 → mod=0.6691)
+- Max prob_drop: 0.011774  Max prob_increase: -0.004118
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on known socioeconomic patterns in the adult income dataset, which features are historically associated with higher income (>50K) versus lower income (<=50K)?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "capital-gain", "action": "increase", "new_value": 20000}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels (especially beyond Bachelor's), longer working hours, and higher capital gains are historically associated with greater income (>50K). Occupations such as 'Exec-managerial' are strongly correlated with high income, while 'Private' workclass is common among lower-income groups. Increasing education-num to 16 (e.g., from Bachelors to Masters or higher), raising hours-per-week to 60, and increasing capital-gain significantly elevate the likelihood of predicting >50K. Changing occupation to 'Exec-managerial' directly reflects a known high-income category. Workclass transition to 'Local-gov' also shows higher income potential compared to 'Private'. These changes align with established socioeconomic patterns in the dataset.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the specified input features (age=35, workclass=Private, education=Bachelors, etc.) compare against typical patterns observed in the >50K vs <=50K populations?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 45}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 20000}]
+- Explanation: In the >50K income group, individuals typically exhibit higher education levels (higher education-num), older age, longer workweeks, and occupations associated with higher income potential such as 'Prof-specialty' or 'Exec-managerial'. The current input has a moderate age (35), a Bachelors degree (education-num=13), and 50 hours per week, which are below typical >50K benchmarks. However, the capital gain is above average, suggesting possible income from assets or investments. To better align with the >50K population, increasing age, education level, work hours, and shifting to higher-income occupations would be most influential. The current values are moderately aligned but require upward shifts in key socio-demographic and financial indicators to distinguish strongly from the <=50K group.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on known socioeconomic patterns in the adult income dataset, which features are historically associated with higher income (>50K) versus lower income (<=50K)?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "capital-gain", "action": "increase", "new_value": 20000}, {"feature_key": "occupation", "action": "change", "new_value": "Exec-managerial"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels (especially beyond Bachelor's), longer working hours, and higher capital gains are historically associated with greater income (>50K). Occupations such as 'Exec-managerial' are strongly correlated with high income, while 'Private' workclass is common among lower-income groups. Increasing education-num to 16 (e.g., from Bachelors to Masters or higher), raising hours-per-week to 60, and increasing capital-gain significantly elevate the likelihood of predicting >50K. Changing occupation to 'Exec-managerial' directly reflects a known high-income category. Workclass transition to 'Local-gov' also shows higher income potential compared to 'Private'. These changes align with established socioeconomic patterns in the dataset.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the specified input features (age=35, workclass=Private, education=Bachelors, etc.) compare against typical patterns observed in the >50K vs <=50K populations?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 45}, {"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "capital-gain", "action": "change", "new_value": 20000}]
+- Explanation: In the >50K income group, individuals typically exhibit higher education levels (higher education-num), older age, longer workweeks, and occupations associated with higher income potential such as 'Prof-specialty' or 'Exec-managerial'. The current input has a moderate age (35), a Bachelors degree (education-num=13), and 50 hours per week, which are below typical >50K benchmarks. However, the capital gain is above average, suggesting possible income from assets or investments. To better align with the >50K population, increasing age, education level, work hours, and shifting to higher-income occupations would be most influential. The current values are moderately aligned but require upward shifts in key socio-demographic and financial indicators to distinguish strongly from the <=50K group.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that DISTINGUISHES >50K from {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.2894906997680664}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

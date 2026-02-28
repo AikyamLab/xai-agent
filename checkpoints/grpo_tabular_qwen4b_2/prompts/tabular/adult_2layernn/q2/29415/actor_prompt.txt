@@ -1,0 +1,134 @@
+You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were least responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5263
+
+## Input Data
+Features: age=41, workclass=State-gov, fnlwgt=180272, education=Masters, education-num=14, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=35, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.00753).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0316
+  - relationship_Not-in-family: +0.0260
+  - native-country_Columbia: +0.0175
+  - native-country_Trinadad&Tobago: +0.0121
+  - race_Other: +0.0107
+- Top negative features (shap_value):
+  - capital-loss: -0.0316
+  - relationship_Husband: -0.0260
+  - native-country_Cuba: -0.0175
+  - native-country_United-States: -0.0121
+  - race_Black: -0.0107
+- Max positive: 0.031577  Max negative: -0.031577
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0717
+  - capital-loss <= -0.22: +0.0679
+  - native-country_Dominican-Republic <= 0.00: +0.0490
+  - hours-per-week <= -0.08: +0.0471
+  - marital-status_Married-AF-spouse <= 0.00: +0.0205
+- Top negative features (weight):
+  - education-num > 1.13: -0.0489
+  - marital-status_Divorced <= 0.00: -0.0487
+  - native-country_Guatemala <= 0.00: -0.0485
+  - native-country_Hong <= 0.00: -0.0348
+  - native-country_Peru <= 0.00: -0.0248
+- Max positive: 0.071723  Max negative: -0.048851
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0063
+  - hours-per-week: +0.0057
+  - relationship_Own-child: +0.0050
+  - sex_Female: +0.0032
+  - occupation_Prof-specialty: +0.0025
+- Top negative features (attribution_score):
+  - education-num: -0.0060
+  - race_White: -0.0051
+  - education_Masters: -0.0049
+  - native-country_United-States: -0.0041
+  - age: -0.0004
+- Max positive: 0.006329  Max negative: -0.00598
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0075  (orig=0.3837 → mod=0.3762)
+  - hours-per-week: drop=+0.0053  (orig=0.3837 → mod=0.3785)
+  - race_White: drop=-0.0052  (orig=0.3837 → mod=0.3890)
+  - education_Masters: drop=-0.0041  (orig=0.3837 → mod=0.3878)
+  - education-num: drop=-0.0039  (orig=0.3837 → mod=0.3876)
+  - sex_Female: drop=+0.0037  (orig=0.3837 → mod=0.3801)
+  - native-country_United-States: drop=-0.0034  (orig=0.3837 → mod=0.3871)
+  - relationship_Own-child: drop=+0.0026  (orig=0.3837 → mod=0.3811)
+  - occupation_Prof-specialty: drop=+0.0009  (orig=0.3837 → mod=0.3828)
+  - capital-loss: drop=+0.0007  (orig=0.3837 → mod=0.3830)
+- Max prob_drop: 0.00753  Max prob_increase: -0.005214
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge of the income prediction task, which features are typically uncorrelated with income (e.g., race, sex) or known to be invariant across income classes?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "Black"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "workclass", "action": "change", "new_value": "Federal-gov"}, {"feature_key": "native-country", "action": "change", "new_value": "Cambodia"}, {"feature_key": "capital-gain", "action": "change", "new_value": 0}]
+- Explanation: In the context of income prediction, features like race and sex have historically been associated with statistical biases and are often considered invariant across income classes in real-world data, especially when controlled for socioeconomic factors. However, domain knowledge indicates that these features are not inherently predictive of income in a structural or causal sense—especially when other features like education, workclass, and hours-per-week are better correlated with income. Similarly, workclass and native-country are categorical and can vary widely without impacting income directly, while capital-gain is already zero in the current case and has no effect on the prediction when absent. Thus, changing these features does not alter the model's prediction of '≤50K' significantly. Among these, race and sex are the most commonly recognized as having minimal explanatory power in income modeling, especially given the model's fairness and bias constraints in tabular data tasks.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative importance of features like race and sex to education and age in income prediction tasks; which are more likely to be neutral or low-impact?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "Black"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "hours-per-week", "action": "change", "new_value": 20}]
+- Explanation: In income prediction tasks, race and sex are historically strong predictors due to demographic disparities in labor market outcomes, even when controlling for education and work experience. However, in this specific instance, the model predicted '≤50K' with moderate confidence (52.63%), and the individual has a 'Masters' degree (education-num=14), which is a strong predictor of higher income. Age (41) is also relatively mid-range and not exceptionally high. The features 'race' and 'sex' are more likely to be considered high-impact due to sociocultural and structural biases in the dataset. Therefore, changing these categorical features (e.g., to Black or Male) would likely shift the prediction significantly, indicating high predictive relevance. In contrast, reducing education-num to 10 or lowering age to 30 would weaken the prediction less drastically because education and age are strongly correlated with income. Thus, education and age are more consistently influential than race and sex in this context, suggesting that race and sex are less neutral—rather, they are more likely to be strongly influential, contradicting the assumption of neutrality. Hence, race and sex are not low-impact; they are high-impact. The correct interpretation of 'least responsible' must therefore be reframed: features like 'education-num' and 'age' are more directly tied to income pathways and thus more responsible, while race and sex, though impactful, are not neutral. Therefore, the features least responsible in prediction are those that are categorical and non-linear in effect, such as 'race' and 'sex', especially if the model is calibrated to social biases. However, given the model's confidence and input, the strongest neutral candidates are 'hours-per-week' and 'capital-gain/loss', which are low in value and marginal. Thus, the most neutral features are 'hours-per-week' and 'capital-gain'. Since the question asks for features least responsible, the top candidates are: hours-per-week, capital-gain, capital-loss, and education-num (as it was already at 14). After re-evaluating, 'education-num' at 14 is a strong predictor, so it is not neutral. 'Hours-per-week' is at 35, which is above average. Thus, the least responsible features are those with minimal variation or impact. Final ranking based on predictive neutrality: hours-per-week (due to low variance and moderate value), capital-gain (0), capital-loss (0), and sex or race (context-dependent). But since race and sex are strongly correlated with income in public datasets, they are not neutral. Therefore, the most neutral features are capital-gain, capital-loss, and hours-per-week. Final list: hours-per-week, capital-gain, capital-loss.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on domain knowledge of the income prediction task, which features are typically uncorrelated with income (e.g., race, sex) or known to be invariant across income classes?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "Black"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "workclass", "action": "change", "new_value": "Federal-gov"}, {"feature_key": "native-country", "action": "change", "new_value": "Cambodia"}, {"feature_key": "capital-gain", "action": "change", "new_value": 0}]
+- Explanation: In the context of income prediction, features like race and sex have historically been associated with statistical biases and are often considered invariant across income classes in real-world data, especially when controlled for socioeconomic factors. However, domain knowledge indicates that these features are not inherently predictive of income in a structural or causal sense—especially when other features like education, workclass, and hours-per-week are better correlated with income. Similarly, workclass and native-country are categorical and can vary widely without impacting income directly, while capital-gain is already zero in the current case and has no effect on the prediction when absent. Thus, changing these features does not alter the model's prediction of '≤50K' significantly. Among these, race and sex are the most commonly recognized as having minimal explanatory power in income modeling, especially given the model's fairness and bias constraints in tabular data tasks.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the relative importance of features like race and sex to education and age in income prediction tasks; which are more likely to be neutral or low-impact?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "Black"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}, {"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "hours-per-week", "action": "change", "new_value": 20}]
+- Explanation: In income prediction tasks, race and sex are historically strong predictors due to demographic disparities in labor market outcomes, even when controlling for education and work experience. However, in this specific instance, the model predicted '≤50K' with moderate confidence (52.63%), and the individual has a 'Masters' degree (education-num=14), which is a strong predictor of higher income. Age (41) is also relatively mid-range and not exceptionally high. The features 'race' and 'sex' are more likely to be considered high-impact due to sociocultural and structural biases in the dataset. Therefore, changing these categorical features (e.g., to Black or Male) would likely shift the prediction significantly, indicating high predictive relevance. In contrast, reducing education-num to 10 or lowering age to 30 would weaken the prediction less drastically because education and age are strongly correlated with income. Thus, education and age are more consistently influential than race and sex in this context, suggesting that race and sex are less neutral—rather, they are more likely to be strongly influential, contradicting the assumption of neutrality. Hence, race and sex are not low-impact; they are high-impact. The correct interpretation of 'least responsible' must therefore be reframed: features like 'education-num' and 'age' are more directly tied to income pathways and thus more responsible, while race and sex, though impactful, are not neutral. Therefore, the features least responsible in prediction are those that are categorical and non-linear in effect, such as 'race' and 'sex', especially if the model is calibrated to social biases. However, given the model's confidence and input, the strongest neutral candidates are 'hours-per-week' and 'capital-gain/loss', which are low in value and marginal. Thus, the most neutral features are 'hours-per-week' and 'capital-gain'. Since the question asks for features least responsible, the top candidates are: hours-per-week, capital-gain, capital-loss, and education-num (as it was already at 14). After re-evaluating, 'education-num' at 14 is a strong predictor, so it is not neutral. 'Hours-per-week' is at 35, which is above average. Thus, the least responsible features are those with minimal variation or impact. Final ranking based on predictive neutrality: hours-per-week (due to low variance and moderate value), capital-gain (0), capital-loss (0), and sex or race (context-dependent). But since race and sex are strongly correlated with income in public datasets, they are not neutral. Therefore, the most neutral features are capital-gain, capital-loss, and hours-per-week. Final list: hours-per-week, capital-gain, capital-loss.
+- Confidence: 0.92
+
+## Your Task
+Identify the part that had LEAST impact on the prediction.
+This should be part that, if masked, would NOT significantly change the prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is least responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

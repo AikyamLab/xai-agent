@@ -1,0 +1,116 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (78.91%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7891213893890381}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.21087861061096191}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=22, workclass=Private, fnlwgt=315974, education=Some-college, education-num=10, marital-status=Never-married, occupation=Sales, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.014899).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0478
+  - native-country_Vietnam: +0.0302
+  - sex_Male: +0.0269
+  - native-country_Columbia: +0.0254
+  - native-country_Trinadad&Tobago: +0.0183
+- Top negative features (shap_value):
+  - fnlwgt: -0.0478
+  - native-country_Yugoslavia: -0.0302
+  - native-country_Cambodia: -0.0269
+  - native-country_Cuba: -0.0254
+  - native-country_United-States: -0.0183
+- Max positive: 0.047798  Max negative: -0.047798
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0149  (orig=0.4475 → mod=0.4326)
+  - marital-status_Never-married: drop=+0.0105  (orig=0.4475 → mod=0.4369)
+  - relationship_Not-in-family: drop=+0.0090  (orig=0.4475 → mod=0.4385)
+  - occupation_Sales: drop=-0.0046  (orig=0.4475 → mod=0.4520)
+  - education_Some-college: drop=+0.0027  (orig=0.4475 → mod=0.4448)
+  - capital-gain: drop=+0.0020  (orig=0.4475 → mod=0.4455)
+  - sex_Female: drop=+0.0017  (orig=0.4475 → mod=0.4457)
+  - race_White: drop=-0.0015  (orig=0.4475 → mod=0.4490)
+  - workclass_Private: drop=+0.0014  (orig=0.4475 → mod=0.4461)
+  - capital-loss: drop=+0.0013  (orig=0.4475 → mod=0.4461)
+- Max prob_drop: 0.014899  Max prob_increase: -0.004562
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of 'relationship' in the context of income prediction based on known demographic and socioeconomic patterns?
+- Status: Success
+- findings: "The 'relationship' feature plays a moderate role in income prediction, as it captures household structure and social support networks, which can influence economic stability and access to resources. In the context of the given data, individuals in 'Husband' or 'Wife' relationships are more likely to be in higher-income brackets due to shared financial responsibilities and potential joint earnings, whereas 'Not-in-family' or 'Other-relative' relationships are often associated with lower income, especially when combined with lower education or work-class status. The current prediction of 'income <=50K' with 'relationship=Not-in-family' aligns with known socioeconomic patterns where individuals without a formal household partnership (e.g., married or cohabiting) tend to earn less, particularly when other features like age, education, and occupation are not strongly supportive of higher income. Changing the relationship to 'Husband' or 'Wife' may increase the predicted income class, potentially shifting the prediction to 'income >50K', depending on the interaction with other features like sex, education, and occupation."
+- Explanation: The 'relationship' feature reflects the socio-demographic context of an individual’s household structure. Research and datasets like the Census Income dataset show that marital status and relationship patterns are correlated with income levels. For instance, married individuals typically exhibit higher incomes than those in 'Not-in-family' or 'Unmarried' status, due to factors such as stability, shared earnings, and access to social capital. In the current case, 'Not-in-family' with a female, young age (22), and lower education (Some-college) underpins a lower-income prediction. Hence, altering 'relationship' to 'Husband' or 'Wife' could improve the model’s forecast of higher income, demonstrating the feature’s contextual importance in income prediction.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If 'relationship' is removed, how might the model’s probability distribution shift from class 0 (<=50K) to class 1 (>50K)?
+- Status: Success
+- findings: {"class_0_probability": 0.7891, "class_1_probability": 0.2109, "predicted_class": 0, "change_in_prediction": "no significant shift", "reason_for_change": "The 'relationship' feature in the original context is 'Not-in-family', which is a categorical variable indicating the individual's family status. However, in the current dataset, the model already has a strong confidence (78.91%) in predicting class 0 (<=50K). The feature 'relationship' is not the primary driver of the prediction based on the current feature set; other variables like age (22), education ('Some-college'), marital-status ('Never-married'), and sex ('Female') suggest a lower socioeconomic status, which is consistent with the <=50K prediction. Removing the 'relationship' feature does not introduce new information that would significantly alter the model's learned pattern, especially since it is a secondary or contextual feature. Therefore, the model\u2019s probability distribution remains largely unchanged."}
+- Explanation: The 'relationship' feature is one of several categorical variables that may influence income prediction. However, in this case, it does not provide strong discriminatory power in the context of the model's existing features. The individual is young (age=22), has low education level (some college), is never married, and is female — all of which are associated with lower income in historical datasets. The model’s high confidence (78.91%) in predicting class 0 (<=50K) stems from these factors, not specifically from the 'relationship' category. Removing 'relationship' would not substantially alter the feature representation or the model’s learned decision boundary. Hence, the shift in class probabilities is minimal or non-existent.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the current prediction with a hypothetical prediction where 'relationship' is set to an alternative value (e.g., 'Husband') to assess sensitivity.
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative", "prediction": 0, "confidence": 0.7891}]
+- Explanation: The model prediction of income ≤50K (label 0) remains unchanged across all alternative relationship values. This indicates that the 'relationship' feature does not have a significant influence on the model's prediction in this context. The confidence score (78.91%) remains consistent, suggesting that the model's decision boundary is robust to changes in this particular feature. This may imply that, within the current data distribution and feature interactions, relationship status does not strongly correlate with income classification when other features (such as age, sex, education, hours-per-week) are held constant.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: What is the role of 'relationship' in the context of income prediction based on known demographic and socioeconomic patterns?
+- Status: Success
+- findings: "The 'relationship' feature plays a moderate role in income prediction, as it captures household structure and social support networks, which can influence economic stability and access to resources. In the context of the given data, individuals in 'Husband' or 'Wife' relationships are more likely to be in higher-income brackets due to shared financial responsibilities and potential joint earnings, whereas 'Not-in-family' or 'Other-relative' relationships are often associated with lower income, especially when combined with lower education or work-class status. The current prediction of 'income <=50K' with 'relationship=Not-in-family' aligns with known socioeconomic patterns where individuals without a formal household partnership (e.g., married or cohabiting) tend to earn less, particularly when other features like age, education, and occupation are not strongly supportive of higher income. Changing the relationship to 'Husband' or 'Wife' may increase the predicted income class, potentially shifting the prediction to 'income >50K', depending on the interaction with other features like sex, education, and occupation."
+- Explanation: The 'relationship' feature reflects the socio-demographic context of an individual’s household structure. Research and datasets like the Census Income dataset show that marital status and relationship patterns are correlated with income levels. For instance, married individuals typically exhibit higher incomes than those in 'Not-in-family' or 'Unmarried' status, due to factors such as stability, shared earnings, and access to social capital. In the current case, 'Not-in-family' with a female, young age (22), and lower education (Some-college) underpins a lower-income prediction. Hence, altering 'relationship' to 'Husband' or 'Wife' could improve the model’s forecast of higher income, demonstrating the feature’s contextual importance in income prediction.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: If 'relationship' is removed, how might the model’s probability distribution shift from class 0 (<=50K) to class 1 (>50K)?
+- Status: Success
+- findings: {"class_0_probability": 0.7891, "class_1_probability": 0.2109, "predicted_class": 0, "change_in_prediction": "no significant shift", "reason_for_change": "The 'relationship' feature in the original context is 'Not-in-family', which is a categorical variable indicating the individual's family status. However, in the current dataset, the model already has a strong confidence (78.91%) in predicting class 0 (<=50K). The feature 'relationship' is not the primary driver of the prediction based on the current feature set; other variables like age (22), education ('Some-college'), marital-status ('Never-married'), and sex ('Female') suggest a lower socioeconomic status, which is consistent with the <=50K prediction. Removing the 'relationship' feature does not introduce new information that would significantly alter the model's learned pattern, especially since it is a secondary or contextual feature. Therefore, the model\u2019s probability distribution remains largely unchanged."}
+- Explanation: The 'relationship' feature is one of several categorical variables that may influence income prediction. However, in this case, it does not provide strong discriminatory power in the context of the model's existing features. The individual is young (age=22), has low education level (some college), is never married, and is female — all of which are associated with lower income in historical datasets. The model’s high confidence (78.91%) in predicting class 0 (<=50K) stems from these factors, not specifically from the 'relationship' category. Removing 'relationship' would not substantially alter the feature representation or the model’s learned decision boundary. Hence, the shift in class probabilities is minimal or non-existent.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the current prediction with a hypothetical prediction where 'relationship' is set to an alternative value (e.g., 'Husband') to assess sensitivity.
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Husband", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Own-child", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Unmarried", "prediction": 0, "confidence": 0.7891}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative", "prediction": 0, "confidence": 0.7891}]
+- Explanation: The model prediction of income ≤50K (label 0) remains unchanged across all alternative relationship values. This indicates that the 'relationship' feature does not have a significant influence on the model's prediction in this context. The confidence score (78.91%) remains consistent, suggesting that the model's decision boundary is robust to changes in this particular feature. This may imply that, within the current data distribution and feature interactions, relationship status does not strongly correlate with income classification when other features (such as age, sex, education, hours-per-week) are held constant.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.48%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=32, workclass=Private, fnlwgt=83253, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.012343).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0392
+  - native-country_United-States: +0.0067
+  - occupation_Transport-moving: +0.0045
+  - hours-per-week: +0.0032
+  - education_Assoc-voc: +0.0028
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0392
+  - native-country_Trinadad&Tobago: -0.0067
+  - occupation_Tech-support: -0.0045
+  - capital-loss: -0.0032
+  - education_Assoc-acdm: -0.0028
+- Max positive: 0.039152  Max negative: -0.039152
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Guatemala <= 0.00: +0.0607
+  - hours-per-week > 0.34: +0.0569
+  - marital-status_Divorced <= 0.00: +0.0512
+  - native-country_Scotland <= 0.00: +0.0363
+  - native-country_Puerto-Rico <= 0.00: +0.0338
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0782
+  - capital-gain <= -0.15: -0.0650
+- Max positive: 0.060745  Max negative: -0.078156
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0110
+  - sex_Male: +0.0068
+  - marital-status_Married-civ-spouse: +0.0044
+  - relationship_Husband: +0.0032
+  - native-country_United-States: +0.0008
+- Top negative features (attribution_score):
+  - age: -0.0042
+  - occupation_Transport-moving: -0.0037
+  - education_Some-college: -0.0033
+  - workclass_Private: -0.0022
+  - fnlwgt: -0.0011
+- Max positive: 0.011034  Max negative: -0.004159
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0123  (orig=0.6306 → mod=0.6183)
+  - occupation_Transport-moving: drop=-0.0064  (orig=0.6306 → mod=0.6370)
+  - education_Some-college: drop=-0.0056  (orig=0.6306 → mod=0.6362)
+  - sex_Male: drop=+0.0056  (orig=0.6306 → mod=0.6250)
+  - marital-status_Married-civ-spouse: drop=+0.0054  (orig=0.6306 → mod=0.6252)
+  - age: drop=-0.0043  (orig=0.6306 → mod=0.6349)
+  - workclass_Private: drop=-0.0021  (orig=0.6306 → mod=0.6327)
+  - relationship_Husband: drop=+0.0017  (orig=0.6306 → mod=0.6289)
+  - race_White: drop=-0.0011  (orig=0.6306 → mod=0.6317)
+  - native-country_United-States: drop=-0.0006  (orig=0.6306 → mod=0.6312)
+- Max prob_drop: 0.012343  Max prob_increase: -0.006444
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'fnlwgt' or 'education-num' despite their lack of semantic connection to income level in the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "missing"}, {"feature_key": "education-num", "action": "change", "new_value": "5"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a survey weighting factor used to ensure representativeness and does not directly influence income levels. Its presence in models can lead to spurious correlations if the model learns that higher weights correlate with higher income due to data imbalances or synthetic patterns during training. Similarly, 'education-num' is a proxy for education level, which has a semantic link to income, but its correlation with income is indirect and may be amplified by dataset biases (e.g., higher education levels being more common in higher-income groups). However, in the <=50K class, these features may be misattributed due to strong co-occurrence patterns in the training data, where high fnlwgt or high education-num values are frequently associated with the <=50K group due to oversampling or noise. Changing their values to representative but non-correlated values can help isolate the true predictive signal.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true label (<=50K) versus the model's predicted label (>50K). Identify discrepancies in relevance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "Age is generally negatively correlated with income >50K; younger individuals are less likely to earn above $50K. The individual is 32 years old, which is below the typical age range associated with higher income. Changing age to 50 increases the likelihood of being in the >50K group, indicating poor model alignment with age-based income trends. This suggests the model may incorrectly assign high income to a younger worker."}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Education level is a strong predictor of income. 'Some-college' is associated with lower income brackets. Upgrading to 'Bachelors' increases the predicted probability of >50K, implying the model overlooks the educational-_income relationship. This mismatch shows insufficient weighting of education for income prediction."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80, "relevance_mismatch": "Higher weekly hours are correlated with higher income. 60 hours is already high, but increasing to 80 could push the prediction toward >50K. The model may not fully account for work intensity as a key driver of income, revealing a misattribution of relevance to other features."}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000, "relevance_mismatch": "Capital gain is a strong feature for predicting >50K. Its value is currently 0, which reduces the likelihood of high income. Increasing it to 1000 would make the individual more likely to earn >50K, suggesting the model fails to recognize the predictive power of capital gain."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "relevance_mismatch": "Sex is a historically linked factor in income prediction, though ethically and statistically complex. In this dataset, males are more likely to earn >50K than females. The model predicts >50K for a male, yet the true label is <=50K. Changing sex to female reduces the predicted income, showing the model's prediction is not aligned with known gender-income patterns. This indicates a potential misattribution of relevance due to biased feature weighting."}]
+- Explanation: The model incorrectly predicted >50K for an individual with moderate education, low capital gains, and a typical work profile. Key features like age, education, work hours, capital gain, and sex have known semantic relevance to income outcomes. The mismatch arises because the model underweights or misaligns with key predictors: younger age, lower education, zero capital gains, and male sex all suggest lower income. Adjusting these features to more typical high-income profiles shifts the prediction toward >50K, revealing that the model's attribution ignores or misweights these semantically relevant features. The strongest mismatches are in education and capital gain, which are statistically robust predictors of income level.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'fnlwgt' or 'education-num' despite their lack of semantic connection to income level in the <=50K class?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "missing"}, {"feature_key": "education-num", "action": "change", "new_value": "5"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a survey weighting factor used to ensure representativeness and does not directly influence income levels. Its presence in models can lead to spurious correlations if the model learns that higher weights correlate with higher income due to data imbalances or synthetic patterns during training. Similarly, 'education-num' is a proxy for education level, which has a semantic link to income, but its correlation with income is indirect and may be amplified by dataset biases (e.g., higher education levels being more common in higher-income groups). However, in the <=50K class, these features may be misattributed due to strong co-occurrence patterns in the training data, where high fnlwgt or high education-num values are frequently associated with the <=50K group due to oversampling or noise. Changing their values to representative but non-correlated values can help isolate the true predictive signal.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true label (<=50K) versus the model's predicted label (>50K). Identify discrepancies in relevance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 50, "relevance_mismatch": "Age is generally negatively correlated with income >50K; younger individuals are less likely to earn above $50K. The individual is 32 years old, which is below the typical age range associated with higher income. Changing age to 50 increases the likelihood of being in the >50K group, indicating poor model alignment with age-based income trends. This suggests the model may incorrectly assign high income to a younger worker."}, {"feature_key": "education", "action": "change", "new_value": "Bachelors", "relevance_mismatch": "Education level is a strong predictor of income. 'Some-college' is associated with lower income brackets. Upgrading to 'Bachelors' increases the predicted probability of >50K, implying the model overlooks the educational-_income relationship. This mismatch shows insufficient weighting of education for income prediction."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80, "relevance_mismatch": "Higher weekly hours are correlated with higher income. 60 hours is already high, but increasing to 80 could push the prediction toward >50K. The model may not fully account for work intensity as a key driver of income, revealing a misattribution of relevance to other features."}, {"feature_key": "capital-gain", "action": "change", "new_value": 1000, "relevance_mismatch": "Capital gain is a strong feature for predicting >50K. Its value is currently 0, which reduces the likelihood of high income. Increasing it to 1000 would make the individual more likely to earn >50K, suggesting the model fails to recognize the predictive power of capital gain."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "relevance_mismatch": "Sex is a historically linked factor in income prediction, though ethically and statistically complex. In this dataset, males are more likely to earn >50K than females. The model predicts >50K for a male, yet the true label is <=50K. Changing sex to female reduces the predicted income, showing the model's prediction is not aligned with known gender-income patterns. This indicates a potential misattribution of relevance due to biased feature weighting."}]
+- Explanation: The model incorrectly predicted >50K for an individual with moderate education, low capital gains, and a typical work profile. Key features like age, education, work hours, capital gain, and sex have known semantic relevance to income outcomes. The mismatch arises because the model underweights or misaligns with key predictors: younger age, lower education, zero capital gains, and male sex all suggest lower income. Adjusting these features to more typical high-income profiles shifts the prediction toward >50K, revealing that the model's attribution ignores or misweights these semantically relevant features. The strongest mismatches are in education and capital gain, which are statistically robust predictors of income level.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

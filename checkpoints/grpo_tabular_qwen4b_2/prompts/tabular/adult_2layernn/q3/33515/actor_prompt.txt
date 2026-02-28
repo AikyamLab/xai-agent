@@ -1,0 +1,130 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (65.94%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3406091630458832}
+
+## Input Data
+Features: age=57, workclass=Private, fnlwgt=266189, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Unmarried, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.014851).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0443
+  - native-country_France: +0.0151
+  - occupation_Tech-support: +0.0134
+  - native-country_Trinadad&Tobago: +0.0093
+  - native-country_Dominican-Republic: +0.0053
+- Top negative features (shap_value):
+  - race_Other: -0.0443
+  - native-country_Germany: -0.0151
+  - occupation_Transport-moving: -0.0134
+  - native-country_United-States: -0.0093
+  - native-country_Ecuador: -0.0053
+- Max positive: 0.044349  Max negative: -0.044349
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0844
+  - capital-gain <= -0.15: +0.0656
+  - native-country_Italy <= 0.00: +0.0572
+  - education-num <= -0.44: +0.0559
+  - marital-status_Divorced > 0.00: +0.0494
+- Top negative features (weight):
+  - native-country_Vietnam <= 0.00: -0.0549
+  - native-country_Cambodia <= 0.00: -0.0191
+- Max positive: 0.084406  Max negative: -0.054883
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0133
+  - education_HS-grad: +0.0071
+  - sex_Female: +0.0063
+  - occupation_Adm-clerical: +0.0063
+  - workclass_Private: +0.0040
+- Top negative features (attribution_score):
+  - race_White: -0.0045
+  - native-country_United-States: -0.0031
+  - hours-per-week: -0.0007
+  - fnlwgt: -0.0004
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.013288  Max negative: -0.004513
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0149  (orig=0.4157 → mod=0.4008)
+  - sex_Female: drop=+0.0072  (orig=0.4157 → mod=0.4085)
+  - occupation_Adm-clerical: drop=+0.0065  (orig=0.4157 → mod=0.4092)
+  - education_HS-grad: drop=+0.0058  (orig=0.4157 → mod=0.4098)
+  - race_White: drop=-0.0051  (orig=0.4157 → mod=0.4208)
+  - workclass_Private: drop=+0.0041  (orig=0.4157 → mod=0.4115)
+  - native-country_United-States: drop=-0.0032  (orig=0.4157 → mod=0.4188)
+  - relationship_Unmarried: drop=+0.0029  (orig=0.4157 → mod=0.4127)
+  - age: drop=+0.0022  (orig=0.4157 → mod=0.4134)
+  - education-num: drop=+0.0011  (orig=0.4157 → mod=0.4145)
+- Max prob_drop: 0.014851  Max prob_increase: -0.005143
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the input features, which demographic or socioeconomic factors (e.g., age, education, sex, race) are historically associated with lower incomes in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30, "rationale": "Lower age is historically associated with lower income levels, especially in datasets where earnings trajectory follows a typical labor market pattern. Younger individuals often have less experience and lower wages, increasing the likelihood of being predicted in the <=50K group."}, {"feature_key": "education", "action": "change", "new_value": "Bach", "rationale": "Higher education levels, such as Bachelor\u2019s or higher, are strongly correlated with higher incomes. The current value 'HS-grad' (high school graduate) is associated with a lower income likelihood. Changing to 'Bach' (Bachelor\u2019s degree) would shift the prediction toward >50K."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "rationale": "Historically, male individuals in the dataset have shown a higher propensity for earning above $50K, especially in certain occupations. The female sex at the current value contributes to a lower income prediction, reflecting known gender income gaps in the dataset."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50, "rationale": "Higher weekly hours are positively correlated with higher income. Individuals working more than 40 hours per week are more likely to earn above $50K. Reducing work hours decreases the likelihood of higher income, thus reinforcing the <=50K prediction."}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "rationale": "Marital status influences income through household structure and labor participation. Being 'Unmarried' is associated with lower income, while being part of a married household (e.g., 'Wife') often reflects greater stability and income resources, historically increasing the likelihood of >50K."}]
+- Explanation: Based on historical patterns observed in the adult income dataset (e.g., UCI Adult Census Income Dataset), demographic and socioeconomic factors such as age, education level, gender, work hours, and marital status are statistically linked to income outcomes. Lower education, younger age, female sex, lower work hours, and unmarried status are associated with a higher probability of earning <=50K. These features are commonly correlated with lower socioeconomic status and limited access to higher-paying jobs. Changing these features toward higher-income associated values demonstrates how the model's prediction may be influenced by such factors.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How do the values of features like age, education-num, workclass, and sex in this instance differ from typical patterns observed in individuals predicted to have >50K income?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "60"}, {"feature_key": "education-num", "action": "change", "new_value": "12"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Individuals predicted to have income >50K typically exhibit higher education levels (education-num >10), older age (often >60), employment in high-paying sectors like 'Exec-managerial' or 'Local-gov' rather than 'Private', and are more frequently male. The current instance has a lower education level (HS-grad, education-num=9), is unmarried, and is female with a 'Private' workclass, which are less common among high-income earners. Adjusting these features to align with >50K benchmarks significantly increases the likelihood of predicting >50K income.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the input features, which demographic or socioeconomic factors (e.g., age, education, sex, race) are historically associated with lower incomes in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30, "rationale": "Lower age is historically associated with lower income levels, especially in datasets where earnings trajectory follows a typical labor market pattern. Younger individuals often have less experience and lower wages, increasing the likelihood of being predicted in the <=50K group."}, {"feature_key": "education", "action": "change", "new_value": "Bach", "rationale": "Higher education levels, such as Bachelor\u2019s or higher, are strongly correlated with higher incomes. The current value 'HS-grad' (high school graduate) is associated with a lower income likelihood. Changing to 'Bach' (Bachelor\u2019s degree) would shift the prediction toward >50K."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "rationale": "Historically, male individuals in the dataset have shown a higher propensity for earning above $50K, especially in certain occupations. The female sex at the current value contributes to a lower income prediction, reflecting known gender income gaps in the dataset."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50, "rationale": "Higher weekly hours are positively correlated with higher income. Individuals working more than 40 hours per week are more likely to earn above $50K. Reducing work hours decreases the likelihood of higher income, thus reinforcing the <=50K prediction."}, {"feature_key": "relationship", "action": "change", "new_value": "Wife", "rationale": "Marital status influences income through household structure and labor participation. Being 'Unmarried' is associated with lower income, while being part of a married household (e.g., 'Wife') often reflects greater stability and income resources, historically increasing the likelihood of >50K."}]
+- Explanation: Based on historical patterns observed in the adult income dataset (e.g., UCI Adult Census Income Dataset), demographic and socioeconomic factors such as age, education level, gender, work hours, and marital status are statistically linked to income outcomes. Lower education, younger age, female sex, lower work hours, and unmarried status are associated with a higher probability of earning <=50K. These features are commonly correlated with lower socioeconomic status and limited access to higher-paying jobs. Changing these features toward higher-income associated values demonstrates how the model's prediction may be influenced by such factors.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How do the values of features like age, education-num, workclass, and sex in this instance differ from typical patterns observed in individuals predicted to have >50K income?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "60"}, {"feature_key": "education-num", "action": "change", "new_value": "12"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: Individuals predicted to have income >50K typically exhibit higher education levels (education-num >10), older age (often >60), employment in high-paying sectors like 'Exec-managerial' or 'Local-gov' rather than 'Private', and are more frequently male. The current instance has a lower education level (HS-grad, education-num=9), is unmarried, and is female with a 'Private' workclass, which are less common among high-income earners. Adjusting these features to align with >50K benchmarks significantly increases the likelihood of predicting >50K income.
+- Confidence: 0.94
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3406091630458832}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

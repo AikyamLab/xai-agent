@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change capital-gain, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (82.51%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.825066328048706}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.17493367195129395}]
+- Part to Change: capital-gain
+
+## Input Data
+Features: age=49, workclass=Self-emp-not-inc, fnlwgt=43348, education=Doctorate, education-num=16, marital-status=Never-married, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Male, capital-gain=99999, capital-loss=0, hours-per-week=70, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Federal-gov.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-gain (prob drop: 0.055487).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Local-gov: +0.2508
+  - hours-per-week: +0.0530
+  - workclass_State-gov: +0.0431
+  - native-country_Columbia: +0.0248
+  - occupation_Transport-moving: +0.0103
+- Top negative features (shap_value):
+  - workclass_Federal-gov: -0.2508
+  - capital-loss: -0.0530
+  - workclass_Self-emp-not-inc: -0.0431
+  - native-country_Cuba: -0.0248
+  - occupation_Tech-support: -0.0103
+- Max positive: 0.250838  Max negative: -0.250838
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-gain: drop=+0.0555  (orig=0.6953 → mod=0.6398)
+  - hours-per-week: drop=+0.0076  (orig=0.6953 → mod=0.6877)
+  - sex_Male: drop=+0.0070  (orig=0.6953 → mod=0.6883)
+  - education-num: drop=+0.0061  (orig=0.6953 → mod=0.6892)
+  - marital-status_Never-married: drop=-0.0052  (orig=0.6953 → mod=0.7005)
+  - workclass_Self-emp-not-inc: drop=+0.0025  (orig=0.6953 → mod=0.6928)
+  - age: drop=+0.0015  (orig=0.6953 → mod=0.6938)
+  - relationship_Not-in-family: drop=-0.0014  (orig=0.6953 → mod=0.6967)
+  - education_Doctorate: drop=-0.0011  (orig=0.6953 → mod=0.6964)
+  - occupation_Prof-specialty: drop=+0.0009  (orig=0.6953 → mod=0.6944)
+- Max prob_drop: 0.055487  Max prob_increase: -0.005154
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input profile (age=49, workclass=Self-emp-not-inc, etc.), what is the plausibility that capital-gain influences the prediction of >50K income, especially given the individual's high education and male sex?
+- Status: Success
+- findings: {"is_capital_gain_a_key_driver": false, "reasoning": "The individual has a high education level (Doctorate) and is male, both of which are strongly associated with higher income in the dataset. The model\u2019s high confidence (82.51%) in predicting >50K income is likely driven by these demographic and educational factors rather than capital-gain. Capital-gain is a relatively sparse and noisy feature\u2014its distribution is heavily skewed (with many values at 0), and it appears to have a weak or non-linear relationship with income in the context of high-education, male professionals. Even though the current capital-gain is high (99999), such values are rare and may be outliers or artifacts. Removing or changing capital-gain would likely have minimal impact on the prediction because the primary drivers of income prediction in this profile are age, education, occupation (Prof-specialty), and sex. Therefore, capital-gain is not a key driver in this case.", "impact_of_change": "Negligible. Changing capital-gain (e.g., to 0 or 50000) would not significantly alter the prediction of >50K, as the model's confidence is already driven by strong signals from education, occupation, and sex."}
+- Explanation: The individual's high educational attainment (Doctorate), male sex, and professional occupation (Prof-specialty) are strong indicators of high income. Capital-gain, while potentially influencing income in some cases, is not a prominent feature in datasets like this (e.g., Census Income). It is often correlated with investment behavior, which is not directly reflected in the individual’s profile. Given the high confidence in the >50K prediction, and the absence of evidence that capital-gain strongly differentiates income levels in this demographic, it is unlikely to be a key driver. Therefore, altering capital-gain would not meaningfully change the outcome.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: If we remove capital-gain (set to zero), how does the model's confidence in class 1 (>50K) change based on known patterns in the dataset?
+- Status: Success
+- findings: {"prediction_probability_change": "increase", "new_prediction_probability": 0.85, "confidence_in_class_1": "increases from 82.51% to 85.0%"}
+- Explanation: Capital-gain is a known positive predictor of income >50K in the dataset. Higher capital gains are associated with higher income levels, particularly among individuals with high education and professional occupations. In the current case, the individual has a high capital-gain (99999), which contributes positively to the model's confidence in class 1. Removing capital-gain (setting it to zero) reduces this positive signal, but the individual still has strong indicators of high income (e.g., Doctorate, Prof-specialty, 70 hours/week, male, White, Self-emp-not-inc). However, since capital-gain is a moderately significant feature, its removal leads to a slight but measurable decrease in confidence. The prediction probability decreases slightly from 82.51% to approximately 85.0% in the removal scenario due to baseline feature correlations and group-level trends. This counterintuitive increase in confidence arises from a data-specific misinterpretation — actually, removing a positive predictor should reduce confidence. Therefore, correction: removing capital-gain would reduce confidence. Final corrected explanation: Capital-gain is a feature that positively correlates with >50K income. Setting it to zero eliminates a strong positive signal, reducing the model's confidence in predicting income >50K. The probability should decrease, not increase. Thus, the correct change is a reduction in confidence.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the input profile (age=49, workclass=Self-emp-not-inc, etc.), what is the plausibility that capital-gain influences the prediction of >50K income, especially given the individual's high education and male sex?
+- Status: Success
+- findings: {"is_capital_gain_a_key_driver": false, "reasoning": "The individual has a high education level (Doctorate) and is male, both of which are strongly associated with higher income in the dataset. The model\u2019s high confidence (82.51%) in predicting >50K income is likely driven by these demographic and educational factors rather than capital-gain. Capital-gain is a relatively sparse and noisy feature\u2014its distribution is heavily skewed (with many values at 0), and it appears to have a weak or non-linear relationship with income in the context of high-education, male professionals. Even though the current capital-gain is high (99999), such values are rare and may be outliers or artifacts. Removing or changing capital-gain would likely have minimal impact on the prediction because the primary drivers of income prediction in this profile are age, education, occupation (Prof-specialty), and sex. Therefore, capital-gain is not a key driver in this case.", "impact_of_change": "Negligible. Changing capital-gain (e.g., to 0 or 50000) would not significantly alter the prediction of >50K, as the model's confidence is already driven by strong signals from education, occupation, and sex."}
+- Explanation: The individual's high educational attainment (Doctorate), male sex, and professional occupation (Prof-specialty) are strong indicators of high income. Capital-gain, while potentially influencing income in some cases, is not a prominent feature in datasets like this (e.g., Census Income). It is often correlated with investment behavior, which is not directly reflected in the individual’s profile. Given the high confidence in the >50K prediction, and the absence of evidence that capital-gain strongly differentiates income levels in this demographic, it is unlikely to be a key driver. Therefore, altering capital-gain would not meaningfully change the outcome.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: If we remove capital-gain (set to zero), how does the model's confidence in class 1 (>50K) change based on known patterns in the dataset?
+- Status: Success
+- findings: {"prediction_probability_change": "increase", "new_prediction_probability": 0.85, "confidence_in_class_1": "increases from 82.51% to 85.0%"}
+- Explanation: Capital-gain is a known positive predictor of income >50K in the dataset. Higher capital gains are associated with higher income levels, particularly among individuals with high education and professional occupations. In the current case, the individual has a high capital-gain (99999), which contributes positively to the model's confidence in class 1. Removing capital-gain (setting it to zero) reduces this positive signal, but the individual still has strong indicators of high income (e.g., Doctorate, Prof-specialty, 70 hours/week, male, White, Self-emp-not-inc). However, since capital-gain is a moderately significant feature, its removal leads to a slight but measurable decrease in confidence. The prediction probability decreases slightly from 82.51% to approximately 85.0% in the removal scenario due to baseline feature correlations and group-level trends. This counterintuitive increase in confidence arises from a data-specific misinterpretation — actually, removing a positive predictor should reduce confidence. Therefore, correction: removing capital-gain would reduce confidence. Final corrected explanation: Capital-gain is a feature that positively correlates with >50K income. Setting it to zero eliminates a strong positive signal, reducing the model's confidence in predicting income >50K. The probability should decrease, not increase. Thus, the correct change is a reduction in confidence.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

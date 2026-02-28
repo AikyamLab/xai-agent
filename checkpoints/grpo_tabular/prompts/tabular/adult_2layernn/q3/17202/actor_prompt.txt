@@ -1,0 +1,129 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (60.35%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.39654627442359924}
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=98155, education=Some-college, education-num=10, marital-status=Never-married, occupation=Transport-moving, relationship=Unmarried, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Taiwan.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.009181).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Taiwan: +0.0248
+  - race_Amer-Indian-Eskimo: +0.0184
+  - native-country_Columbia: +0.0164
+  - age: +0.0111
+  - race_Other: +0.0107
+- Top negative features (shap_value):
+  - native-country_Thailand: -0.0248
+  - race_Asian-Pac-Islander: -0.0184
+  - native-country_Cuba: -0.0164
+  - fnlwgt: -0.0111
+  - race_Black: -0.0107
+- Max positive: 0.024792  Max negative: -0.024792
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0832
+  - capital-loss <= -0.22: +0.0713
+  - hours-per-week <= -0.08: +0.0423
+  - native-country_France <= 0.00: +0.0082
+- Top negative features (weight):
+  - native-country_Nicaragua <= 0.00: -0.0761
+  - native-country_Columbia <= 0.00: -0.0605
+  - native-country_Hong <= 0.00: -0.0454
+  - marital-status_Divorced <= 0.00: -0.0445
+  - native-country_Guatemala <= 0.00: -0.0205
+- Max positive: 0.083213  Max negative: -0.076119
+- Total features: 10
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0092  (orig=0.4021 → mod=0.4113)
+  - occupation_Transport-moving: drop=+0.0079  (orig=0.4021 → mod=0.3942)
+  - education_Some-college: drop=+0.0073  (orig=0.4021 → mod=0.3949)
+  - relationship_Unmarried: drop=+0.0059  (orig=0.4021 → mod=0.3962)
+  - age: drop=+0.0054  (orig=0.4021 → mod=0.3967)
+  - marital-status_Never-married: drop=+0.0045  (orig=0.4021 → mod=0.3976)
+  - fnlwgt: drop=+0.0039  (orig=0.4021 → mod=0.3982)
+  - native-country_United-States: drop=-0.0018  (orig=0.4021 → mod=0.4040)
+  - race_White: drop=+0.0018  (orig=0.4021 → mod=0.4003)
+  - workclass_Private: drop=-0.0008  (orig=0.4021 → mod=0.4029)
+- Max prob_drop: 0.007911  Max prob_increase: -0.009181
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify features in the input that are typically associated with income <=50K based on domain knowledge of the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: The selected features are known to correlate with lower income in the Adult dataset. 'education-num=10' (Some-college) typically indicates less formal education than bachelor's or higher degrees, which are associated with higher incomes. 'workclass=Private' and 'occupation=Transport-moving' are common among lower-wage workers, as opposed to executive or professional roles. 'marital-status=Never-married' often aligns with younger individuals who have not yet advanced in their careers or accumulated significant income. These features collectively support the model's prediction of income <=50K.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Explain how the absence of advanced qualifications or high-status occupations contributes to the model favoring the <=50K class over >50K.
+- Status: Success
+- findings: "Lower education levels (e.g., 'Some-college') and non-managerial occupations (e.g., 'Transport-moving') reduce the probability of >50K, making <=50K the dominant prediction."
+- Explanation: The model's prediction of <=50K is heavily influenced by the individual's education level and occupation. 'Some-college' represents a moderate but not advanced level of education compared to degrees like 'Bachelors' or 'Doctorate'. Similarly, 'Transport-moving' is a non-managerial, labor-intensive occupation with lower average incomes relative to professional or managerial roles. These features, combined with other inputs like 'Never-married' status and 'Private' workclass, push the model toward the <=50K prediction by reducing the likelihood of high income. The absence of high-status markers in education and occupation leads the model to favor the lower-income class.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the input features against known class-discriminative patterns for <=50K vs >50K in the Adult dataset.
+- Status: Success
+- findings: "Features like 'age=25', 'education-num=10', 'workclass=Private', 'education=Some-college', and 'occupation=Transport-moving' are more indicative of <=50K, while features such as 'education-num'>13, 'occupation=Exec-managerial', 'capital-gain'>0, and 'hours-per-week'>45 are linked to >50K."
+- Explanation: In the Adult dataset, income thresholds are strongly influenced by education level, workclass, occupation, and capital gains. An individual with 'age=25' (young) and 'education-num=10' (Some-college, below bachelor's) is less likely to earn over 50K. 'Private' workclass and 'Transport-moving' occupation are typically lower-income roles. In contrast, higher earnings are associated with 'education-num'>13 (e.g., professional degrees), elite occupations, capital gains, and longer work hours. The model's 60.35% confidence suggests moderate certainty, but the feature profile aligns best with <=50K patterns.
+- Confidence: 0.78
+
+### Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify features in the input that are typically associated with income <=50K based on domain knowledge of the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 10}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Transport-moving"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}]
+- Explanation: The selected features are known to correlate with lower income in the Adult dataset. 'education-num=10' (Some-college) typically indicates less formal education than bachelor's or higher degrees, which are associated with higher incomes. 'workclass=Private' and 'occupation=Transport-moving' are common among lower-wage workers, as opposed to executive or professional roles. 'marital-status=Never-married' often aligns with younger individuals who have not yet advanced in their careers or accumulated significant income. These features collectively support the model's prediction of income <=50K.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Explain how the absence of advanced qualifications or high-status occupations contributes to the model favoring the <=50K class over >50K.
+- Status: Success
+- findings: "Lower education levels (e.g., 'Some-college') and non-managerial occupations (e.g., 'Transport-moving') reduce the probability of >50K, making <=50K the dominant prediction."
+- Explanation: The model's prediction of <=50K is heavily influenced by the individual's education level and occupation. 'Some-college' represents a moderate but not advanced level of education compared to degrees like 'Bachelors' or 'Doctorate'. Similarly, 'Transport-moving' is a non-managerial, labor-intensive occupation with lower average incomes relative to professional or managerial roles. These features, combined with other inputs like 'Never-married' status and 'Private' workclass, push the model toward the <=50K prediction by reducing the likelihood of high income. The absence of high-status markers in education and occupation leads the model to favor the lower-income class.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the input features against known class-discriminative patterns for <=50K vs >50K in the Adult dataset.
+- Status: Success
+- findings: "Features like 'age=25', 'education-num=10', 'workclass=Private', 'education=Some-college', and 'occupation=Transport-moving' are more indicative of <=50K, while features such as 'education-num'>13, 'occupation=Exec-managerial', 'capital-gain'>0, and 'hours-per-week'>45 are linked to >50K."
+- Explanation: In the Adult dataset, income thresholds are strongly influenced by education level, workclass, occupation, and capital gains. An individual with 'age=25' (young) and 'education-num=10' (Some-college, below bachelor's) is less likely to earn over 50K. 'Private' workclass and 'Transport-moving' occupation are typically lower-income roles. In contrast, higher earnings are associated with 'education-num'>13 (e.g., professional degrees), elite occupations, capital gains, and longer work hours. The model's 60.35% confidence suggests moderate certainty, but the feature profile aligns best with <=50K patterns.
+- Confidence: 0.78
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.39654627442359924}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

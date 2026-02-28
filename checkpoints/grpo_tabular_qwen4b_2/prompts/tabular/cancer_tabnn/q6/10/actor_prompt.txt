@@ -1,0 +1,144 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the tumor to be benign. How should the instance change to flip the model into malignant?
+
+## Current State
+- Current Prediction: benign (77.63%)
+- Target Prediction: malignant
+
+## Input Data
+Features: mean radius=12.95, mean texture=16.02, mean perimeter=83.14, mean area=513.7, mean smoothness=0.1005, mean compactness=0.07943, mean concavity=0.06155, mean concave points=0.0337, mean symmetry=0.173, mean fractal dimension=0.0647, radius error=0.2094, texture error=0.7636, perimeter error=1.231, area error=17.67, smoothness error=0.008725, compactness error=0.02003, concavity error=0.02335, concave points error=0.01132, symmetry error=0.02625, fractal dimension error=0.004726, worst radius=13.74, worst texture=19.93, worst perimeter=88.81, worst area=585.4, worst smoothness=0.1483, worst compactness=0.2068, worst concavity=0.2241, worst concave points=0.1056, worst symmetry=0.338, worst fractal dimension=0.09584
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: mean perimeter.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: worst texture <= -0.75.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 30 features. Most influential: worst radius.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: worst radius (prob drop: 0.008818).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - mean area: +0.0200
+  - worst concave points: +0.0184
+  - mean compactness: +0.0176
+  - mean concave points: +0.0174
+  - fractal dimension error: +0.0168
+- Top negative features (shap_value):
+  - mean perimeter: -0.0200
+  - worst concavity: -0.0184
+  - mean smoothness: -0.0176
+  - mean concavity: -0.0174
+  - symmetry error: -0.0168
+- Max positive: 0.020007  Max negative: -0.020007
+- Total features: 30
+
+### lime:
+- Top positive features (weight):
+  - worst texture <= -0.75: +0.0893
+  - mean texture <= -0.73: +0.0436
+  - -0.67 < worst radius <= -0.27: +0.0413
+  - -0.76 < worst concavity <= -0.22: +0.0336
+  - fractal dimension error > 0.29: +0.0326
+- Top negative features (weight):
+  - worst symmetry > 0.45: -0.0752
+  - -0.22 < worst concave points <= 0.71: -0.0293
+  - worst smoothness > 0.60: -0.0276
+- Max positive: 0.089292  Max negative: -0.075196
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst radius: +0.0092
+  - worst texture: +0.0089
+  - mean texture: +0.0088
+  - mean concavity: +0.0065
+  - mean concave points: +0.0064
+- Top negative features (attribution_score):
+  - worst symmetry: -0.0087
+  - worst smoothness: -0.0047
+  - texture error: -0.0027
+  - symmetry error: -0.0024
+  - worst fractal dimension: -0.0024
+- Max positive: 0.009221  Max negative: -0.008669
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst radius: drop=+0.0088  (orig=0.6849 → mod=0.6761)
+  - worst texture: drop=+0.0086  (orig=0.6849 → mod=0.6763)
+  - mean texture: drop=+0.0079  (orig=0.6849 → mod=0.6770)
+  - mean concavity: drop=+0.0055  (orig=0.6849 → mod=0.6794)
+  - mean concave points: drop=+0.0050  (orig=0.6849 → mod=0.6799)
+  - worst symmetry: drop=-0.0049  (orig=0.6849 → mod=0.6898)
+  - mean perimeter: drop=+0.0042  (orig=0.6849 → mod=0.6807)
+  - area error: drop=+0.0034  (orig=0.6849 → mod=0.6815)
+  - perimeter error: drop=+0.0022  (orig=0.6849 → mod=0.6827)
+  - worst perimeter: drop=+0.0021  (orig=0.6849 → mod=0.6828)
+- Max prob_drop: 0.008818  Max prob_increase: -0.004862
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are known to be more predictive of malignancy in breast cancer datasets?
+- Status: Success
+- findings: [{"feature_key": "worst radius", "biological_relevance": "Worse (higher) radius is strongly associated with malignant tumors. Larger tumor size is a key indicator of aggressiveness and malignancy in breast cancer."}, {"feature_key": "worst texture", "biological_relevance": "Increased texture irregularity is a hallmark of malignant tumors, reflecting disorganized cellular structure and heterogeneity."}, {"feature_key": "worst perimeter", "biological_relevance": "Higher perimeter values suggest larger tumor size and irregular shape, both of which are more common in malignant lesions."}, {"feature_key": "worst area", "biological_relevance": "Greater tumor area correlates with malignancy due to uncontrolled cell proliferation and tumor expansion."}, {"feature_key": "worst concavity", "biological_relevance": "High concavity indicates irregular tumor boundaries, a feature commonly observed in malignant tumors compared to benign ones with smoother margins."}]
+- Explanation: In breast cancer pathology, malignant tumors are typically larger, more irregular in shape, and exhibit greater cellular heterogeneity. Features derived from the 'worst' measurements (e.g., worst radius, worst texture, worst concavity) are more sensitive to malignancy than their mean counterparts. These features capture extreme deviations from normal tissue morphology. Studies like those in the Wisconsin Breast Cancer Dataset (WHO dataset) show that worst measures have higher diagnostic power for distinguishing malignant from benign tumors. For example, malignancies often display increased concavity and texture irregularity due to chaotic cell arrangement and rapid growth.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How do the current feature values compare to known malignant tumor benchmarks in public datasets like the Wisconsin Breast Cancer Dataset?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "current_value": 12.95, "malignant_benchmark": 14.5, "deviation": "-1.55", "change_needed": "increase"}, {"feature_key": "mean texture", "current_value": 16.02, "malignant_benchmark": 17.3, "deviation": "-1.28", "change_needed": "increase"}, {"feature_key": "mean perimeter", "current_value": 83.14, "malignant_benchmark": 89.3, "deviation": "-6.16", "change_needed": "increase"}, {"feature_key": "mean area", "current_value": 513.7, "malignant_benchmark": 596.6, "deviation": "-82.9", "change_needed": "increase"}, {"feature_key": "mean smoothness", "current_value": 0.1005, "malignant_benchmark": 0.118, "deviation": "-0.0175", "change_needed": "increase"}, {"feature_key": "mean compactness", "current_value": 0.07943, "malignant_benchmark": 0.116, "deviation": "-0.0366", "change_needed": "increase"}, {"feature_key": "mean concavity", "current_value": 0.06155, "malignant_benchmark": 0.16, "deviation": "-0.09845", "change_needed": "increase"}, {"feature_key": "mean concave points", "current_value": 0.0337, "malignant_benchmark": 0.179, "deviation": "-0.1453", "change_needed": "increase"}, {"feature_key": "mean symmetry", "current_value": 0.173, "malignant_benchmark": 0.183, "deviation": "-0.010", "change_needed": "increase"}, {"feature_key": "mean fractal dimension", "current_value": 0.0647, "malignant_benchmark": 0.088, "deviation": "-0.0233", "change_needed": "increase"}, {"feature_key": "radius error", "current_value": 0.2094, "malignant_benchmark": 0.302, "deviation": "-0.0926", "change_needed": "increase"}, {"feature_key": "texture error", "current_value": 0.7636, "malignant_benchmark": 1.0, "deviation": "-0.2364", "change_needed": "increase"}, {"feature_key": "perimeter error", "current_value": 1.231, "malignant_benchmark": 1.55, "deviation": "-0.319", "change_needed": "increase"}, {"feature_key": "area error", "current_value": 17.67, "malignant_benchmark": 24.6, "deviation": "-6.93", "change_needed": "increase"}, {"feature_key": "smoothness error", "current_value": 0.008725, "malignant_benchmark": 0.012, "deviation": "-0.003275", "change_needed": "increase"}, {"feature_key": "compactness error", "current_value": 0.00743, "malignant_benchmark": 0.02, "deviation": "-0.01257", "change_needed": "increase"}, {"feature_key": "concavity error", "current_value": 0.0309, "malignant_benchmark": 0.069, "deviation": "-0.0381", "change_needed": "increase"}, {"feature_key": "concave points error", "current_value": 0.00673, "malignant_benchmark": 0.025, "deviation": "-0.01827", "change_needed": "increase"}, {"feature_key": "symmetry error", "current_value": 0.00912, "malignant_benchmark": 0.015, "deviation": "-0.00588", "change_needed": "increase"}, {"feature_key": "fractal dimension error", "current_value": 0.00667, "malignant_benchmark": 0.019, "deviation": "-0.01233", "change_needed": "increase"}, {"feature_key": "worst radius", "current_value": 13.44, "malignant_benchmark": 15.1, "deviation": "-1.66", "change_needed": "increase"}, {"feature_key": "worst texture", "current_value": 17.99, "malignant_benchmark": 18.9, "deviation": "-0.91", "change_needed": "increase"}, {"feature_key": "worst perimeter", "current_value": 91.33, "malignant_benchmark": 97.2, "deviation": "-5.87", "change_needed": "increase"}, {"feature_key": "worst area", "current_value": 560.3, "malignant_benchmark": 612.4, "deviation": "-52.1", "change_needed": "increase"}, {"feature_key": "worst smoothness", "current_value": 0.117, "malignant_benchmark": 0.127, "deviation": "-0.010", "change_needed": "increase"}, {"feature_key": "worst compactness", "current_value": 0.132, "malignant_benchmark": 0.176, "deviation": "-0.044", "change_needed": "increase"}, {"feature_key": "worst concavity", "current_value": 0.187, "malignant_benchmark": 0.282, "deviation": "-0.095", "change_needed": "increase"}, {"feature_key": "worst concave points", "current_value": 0.0561, "malignant_benchmark": 0.27, "deviation": "-0.2139", "change_needed": "increase"}, {"feature_key": "worst symmetry", "current_value": 0.184, "malignant_benchmark": 0.285, "deviation": "-0.101", "change_needed": "increase"}, {"feature_key": "worst fractal dimension", "current_value": 0.0764, "malignant_benchmark": 0.094, "deviation": "-0.0176", "change_needed": "increase"}]
+- Explanation: The current feature values are systematically below known malignant benchmarks in the Wisconsin Breast Cancer Dataset. Malignant tumors tend to have larger mean and worst values for radius, texture, perimeter, area, smoothness, compactness, concavity, and concave points, with higher error values as well. All deviations reflect a pattern of smaller or less irregular features—typical of benign tumors. To flip the model prediction from benign (1) to malignant, a significant increase in these features—especially in concavity, concave points, and area—is required. The most impactful changes would be in features with the largest deviations, such as 'mean concavity' and 'worst concave points'.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are known to be more predictive of malignancy in breast cancer datasets?
+- Status: Success
+- findings: [{"feature_key": "worst radius", "biological_relevance": "Worse (higher) radius is strongly associated with malignant tumors. Larger tumor size is a key indicator of aggressiveness and malignancy in breast cancer."}, {"feature_key": "worst texture", "biological_relevance": "Increased texture irregularity is a hallmark of malignant tumors, reflecting disorganized cellular structure and heterogeneity."}, {"feature_key": "worst perimeter", "biological_relevance": "Higher perimeter values suggest larger tumor size and irregular shape, both of which are more common in malignant lesions."}, {"feature_key": "worst area", "biological_relevance": "Greater tumor area correlates with malignancy due to uncontrolled cell proliferation and tumor expansion."}, {"feature_key": "worst concavity", "biological_relevance": "High concavity indicates irregular tumor boundaries, a feature commonly observed in malignant tumors compared to benign ones with smoother margins."}]
+- Explanation: In breast cancer pathology, malignant tumors are typically larger, more irregular in shape, and exhibit greater cellular heterogeneity. Features derived from the 'worst' measurements (e.g., worst radius, worst texture, worst concavity) are more sensitive to malignancy than their mean counterparts. These features capture extreme deviations from normal tissue morphology. Studies like those in the Wisconsin Breast Cancer Dataset (WHO dataset) show that worst measures have higher diagnostic power for distinguishing malignant from benign tumors. For example, malignancies often display increased concavity and texture irregularity due to chaotic cell arrangement and rapid growth.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How do the current feature values compare to known malignant tumor benchmarks in public datasets like the Wisconsin Breast Cancer Dataset?
+- Status: Success
+- findings: [{"feature_key": "mean radius", "current_value": 12.95, "malignant_benchmark": 14.5, "deviation": "-1.55", "change_needed": "increase"}, {"feature_key": "mean texture", "current_value": 16.02, "malignant_benchmark": 17.3, "deviation": "-1.28", "change_needed": "increase"}, {"feature_key": "mean perimeter", "current_value": 83.14, "malignant_benchmark": 89.3, "deviation": "-6.16", "change_needed": "increase"}, {"feature_key": "mean area", "current_value": 513.7, "malignant_benchmark": 596.6, "deviation": "-82.9", "change_needed": "increase"}, {"feature_key": "mean smoothness", "current_value": 0.1005, "malignant_benchmark": 0.118, "deviation": "-0.0175", "change_needed": "increase"}, {"feature_key": "mean compactness", "current_value": 0.07943, "malignant_benchmark": 0.116, "deviation": "-0.0366", "change_needed": "increase"}, {"feature_key": "mean concavity", "current_value": 0.06155, "malignant_benchmark": 0.16, "deviation": "-0.09845", "change_needed": "increase"}, {"feature_key": "mean concave points", "current_value": 0.0337, "malignant_benchmark": 0.179, "deviation": "-0.1453", "change_needed": "increase"}, {"feature_key": "mean symmetry", "current_value": 0.173, "malignant_benchmark": 0.183, "deviation": "-0.010", "change_needed": "increase"}, {"feature_key": "mean fractal dimension", "current_value": 0.0647, "malignant_benchmark": 0.088, "deviation": "-0.0233", "change_needed": "increase"}, {"feature_key": "radius error", "current_value": 0.2094, "malignant_benchmark": 0.302, "deviation": "-0.0926", "change_needed": "increase"}, {"feature_key": "texture error", "current_value": 0.7636, "malignant_benchmark": 1.0, "deviation": "-0.2364", "change_needed": "increase"}, {"feature_key": "perimeter error", "current_value": 1.231, "malignant_benchmark": 1.55, "deviation": "-0.319", "change_needed": "increase"}, {"feature_key": "area error", "current_value": 17.67, "malignant_benchmark": 24.6, "deviation": "-6.93", "change_needed": "increase"}, {"feature_key": "smoothness error", "current_value": 0.008725, "malignant_benchmark": 0.012, "deviation": "-0.003275", "change_needed": "increase"}, {"feature_key": "compactness error", "current_value": 0.00743, "malignant_benchmark": 0.02, "deviation": "-0.01257", "change_needed": "increase"}, {"feature_key": "concavity error", "current_value": 0.0309, "malignant_benchmark": 0.069, "deviation": "-0.0381", "change_needed": "increase"}, {"feature_key": "concave points error", "current_value": 0.00673, "malignant_benchmark": 0.025, "deviation": "-0.01827", "change_needed": "increase"}, {"feature_key": "symmetry error", "current_value": 0.00912, "malignant_benchmark": 0.015, "deviation": "-0.00588", "change_needed": "increase"}, {"feature_key": "fractal dimension error", "current_value": 0.00667, "malignant_benchmark": 0.019, "deviation": "-0.01233", "change_needed": "increase"}, {"feature_key": "worst radius", "current_value": 13.44, "malignant_benchmark": 15.1, "deviation": "-1.66", "change_needed": "increase"}, {"feature_key": "worst texture", "current_value": 17.99, "malignant_benchmark": 18.9, "deviation": "-0.91", "change_needed": "increase"}, {"feature_key": "worst perimeter", "current_value": 91.33, "malignant_benchmark": 97.2, "deviation": "-5.87", "change_needed": "increase"}, {"feature_key": "worst area", "current_value": 560.3, "malignant_benchmark": 612.4, "deviation": "-52.1", "change_needed": "increase"}, {"feature_key": "worst smoothness", "current_value": 0.117, "malignant_benchmark": 0.127, "deviation": "-0.010", "change_needed": "increase"}, {"feature_key": "worst compactness", "current_value": 0.132, "malignant_benchmark": 0.176, "deviation": "-0.044", "change_needed": "increase"}, {"feature_key": "worst concavity", "current_value": 0.187, "malignant_benchmark": 0.282, "deviation": "-0.095", "change_needed": "increase"}, {"feature_key": "worst concave points", "current_value": 0.0561, "malignant_benchmark": 0.27, "deviation": "-0.2139", "change_needed": "increase"}, {"feature_key": "worst symmetry", "current_value": 0.184, "malignant_benchmark": 0.285, "deviation": "-0.101", "change_needed": "increase"}, {"feature_key": "worst fractal dimension", "current_value": 0.0764, "malignant_benchmark": 0.094, "deviation": "-0.0176", "change_needed": "increase"}]
+- Explanation: The current feature values are systematically below known malignant benchmarks in the Wisconsin Breast Cancer Dataset. Malignant tumors tend to have larger mean and worst values for radius, texture, perimeter, area, smoothness, compactness, concavity, and concave points, with higher error values as well. All deviations reflect a pattern of smaller or less irregular features—typical of benign tumors. To flip the model prediction from benign (1) to malignant, a significant increase in these features—especially in concavity, concave points, and area—is required. The most impactful changes would be in features with the largest deviations, such as 'mean concavity' and 'worst concave points'.
+- Confidence: 0.98
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "malignant".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['mean radius', 'mean texture', 'mean perimeter', 'mean area', 'mean smoothness', 'mean compactness', 'mean concavity', 'mean concave points', 'mean symmetry', 'mean fractal dimension', 'radius error', 'texture error', 'perimeter error', 'area error', 'smoothness error', 'compactness error', 'concavity error', 'concave points error', 'symmetry error', 'fractal dimension error', 'worst radius', 'worst texture', 'worst perimeter', 'worst area', 'worst smoothness', 'worst compactness', 'worst concavity', 'worst concave points', 'worst symmetry', 'worst fractal dimension']
+        // Current values: mean radius=12.95, mean texture=16.02, mean perimeter=83.14, mean area=513.7, mean smoothness=0.1005, mean compactness=0.07943, mean concavity=0.06155, mean concave points=0.0337, mean symmetry=0.173, mean fractal dimension=0.0647, radius error=0.2094, texture error=0.7636, perimeter error=1.231, area error=17.67, smoothness error=0.008725
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

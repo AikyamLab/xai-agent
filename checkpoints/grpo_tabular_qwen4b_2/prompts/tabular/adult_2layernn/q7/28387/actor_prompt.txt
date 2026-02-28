@@ -1,0 +1,100 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change hours-per-week, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (62.81%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.628137469291687}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.371862530708313}]
+- Part to Change: hours-per-week
+
+## Input Data
+Features: age=33, workclass=State-gov, fnlwgt=174171, education=Some-college, education-num=10, marital-status=Separated, occupation=Tech-support, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=12, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.024009).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0861
+  - native-country_Vietnam: +0.0173
+  - race_Amer-Indian-Eskimo: +0.0141
+  - education_5th-6th: +0.0138
+  - native-country_Cuba: +0.0125
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0861
+  - native-country_Yugoslavia: -0.0173
+  - race_Asian-Pac-Islander: -0.0141
+  - education_1st-4th: -0.0138
+  - native-country_Columbia: -0.0125
+- Max positive: 0.08612  Max negative: -0.08612
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0240  (orig=0.4081 → mod=0.3841)
+  - sex_Male: drop=-0.0068  (orig=0.4081 → mod=0.4149)
+  - education_Some-college: drop=+0.0068  (orig=0.4081 → mod=0.4013)
+  - relationship_Not-in-family: drop=+0.0062  (orig=0.4081 → mod=0.4019)
+  - native-country_United-States: drop=-0.0038  (orig=0.4081 → mod=0.4119)
+  - marital-status_Separated: drop=+0.0033  (orig=0.4081 → mod=0.4048)
+  - race_White: drop=-0.0022  (orig=0.4081 → mod=0.4103)
+  - workclass_State-gov: drop=+0.0017  (orig=0.4081 → mod=0.4064)
+  - fnlwgt: drop=+0.0008  (orig=0.4081 → mod=0.4073)
+  - occupation_Tech-support: drop=-0.0007  (orig=0.4081 → mod=0.4088)
+- Max prob_drop: 0.024009  Max prob_increase: -0.006823
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current input and model architecture, why might 'hours-per-week' be important for predicting income class, particularly when the current prediction is <=50K?
+- Status: Success
+- Explanation: Hours-per-week is a strong proxy for work intensity and potential income level. In the context of income prediction, higher hours-per-week are generally correlated with higher earnings, especially in labor markets where income scales with work hours. The current value of 12 hours per week is relatively low and may indicate part-time or lower-income employment. If increased to a higher value (e.g., 40 or more), the model may reclassify the individual's income as >50K, assuming the model learns that longer work hours are associated with higher income. This is consistent with domain knowledge and observed patterns in datasets like the Adult Income Dataset, where 'hours-per-week' is a significant predictor. Since the current prediction is <=50K with only 12 hours per week, increasing this feature would likely shift the prediction probability toward >50K, especially if the model has learned a non-linear or threshold-based relationship between hours and income. Thus, modifying 'hours-per-week' has a direct and meaningful impact on the predicted income class.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: How does the absence of hours-per-week affect the decision boundary between <=50K and >50K in this TwoLayerNN model compared to a full feature set?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "hours-per-week", "action": "change", "new_value": 20}, {"feature_key": "hours-per-week", "action": "change", "new_value": 8}, {"feature_key": "hours-per-week", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}]
+- Explanation: The absence of hours-per-week in the model input reduces the dimensionality of the feature space, potentially shifting the decision boundary between <=50K and >50K toward a more generalized region. In the original prediction with hours-per-week = 12, the model outputs a probability of 0 (confidence 62.81%) indicating the individual is classified as <=50K. In real-world datasets like the Adult Income Dataset, hours-per-week is strongly correlated with income levels—higher working hours typically associate with higher earnings. Removing this feature introduces ambiguity in the model’s ability to distinguish high-income individuals. By testing different values of hours-per-week, we observe that increasing this variable (e.g., to 60) significantly raises the predicted probability of >50K, while lower values (e.g., 8) may maintain or slightly reduce the probability of >50K. Thus, the absence of this feature causes the model to rely more heavily on other predictors, which are less discriminative in determining income level, potentially leading to a biased or less accurate decision boundary. This suggests that hours-per-week is a critical feature for fine-tuning the income classification, especially in a TwoLayerNN that learns non-linear boundaries.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current input and model architecture, why might 'hours-per-week' be important for predicting income class, particularly when the current prediction is <=50K?
+- Status: Success
+- Explanation: Hours-per-week is a strong proxy for work intensity and potential income level. In the context of income prediction, higher hours-per-week are generally correlated with higher earnings, especially in labor markets where income scales with work hours. The current value of 12 hours per week is relatively low and may indicate part-time or lower-income employment. If increased to a higher value (e.g., 40 or more), the model may reclassify the individual's income as >50K, assuming the model learns that longer work hours are associated with higher income. This is consistent with domain knowledge and observed patterns in datasets like the Adult Income Dataset, where 'hours-per-week' is a significant predictor. Since the current prediction is <=50K with only 12 hours per week, increasing this feature would likely shift the prediction probability toward >50K, especially if the model has learned a non-linear or threshold-based relationship between hours and income. Thus, modifying 'hours-per-week' has a direct and meaningful impact on the predicted income class.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: How does the absence of hours-per-week affect the decision boundary between <=50K and >50K in this TwoLayerNN model compared to a full feature set?
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "hours-per-week", "action": "change", "new_value": 20}, {"feature_key": "hours-per-week", "action": "change", "new_value": 8}, {"feature_key": "hours-per-week", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}]
+- Explanation: The absence of hours-per-week in the model input reduces the dimensionality of the feature space, potentially shifting the decision boundary between <=50K and >50K toward a more generalized region. In the original prediction with hours-per-week = 12, the model outputs a probability of 0 (confidence 62.81%) indicating the individual is classified as <=50K. In real-world datasets like the Adult Income Dataset, hours-per-week is strongly correlated with income levels—higher working hours typically associate with higher earnings. Removing this feature introduces ambiguity in the model’s ability to distinguish high-income individuals. By testing different values of hours-per-week, we observe that increasing this variable (e.g., to 60) significantly raises the predicted probability of >50K, while lower values (e.g., 8) may maintain or slightly reduce the probability of >50K. Thus, the absence of this feature causes the model to rely more heavily on other predictors, which are less discriminative in determining income level, potentially leading to a biased or less accurate decision boundary. This suggests that hours-per-week is a critical feature for fine-tuning the income classification, especially in a TwoLayerNN that learns non-linear boundaries.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (52.59%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=57, workclass=Private, fnlwgt=36990, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=52, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: age (prob drop: 0.018707).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0662
+  - capital-loss: +0.0387
+  - native-country_Cambodia: +0.0256
+  - native-country_United-States: +0.0205
+  - workclass_State-gov: +0.0138
+- Top negative features (shap_value):
+  - age: -0.0662
+  - hours-per-week: -0.0387
+  - sex_Male: -0.0256
+  - native-country_Trinadad&Tobago: -0.0205
+  - workclass_Self-emp-not-inc: -0.0138
+- Max positive: 0.066159  Max negative: -0.066159
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - age > 0.64: +0.0982
+  - education_12th <= 0.00: +0.0741
+  - native-country_Haiti <= 0.00: +0.0518
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2309
+  - capital-loss <= -0.22: -0.1423
+  - education-num <= -0.44: -0.0986
+  - native-country_India <= 0.00: -0.0942
+  - occupation_Armed-Forces <= 0.00: -0.0589
+- Max positive: 0.098218  Max negative: -0.230945
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0182
+  - marital-status_Married-civ-spouse: +0.0158
+  - relationship_Husband: +0.0140
+  - sex_Male: +0.0111
+  - native-country_United-States: +0.0057
+- Top negative features (attribution_score):
+  - occupation_Craft-repair: -0.0088
+  - education_HS-grad: -0.0085
+  - fnlwgt: -0.0077
+  - education-num: -0.0074
+  - workclass_Private: -0.0031
+- Max positive: 0.018201  Max negative: -0.008778
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0187  (orig=0.6285 → mod=0.6098)
+  - marital-status_Married-civ-spouse: drop=+0.0117  (orig=0.6285 → mod=0.6168)
+  - sex_Male: drop=+0.0090  (orig=0.6285 → mod=0.6195)
+  - relationship_Husband: drop=+0.0085  (orig=0.6285 → mod=0.6200)
+  - occupation_Craft-repair: drop=-0.0077  (orig=0.6285 → mod=0.6362)
+  - native-country_United-States: drop=+0.0069  (orig=0.6285 → mod=0.6216)
+  - hours-per-week: drop=+0.0059  (orig=0.6285 → mod=0.6226)
+  - education_HS-grad: drop=-0.0052  (orig=0.6285 → mod=0.6338)
+  - education-num: drop=-0.0051  (orig=0.6285 → mod=0.6337)
+  - race_Black: drop=+0.0048  (orig=0.6285 → mod=0.6237)
+- Max prob_drop: 0.018707  Max prob_increase: -0.007668
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'race=Black' or 'sex=Male' in predicting >50K when the true label is <=50K, despite these features being socially charged and potentially irrelevant to income?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model may have learned spurious correlations between 'race=Black' and 'sex=Male' and the target class '>50K' due to historical data biases in the training set, where certain demographic groups are disproportionately represented in higher-income categories. Even though the true label is <=50K, the model might have overfitted to biased patterns in the data, assigning high importance to 'race' and 'sex' because of correlations that are not causally meaningful. Changing these features to 'White' and 'Female' respectively could help evaluate whether the model's prediction is driven by demographic biases rather than actual income determinants. This highlights the potential for demographic features to exhibit class imbalance or selection bias in socioeconomic datasets, which leads to spurious correlations.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like 'workclass', 'education-num', and 'occupation' to the class <=50K versus features like 'race' and 'sex' in the context of income prediction.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "keep", "reason": "Education level is a strong proxy for income potential. A 'HS-grad' (education-num=9) is associated with lower income probabilities, which aligns with the correct label <=50K. This feature is semantically relevant."}, {"feature_key": "age", "action": "keep", "reason": "Age of 57 is a moderate predictor of income; older individuals are often in stable, higher-earning roles, but in this case, combined with lower education and occupation, the profile supports <=50K. Still semantically relevant."}, {"feature_key": "hours-per-week", "action": "keep", "reason": "52 hours per week suggests high work effort, which typically correlates with higher income. However, in this case, the combination of low education and occupation may offset this, making it relevant but context-dependent."}, {"feature_key": "occupation", "action": "keep", "reason": "Craft-repair is a low-wage occupation, typically under $50K. This supports the <=50K label and is semantically relevant to income prediction."}, {"feature_key": "race", "action": "flag", "reason": "Race is a sociopolitical and potentially biased feature. While correlated with income in historical datasets, it is not a direct predictor of income capability. Its inclusion may introduce spurious correlation or algorithmic bias and is semantically less relevant in a fair income prediction system."}, {"feature_key": "sex", "action": "flag", "reason": "Sex is a known proxy for bias and does not directly influence income capability in a fair or empirical way. While historically correlated with income, it lacks causal or semantic basis in income prediction and should be flagged as potentially spurious."}]
+- Explanation: In income prediction tasks, features like 'education-num', 'age', 'hours-per-week', and 'occupation' are directly tied to earning capacity and are semantically relevant. However, features such as 'race' and 'sex' are inappropriately correlated due to systemic biases and lack direct causal relevance. Their inclusion can lead to spurious predictions, especially when the true label is <=50K. These features are flagged for possible bias or spurious correlation, despite observed statistical associations.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'race=Black' or 'sex=Male' in predicting >50K when the true label is <=50K, despite these features being socially charged and potentially irrelevant to income?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: The model may have learned spurious correlations between 'race=Black' and 'sex=Male' and the target class '>50K' due to historical data biases in the training set, where certain demographic groups are disproportionately represented in higher-income categories. Even though the true label is <=50K, the model might have overfitted to biased patterns in the data, assigning high importance to 'race' and 'sex' because of correlations that are not causally meaningful. Changing these features to 'White' and 'Female' respectively could help evaluate whether the model's prediction is driven by demographic biases rather than actual income determinants. This highlights the potential for demographic features to exhibit class imbalance or selection bias in socioeconomic datasets, which leads to spurious correlations.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features like 'workclass', 'education-num', and 'occupation' to the class <=50K versus features like 'race' and 'sex' in the context of income prediction.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "keep", "reason": "Education level is a strong proxy for income potential. A 'HS-grad' (education-num=9) is associated with lower income probabilities, which aligns with the correct label <=50K. This feature is semantically relevant."}, {"feature_key": "age", "action": "keep", "reason": "Age of 57 is a moderate predictor of income; older individuals are often in stable, higher-earning roles, but in this case, combined with lower education and occupation, the profile supports <=50K. Still semantically relevant."}, {"feature_key": "hours-per-week", "action": "keep", "reason": "52 hours per week suggests high work effort, which typically correlates with higher income. However, in this case, the combination of low education and occupation may offset this, making it relevant but context-dependent."}, {"feature_key": "occupation", "action": "keep", "reason": "Craft-repair is a low-wage occupation, typically under $50K. This supports the <=50K label and is semantically relevant to income prediction."}, {"feature_key": "race", "action": "flag", "reason": "Race is a sociopolitical and potentially biased feature. While correlated with income in historical datasets, it is not a direct predictor of income capability. Its inclusion may introduce spurious correlation or algorithmic bias and is semantically less relevant in a fair income prediction system."}, {"feature_key": "sex", "action": "flag", "reason": "Sex is a known proxy for bias and does not directly influence income capability in a fair or empirical way. While historically correlated with income, it lacks causal or semantic basis in income prediction and should be flagged as potentially spurious."}]
+- Explanation: In income prediction tasks, features like 'education-num', 'age', 'hours-per-week', and 'occupation' are directly tied to earning capacity and are semantically relevant. However, features such as 'race' and 'sex' are inappropriately correlated due to systemic biases and lack direct causal relevance. Their inclusion can lead to spurious predictions, especially when the true label is <=50K. These features are flagged for possible bias or spurious correlation, despite observed statistical associations.
+- Confidence: 0.96
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

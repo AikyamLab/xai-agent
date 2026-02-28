@@ -1,0 +1,68 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous feature-level reasoning with robust explainability tools to identify distinct features driving correct versus incorrect predictions. Autonomous analysis enables quick identification of high-impact categorical or numerical differences between similar instances, while XAI tools provide quantitative attribution scores to validate and deepen interpretation of feature contributions in a model-agnostic way.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify the key feature differences between the correctly classified instances (42663, 47537, 42284) and the misclassified instance (37470) in terms of category and magnitude, focusing on features that differ significantly despite overall similarity in structure (e.g., age, education, relationship, workclass).",
+      "expected_output": "A list of features with their values and the nature of differences (e.g., 'education: Bachelors vs Assoc-voc', 'marital-status: Married-civ-spouse vs Divorced')"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Why might marital-status='Divorced' in instance 37470 lead to a misclassification compared to 'Married-civ-spouse' in the others despite similar age, education level, and workclass?",
+      "expected_output": "Hypothesis about how marital status influences predicted income group based on model patterns or known domain knowledge"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "both",
+        "comparison_mode": "difference"
+      },
+      "integrated_gradients": {
+        "apply_to": "both",
+        "baseline": "mean"
+      },
+      "sensitivity_analysis": {
+        "compare_instances": true
+      }
+    },
+    "reasoning": "SHAP provides a consistent, game-theoretic attribution of feature importance across instances, enabling us to directly compare how features contribute differently to correct vs incorrect outcomes. Integrated Gradients offer smooth, gradient-based attributions that help detect subtle differences in model behavior. Sensitivity analysis confirms the impact of individual features by isolating their effect when set to zero, helping validate whether a feature like marital-status is critical for correct classification."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a consistent, game-theoretic attribution of feature importance across instances, enabling us to directly compare how features contribute differently to correct vs incorrect outcomes. Integrated Gradients offer smooth, gradient-based attributions that help detect subtle differences in model behavior. Sensitivity analysis confirms the impact of individual features by isolating their effect when set to zero, helping validate whether a feature like marital-status is critical for correct classification.",
+      "parameters": {
+        "apply_to": "both",
+        "comparison_mode": "difference"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP provides a consistent, game-theoretic attribution of feature importance across instances, enabling us to directly compare how features contribute differently to correct vs incorrect outcomes. Integrated Gradients offer smooth, gradient-based attributions that help detect subtle differences in model behavior. Sensitivity analysis confirms the impact of individual features by isolating their effect when set to zero, helping validate whether a feature like marital-status is critical for correct classification.",
+      "parameters": {
+        "apply_to": "both",
+        "baseline": "mean"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP provides a consistent, game-theoretic attribution of feature importance across instances, enabling us to directly compare how features contribute differently to correct vs incorrect outcomes. Integrated Gradients offer smooth, gradient-based attributions that help detect subtle differences in model behavior. Sensitivity analysis confirms the impact of individual features by isolating their effect when set to zero, helping validate whether a feature like marital-status is critical for correct classification.",
+      "parameters": {
+        "compare_instances": true
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 4
+}

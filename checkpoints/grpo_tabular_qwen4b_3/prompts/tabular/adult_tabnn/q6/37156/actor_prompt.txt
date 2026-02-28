@@ -1,0 +1,112 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (70.95%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=43, workclass=Private, fnlwgt=110556, education=HS-grad, education-num=9, marital-status=Separated, occupation=Exec-managerial, relationship=Unmarried, race=Black, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Unmarried (prob drop: 0.013638).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - sex_Male: +0.0223
+  - native-country_Trinadad&Tobago: +0.0215
+  - capital-loss: +0.0176
+  - occupation_Priv-house-serv: +0.0063
+  - native-country_Dominican-Republic: +0.0049
+- Top negative features (shap_value):
+  - native-country_Cambodia: -0.0223
+  - native-country_United-States: -0.0215
+  - hours-per-week: -0.0176
+  - occupation_Prof-specialty: -0.0063
+  - native-country_Ecuador: -0.0049
+- Max positive: 0.022278  Max negative: -0.022278
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Unmarried: drop=+0.0136  (orig=0.4279 → mod=0.4142)
+  - education-num: drop=+0.0092  (orig=0.4279 → mod=0.4187)
+  - marital-status_Separated: drop=+0.0084  (orig=0.4279 → mod=0.4194)
+  - education_HS-grad: drop=+0.0057  (orig=0.4279 → mod=0.4222)
+  - occupation_Exec-managerial: drop=-0.0047  (orig=0.4279 → mod=0.4326)
+  - age: drop=-0.0043  (orig=0.4279 → mod=0.4322)
+  - sex_Female: drop=+0.0042  (orig=0.4279 → mod=0.4236)
+  - workclass_Private: drop=+0.0025  (orig=0.4279 → mod=0.4254)
+  - capital-gain: drop=+0.0015  (orig=0.4279 → mod=0.4264)
+  - race_Black: drop=-0.0014  (orig=0.4279 → mod=0.4293)
+- Max prob_drop: 0.013638  Max prob_increase: -0.004683
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current prediction of <=50K with confidence 0.7095, what features in the input are most likely to influence the model's decision toward >50K based on socioeconomic and demographic patterns in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult dataset, individuals earning more than $50K are typically associated with higher education levels, higher work hours, older age, and higher-paying occupations. The current profile shows a 'HS-grad' education (education-num=9), which is below the average for high-income earners. Increasing education-num to 14 (e.g., 'Masters' or 'Doctorate') strongly correlates with higher income. Age is a key factor—older individuals, especially in the 50s and 60s, are more likely to earn over $50K. Increasing age to 65 amplifies this effect. Working more hours per week (from 40 to 60) is associated with higher income due to increased labor market exposure. The occupation 'Exec-managerial' is already high-paying, but 'Prof-specialty' (e.g., professionals in specialized fields) has a higher median income in the dataset. Lastly, in the dataset, males historically earn more than females across all categories, and flipping sex to 'Male' (with other factors held constant) increases the likelihood of predicting >50K. Together, these changes align with socioeconomic patterns observed in the dataset and are most likely to shift the model prediction from <=50K to >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current feature values to known benchmarks in the Adult dataset where individuals are classified as >50K. What differences in features (e.g., higher education, occupation, work hours) are typically observed in those cases?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 13}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult dataset, individuals with income >50K typically exhibit higher education levels (education-num ≥ 13), longer work weeks (>50 hours per week), and are more likely to hold high-paying occupations such as 'Prof-specialty' or 'Exec-managerial'. They are also more frequently married (e.g., 'Married-civ-spouse') and predominantly male, though this pattern is less consistent. While 'race' and 'workclass' show some variation, education, occupation, and work hours are strong indicators of higher income. The current instance has a moderate education level (9), low work hours (40), and is unmarried and female—factors that are less common among high-income individuals. Adjusting these features aligns with known benchmarks in the dataset for >50K income classification.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current prediction of <=50K with confidence 0.7095, what features in the input are most likely to influence the model's decision toward >50K based on socioeconomic and demographic patterns in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65}, {"feature_key": "education-num", "action": "increase", "new_value": 14}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult dataset, individuals earning more than $50K are typically associated with higher education levels, higher work hours, older age, and higher-paying occupations. The current profile shows a 'HS-grad' education (education-num=9), which is below the average for high-income earners. Increasing education-num to 14 (e.g., 'Masters' or 'Doctorate') strongly correlates with higher income. Age is a key factor—older individuals, especially in the 50s and 60s, are more likely to earn over $50K. Increasing age to 65 amplifies this effect. Working more hours per week (from 40 to 60) is associated with higher income due to increased labor market exposure. The occupation 'Exec-managerial' is already high-paying, but 'Prof-specialty' (e.g., professionals in specialized fields) has a higher median income in the dataset. Lastly, in the dataset, males historically earn more than females across all categories, and flipping sex to 'Male' (with other factors held constant) increases the likelihood of predicting >50K. Together, these changes align with socioeconomic patterns observed in the dataset and are most likely to shift the model prediction from <=50K to >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current feature values to known benchmarks in the Adult dataset where individuals are classified as >50K. What differences in features (e.g., higher education, occupation, work hours) are typically observed in those cases?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 13}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "relationship", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult dataset, individuals with income >50K typically exhibit higher education levels (education-num ≥ 13), longer work weeks (>50 hours per week), and are more likely to hold high-paying occupations such as 'Prof-specialty' or 'Exec-managerial'. They are also more frequently married (e.g., 'Married-civ-spouse') and predominantly male, though this pattern is less consistent. While 'race' and 'workclass' show some variation, education, occupation, and work hours are strong indicators of higher income. The current instance has a moderate education level (9), low work hours (40), and is unmarried and female—factors that are less common among high-income individuals. Adjusting these features aligns with known benchmarks in the dataset for >50K income classification.
+- Confidence: 0.94
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=43, workclass='Private', fnlwgt=110556, education='HS-grad', education-num=9, marital-status='Separated', occupation='Exec-managerial', relationship='Unmarried', race='Black', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

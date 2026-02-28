@@ -1,0 +1,98 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6424
+
+## Input Data
+Features: age=34, workclass=Private, fnlwgt=163110, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0576
+  - native-country_United-States: +0.0401
+  - native-country_Cambodia: +0.0371
+  - native-country_Cuba: +0.0247
+  - occupation_Prof-specialty: +0.0173
+- Top negative features (shap_value):
+  - capital-loss: -0.0576
+  - native-country_Trinadad&Tobago: -0.0401
+  - sex_Male: -0.0371
+  - native-country_Columbia: -0.0247
+  - occupation_Priv-house-serv: -0.0173
+- Max positive: 0.057605  Max negative: -0.057605
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.1581
+  - native-country_Greece <= 0.00: +0.0852
+  - native-country_Iran <= 0.00: +0.0678
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2079
+  - capital-loss <= -0.22: -0.1369
+  - native-country_Puerto-Rico <= 0.00: -0.1020
+  - native-country_Guatemala <= 0.00: -0.0830
+  - native-country_Peru <= 0.00: -0.0397
+- Max positive: 0.158074  Max negative: -0.207892
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0169
+  - relationship_Husband: +0.0154
+  - education-num: +0.0142
+  - sex_Male: +0.0126
+  - education_Bachelors: +0.0091
+- Top negative features (attribution_score):
+  - age: -0.0061
+  - occupation_Craft-repair: -0.0045
+  - fnlwgt: -0.0020
+  - capital-gain: -0.0017
+  - workclass_Private: -0.0012
+- Max positive: 0.016866  Max negative: -0.006069
+- Total features: 104
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features are most likely to influence income prediction based on the UCI Adult dataset and general socioeconomic patterns?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 16}, {"feature_key": "occupation", "action": "change", "new_value": "Executive-managerial"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "age", "action": "change", "new_value": 45}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: Based on the UCI Adult dataset and socioeconomic patterns, education level (education-num), occupation, marital status, age, and hours worked per week are among the most influential features for income prediction. Higher education levels, executive or managerial roles, marital status (e.g., married), older age, and higher weekly working hours are strongly associated with income above 50K. While the current values already show some favorable attributes (e.g., education: Bachelors, marital-status: Married-civ-spouse), increasing education beyond Bachelors, upgrading occupation to a higher-status role, increasing age toward a peak earning period, and working more hours per week would likely boost prediction confidence. Capital-gain and capital-loss are zero, indicating no significant capital income, so these have limited influence here. The model's confidence of 64.24% suggests moderate certainty—improving these key features could push the prediction higher.
+- Confidence: 0.85
+
+### REASONING Task
+- Query: Given the input features (e.g., education=Bachelors, occupation=Craft-repair, marital-status=Married-civ-spouse), how would these typically affect income prediction in the Adult dataset?
+- Status: Success
+- Explanation: In the Adult dataset, education level and marital status are known strong predictors of income. Education-num=13 (Bachelors) indicates higher educational attainment, which typically correlates with higher income. Marital-status=Married-civ-spouse is also associated with higher income due to dual-income households or greater financial stability. Occupation=Craft-repair is a middle-tier occupation and may not strongly influence income compared to higher-level professions like 'Exec-managerial'. Other features such as age=34 (mid-career), sex=Male (historically associated with higher income), and hours-per-week=45 (above average) contribute positively but are secondary. Capital-gain and capital-loss are both 0, which reduces potential for high income from investments. The model's prediction of >50K with 64.24% confidence suggests that education and marital status are the dominant drivers, while occupation and other factors provide weaker or neutral signals.
+- Confidence: 0.85
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

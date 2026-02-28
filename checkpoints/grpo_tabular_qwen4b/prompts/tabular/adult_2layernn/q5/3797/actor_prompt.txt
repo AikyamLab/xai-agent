@@ -1,0 +1,100 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we mask the age feature of this input, would the prediction change?
+
+## Current Prediction
+Class: >50K
+Confidence: 0.5534
+
+## Part to be Masked
+age
+
+## Input Data
+Features: age=39, workclass=Private, fnlwgt=346478, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.011792).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_United-States: +0.0124
+  - native-country_Puerto-Rico: +0.0112
+  - workclass_State-gov: +0.0104
+  - native-country_Cambodia: +0.0092
+  - native-country_Yugoslavia: +0.0081
+- Top negative features (shap_value):
+  - native-country_Trinadad&Tobago: -0.0124
+  - native-country_Portugal: -0.0112
+  - workclass_Self-emp-not-inc: -0.0104
+  - sex_Male: -0.0092
+  - native-country_Vietnam: -0.0081
+- Max positive: 0.012386  Max negative: -0.012386
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0118  (orig=0.6349 → mod=0.6231)
+  - relationship_Husband: drop=+0.0089  (orig=0.6349 → mod=0.6260)
+  - marital-status_Married-civ-spouse: drop=+0.0058  (orig=0.6349 → mod=0.6291)
+  - workclass_Private: drop=-0.0056  (orig=0.6349 → mod=0.6405)
+  - occupation_Sales: drop=+0.0041  (orig=0.6349 → mod=0.6308)
+  - native-country_United-States: drop=+0.0030  (orig=0.6349 → mod=0.6319)
+  - education_HS-grad: drop=-0.0029  (orig=0.6349 → mod=0.6378)
+  - race_White: drop=+0.0026  (orig=0.6349 → mod=0.6324)
+  - capital-gain: drop=-0.0006  (orig=0.6349 → mod=0.6356)
+  - hours-per-week: drop=-0.0003  (orig=0.6349 → mod=0.6353)
+- Max prob_drop: 0.011792  Max prob_increase: -0.005597
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why is age likely to be important in predicting income in the Adult dataset?
+- Status: Success
+- Explanation: Age is a well-documented and significant predictor of income in the Adult dataset. Older individuals are more likely to have accumulated work experience, higher levels of education, and greater professional stability, which collectively increase their earnings. Additionally, the dataset shows a non-linear relationship where income tends to rise with age up to a certain point (typically around 50-60 years), after which it may plateau or decrease due to factors like reduced workforce participation or retirement. Studies analyzing the Adult dataset have consistently shown that age has a strong positive correlation with the 'income >50K' label, often among the top predictors when evaluated with logistic regression or feature importance methods. This makes age a crucial feature for income prediction, even when masked, as its absence would reduce the model's ability to capture this established demographic trend.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How does the prediction probability for '>50K' change when age is increased or decreased by ±10 years in a similar input?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 49, "prediction_change": "slight increase in probability", "magnitude": "minor"}, {"feature_key": "age", "action": "decrease", "new_value": 29, "prediction_change": "slight decrease in probability", "magnitude": "minor"}]
+- Explanation: The model predicts a probability of >50K at 55.34% with age=39. When age is increased to 49 or decreased to 29, the prediction probability shifts slightly. These changes are minor, suggesting low sensitivity of income prediction to age variations within this range. Given the absence of top-5 predictions and limited feature interaction data, the effect is inferred based on typical tabular model behavior where age has a moderate but not dominant influence on income classification. The small magnitude of change indicates that masking age (i.e., removing or altering it) would not substantially alter the prediction, especially in a model that already has strong confidence (55.34%).
+- Confidence: 0.82
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why is age likely to be important in predicting income in the Adult dataset?
+- Status: Success
+- Explanation: Age is a well-documented and significant predictor of income in the Adult dataset. Older individuals are more likely to have accumulated work experience, higher levels of education, and greater professional stability, which collectively increase their earnings. Additionally, the dataset shows a non-linear relationship where income tends to rise with age up to a certain point (typically around 50-60 years), after which it may plateau or decrease due to factors like reduced workforce participation or retirement. Studies analyzing the Adult dataset have consistently shown that age has a strong positive correlation with the 'income >50K' label, often among the top predictors when evaluated with logistic regression or feature importance methods. This makes age a crucial feature for income prediction, even when masked, as its absence would reduce the model's ability to capture this established demographic trend.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How does the prediction probability for '>50K' change when age is increased or decreased by ±10 years in a similar input?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 49, "prediction_change": "slight increase in probability", "magnitude": "minor"}, {"feature_key": "age", "action": "decrease", "new_value": 29, "prediction_change": "slight decrease in probability", "magnitude": "minor"}]
+- Explanation: The model predicts a probability of >50K at 55.34% with age=39. When age is increased to 49 or decreased to 29, the prediction probability shifts slightly. These changes are minor, suggesting low sensitivity of income prediction to age variations within this range. Given the absence of top-5 predictions and limited feature interaction data, the effect is inferred based on typical tabular model behavior where age has a moderate but not dominant influence on income classification. The small magnitude of change indicates that masking age (i.e., removing or altering it) would not substantially alter the prediction, especially in a model that already has strong confidence (55.34%).
+- Confidence: 0.82
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

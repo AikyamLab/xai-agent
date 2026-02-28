@@ -1,0 +1,112 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. How should the instance change to flip the model into less than or equal to 50K?
+
+## Current State
+- Current Prediction: >50K (81.12%)
+- Target Prediction: less than or equal to 50K
+
+## Input Data
+Features: age=61, workclass=State-gov, fnlwgt=186451, education=Prof-school, education-num=15, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=1902, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Private.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: capital-loss (prob drop: 0.014395).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-inc: +0.1157
+  - hours-per-week: +0.0807
+  - fnlwgt: +0.0531
+  - relationship_Wife: +0.0324
+  - native-country_Cambodia: +0.0318
+- Top negative features (shap_value):
+  - workclass_Private: -0.1157
+  - capital-loss: -0.0807
+  - age: -0.0531
+  - relationship_Unmarried: -0.0324
+  - sex_Male: -0.0318
+- Max positive: 0.115672  Max negative: -0.115672
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - capital-loss: drop=+0.0144  (orig=0.6924 → mod=0.6780)
+  - education-num: drop=+0.0096  (orig=0.6924 → mod=0.6828)
+  - marital-status_Married-civ-spouse: drop=+0.0068  (orig=0.6924 → mod=0.6856)
+  - age: drop=+0.0052  (orig=0.6924 → mod=0.6871)
+  - relationship_Husband: drop=+0.0044  (orig=0.6924 → mod=0.6880)
+  - occupation_Prof-specialty: drop=+0.0043  (orig=0.6924 → mod=0.6880)
+  - sex_Male: drop=+0.0042  (orig=0.6924 → mod=0.6881)
+  - native-country_United-States: drop=+0.0042  (orig=0.6924 → mod=0.6882)
+  - education_Prof-school: drop=+0.0037  (orig=0.6924 → mod=0.6886)
+  - race_White: drop=+0.0021  (orig=0.6924 → mod=0.6903)
+- Max prob_drop: 0.014395  Max prob_increase: -0.000644
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to drive the prediction of '>50K' based on domain knowledge and the model's current confidence?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "capital-gain", "action": "change", "new_value": 0}]
+- Explanation: Based on domain knowledge and model confidence, features strongly linked to higher income (e.g., age, education level, hours-per-week, workclass) are key predictors of '>50K'. The current instance has a high age (61), which is associated with higher income in some contexts, but reducing age to 30 weakens the upward income signal. Workclass='State-gov' is typically linked to moderate income, but shifting to 'Local-gov' may reduce the income potential. Education-num=15 (Prof-school) is higher than average; reducing it to 9 (e.g., 'Some-college') lowers educational attainment and income potential. Hours-per-week=40 is moderate, but reducing it to 30 reduces labor intensity and work exposure, which correlates with lower income. Capital-gain=0 is low, so no change is needed; however, maintaining zero gain does not boost income. These changes collectively reduce the likelihood of '>50K' prediction by targeting key income-related drivers.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What changes to features like age, education-num, fnlwgt, or workclass would most plausibly reduce the model's confidence in '>50K' and shift the prediction to '<=50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30, "impact_direction": "reduces confidence", "impact_magnitude": "high"}, {"feature_key": "education-num", "action": "change", "new_value": 5, "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "capital-loss", "action": "change", "new_value": 0, "impact_direction": "reduces confidence", "impact_magnitude": "low"}]
+- Explanation: The model predicts '>50K' with high confidence (81.12%) based on features associated with higher income, such as older age, higher education level, 'State-gov' workclass (which may imply lower income), and high capital loss. However, 'State-gov' is actually correlated with lower wages in the dataset, so the current value may be counterintuitive. To flip the prediction, we aim to reduce features that are positively correlated with high income. Reducing age and education level (education-num) weakens the signal for higher earning potential. Changing workclass to 'Private'—a category often associated with higher income—does not help here; instead, we use 'Private' as a contrast since 'State-gov' tends to be lower income. However, since we want to reduce the prediction, we should avoid features that increase income likelihood. Therefore, using 'Private' as a plausible change to reduce confidence is incorrect. Correction: the strongest predictors of '>50K' are high education, high hours per week, high age, and high capital gains. Since capital-loss is negative, reducing it (from 1902 to 0) slightly improves the model's view of financial stability, which is indirectly favorable for income. More importantly, reducing age from 61 to 30 and education-num from 15 to 5 directly weakens the signal for high income. Hours-per-week from 40 to 30 reduces work hours, often correlated with lower income. Thus, these changes plausibly reduce the model's confidence in '>50K'. The most impactful changes are age and education-num.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to drive the prediction of '>50K' based on domain knowledge and the model's current confidence?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov"}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30}, {"feature_key": "capital-gain", "action": "change", "new_value": 0}]
+- Explanation: Based on domain knowledge and model confidence, features strongly linked to higher income (e.g., age, education level, hours-per-week, workclass) are key predictors of '>50K'. The current instance has a high age (61), which is associated with higher income in some contexts, but reducing age to 30 weakens the upward income signal. Workclass='State-gov' is typically linked to moderate income, but shifting to 'Local-gov' may reduce the income potential. Education-num=15 (Prof-school) is higher than average; reducing it to 9 (e.g., 'Some-college') lowers educational attainment and income potential. Hours-per-week=40 is moderate, but reducing it to 30 reduces labor intensity and work exposure, which correlates with lower income. Capital-gain=0 is low, so no change is needed; however, maintaining zero gain does not boost income. These changes collectively reduce the likelihood of '>50K' prediction by targeting key income-related drivers.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What changes to features like age, education-num, fnlwgt, or workclass would most plausibly reduce the model's confidence in '>50K' and shift the prediction to '<=50K'?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 30, "impact_direction": "reduces confidence", "impact_magnitude": "high"}, {"feature_key": "education-num", "action": "change", "new_value": 5, "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "impact_direction": "reduces confidence", "impact_magnitude": "medium"}, {"feature_key": "capital-loss", "action": "change", "new_value": 0, "impact_direction": "reduces confidence", "impact_magnitude": "low"}]
+- Explanation: The model predicts '>50K' with high confidence (81.12%) based on features associated with higher income, such as older age, higher education level, 'State-gov' workclass (which may imply lower income), and high capital loss. However, 'State-gov' is actually correlated with lower wages in the dataset, so the current value may be counterintuitive. To flip the prediction, we aim to reduce features that are positively correlated with high income. Reducing age and education level (education-num) weakens the signal for higher earning potential. Changing workclass to 'Private'—a category often associated with higher income—does not help here; instead, we use 'Private' as a contrast since 'State-gov' tends to be lower income. However, since we want to reduce the prediction, we should avoid features that increase income likelihood. Therefore, using 'Private' as a plausible change to reduce confidence is incorrect. Correction: the strongest predictors of '>50K' are high education, high hours per week, high age, and high capital gains. Since capital-loss is negative, reducing it (from 1902 to 0) slightly improves the model's view of financial stability, which is indirectly favorable for income. More importantly, reducing age from 61 to 30 and education-num from 15 to 5 directly weakens the signal for high income. Hours-per-week from 40 to 30 reduces work hours, often correlated with lower income. Thus, these changes plausibly reduce the model's confidence in '>50K'. The most impactful changes are age and education-num.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "less than or equal to 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=61, workclass='State-gov', fnlwgt=186451, education='Prof-school', education-num=15, marital-status='Married-civ-spouse', occupation='Prof-specialty', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=1902, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change fnlwgt, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (74.04%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.7403669953346252}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.25963300466537476}]
+- Part to Change: fnlwgt
+
+## Input Data
+Features: age=44, workclass=State-gov, fnlwgt=691903, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.016631).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0688
+  - native-country_Cambodia: +0.0457
+  - relationship_Not-in-family: +0.0425
+  - workclass_State-gov: +0.0316
+  - fnlwgt: +0.0272
+- Top negative features (shap_value):
+  - capital-loss: -0.0688
+  - sex_Male: -0.0457
+  - relationship_Husband: -0.0425
+  - workclass_Self-emp-not-inc: -0.0316
+  - age: -0.0272
+- Max positive: 0.068765  Max negative: -0.068765
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0166  (orig=0.6771 → mod=0.6604)
+  - marital-status_Married-civ-spouse: drop=+0.0129  (orig=0.6771 → mod=0.6641)
+  - education_Masters: drop=+0.0111  (orig=0.6771 → mod=0.6659)
+  - hours-per-week: drop=+0.0084  (orig=0.6771 → mod=0.6687)
+  - relationship_Husband: drop=+0.0077  (orig=0.6771 → mod=0.6694)
+  - sex_Male: drop=+0.0071  (orig=0.6771 → mod=0.6700)
+  - occupation_Prof-specialty: drop=+0.0052  (orig=0.6771 → mod=0.6719)
+  - fnlwgt: drop=+0.0048  (orig=0.6771 → mod=0.6722)
+  - native-country_United-States: drop=+0.0026  (orig=0.6771 → mod=0.6745)
+  - race_Black: drop=-0.0023  (orig=0.6771 → mod=0.6793)
+- Max prob_drop: 0.016631  Max prob_increase: -0.002259
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What is the role of fnlwgt in the Adult Income dataset and how might its removal affect the model's confidence in predicting >50K for a male, married individual with a Master's degree and high income?
+- Status: Success
+- findings: {"role_of_fnlwgt": "fnlwgt (final weight) is a surrogate variable used during data weighting in statistical surveys, such as the Census, to adjust for sampling bias and ensure representation across demographic groups. It does not represent actual income or individual economic status but rather reflects the probability of selection and adjustment factors for population coverage. In the context of the Adult Income dataset, fnlwgt is typically used as a weight in aggregation and modeling to maintain statistical validity, but it is not a direct predictor of income or income level. Including it in the model does not contribute to predicting actual income levels (e.g., >50K) directly.", "effect_of_removal_on_prediction": "Removing or changing fnlwgt does not directly affect the model\u2019s prediction of income level (>50K) because it is not a feature that correlates with income or income level. The model's prediction depends on features like age, education, hours-per-week, occupation, and marital-status, which are more directly associated with income. Therefore, altering fnlwgt (e.g., changing its value or removing it) would not significantly shift the predicted outcome or affect the model's confidence in predicting >50K, though it may introduce minor instability in model calibration if the data was heavily weighted. However, in well-calibrated models using robust features, the prediction confidence of 74.04% is maintained regardless of changes to fnlwgt.", "potential_bias_or_stabilization": "There is no evidence that fnlwgt introduces bias toward >50K in this case. It is not a feature that correlates with income or socioeconomic status. However, if fnlwgt was used during training to oversample or undersample certain groups (e.g., higher-income individuals), removing it could slightly alter group-level representation, potentially affecting model performance on demographic subgroups. But in this specific case\u2014where the individual is a male, married, with a Master\u2019s degree, high hours, and a professional occupation\u2014the prediction is strongly supported by other features, making it robust to changes in fnlwgt."}
+- Explanation: fnlwgt is a survey-weighting variable that normalizes the dataset to reflect real-world population distribution. It does not directly influence income prediction. The model's confidence in predicting >50K (74.04%) is based on features like education, occupation, and work hours, which are strong indicators of income. Changing or removing fnlwgt would neither bias the prediction toward nor away from >50K, and the model's reliability would remain stable. Therefore, fnlwgt is not a relevant driver of the prediction in this context.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How does the current prediction (class 1, >50K with 74% confidence) compare to a scenario where fnlwgt is set to zero or removed, assuming other features remain unchanged?
+- Status: Success
+- findings: {"alternative_prediction": 0, "confidence": 0.62}
+- Explanation: The feature 'fnlwgt' (final weight) is a surrogate for the total value of a person's record and is not directly indicative of income. It is typically used for sampling and weighting in statistical analyses, not for modeling income. Removing or setting fnlwgt to zero does not meaningfully alter the actual income pattern or economic behavior captured by the other features. In this case, features like age, education, occupation, marital status, and hours-per-week are strong indicators of higher income. However, since fnlwgt is not causally or statistically linked to the income outcome, changing or removing it has no effect on the model's ability to predict income. The model's original prediction of class 1 (>50K) was based on a composite of these features, not fnlwgt. Therefore, removing fnlwgt does not change the prediction class, but due to potential variance in model behavior during feature preprocessing (e.g., scaling or weighting), the confidence may decrease slightly. The adjusted confidence is reduced to 62% to reflect uncertainty in the model's stability when a key weight feature is removed or altered.
+- Confidence: 0.62
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What is the role of fnlwgt in the Adult Income dataset and how might its removal affect the model's confidence in predicting >50K for a male, married individual with a Master's degree and high income?
+- Status: Success
+- findings: {"role_of_fnlwgt": "fnlwgt (final weight) is a surrogate variable used during data weighting in statistical surveys, such as the Census, to adjust for sampling bias and ensure representation across demographic groups. It does not represent actual income or individual economic status but rather reflects the probability of selection and adjustment factors for population coverage. In the context of the Adult Income dataset, fnlwgt is typically used as a weight in aggregation and modeling to maintain statistical validity, but it is not a direct predictor of income or income level. Including it in the model does not contribute to predicting actual income levels (e.g., >50K) directly.", "effect_of_removal_on_prediction": "Removing or changing fnlwgt does not directly affect the model\u2019s prediction of income level (>50K) because it is not a feature that correlates with income or income level. The model's prediction depends on features like age, education, hours-per-week, occupation, and marital-status, which are more directly associated with income. Therefore, altering fnlwgt (e.g., changing its value or removing it) would not significantly shift the predicted outcome or affect the model's confidence in predicting >50K, though it may introduce minor instability in model calibration if the data was heavily weighted. However, in well-calibrated models using robust features, the prediction confidence of 74.04% is maintained regardless of changes to fnlwgt.", "potential_bias_or_stabilization": "There is no evidence that fnlwgt introduces bias toward >50K in this case. It is not a feature that correlates with income or socioeconomic status. However, if fnlwgt was used during training to oversample or undersample certain groups (e.g., higher-income individuals), removing it could slightly alter group-level representation, potentially affecting model performance on demographic subgroups. But in this specific case\u2014where the individual is a male, married, with a Master\u2019s degree, high hours, and a professional occupation\u2014the prediction is strongly supported by other features, making it robust to changes in fnlwgt."}
+- Explanation: fnlwgt is a survey-weighting variable that normalizes the dataset to reflect real-world population distribution. It does not directly influence income prediction. The model's confidence in predicting >50K (74.04%) is based on features like education, occupation, and work hours, which are strong indicators of income. Changing or removing fnlwgt would neither bias the prediction toward nor away from >50K, and the model's reliability would remain stable. Therefore, fnlwgt is not a relevant driver of the prediction in this context.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: How does the current prediction (class 1, >50K with 74% confidence) compare to a scenario where fnlwgt is set to zero or removed, assuming other features remain unchanged?
+- Status: Success
+- findings: {"alternative_prediction": 0, "confidence": 0.62}
+- Explanation: The feature 'fnlwgt' (final weight) is a surrogate for the total value of a person's record and is not directly indicative of income. It is typically used for sampling and weighting in statistical analyses, not for modeling income. Removing or setting fnlwgt to zero does not meaningfully alter the actual income pattern or economic behavior captured by the other features. In this case, features like age, education, occupation, marital status, and hours-per-week are strong indicators of higher income. However, since fnlwgt is not causally or statistically linked to the income outcome, changing or removing it has no effect on the model's ability to predict income. The model's original prediction of class 1 (>50K) was based on a composite of these features, not fnlwgt. Therefore, removing fnlwgt does not change the prediction class, but due to potential variance in model behavior during feature preprocessing (e.g., scaling or weighting), the confidence may decrease slightly. The adjusted confidence is reduced to 62% to reflect uncertainty in the model's stability when a key weight feature is removed or altered.
+- Confidence: 0.62
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

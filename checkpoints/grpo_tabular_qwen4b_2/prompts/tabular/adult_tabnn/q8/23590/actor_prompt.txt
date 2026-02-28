@@ -1,0 +1,131 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (57.08%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=38, workclass=Private, fnlwgt=33975, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Other-relative, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Honduras.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.017433).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Hong: +0.0446
+  - native-country_Cambodia: +0.0298
+  - capital-loss: +0.0181
+  - native-country_Yugoslavia: +0.0162
+  - education-num: +0.0161
+- Top negative features (shap_value):
+  - native-country_Honduras: -0.0446
+  - sex_Male: -0.0298
+  - hours-per-week: -0.0181
+  - native-country_Vietnam: -0.0162
+  - capital-gain: -0.0161
+- Max positive: 0.044591  Max negative: -0.044591
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2289
+  - capital-loss <= -0.22: +0.1343
+  - native-country_Japan <= 0.00: +0.1131
+  - native-country_Greece <= 0.00: +0.0995
+  - education-num <= -0.44: +0.0893
+- Top negative features (weight):
+  - native-country_South <= 0.00: -0.0655
+- Max positive: 0.228874  Max negative: -0.065519
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0136
+  - education-num: +0.0076
+  - relationship_Other-relative: +0.0062
+  - fnlwgt: +0.0059
+  - capital-gain: +0.0020
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0182
+  - occupation_Exec-managerial: -0.0141
+  - sex_Male: -0.0096
+  - race_White: -0.0041
+  - native-country_United-States: -0.0041
+- Max positive: 0.01356  Max negative: -0.018216
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=-0.0174  (orig=0.3943 → mod=0.4118)
+  - occupation_Exec-managerial: drop=-0.0133  (orig=0.3943 → mod=0.4077)
+  - education_HS-grad: drop=+0.0119  (orig=0.3943 → mod=0.3824)
+  - sex_Male: drop=-0.0103  (orig=0.3943 → mod=0.4046)
+  - native-country_United-States: drop=-0.0084  (orig=0.3943 → mod=0.4028)
+  - race_White: drop=-0.0079  (orig=0.3943 → mod=0.4022)
+  - education-num: drop=+0.0072  (orig=0.3943 → mod=0.3871)
+  - relationship_Other-relative: drop=+0.0064  (orig=0.3943 → mod=0.3879)
+  - fnlwgt: drop=+0.0024  (orig=0.3943 → mod=0.3919)
+  - capital-gain: drop=+0.0018  (orig=0.3943 → mod=0.3925)
+- Max prob_drop: 0.011934  Max prob_increase: -0.017433
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighted count of individuals) be semantically irrelevant to income level despite potentially having high model attribution?
+- Status: Success
+- Explanation: fnlwgt (final weight) is a surrogate variable representing a weighted count of individuals, typically used for sampling or data aggregation purposes in survey datasets, not as a direct indicator of income. It does not reflect actual income, labor market participation, or other socioeconomic factors that directly influence income levels. Despite potentially being assigned high importance by the model due to statistical correlations (e.g., higher weights in certain groups), fnlwgt has no intrinsic semantic link to whether an individual earns >50K. Its inclusion in model predictions may arise from co-occurrence patterns rather than causal or predictive relevance. Thus, its high model attribution likely stems from data leakage or spurious correlation, not genuine predictive power for income level.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education-num' and 'occupation' to the true class (>50K), and assess whether high attribution to either could indicate spurious learning.
+- Status: Success
+- findings: [{"feature_key": "education-num", "semantic_relevance": "low", "reason": "While 'education-num' is correlated with income in some datasets, its direct causal or predictive relationship with earning >50K is weak. The value here is 9 (HS-grad), which is a moderate level of education and not strongly associated with high income. In the context of the original dataset, education-num is a proxy for education level, but it's not a strong predictor beyond basic thresholds. Its high attribution in the model's prediction would indicate spurious learning, especially when combined with other features like occupation."}, {"feature_key": "occupation", "semantic_relevance": "high", "reason": "The occupation 'Exec-managerial' is semantically strongly linked to higher income. Executives and managerial roles are typically associated with >50K salaries. Given that the true label is >50K, and the model incorrectly predicted <=50K, the model's low confidence (57.08%) may suggest it failed to properly weigh this high-relevance feature. If the model assigned high attribution to occupation despite the correct class, that would point to potential spurious learning. However, in this case, the occupation is clearly relevant and should have strengthened the prediction toward >50K. The incorrect prediction suggests the model may have ignored or misweighted this relevant feature."}]
+- Explanation: The feature 'occupation' is semantically highly relevant to the target class (>50K) because managerial and executive roles are strongly associated with high income. In contrast, 'education-num' at 9 (HS-grad) is a modest education level and has limited predictive power in this context. High attribution to 'education-num' would likely represent spurious learning, as it is not a strong independent predictor. The model incorrectly predicted <=50K despite having a high-value occupation, suggesting it may have failed to properly learn the strong signal from 'occupation' or was over-relying on spurious or misleading feature correlations. Thus, the model's error likely stems from underweighting the semantically relevant 'occupation' feature rather than over-attributing to a spurious one.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a weighted count of individuals) be semantically irrelevant to income level despite potentially having high model attribution?
+- Status: Success
+- Explanation: fnlwgt (final weight) is a surrogate variable representing a weighted count of individuals, typically used for sampling or data aggregation purposes in survey datasets, not as a direct indicator of income. It does not reflect actual income, labor market participation, or other socioeconomic factors that directly influence income levels. Despite potentially being assigned high importance by the model due to statistical correlations (e.g., higher weights in certain groups), fnlwgt has no intrinsic semantic link to whether an individual earns >50K. Its inclusion in model predictions may arise from co-occurrence patterns rather than causal or predictive relevance. Thus, its high model attribution likely stems from data leakage or spurious correlation, not genuine predictive power for income level.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education-num' and 'occupation' to the true class (>50K), and assess whether high attribution to either could indicate spurious learning.
+- Status: Success
+- findings: [{"feature_key": "education-num", "semantic_relevance": "low", "reason": "While 'education-num' is correlated with income in some datasets, its direct causal or predictive relationship with earning >50K is weak. The value here is 9 (HS-grad), which is a moderate level of education and not strongly associated with high income. In the context of the original dataset, education-num is a proxy for education level, but it's not a strong predictor beyond basic thresholds. Its high attribution in the model's prediction would indicate spurious learning, especially when combined with other features like occupation."}, {"feature_key": "occupation", "semantic_relevance": "high", "reason": "The occupation 'Exec-managerial' is semantically strongly linked to higher income. Executives and managerial roles are typically associated with >50K salaries. Given that the true label is >50K, and the model incorrectly predicted <=50K, the model's low confidence (57.08%) may suggest it failed to properly weigh this high-relevance feature. If the model assigned high attribution to occupation despite the correct class, that would point to potential spurious learning. However, in this case, the occupation is clearly relevant and should have strengthened the prediction toward >50K. The incorrect prediction suggests the model may have ignored or misweighted this relevant feature."}]
+- Explanation: The feature 'occupation' is semantically highly relevant to the target class (>50K) because managerial and executive roles are strongly associated with high income. In contrast, 'education-num' at 9 (HS-grad) is a modest education level and has limited predictive power in this context. High attribution to 'education-num' would likely represent spurious learning, as it is not a strong independent predictor. The model incorrectly predicted <=50K despite having a high-value occupation, suggesting it may have failed to properly learn the strong signal from 'occupation' or was over-relying on spurious or misleading feature correlations. Thus, the model's error likely stems from underweighting the semantically relevant 'occupation' feature rather than over-attributing to a spurious one.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (61.81%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=35, workclass=Private, fnlwgt=220098, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Other-service, relationship=Wife, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.017084).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cambodia: +0.0373
+  - native-country_Japan: +0.0235
+  - native-country_Trinadad&Tobago: +0.0220
+  - capital-loss: +0.0187
+  - occupation_Tech-support: +0.0128
+- Top negative features (shap_value):
+  - sex_Male: -0.0373
+  - native-country_Laos: -0.0235
+  - native-country_United-States: -0.0220
+  - hours-per-week: -0.0187
+  - occupation_Transport-moving: -0.0128
+- Max positive: 0.037343  Max negative: -0.037343
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2529
+  - capital-loss <= -0.22: +0.1187
+  - native-country_India <= 0.00: +0.1091
+  - native-country_Vietnam <= 0.00: +0.0554
+  - native-country_England <= 0.00: +0.0158
+- Top negative features (weight):
+  - native-country_Dominican-Republic <= 0.00: -0.1205
+  - native-country_Nicaragua <= 0.00: -0.0571
+  - native-country_Laos <= 0.00: -0.0172
+  - education_1st-4th <= 0.00: -0.0165
+  - marital-status_Married-AF-spouse <= 0.00: -0.0002
+- Max positive: 0.252907  Max negative: -0.120481
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - occupation_Other-service: +0.0122
+  - education_HS-grad: +0.0076
+  - workclass_Private: +0.0053
+  - education-num: +0.0041
+  - age: +0.0027
+- Top negative features (attribution_score):
+  - marital-status_Married-civ-spouse: -0.0162
+  - native-country_United-States: -0.0099
+  - relationship_Wife: -0.0075
+  - fnlwgt: -0.0005
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.012197  Max negative: -0.016229
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=-0.0171  (orig=0.4057 → mod=0.4227)
+  - education_HS-grad: drop=+0.0120  (orig=0.4057 → mod=0.3937)
+  - native-country_United-States: drop=-0.0103  (orig=0.4057 → mod=0.4159)
+  - occupation_Other-service: drop=+0.0082  (orig=0.4057 → mod=0.3974)
+  - relationship_Wife: drop=-0.0082  (orig=0.4057 → mod=0.4138)
+  - education-num: drop=+0.0053  (orig=0.4057 → mod=0.4004)
+  - age: drop=+0.0031  (orig=0.4057 → mod=0.4025)
+  - race_White: drop=-0.0018  (orig=0.4057 → mod=0.4075)
+  - capital-gain: drop=+0.0013  (orig=0.4057 → mod=0.4044)
+  - workclass_Private: drop=+0.0012  (orig=0.4057 → mod=0.4045)
+- Max prob_drop: 0.011989  Max prob_increase: -0.017084
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Analyze the semantic relevance of each input feature (age, workclass, fnlwgt, education, education-num, marital-status, occupation, relationship, race, sex) to the target class >50K in the context of adult income data.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "justification": "Higher age is generally associated with higher income due to longer work experience and potentially higher earnings over a lifetime. In the context of adult income datasets, age is a strong predictor of income level."}, {"feature_key": "workclass", "relevance": "high", "justification": "Workclass indicates employment type (e.g., Private, Self-emp-not-inc, Federal-gov). Private sector workers often earn higher incomes than government or self-employed categories. This feature has strong predictive power in income classification."}, {"feature_key": "education", "relevance": "high", "justification": "Education level correlates strongly with income. Higher education (e.g., Bachelor\u2019s, Masters) is linked to higher earning potential. The 'HS-grad' level is associated with lower income brackets, making it less likely to predict >50K."}, {"feature_key": "education-num", "relevance": "high", "justification": "Numerical representation of education level directly correlates with income. Since 'HS-grad' corresponds to 9, which is below higher education levels, this supports the low income prediction."}, {"feature_key": "marital-status", "relevance": "medium", "justification": "Marital status may influence income indirectly through family responsibilities or household income sharing. 'Married-civ-spouse' suggests stable employment, which can be positive, but does not strongly indicate high income on its own."}, {"feature_key": "occupation", "relevance": "high", "justification": "Occupation determines field and earning potential. 'Other-service' is generally a lower-paying occupation compared to managerial or professional roles. This contributes to predicting lower income."}, {"feature_key": "relationship", "relevance": "low", "justification": "Relationship status (e.g., Wife) reflects household structure but does not directly correlate with income level. It has minimal predictive power compared to other attributes."}, {"feature_key": "race", "relevance": "low", "justification": "Race is not a reliable or meaningful predictor of income in a fair and unbiased model. It is often a proxy for socioeconomic factors and can introduce bias. In domain knowledge, it is not semantically relevant to income prediction in a fair context."}, {"feature_key": "sex", "relevance": "medium", "justification": "Historically, income data shows gender disparities, but in the context of fair modeling, sex should not be used as a direct predictor. The observed female status here may be influenced by other factors, and sex alone has limited predictive power in income classification."}, {"feature_key": "capital-gain", "relevance": "high", "justification": "Capital gains reflect investment returns and are positively correlated with higher income. A value of 0 indicates no investment gains, which is more typical of lower-income individuals."}, {"feature_key": "capital-loss", "relevance": "low", "justification": "Capital loss implies financial risk or negative investment outcomes. Its presence may indicate lower stability, but it is not a strong predictor of income level and is often correlated with capital gain."}, {"feature_key": "hours-per-week", "relevance": "medium", "justification": "Higher hours per week are generally linked to higher income. A value of 40 is standard, not high, and may not push the prediction toward >50K unless combined with other high-earning features."}, {"feature_key": "native-country", "relevance": "low", "justification": "National origin has minimal direct correlation with individual income. While some countries may have different average incomes, this feature is not semantically relevant in an individual-level income prediction context."}]
+- Explanation: Based on domain knowledge of adult income datasets (such as the Census Income Dataset), features like age, education level, workclass, occupation, capital gains, and hours per week are strongly correlated with income. In this case, the individual has a low education level (HS-grad), works in 'Other-service', has no capital gains, is female, and has a moderate work experience (age 35). These factors align with the model's prediction of <=50K, despite the actual label being >50K. The model may have been influenced by strong negative signals in education and occupation, which reduce the likelihood of high income. Features like race, sex, and native-country are either redundant or socially biased and not semantically meaningful in a fair income prediction model.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the model's confidence and predicted class with the feature set where fnlwgt and education-num are artificially reduced or zeroed out, while keeping others constant.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "zeroed", "new_value": 0}, {"feature_key": "education-num", "action": "zeroed", "new_value": 0}]
+- Explanation: The model predicted the individual as <=50K with 61.81% confidence, despite the true label being >50K. When fnlwgt and education-num are reduced to zero, the model's confidence slightly decreases, but the prediction remains unchanged (still <=50K). This indicates that fnlwgt and education-num, while statistically correlated in the dataset, do not directly drive the model's class decision in a meaningful or semantic way. fnlwgt is a weight factor and not directly related to actual income, and education-num is a proxy for education level—both have low semantic relevance to income. Their artificial reduction does not alter the prediction outcome, suggesting the model may be relying on other features (e.g., age, marital-status, sex, or relationship) to make its decision. However, since the prediction remains the same, their contribution appears marginal or indirect. Therefore, there is no strong evidence that these features are causing the incorrect prediction in a relevant or meaningful way.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Analyze the semantic relevance of each input feature (age, workclass, fnlwgt, education, education-num, marital-status, occupation, relationship, race, sex) to the target class >50K in the context of adult income data.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "justification": "Higher age is generally associated with higher income due to longer work experience and potentially higher earnings over a lifetime. In the context of adult income datasets, age is a strong predictor of income level."}, {"feature_key": "workclass", "relevance": "high", "justification": "Workclass indicates employment type (e.g., Private, Self-emp-not-inc, Federal-gov). Private sector workers often earn higher incomes than government or self-employed categories. This feature has strong predictive power in income classification."}, {"feature_key": "education", "relevance": "high", "justification": "Education level correlates strongly with income. Higher education (e.g., Bachelor\u2019s, Masters) is linked to higher earning potential. The 'HS-grad' level is associated with lower income brackets, making it less likely to predict >50K."}, {"feature_key": "education-num", "relevance": "high", "justification": "Numerical representation of education level directly correlates with income. Since 'HS-grad' corresponds to 9, which is below higher education levels, this supports the low income prediction."}, {"feature_key": "marital-status", "relevance": "medium", "justification": "Marital status may influence income indirectly through family responsibilities or household income sharing. 'Married-civ-spouse' suggests stable employment, which can be positive, but does not strongly indicate high income on its own."}, {"feature_key": "occupation", "relevance": "high", "justification": "Occupation determines field and earning potential. 'Other-service' is generally a lower-paying occupation compared to managerial or professional roles. This contributes to predicting lower income."}, {"feature_key": "relationship", "relevance": "low", "justification": "Relationship status (e.g., Wife) reflects household structure but does not directly correlate with income level. It has minimal predictive power compared to other attributes."}, {"feature_key": "race", "relevance": "low", "justification": "Race is not a reliable or meaningful predictor of income in a fair and unbiased model. It is often a proxy for socioeconomic factors and can introduce bias. In domain knowledge, it is not semantically relevant to income prediction in a fair context."}, {"feature_key": "sex", "relevance": "medium", "justification": "Historically, income data shows gender disparities, but in the context of fair modeling, sex should not be used as a direct predictor. The observed female status here may be influenced by other factors, and sex alone has limited predictive power in income classification."}, {"feature_key": "capital-gain", "relevance": "high", "justification": "Capital gains reflect investment returns and are positively correlated with higher income. A value of 0 indicates no investment gains, which is more typical of lower-income individuals."}, {"feature_key": "capital-loss", "relevance": "low", "justification": "Capital loss implies financial risk or negative investment outcomes. Its presence may indicate lower stability, but it is not a strong predictor of income level and is often correlated with capital gain."}, {"feature_key": "hours-per-week", "relevance": "medium", "justification": "Higher hours per week are generally linked to higher income. A value of 40 is standard, not high, and may not push the prediction toward >50K unless combined with other high-earning features."}, {"feature_key": "native-country", "relevance": "low", "justification": "National origin has minimal direct correlation with individual income. While some countries may have different average incomes, this feature is not semantically relevant in an individual-level income prediction context."}]
+- Explanation: Based on domain knowledge of adult income datasets (such as the Census Income Dataset), features like age, education level, workclass, occupation, capital gains, and hours per week are strongly correlated with income. In this case, the individual has a low education level (HS-grad), works in 'Other-service', has no capital gains, is female, and has a moderate work experience (age 35). These factors align with the model's prediction of <=50K, despite the actual label being >50K. The model may have been influenced by strong negative signals in education and occupation, which reduce the likelihood of high income. Features like race, sex, and native-country are either redundant or socially biased and not semantically meaningful in a fair income prediction model.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the model's confidence and predicted class with the feature set where fnlwgt and education-num are artificially reduced or zeroed out, while keeping others constant.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "zeroed", "new_value": 0}, {"feature_key": "education-num", "action": "zeroed", "new_value": 0}]
+- Explanation: The model predicted the individual as <=50K with 61.81% confidence, despite the true label being >50K. When fnlwgt and education-num are reduced to zero, the model's confidence slightly decreases, but the prediction remains unchanged (still <=50K). This indicates that fnlwgt and education-num, while statistically correlated in the dataset, do not directly drive the model's class decision in a meaningful or semantic way. fnlwgt is a weight factor and not directly related to actual income, and education-num is a proxy for education level—both have low semantic relevance to income. Their artificial reduction does not alter the prediction outcome, suggesting the model may be relying on other features (e.g., age, marital-status, sex, or relationship) to make its decision. However, since the prediction remains the same, their contribution appears marginal or indirect. Therefore, there is no strong evidence that these features are causing the incorrect prediction in a relevant or meaningful way.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

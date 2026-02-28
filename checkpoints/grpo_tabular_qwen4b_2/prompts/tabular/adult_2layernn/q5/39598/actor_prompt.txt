@@ -1,0 +1,102 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we mask the occupation feature of this input, would the prediction change?
+
+## Current Prediction
+Class: >50K
+Confidence: 0.6000
+
+## Part to be Masked
+occupation
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=246038, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: relationship_Husband (prob drop: 0.008258).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0305
+  - native-country_United-States: +0.0188
+  - occupation_Prof-specialty: +0.0164
+  - race_Other: +0.0143
+  - native-country_Cuba: +0.0130
+- Top negative features (shap_value):
+  - capital-loss: -0.0305
+  - native-country_Trinadad&Tobago: -0.0188
+  - occupation_Priv-house-serv: -0.0164
+  - race_Black: -0.0143
+  - native-country_Columbia: -0.0130
+- Max positive: 0.030516  Max negative: -0.030516
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Husband: drop=+0.0083  (orig=0.6457 → mod=0.6374)
+  - marital-status_Married-civ-spouse: drop=+0.0076  (orig=0.6457 → mod=0.6381)
+  - sex_Male: drop=+0.0061  (orig=0.6457 → mod=0.6396)
+  - education_Bachelors: drop=+0.0047  (orig=0.6457 → mod=0.6409)
+  - education-num: drop=+0.0040  (orig=0.6457 → mod=0.6416)
+  - race_White: drop=+0.0039  (orig=0.6457 → mod=0.6417)
+  - native-country_United-States: drop=+0.0029  (orig=0.6457 → mod=0.6427)
+  - age: drop=-0.0011  (orig=0.6457 → mod=0.6468)
+  - workclass_Private: drop=-0.0011  (orig=0.6457 → mod=0.6467)
+  - fnlwgt: drop=-0.0009  (orig=0.6457 → mod=0.6465)
+- Max prob_drop: 0.008258  Max prob_increase: -0.001103
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate the domain relevance of occupation in income prediction based on the Adult Income dataset
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "mask", "new_value": null}]
+- Explanation: In the Adult Income dataset, the 'occupation' feature is a categorical variable that reflects the individual's job role (e.g., 'Prof-specialty', 'Tech-support', 'Other-service'). While occupation is correlated with income in some cases—such as high-income professions like 'Prof-specialty' or 'Exec-managerial'—its predictive power is generally moderate when compared to features like 'hours-per-week', 'education-num', and 'age'. The presence of occupation in the model's prediction (with a 60% confidence that income >50K) suggests it contributes some domain relevance. However, when masked, the model may still maintain a stable prediction due to strong signal from other correlated features. This indicates that occupation is moderately relevant but not the dominant driver of income prediction. Therefore, while it adds nuance, it is not a strong or decisive predictor in isolation.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's confidence when occupation is varied (e.g., Prof-specialty vs. unrelated occupation) while holding other features constant
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "occupation", "action": "change", "new_value": "Tech-support"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "occupation", "action": "change", "new_value": "Sales"}, {"feature_key": "occupation", "action": "change", "new_value": "Farming-fishing"}]
+- Explanation: The model prediction is currently 1 (income > 50K) with 60.00% confidence. Occupation is a categorical feature that is likely to have a strong influence on income prediction in this dataset. By varying occupation from 'Prof-specialty' to unrelated categories (e.g., 'Tech-support', 'Adm-clerical', 'Sales', 'Farming-fishing', 'Other-service'), we assess whether the model's confidence in predicting income > 50K changes significantly. Given that 'Prof-specialty' is associated with high income in the training data, replacing it with lower-income occupations would likely reduce the prediction probability. However, since the model's confidence is already 60%, and no top-5 predictions are available, we infer that occupation has a strong explanatory power. Thus, we expect a noticeable reduction in confidence when occupation is changed to less associated categories.
+- Confidence: 0.85
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate the domain relevance of occupation in income prediction based on the Adult Income dataset
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "mask", "new_value": null}]
+- Explanation: In the Adult Income dataset, the 'occupation' feature is a categorical variable that reflects the individual's job role (e.g., 'Prof-specialty', 'Tech-support', 'Other-service'). While occupation is correlated with income in some cases—such as high-income professions like 'Prof-specialty' or 'Exec-managerial'—its predictive power is generally moderate when compared to features like 'hours-per-week', 'education-num', and 'age'. The presence of occupation in the model's prediction (with a 60% confidence that income >50K) suggests it contributes some domain relevance. However, when masked, the model may still maintain a stable prediction due to strong signal from other correlated features. This indicates that occupation is moderately relevant but not the dominant driver of income prediction. Therefore, while it adds nuance, it is not a strong or decisive predictor in isolation.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's confidence when occupation is varied (e.g., Prof-specialty vs. unrelated occupation) while holding other features constant
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "occupation", "action": "change", "new_value": "Tech-support"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "occupation", "action": "change", "new_value": "Sales"}, {"feature_key": "occupation", "action": "change", "new_value": "Farming-fishing"}]
+- Explanation: The model prediction is currently 1 (income > 50K) with 60.00% confidence. Occupation is a categorical feature that is likely to have a strong influence on income prediction in this dataset. By varying occupation from 'Prof-specialty' to unrelated categories (e.g., 'Tech-support', 'Adm-clerical', 'Sales', 'Farming-fishing', 'Other-service'), we assess whether the model's confidence in predicting income > 50K changes significantly. Given that 'Prof-specialty' is associated with high income in the training data, replacing it with lower-income occupations would likely reduce the prediction probability. However, since the model's confidence is already 60%, and no top-5 predictions are available, we infer that occupation has a strong explanatory power. Thus, we expect a noticeable reduction in confidence when occupation is changed to less associated categories.
+- Confidence: 0.85
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

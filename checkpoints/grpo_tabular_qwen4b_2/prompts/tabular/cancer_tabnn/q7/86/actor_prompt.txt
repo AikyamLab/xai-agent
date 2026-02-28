@@ -1,0 +1,101 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the tumor to be benign. If we remove/change worst symmetry, how would the prediction change?
+
+## Current State
+- Current Prediction: benign (78.12%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': 'benign', 'probability': 0.7811660766601562}, {'class_idx': 0, 'class_name': 'malignant', 'probability': 0.21883392333984375}]
+- Part to Change: worst symmetry
+
+## Input Data
+Features: mean radius=13.7, mean texture=17.64, mean perimeter=87.76, mean area=571.1, mean smoothness=0.0995, mean compactness=0.07957, mean concavity=0.04548, mean concave points=0.0316, mean symmetry=0.1732, mean fractal dimension=0.06088, radius error=0.2431, texture error=0.9462, perimeter error=1.564, area error=20.64, smoothness error=0.003245, compactness error=0.008186, concavity error=0.01698, concave points error=0.009233, symmetry error=0.01285, fractal dimension error=0.001524, worst radius=14.96, worst texture=23.53, worst perimeter=95.78, worst area=686.5, worst smoothness=0.1199, worst compactness=0.1346, worst concavity=0.1742, worst concave points=0.09077, worst symmetry=0.2518, worst fractal dimension=0.0696
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 30 features. Most influential: perimeter error.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 30 features. Most sensitive: mean concavity (prob drop: 0.007905).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - area error: +0.0306
+  - compactness error: +0.0192
+  - worst concave points: +0.0149
+  - mean compactness: +0.0067
+- Top negative features (shap_value):
+  - perimeter error: -0.0306
+  - smoothness error: -0.0192
+  - worst concavity: -0.0149
+  - mean smoothness: -0.0067
+  - mean radius: +0.0000
+- Max positive: 0.030557  Max negative: -0.030557
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - mean concavity: drop=+0.0079  (orig=0.6859 → mod=0.6780)
+  - perimeter error: drop=+0.0048  (orig=0.6859 → mod=0.6811)
+  - worst radius: drop=+0.0048  (orig=0.6859 → mod=0.6811)
+  - worst concave points: drop=+0.0048  (orig=0.6859 → mod=0.6812)
+  - mean texture: drop=+0.0039  (orig=0.6859 → mod=0.6821)
+  - worst concavity: drop=+0.0037  (orig=0.6859 → mod=0.6822)
+  - mean concave points: drop=+0.0037  (orig=0.6859 → mod=0.6822)
+  - worst smoothness: drop=+0.0034  (orig=0.6859 → mod=0.6825)
+  - worst texture: drop=+0.0034  (orig=0.6859 → mod=0.6825)
+  - mean fractal dimension: drop=-0.0022  (orig=0.6859 → mod=0.6881)
+- Max prob_drop: 0.007905  Max prob_increase: -0.0022
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that worst symmetry is a key indicator of tumor irregularity, how might its removal affect the model's perception of malignancy versus benignancy in the context of breast cancer diagnostics?
+- Status: Success
+- findings: [{"feature_key": "worst symmetry", "action": "remove", "new_value": null}]
+- Explanation: Worst symmetry is a critical feature in breast cancer diagnostics, as tumors with high irregularity (low symmetry) are more likely to be malignant. The current model predicts the tumor as benign (label 1) with 78.12% confidence, which relies on a balance of features including symmetry. Removing worst symmetry eliminates a key diagnostic clue that would otherwise signal irregularity—common in malignant tumors. Without this feature, the model loses a critical piece of information that distinguishes malignant from benign tumors. This results in a reduced ability to detect malignancy, effectively shifting the model's perception toward benignancy. However, since symmetry is a strong indicator of malignancy, its removal biases the model toward a more benign classification, even if the tumor is actually malignant. Thus, removing worst symmetry would likely decrease the model's confidence in predicting malignancy and could lead to an underestimation of risk, reducing overall diagnostic accuracy.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction (benign with 0.78 confidence) with what the model would predict if all symmetry-related features were set to zero or removed, based on known feature importance in tumor classification.
+- Status: Success
+- findings: {"new_prediction_class": "benign", "new_prediction_confidence": 0.76, "shift_in_probability": -0.0212}
+- Explanation: Symmetry is a well-known feature in tumor classification models, particularly in breast cancer datasets like Breast Cancer Wisconsin (Diagnostic). The 'worst symmetry' feature is typically one of the more discriminative features for distinguishing malignant from benign tumors. However, in this specific case, the model's initial prediction of 'benign' with 78.12% confidence is stable even when symmetry-related features are set to zero. This suggests that while symmetry contributes to classification, its absence does not significantly alter the prediction class or confidence level in this instance. The model likely relies more heavily on other features such as mean radius, texture, and concavity. Setting all symmetry-related features (mean symmetry, worst symmetry, and symmetry errors) to zero results in a minor drop in confidence (to 76%), but the model still classifies the tumor as benign. This indicates a small but measurable influence of symmetry features, supporting their importance in the decision boundary.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that worst symmetry is a key indicator of tumor irregularity, how might its removal affect the model's perception of malignancy versus benignancy in the context of breast cancer diagnostics?
+- Status: Success
+- findings: [{"feature_key": "worst symmetry", "action": "remove", "new_value": null}]
+- Explanation: Worst symmetry is a critical feature in breast cancer diagnostics, as tumors with high irregularity (low symmetry) are more likely to be malignant. The current model predicts the tumor as benign (label 1) with 78.12% confidence, which relies on a balance of features including symmetry. Removing worst symmetry eliminates a key diagnostic clue that would otherwise signal irregularity—common in malignant tumors. Without this feature, the model loses a critical piece of information that distinguishes malignant from benign tumors. This results in a reduced ability to detect malignancy, effectively shifting the model's perception toward benignancy. However, since symmetry is a strong indicator of malignancy, its removal biases the model toward a more benign classification, even if the tumor is actually malignant. Thus, removing worst symmetry would likely decrease the model's confidence in predicting malignancy and could lead to an underestimation of risk, reducing overall diagnostic accuracy.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction (benign with 0.78 confidence) with what the model would predict if all symmetry-related features were set to zero or removed, based on known feature importance in tumor classification.
+- Status: Success
+- findings: {"new_prediction_class": "benign", "new_prediction_confidence": 0.76, "shift_in_probability": -0.0212}
+- Explanation: Symmetry is a well-known feature in tumor classification models, particularly in breast cancer datasets like Breast Cancer Wisconsin (Diagnostic). The 'worst symmetry' feature is typically one of the more discriminative features for distinguishing malignant from benign tumors. However, in this specific case, the model's initial prediction of 'benign' with 78.12% confidence is stable even when symmetry-related features are set to zero. This suggests that while symmetry contributes to classification, its absence does not significantly alter the prediction class or confidence level in this instance. The model likely relies more heavily on other features such as mean radius, texture, and concavity. Setting all symmetry-related features (mean symmetry, worst symmetry, and symmetry errors) to zero results in a minor drop in confidence (to 76%), but the model still classifies the tumor as benign. This indicates a small but measurable influence of symmetry features, supporting their importance in the decision boundary.
+- Confidence: 0.93
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

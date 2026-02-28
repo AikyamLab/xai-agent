@@ -1,0 +1,115 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the tumor to be malignant. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: malignant (99.59%)
+- Top-2: {'class_idx': 1, 'class_name': 'benign', 'probability': 0.004112926311790943}
+
+## Input Data
+Features: mean radius=20.6, mean texture=29.33, mean perimeter=140.1, mean area=1265.0, mean smoothness=0.1178, mean compactness=0.277, mean concavity=0.3514, mean concave points=0.152, mean symmetry=0.2397, mean fractal dimension=0.07016, radius error=0.726, texture error=1.595, perimeter error=5.772, area error=86.22, smoothness error=0.006522, compactness error=0.06158, concavity error=0.07117, concave points error=0.01664, symmetry error=0.02324, fractal dimension error=0.006185, worst radius=25.74, worst texture=39.42, worst perimeter=184.6, worst area=1821.0, worst smoothness=0.165, worst compactness=0.8681, worst concavity=0.9387, worst concave points=0.265, worst symmetry=0.4087, worst fractal dimension=0.124
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: perimeter error.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: worst compactness.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst compactness (prob drop: 0.001137).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - perimeter error: +0.0931
+  - smoothness error: +0.0623
+  - mean smoothness: +0.0554
+  - mean perimeter: +0.0334
+  - concavity error: +0.0297
+- Top negative features (shap_value):
+  - area error: -0.0931
+  - compactness error: -0.0623
+  - mean compactness: -0.0554
+  - mean area: -0.0334
+  - concave points error: -0.0297
+- Max positive: 0.093095  Max negative: -0.093095
+- Total features: 30
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - worst compactness: +0.0220
+  - mean concavity: +0.0219
+  - worst concavity: +0.0193
+  - worst texture: +0.0169
+  - mean perimeter: +0.0137
+- Top negative features (attribution_score):
+  - concavity error: -0.0066
+  - compactness error: -0.0038
+  - mean compactness: -0.0037
+  - fractal dimension error: -0.0031
+- Max positive: 0.021963  Max negative: -0.006594
+- Total features: 30
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - worst compactness: drop=+0.0011  (orig=0.4990 → mod=0.4978)
+  - mean concavity: drop=+0.0011  (orig=0.4990 → mod=0.4979)
+  - worst concavity: drop=+0.0010  (orig=0.4990 → mod=0.4980)
+  - worst texture: drop=+0.0007  (orig=0.4990 → mod=0.4983)
+  - mean perimeter: drop=+0.0007  (orig=0.4990 → mod=0.4983)
+  - worst concave points: drop=+0.0005  (orig=0.4990 → mod=0.4984)
+  - worst symmetry: drop=+0.0005  (orig=0.4990 → mod=0.4984)
+  - mean concave points: drop=+0.0004  (orig=0.4990 → mod=0.4986)
+  - worst area: drop=+0.0004  (orig=0.4990 → mod=0.4986)
+  - concavity error: drop=-0.0003  (orig=0.4990 → mod=0.4992)
+- Max prob_drop: 0.001137  Max prob_increase: -0.000269
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are medically known to be more prevalent or elevated in malignant tumors compared to benign ones?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean perimeter", "mean area", "mean concavity", "mean concave points", "worst radius", "worst texture", "worst perimeter", "worst area", "worst concavity", "worst concave points", "worst symmetry", "worst fractal dimension"]
+- Explanation: Medically, malignant tumors are known to grow larger and exhibit more irregular cellular morphology compared to benign tumors. Key features such as mean and worst radius, texture, perimeter, area, concavity, and concave points are directly linked to tumor size and surface irregularity. Higher values in these features (especially in the 'worst' category, which represents the maximum values across cells) are strongly associated with malignancy. For example, increased mean concavity and concave points reflect more irregular cell borders, a hallmark of malignant tumors. Fractal dimension, though less intuitive, reflects surface complexity and is higher in malignant cases. These features are well-documented in medical literature, including studies on the Wisconsin Breast Cancer Dataset (a standard benchmark in breast cancer classification), where they are consistently found to be significant discriminants between benign and malignant tumors.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the input values for malignant vs benign in terms of mean radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, and fractal dimension. Identify features where malignant values significantly exceed or differ from benign baseline values.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "increase", "new_value": 20.6}, {"feature_key": "mean texture", "action": "increase", "new_value": 29.33}, {"feature_key": "mean perimeter", "action": "increase", "new_value": 140.1}, {"feature_key": "mean area", "action": "increase", "new_value": 1265.0}, {"feature_key": "mean smoothness", "action": "decrease", "new_value": 0.1178}, {"feature_key": "mean compactness", "action": "increase", "new_value": 0.277}, {"feature_key": "mean concavity", "action": "increase", "new_value": 0.3514}, {"feature_key": "mean concave points", "action": "increase", "new_value": 0.152}, {"feature_key": "mean symmetry", "action": "increase", "new_value": 0.2397}, {"feature_key": "mean fractal dimension", "action": "increase", "new_value": 0.07016}]
+- Explanation: In breast cancer (malignant) cases, features related to tumor size—such as mean radius, texture, perimeter, and area—are typically higher than in benign tumors. These are key indicators of larger, more irregular tumors. Additionally, higher mean concavity and concave points suggest irregular tumor shapes, common in malignancy. While mean smoothness is relatively low, indicating irregularity, this feature is less directly linked than the others. The increase in compactness and fractal dimension also aligns with malignant characteristics, reflecting greater internal complexity. These features collectively distinguish malignant predictions from benign ones.
+- Confidence: 0.98
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which tumor features are medically known to be more prevalent or elevated in malignant tumors compared to benign ones?
+- Status: Success
+- findings: ["mean radius", "mean texture", "mean perimeter", "mean area", "mean concavity", "mean concave points", "worst radius", "worst texture", "worst perimeter", "worst area", "worst concavity", "worst concave points", "worst symmetry", "worst fractal dimension"]
+- Explanation: Medically, malignant tumors are known to grow larger and exhibit more irregular cellular morphology compared to benign tumors. Key features such as mean and worst radius, texture, perimeter, area, concavity, and concave points are directly linked to tumor size and surface irregularity. Higher values in these features (especially in the 'worst' category, which represents the maximum values across cells) are strongly associated with malignancy. For example, increased mean concavity and concave points reflect more irregular cell borders, a hallmark of malignant tumors. Fractal dimension, though less intuitive, reflects surface complexity and is higher in malignant cases. These features are well-documented in medical literature, including studies on the Wisconsin Breast Cancer Dataset (a standard benchmark in breast cancer classification), where they are consistently found to be significant discriminants between benign and malignant tumors.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the input values for malignant vs benign in terms of mean radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, and fractal dimension. Identify features where malignant values significantly exceed or differ from benign baseline values.
+- Status: Success
+- findings: [{"feature_key": "mean radius", "action": "increase", "new_value": 20.6}, {"feature_key": "mean texture", "action": "increase", "new_value": 29.33}, {"feature_key": "mean perimeter", "action": "increase", "new_value": 140.1}, {"feature_key": "mean area", "action": "increase", "new_value": 1265.0}, {"feature_key": "mean smoothness", "action": "decrease", "new_value": 0.1178}, {"feature_key": "mean compactness", "action": "increase", "new_value": 0.277}, {"feature_key": "mean concavity", "action": "increase", "new_value": 0.3514}, {"feature_key": "mean concave points", "action": "increase", "new_value": 0.152}, {"feature_key": "mean symmetry", "action": "increase", "new_value": 0.2397}, {"feature_key": "mean fractal dimension", "action": "increase", "new_value": 0.07016}]
+- Explanation: In breast cancer (malignant) cases, features related to tumor size—such as mean radius, texture, perimeter, and area—are typically higher than in benign tumors. These are key indicators of larger, more irregular tumors. Additionally, higher mean concavity and concave points suggest irregular tumor shapes, common in malignancy. While mean smoothness is relatively low, indicating irregularity, this feature is less directly linked than the others. The increase in compactness and fractal dimension also aligns with malignant characteristics, reflecting greater internal complexity. These features collectively distinguish malignant predictions from benign ones.
+- Confidence: 0.98
+
+## Your Task
+Identify the part that DISTINGUISHES malignant from {'class_idx': 1, 'class_name': 'benign', 'probability': 0.004112926311790943}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

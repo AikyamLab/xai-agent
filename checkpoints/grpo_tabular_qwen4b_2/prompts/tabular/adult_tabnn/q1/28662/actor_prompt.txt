@@ -1,0 +1,119 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.7404
+
+## Input Data
+Features: age=44, workclass=State-gov, fnlwgt=691903, education=Masters, education-num=14, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.016631).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0705
+  - native-country_Cambodia: +0.0614
+  - relationship_Not-in-family: +0.0476
+  - native-country_United-States: +0.0375
+  - fnlwgt: +0.0371
+- Top negative features (shap_value):
+  - capital-loss: -0.0705
+  - sex_Male: -0.0614
+  - relationship_Husband: -0.0476
+  - native-country_Trinadad&Tobago: -0.0375
+  - age: -0.0371
+- Max positive: 0.070519  Max negative: -0.070519
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education-num > 1.13: +0.1388
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2195
+  - capital-loss <= -0.22: -0.1297
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.1160
+  - workclass_Without-pay <= 0.00: -0.0819
+  - education_Doctorate <= 0.00: -0.0703
+- Max positive: 0.138813  Max negative: -0.219475
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0160
+  - marital-status_Married-civ-spouse: +0.0151
+  - education_Masters: +0.0134
+  - relationship_Husband: +0.0119
+  - sex_Male: +0.0105
+- Top negative features (attribution_score):
+  - race_Black: -0.0052
+  - capital-gain: -0.0021
+  - workclass_State-gov: -0.0014
+  - capital-loss: -0.0010
+  - workclass_Federal-gov: +0.0000
+- Max positive: 0.016009  Max negative: -0.00521
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0166  (orig=0.6771 → mod=0.6604)
+  - marital-status_Married-civ-spouse: drop=+0.0129  (orig=0.6771 → mod=0.6641)
+  - education_Masters: drop=+0.0111  (orig=0.6771 → mod=0.6659)
+  - hours-per-week: drop=+0.0084  (orig=0.6771 → mod=0.6687)
+  - relationship_Husband: drop=+0.0077  (orig=0.6771 → mod=0.6694)
+  - sex_Male: drop=+0.0071  (orig=0.6771 → mod=0.6700)
+  - occupation_Prof-specialty: drop=+0.0052  (orig=0.6771 → mod=0.6719)
+  - fnlwgt: drop=+0.0048  (orig=0.6771 → mod=0.6722)
+  - native-country_United-States: drop=+0.0026  (orig=0.6771 → mod=0.6745)
+  - race_Black: drop=-0.0023  (orig=0.6771 → mod=0.6793)
+- Max prob_drop: 0.016631  Max prob_increase: -0.002259
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be highly correlated with income in the Adult dataset?
+- Status: Success
+- findings: ["education-num", "hours-per-week", "age", "occupation", "capital-gain"]
+- Explanation: In the Adult dataset, income is strongly correlated with several key features. 'education-num' reflects educational attainment, which is well-documented as a major predictor of income levels. 'hours-per-week' shows a strong positive association with higher income, especially for higher-earning occupations. 'age' has a moderate but consistent correlation, as older individuals tend to have more work experience and higher earnings. 'occupation' is a critical factor, as specialized or managerial roles (e.g., 'Prof-specialty', 'Exec-managerial') are typically associated with higher incomes. 'capital-gain' also contributes, as it reflects financial success from investments, which is correlated with higher overall income. However, 'workclass' and 'sex' show weaker or context-dependent associations, while 'race' and 'native-country' are known to have higher inter-group variation without consistent predictive power in causal terms.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Based on the input values, which features appear to contradict or support the '>50K' prediction given domain knowledge?
+- Status: Success
+- findings: [{"feature_key": "education", "action": "support", "new_value": "Masters"}, {"feature_key": "education-num", "action": "support", "new_value": 14}, {"feature_key": "hours-per-week", "action": "support", "new_value": 60}, {"feature_key": "occupation", "action": "support", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "support", "new_value": "Married-civ-spouse"}]
+- Explanation: The model predicted income >50K with high confidence (74.04%). Domain knowledge suggests that higher education levels, particularly a 'Masters' degree (education-num=14), are strongly correlated with higher income. A high number of hours per week (60) indicates full-time, possibly high-paying work, supporting the >50K prediction. The occupation 'Prof-specialty' is typically high-paying, and being married with a stable marital status ('Married-civ-spouse') often correlates with financial stability and access to better-paying jobs. Age (44) is in a mid-to-late career stage, which generally aligns with peak earning potential. While race ('Black') and sex ('Male') are present, their impact is often confounded by historical and socioeconomic factors, and in this dataset, they do not show strong independent predictive power when paired with other strong indicators like education and occupation. Thus, the features that most directly support the >50K prediction are education, work hours, occupation, and marital status.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the input feature values to known correlations in the Adult dataset where income >50K is prevalent.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the Adult dataset, individuals with higher education levels (especially higher 'education-num') and higher hours per week are more likely to have income >50K. The 'Prof-specialty' occupation is associated with higher income compared to service or manual roles. Marital status of 'Married-civ-spouse' is correlated with higher income due to greater stability and potential for higher wages. However, the 'sex' feature shows a strong correlation where males have a higher probability of earning >50K, though this relationship is historically biased and not directly causal. Given the current values, increasing education-num and hours-per-week directly improves the likelihood of high income. The occupation and marital-status are already favorable and remain strong indicators. Changing sex to female is included to highlight the historical bias, but this does not contribute positively to the prediction in reality — thus it is listed with caution. The most impactful features are education-num and hours-per-week due to their strong positive correlation with higher income in the dataset.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

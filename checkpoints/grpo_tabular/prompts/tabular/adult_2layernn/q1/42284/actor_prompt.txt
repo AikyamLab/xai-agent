@@ -1,0 +1,105 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6088
+
+## Input Data
+Features: age=33, workclass=Private, fnlwgt=341187, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=50, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.006155).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0309
+  - workclass_State-gov: +0.0273
+  - native-country_Hong: +0.0155
+  - native-country_United-States: +0.0143
+  - native-country_Cuba: +0.0143
+- Top negative features (shap_value):
+  - capital-loss: -0.0309
+  - workclass_Self-emp-not-inc: -0.0273
+  - native-country_Honduras: -0.0155
+  - native-country_Trinadad&Tobago: -0.0143
+  - native-country_Columbia: -0.0143
+- Max positive: 0.030907  Max negative: -0.030907
+- Total features: 104
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0058
+  - education-num: +0.0058
+  - marital-status_Married-civ-spouse: +0.0048
+  - occupation_Exec-managerial: +0.0045
+  - hours-per-week: +0.0043
+- Top negative features (attribution_score):
+  - workclass_Private: -0.0031
+  - age: -0.0016
+  - fnlwgt: -0.0014
+  - capital-gain: -0.0003
+  - workclass_Federal-gov: +0.0000
+- Max positive: 0.005834  Max negative: -0.003149
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0062  (orig=0.6477 → mod=0.6415)
+  - relationship_Husband: drop=+0.0044  (orig=0.6477 → mod=0.6433)
+  - occupation_Exec-managerial: drop=+0.0043  (orig=0.6477 → mod=0.6434)
+  - sex_Male: drop=+0.0039  (orig=0.6477 → mod=0.6438)
+  - workclass_Private: drop=-0.0038  (orig=0.6477 → mod=0.6515)
+  - education-num: drop=+0.0035  (orig=0.6477 → mod=0.6442)
+  - fnlwgt: drop=-0.0022  (orig=0.6477 → mod=0.6498)
+  - age: drop=-0.0016  (orig=0.6477 → mod=0.6493)
+  - education_Bachelors: drop=+0.0013  (orig=0.6477 → mod=0.6464)
+  - hours-per-week: drop=+0.0012  (orig=0.6477 → mod=0.6465)
+- Max prob_drop: 0.006155  Max prob_increase: -0.003779
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify the features in the input that are most likely associated with income greater than 50K based on domain knowledge of the Adult dataset.
+- Status: Success
+- findings: ["education-num", "occupation", "marital-status", "workclass", "hours-per-week"]
+- Explanation: Based on domain knowledge of the Adult dataset, higher income is typically associated with higher levels of education (e.g., 'education-num' = 13 indicates a Bachelor's degree), certain occupations such as 'Exec-managerial', marital status like 'Married-civ-spouse', employment in the private sector ('workclass' = 'Private'), and longer working hours ('hours-per-week' = 50). These features are known to be strong predictors of income above 50K due to their correlation with socioeconomic status and job position.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: Explain how the features age=33, education-num=13, occupation=Exec-managerial, and marital-status=Married-civ-spouse contribute to the prediction of >50K income.
+- Status: Success
+- Explanation: The features age=33, education-num=13, occupation=Exec-managerial, and marital-status=Married-civ-spouse are all strong indicators of higher income in the dataset. Specifically: age=33 suggests the individual is in a prime earning phase of their career; education-num=13 (corresponding to a bachelor's degree) indicates a high level of formal education, which correlates positively with income; occupation=Exec-managerial is a high-status, high-income role; and marital-status=Married-civ-spouse is associated with dual-income households and economic stability. These factors collectively contribute to the model's prediction of income >50K with notable confidence.
+- Confidence: 0.82
+
+### COMPARISON Task
+- Query: Compare the strength of influence between features such as education-num, occupation, and workclass based on their typical weight in income prediction models.
+- Status: Success
+- findings: "education-num > occupation > workclass"
+- Explanation: In typical income prediction models, education-num (numerical representation of education level) is a strong predictor of income, often reflecting long-term human capital investment. Occupation is also highly influential, with professional, managerial, and executive roles typically associated with higher earnings. Workclass, while relevant (e.g., private vs. government vs. self-employed), tends to have less predictive power than education and occupation. Therefore, among these three, education-num is the most influential, followed by occupation, then workclass.
+- Confidence: 0.85
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

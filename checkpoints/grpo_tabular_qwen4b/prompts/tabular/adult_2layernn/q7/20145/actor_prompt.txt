@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be greater than 50K. If we remove/change workclass, how would the prediction change??
+
+## Current State
+- Current Prediction: >50K (53.34%)
+- Top-5 Predictions: [{'class_idx': 1, 'class_name': '>50K', 'probability': 0.5334315896034241}, {'class_idx': 0, 'class_name': '<=50K', 'probability': 0.4665684103965759}]
+- Part to Change: workclass
+
+## Input Data
+Features: age=50, workclass=State-gov, fnlwgt=229272, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008679).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0123
+  - native-country_Cuba: +0.0097
+  - education_Doctorate: +0.0093
+  - education_5th-6th: +0.0056
+  - native-country_Poland: +0.0055
+- Top negative features (shap_value):
+  - age: -0.0123
+  - native-country_Columbia: -0.0097
+  - education_Bachelors: -0.0093
+  - education_1st-4th: -0.0056
+  - native-country_Philippines: -0.0055
+- Max positive: 0.012309  Max negative: -0.012309
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0087  (orig=0.6303 → mod=0.6216)
+  - workclass_State-gov: drop=+0.0053  (orig=0.6303 → mod=0.6250)
+  - marital-status_Married-civ-spouse: drop=+0.0050  (orig=0.6303 → mod=0.6253)
+  - education_HS-grad: drop=-0.0050  (orig=0.6303 → mod=0.6353)
+  - relationship_Husband: drop=+0.0048  (orig=0.6303 → mod=0.6255)
+  - native-country_United-States: drop=+0.0037  (orig=0.6303 → mod=0.6266)
+  - age: drop=+0.0029  (orig=0.6303 → mod=0.6273)
+  - education-num: drop=-0.0022  (orig=0.6303 → mod=0.6324)
+  - fnlwgt: drop=+0.0019  (orig=0.6303 → mod=0.6283)
+  - occupation_Craft-repair: drop=-0.0013  (orig=0.6303 → mod=0.6316)
+- Max prob_drop: 0.008679  Max prob_increase: -0.00497
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that workclass=State-gov is currently present, how might the model's decision boundary shift if this feature is removed, considering the typical distribution of income across workclass categories?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "remove", "new_value": null}]
+- Explanation: Workclass is a categorical feature that often captures important socioeconomic signals related to income levels, such as occupation type, employment stability, and earnings potential. In the current setup, 'State-gov' is associated with a moderate income level, and the model has assigned a 53.34% confidence to the positive class (income > 50K). Removing workclass would eliminate a key predictive signal that helps distinguish between high- and low-income individuals. Since the majority of high-income individuals in the dataset are classified under workclasses like 'Private' or 'Self-emp-not-inc', and 'State-gov' has historically been linked to lower incomes, removing this feature may reduce the model's ability to confidently predict income >50K. As a result, the prediction confidence is expected to decrease, and the model may shift toward a more uncertain classification (possibly biasing toward the negative class). Without this feature, the model relies more on other variables like education-num, hours-per-week, and age, which may not be sufficient to maintain the original confidence level in predicting high income.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in predicting >50K with and without workclass, based on known correlations in the Adult dataset (e.g., State-gov vs. Private vs. Self-emp).
+- Status: Success
+- findings: "The model's prediction of income >50K is moderately confident (53.34%), currently based on the individual having a 'State-gov' workclass. In the Adult dataset, 'State-gov' is generally associated with lower income outcomes compared to 'Private' or 'Exec-managerial' workclasses. Removing or changing workclass to a different category\u2014such as 'Private'\u2014could significantly alter the prediction, as 'Private' is more strongly correlated with higher income (>50K). Without workclass, the model would lose a key contextual feature that influences income prediction, leading to reduced predictive stability. The absence of workclass would introduce uncertainty, potentially lowering confidence in the >50K prediction unless the individual\u2019s other features (e.g., high education, high hours-per-week) compensate. Therefore, prediction stability is highly sensitive to workclass variation."
+- Explanation: In the Adult dataset, workclass is a strong predictor of income. 'State-gov' is typically linked to lower income levels, while 'Private' and 'Self-emp' (especially 'Exec-managerial') are associated with higher earning potential. Changing workclass to a higher-income category like 'Private' or 'Exec-managerial' would increase the probability of predicting >50K. Conversely, changing to a lower-income category (e.g., 'Local-gov') would likely reduce the probability. Without workclass, the model lacks a critical feature that helps disambiguate income distribution, leading to reduced predictive accuracy and confidence. The model's current 53.34% confidence is partly attributable to the 'State-gov' workclass, so removing it would likely degrade confidence unless other features strongly offset the loss.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that workclass=State-gov is currently present, how might the model's decision boundary shift if this feature is removed, considering the typical distribution of income across workclass categories?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "remove", "new_value": null}]
+- Explanation: Workclass is a categorical feature that often captures important socioeconomic signals related to income levels, such as occupation type, employment stability, and earnings potential. In the current setup, 'State-gov' is associated with a moderate income level, and the model has assigned a 53.34% confidence to the positive class (income > 50K). Removing workclass would eliminate a key predictive signal that helps distinguish between high- and low-income individuals. Since the majority of high-income individuals in the dataset are classified under workclasses like 'Private' or 'Self-emp-not-inc', and 'State-gov' has historically been linked to lower incomes, removing this feature may reduce the model's ability to confidently predict income >50K. As a result, the prediction confidence is expected to decrease, and the model may shift toward a more uncertain classification (possibly biasing toward the negative class). Without this feature, the model relies more on other variables like education-num, hours-per-week, and age, which may not be sufficient to maintain the original confidence level in predicting high income.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence in predicting >50K with and without workclass, based on known correlations in the Adult dataset (e.g., State-gov vs. Private vs. Self-emp).
+- Status: Success
+- findings: "The model's prediction of income >50K is moderately confident (53.34%), currently based on the individual having a 'State-gov' workclass. In the Adult dataset, 'State-gov' is generally associated with lower income outcomes compared to 'Private' or 'Exec-managerial' workclasses. Removing or changing workclass to a different category\u2014such as 'Private'\u2014could significantly alter the prediction, as 'Private' is more strongly correlated with higher income (>50K). Without workclass, the model would lose a key contextual feature that influences income prediction, leading to reduced predictive stability. The absence of workclass would introduce uncertainty, potentially lowering confidence in the >50K prediction unless the individual\u2019s other features (e.g., high education, high hours-per-week) compensate. Therefore, prediction stability is highly sensitive to workclass variation."
+- Explanation: In the Adult dataset, workclass is a strong predictor of income. 'State-gov' is typically linked to lower income levels, while 'Private' and 'Self-emp' (especially 'Exec-managerial') are associated with higher earning potential. Changing workclass to a higher-income category like 'Private' or 'Exec-managerial' would increase the probability of predicting >50K. Conversely, changing to a lower-income category (e.g., 'Local-gov') would likely reduce the probability. Without workclass, the model lacks a critical feature that helps disambiguate income distribution, leading to reduced predictive accuracy and confidence. The model's current 53.34% confidence is partly attributable to the 'State-gov' workclass, so removing it would likely degrade confidence unless other features strongly offset the loss.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be <=50K (True label was >50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (55.28%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=162687, education=12th, education-num=8, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Haiti.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_12th (prob drop: 0.008696).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Haiti: +0.0229
+  - marital-status_Married-AF-spouse: +0.0220
+  - capital-loss: +0.0207
+  - native-country_Cuba: +0.0157
+  - native-country_United-States: +0.0121
+- Top negative features (shap_value):
+  - native-country_Holand-Netherlands: -0.0229
+  - marital-status_Married-civ-spouse: -0.0220
+  - hours-per-week: -0.0207
+  - native-country_Columbia: -0.0157
+  - native-country_Trinadad&Tobago: -0.0121
+- Max positive: 0.022948  Max negative: -0.022948
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0717
+  - capital-gain <= -0.15: +0.0621
+  - education-num <= -0.44: +0.0567
+  - hours-per-week <= -0.08: +0.0399
+  - native-country_Italy <= 0.00: +0.0364
+- Top negative features (weight):
+  - native-country_Honduras <= 0.00: -0.0506
+  - marital-status_Divorced <= 0.00: -0.0412
+  - education_7th-8th <= 0.00: -0.0335
+  - native-country_Laos <= 0.00: -0.0321
+  - native-country_Puerto-Rico <= 0.00: -0.0089
+- Max positive: 0.071741  Max negative: -0.050636
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0073
+  - education_12th: +0.0056
+  - age: +0.0052
+  - occupation_Craft-repair: +0.0038
+  - race_White: +0.0020
+- Top negative features (attribution_score):
+  - sex_Male: -0.0073
+  - native-country_United-States: -0.0073
+  - relationship_Husband: -0.0025
+  - marital-status_Married-civ-spouse: -0.0006
+  - capital-loss: -0.0003
+- Max positive: 0.007345  Max negative: -0.007323
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education_12th: drop=+0.0087  (orig=0.3900 → mod=0.3813)
+  - education-num: drop=+0.0085  (orig=0.3900 → mod=0.3815)
+  - occupation_Craft-repair: drop=+0.0074  (orig=0.3900 → mod=0.3826)
+  - sex_Male: drop=-0.0068  (orig=0.3900 → mod=0.3969)
+  - native-country_United-States: drop=-0.0050  (orig=0.3900 → mod=0.3951)
+  - age: drop=+0.0050  (orig=0.3900 → mod=0.3850)
+  - race_White: drop=+0.0038  (orig=0.3900 → mod=0.3862)
+  - relationship_Husband: drop=-0.0023  (orig=0.3900 → mod=0.3924)
+  - fnlwgt: drop=+0.0014  (orig=0.3900 → mod=0.3886)
+  - workclass_Private: drop=+0.0012  (orig=0.3900 → mod=0.3888)
+- Max prob_drop: 0.008696  Max prob_increase: -0.006839
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate the semantic relevance of each feature (age, workclass, education-num, marital-status, occupation, relationship, race, sex) to the class >50K in the context of adult income prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "justification": "Age is strongly correlated with income levels; older individuals tend to have higher earnings due to work experience and tenure. A young age (25) may suggest lower earning potential, making it semantically relevant to the >50K class."}, {"feature_key": "sex", "relevance": "high", "justification": "In the income prediction context, sex is a known demographic factor with historically significant disparities. The model predicting <=50K for a male (sex='Male') may be influenced by assumptions or biases, especially since males historically earn more. However, this feature is strongly predictive in real-world datasets and thus highly relevant."}, {"feature_key": "education-num", "relevance": "high", "justification": "Education level directly impacts earning capacity. An '12th' grade (education-num=8) corresponds to limited formal education, which is strongly associated with lower income. This feature is semantically central to predicting >50K class."}, {"feature_key": "relationship", "relevance": "moderate", "justification": "Marital status can indirectly influence income (e.g., being a husband may suggest employment), but its direct impact is weaker than age, sex, or education. Still, it may signal household stability and labor market participation, hence moderate relevance."}, {"feature_key": "workclass", "relevance": "moderate", " justification": "Workclass (e.g., 'Private') is moderately relevant as it indicates employment type. Private sector workers may have higher earnings, but the category itself is not a direct proxy for income level. However, it correlates with income in the dataset, so it is relevant but less so than core demographic factors."}]
+- Explanation: In the context of adult income prediction, features that reflect personal attributes with direct links to earning capacity—such as age, education level, and sex—are semantically most relevant. A young age (25), limited education (12th grade), and male sex are all associated with lower income probabilities. The model's prediction of <=50K for a person with these features aligns with typical patterns in the dataset. Features like marital status and workclass have indirect or contextual influences but less direct semantic ties to income. Thus, the main predictors of >50K are age, education-num, and sex, indicating that the model's prediction may be semantically sound based on these features.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence and attribution patterns with the known semantically relevant features (e.g., age, education-num, hours-per-week) versus those that are typically irrelevant (e.g., race, sex) in income classification.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "race", "action": "change", "new_value": "Other"}, {"feature_key": "education-num", "action": "change", "new_value": "13"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "80"}, {"feature_key": "age", "action": "change", "new_value": "50"}]
+- Explanation: The model predicted <=50K with only 55.28% confidence despite the true label being >50K. In income classification tasks, features like 'sex' and 'race' are typically considered irrelevant or neutral due to historical biases and lack of direct correlation with income in standardized datasets. However, if the model assigns high attribution to these features, it suggests potential over-reliance on irrelevant or biased indicators. The current input includes 'sex=Male' and 'race=White', which are generally associated with higher income in biased models, possibly misleading the prediction. To assess whether these features are causing the wrong prediction, we evaluated changes to key semantic features: increasing education-num (improving qualification), raising hours-per-week (indicating higher work intensity), and aging the individual (a known positive predictor). The test cases show that the model's confidence is low even with plausible changes, indicating that the prediction may be over-influenced by irrelevant or non-robust features like race and sex. Thus, the model’s poor confidence despite a true label >50K may stem from undue attribution to semantically weak features.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Evaluate the semantic relevance of each feature (age, workclass, education-num, marital-status, occupation, relationship, race, sex) to the class >50K in the context of adult income prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "justification": "Age is strongly correlated with income levels; older individuals tend to have higher earnings due to work experience and tenure. A young age (25) may suggest lower earning potential, making it semantically relevant to the >50K class."}, {"feature_key": "sex", "relevance": "high", "justification": "In the income prediction context, sex is a known demographic factor with historically significant disparities. The model predicting <=50K for a male (sex='Male') may be influenced by assumptions or biases, especially since males historically earn more. However, this feature is strongly predictive in real-world datasets and thus highly relevant."}, {"feature_key": "education-num", "relevance": "high", "justification": "Education level directly impacts earning capacity. An '12th' grade (education-num=8) corresponds to limited formal education, which is strongly associated with lower income. This feature is semantically central to predicting >50K class."}, {"feature_key": "relationship", "relevance": "moderate", "justification": "Marital status can indirectly influence income (e.g., being a husband may suggest employment), but its direct impact is weaker than age, sex, or education. Still, it may signal household stability and labor market participation, hence moderate relevance."}, {"feature_key": "workclass", "relevance": "moderate", " justification": "Workclass (e.g., 'Private') is moderately relevant as it indicates employment type. Private sector workers may have higher earnings, but the category itself is not a direct proxy for income level. However, it correlates with income in the dataset, so it is relevant but less so than core demographic factors."}]
+- Explanation: In the context of adult income prediction, features that reflect personal attributes with direct links to earning capacity—such as age, education level, and sex—are semantically most relevant. A young age (25), limited education (12th grade), and male sex are all associated with lower income probabilities. The model's prediction of <=50K for a person with these features aligns with typical patterns in the dataset. Features like marital status and workclass have indirect or contextual influences but less direct semantic ties to income. Thus, the main predictors of >50K are age, education-num, and sex, indicating that the model's prediction may be semantically sound based on these features.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: Compare the model's predicted confidence and attribution patterns with the known semantically relevant features (e.g., age, education-num, hours-per-week) versus those that are typically irrelevant (e.g., race, sex) in income classification.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "race", "action": "change", "new_value": "Other"}, {"feature_key": "education-num", "action": "change", "new_value": "13"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "80"}, {"feature_key": "age", "action": "change", "new_value": "50"}]
+- Explanation: The model predicted <=50K with only 55.28% confidence despite the true label being >50K. In income classification tasks, features like 'sex' and 'race' are typically considered irrelevant or neutral due to historical biases and lack of direct correlation with income in standardized datasets. However, if the model assigns high attribution to these features, it suggests potential over-reliance on irrelevant or biased indicators. The current input includes 'sex=Male' and 'race=White', which are generally associated with higher income in biased models, possibly misleading the prediction. To assess whether these features are causing the wrong prediction, we evaluated changes to key semantic features: increasing education-num (improving qualification), raising hours-per-week (indicating higher work intensity), and aging the individual (a known positive predictor). The test cases show that the model's confidence is low even with plausible changes, indicating that the prediction may be over-influenced by irrelevant or non-robust features like race and sex. Thus, the model’s poor confidence despite a true label >50K may stem from undue attribution to semantically weak features.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

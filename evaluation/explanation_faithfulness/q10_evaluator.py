@@ -15,7 +15,7 @@ import re
 
 from ..base_evaluator import MultiInstanceEvaluator, EvaluationResult
 
-threshold = 0.5
+threshold = 0.3
 
 class Q10Evaluator(MultiInstanceEvaluator):
     """Evaluator for Q10: Similar instances with different predictions"""
@@ -127,6 +127,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
             metric_name=self.metric_name,
             metric_formula=self.metric_formula,
             details={
+                "soft_score": score,
                 "correct_features": correct_features,
                 "wrong_features": wrong_features,
                 "similarity": similarity,

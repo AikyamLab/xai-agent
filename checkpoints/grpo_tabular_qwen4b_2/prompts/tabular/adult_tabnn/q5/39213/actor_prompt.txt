@@ -1,0 +1,100 @@
+You are an XAI expert. Predict if masking the queried part in the question would change the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we mask the education feature of this input, would the prediction change?
+
+## Current Prediction
+Class: <=50K
+Confidence: 0.8600
+
+## Part to be Masked
+education
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=520759, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Not-in-family, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.008916).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0562
+  - native-country_Vietnam: +0.0344
+  - native-country_Columbia: +0.0267
+  - native-country_Trinadad&Tobago: +0.0247
+  - workclass_Self-emp-not-inc: +0.0204
+- Top negative features (shap_value):
+  - fnlwgt: -0.0562
+  - native-country_Yugoslavia: -0.0344
+  - native-country_Cuba: -0.0267
+  - native-country_United-States: -0.0247
+  - workclass_State-gov: -0.0204
+- Max positive: 0.056209  Max negative: -0.056209
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0089  (orig=0.4651 → mod=0.4561)
+  - marital-status_Never-married: drop=+0.0088  (orig=0.4651 → mod=0.4563)
+  - relationship_Not-in-family: drop=+0.0086  (orig=0.4651 → mod=0.4564)
+  - fnlwgt: drop=+0.0077  (orig=0.4651 → mod=0.4573)
+  - race_Black: drop=+0.0042  (orig=0.4651 → mod=0.4609)
+  - hours-per-week: drop=+0.0034  (orig=0.4651 → mod=0.4617)
+  - occupation_Other-service: drop=+0.0027  (orig=0.4651 → mod=0.4623)
+  - sex_Male: drop=-0.0016  (orig=0.4651 → mod=0.4666)
+  - education-num: drop=+0.0014  (orig=0.4651 → mod=0.4636)
+  - native-country_United-States: drop=+0.0013  (orig=0.4651 → mod=0.4637)
+- Max prob_drop: 0.008916  Max prob_increase: -0.001556
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that education and education-num are strongly correlated in the Adult Income dataset and education is a categorical predictor often used to infer income levels, assess whether education has a non-trivial influence on the model's decision to classify as <=50K.
+- Status: Success
+- Explanation: In the Adult Income dataset, 'education' is a key categorical predictor that strongly correlates with income levels. The feature 'education-num', which is derived from 'education', is one of the most predictive features in income classification models. 'HS-grad' (High School Graduate), which is the current value, is generally associated with lower income brackets, especially when paired with other demographic features like 'sex'='Male' and 'race'='Black'. Since the model has assigned a high confidence (86.00%) to the prediction of <=50K, and given that education is a strong proxy for socioeconomic status, masking 'education' would remove a critical input that influences the prediction. The strong correlation between education and education-num, combined with the known domain knowledge that education level is a significant factor in income modeling, implies that the model's decision is sensitive to this feature. Therefore, changing the education value—such as to a higher category like 'Bachelors' or 'Masters'—would likely alter the prediction, suggesting that education has a non-trivial influence on the model's output.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model’s prediction with and without a plausible alternative value for education (e.g., Bachelors vs. HS-grad), assuming education-num is preserved, to estimate prediction stability.
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors", "prediction_change": "The model prediction remains '0' (income \u226450K), but confidence slightly decreases to 83.50%.", "reason": "Changing 'HS-grad' to 'Bachelors' increases education level, which typically correlates with higher income. However, the model still predicts income \u226450K, suggesting the feature may not be a strong driver in this case, or the prediction is robust to such changes."}, {"feature_key": "education", "action": "change", "new_value": "Prof-school", "prediction_change": "The model prediction remains '0' (income \u226450K), confidence drops to 81.20%.", "reason": "Prof-school implies higher education level, which is associated with higher income potential. Despite this, the model continues to predict \u226450K, indicating limited sensitivity to education level in this instance."}, {"feature_key": "education", "action": "change", "new_value": "Masters", "prediction_change": "Prediction is still '0', confidence drops to 79.80%.", "reason": "Masters is a higher education level, yet the model output does not shift; this suggests that even with elevated education, the base prediction remains stable, possibly due to dominant influence of other features like sex, age, or workclass."}, {"feature_key": "education", "action": "change", "new_value": "Doctorate", "prediction_change": "Prediction remains '0', confidence drops to 78.00%.", "reason": "Doctorate is the highest education level, yet the model still predicts \u226450K. This implies the model is not sensitive to education-level variations in this particular case, even when escorting education-num unchanged."}]
+- Explanation: The model originally predicted '0' (income ≤50K) with 86.00% confidence. When education is changed to higher levels (Bachelors, Prof-school, Masters, Doctorate) while preserving education-num (9), the model maintains the same prediction class (≤50K), though confidence decreases slightly. This indicates low sensitivity to education-level changes, suggesting that the prediction is stable when education is masked. The stability implies that education may not be a key differentiator in this individual’s income prediction, possibly due to the influence of other features such as sex, age, or workclass. However, a drop in confidence suggests uncertainty when high-education alternatives are introduced, indicating a nuanced relationship between education and income that is not fully captured by the model.
+- Confidence: 0.89
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that education and education-num are strongly correlated in the Adult Income dataset and education is a categorical predictor often used to infer income levels, assess whether education has a non-trivial influence on the model's decision to classify as <=50K.
+- Status: Success
+- Explanation: In the Adult Income dataset, 'education' is a key categorical predictor that strongly correlates with income levels. The feature 'education-num', which is derived from 'education', is one of the most predictive features in income classification models. 'HS-grad' (High School Graduate), which is the current value, is generally associated with lower income brackets, especially when paired with other demographic features like 'sex'='Male' and 'race'='Black'. Since the model has assigned a high confidence (86.00%) to the prediction of <=50K, and given that education is a strong proxy for socioeconomic status, masking 'education' would remove a critical input that influences the prediction. The strong correlation between education and education-num, combined with the known domain knowledge that education level is a significant factor in income modeling, implies that the model's decision is sensitive to this feature. Therefore, changing the education value—such as to a higher category like 'Bachelors' or 'Masters'—would likely alter the prediction, suggesting that education has a non-trivial influence on the model's output.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the model’s prediction with and without a plausible alternative value for education (e.g., Bachelors vs. HS-grad), assuming education-num is preserved, to estimate prediction stability.
+- Status: Success
+- findings: [{"feature_key": "education", "action": "change", "new_value": "Bachelors", "prediction_change": "The model prediction remains '0' (income \u226450K), but confidence slightly decreases to 83.50%.", "reason": "Changing 'HS-grad' to 'Bachelors' increases education level, which typically correlates with higher income. However, the model still predicts income \u226450K, suggesting the feature may not be a strong driver in this case, or the prediction is robust to such changes."}, {"feature_key": "education", "action": "change", "new_value": "Prof-school", "prediction_change": "The model prediction remains '0' (income \u226450K), confidence drops to 81.20%.", "reason": "Prof-school implies higher education level, which is associated with higher income potential. Despite this, the model continues to predict \u226450K, indicating limited sensitivity to education level in this instance."}, {"feature_key": "education", "action": "change", "new_value": "Masters", "prediction_change": "Prediction is still '0', confidence drops to 79.80%.", "reason": "Masters is a higher education level, yet the model output does not shift; this suggests that even with elevated education, the base prediction remains stable, possibly due to dominant influence of other features like sex, age, or workclass."}, {"feature_key": "education", "action": "change", "new_value": "Doctorate", "prediction_change": "Prediction remains '0', confidence drops to 78.00%.", "reason": "Doctorate is the highest education level, yet the model still predicts \u226450K. This implies the model is not sensitive to education-level variations in this particular case, even when escorting education-num unchanged."}]
+- Explanation: The model originally predicted '0' (income ≤50K) with 86.00% confidence. When education is changed to higher levels (Bachelors, Prof-school, Masters, Doctorate) while preserving education-num (9), the model maintains the same prediction class (≤50K), though confidence decreases slightly. This indicates low sensitivity to education-level changes, suggesting that the prediction is stable when education is masked. The stability implies that education may not be a key differentiator in this individual’s income prediction, possibly due to the influence of other features such as sex, age, or workclass. However, a drop in confidence suggests uncertainty when high-education alternatives are introduced, indicating a nuanced relationship between education and income that is not fully captured by the model.
+- Confidence: 0.89
+
+## Your Task
+Based on the XAI analysis, predict whether masking this part would change the prediction.
+- If the part has HIGH importance: masking should CHANGE the prediction (output 1)
+- If the part has LOW importance: masking should NOT change the prediction (output 0)
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "prediction_changes": 1
+    },
+    "explanation": "2-3 sentences explaining your reasoning",
+    "confidence": 0.85
+}
+
+**Critical Requirements:**
+- Output ONLY 1 (Yes, prediction changes) or 0 (No, prediction stays same)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

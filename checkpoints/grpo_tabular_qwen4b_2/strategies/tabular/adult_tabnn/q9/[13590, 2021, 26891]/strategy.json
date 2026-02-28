@@ -1,0 +1,54 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is chosen because autonomous analysis can identify initial shared patterns in the input features, especially given the structured nature of the tabular data and common columns across misclassified instances. Incorporating XAI tools like SHAP and sensitivity analysis provides quantified, model-embedded feature importance and causal impact, enabling detection of spurious correlations that might not be immediately evident from human reasoning alone.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify which features are present in all three misclassified instances (13590, 2021, 26891) and assess their semantic relevance to income prediction",
+      "expected_output": "A list of shared features across all three instances, and an evaluation of their semantic plausibility as predictors of the income class"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Why might a shared feature like 'marital-status=Married-civ-spouse' or 'relationship=Husband' be spuriously correlated with income despite lacking direct predictive power?",
+      "expected_output": "A reasoned explanation about potential spurious associations due to overfitting to correlated demographic patterns or data biases"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "sensitivity_analysis": {
+        "find_common": true
+      }
+    },
+    "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features have high attribution in misclassifications, especially when evaluated across all instances. Sensitivity analysis isolates how prediction changes when specific features are removed, helping to detect spurious dependencies. These tools together validate whether shared features (e.g., marital status or occupation) are driving incorrect predictions despite lacking true relevance to income, which is key to identifying spurious correlations."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features have high attribution in misclassifications, especially when evaluated across all instances. Sensitivity analysis isolates how prediction changes when specific features are removed, helping to detect spurious dependencies. These tools together validate whether shared features (e.g., marital status or occupation) are driving incorrect predictions despite lacking true relevance to income, which is key to identifying spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features have high attribution in misclassifications, especially when evaluated across all instances. Sensitivity analysis isolates how prediction changes when specific features are removed, helping to detect spurious dependencies. These tools together validate whether shared features (e.g., marital status or occupation) are driving incorrect predictions despite lacking true relevance to income, which is key to identifying spurious correlations.",
+      "parameters": {
+        "find_common": true
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 3
+}

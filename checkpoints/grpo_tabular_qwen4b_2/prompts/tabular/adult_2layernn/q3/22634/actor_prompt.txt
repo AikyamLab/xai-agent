@@ -1,0 +1,132 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (53.43%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4656607210636139}
+
+## Input Data
+Features: age=29, workclass=Private, fnlwgt=301031, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=Black, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Taiwan.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.0112).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Taiwan: +0.0275
+  - native-country_United-States: +0.0197
+  - occupation_Tech-support: +0.0103
+  - native-country_Yugoslavia: +0.0100
+  - native-country_Cuba: +0.0086
+- Top negative features (shap_value):
+  - native-country_Thailand: -0.0275
+  - native-country_Trinadad&Tobago: -0.0197
+  - occupation_Transport-moving: -0.0103
+  - native-country_Vietnam: -0.0100
+  - native-country_Columbia: -0.0086
+- Max positive: 0.027474  Max negative: -0.027474
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0810
+  - capital-gain <= -0.15: +0.0559
+  - education-num <= -0.44: +0.0495
+  - hours-per-week <= -0.08: +0.0467
+  - native-country_Canada <= 0.00: +0.0323
+- Top negative features (weight):
+  - native-country_Trinadad&Tobago <= 0.00: -0.0663
+  - native-country_Hungary <= 0.00: -0.0556
+  - marital-status_Divorced <= 0.00: -0.0466
+  - native-country_Ecuador <= 0.00: -0.0063
+- Max positive: 0.081026  Max negative: -0.066284
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education_HS-grad: +0.0064
+  - occupation_Transport-moving: +0.0044
+  - age: +0.0044
+  - race_Black: +0.0043
+  - workclass_Private: +0.0034
+- Top negative features (attribution_score):
+  - sex_Male: -0.0102
+  - relationship_Husband: -0.0044
+  - native-country_United-States: -0.0033
+  - marital-status_Married-civ-spouse: -0.0027
+  - capital-loss: -0.0006
+- Max positive: 0.006355  Max negative: -0.010211
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0112  (orig=0.3856 → mod=0.3968)
+  - relationship_Husband: drop=-0.0067  (orig=0.3856 → mod=0.3923)
+  - race_Black: drop=+0.0059  (orig=0.3856 → mod=0.3797)
+  - education_HS-grad: drop=+0.0056  (orig=0.3856 → mod=0.3800)
+  - occupation_Transport-moving: drop=+0.0052  (orig=0.3856 → mod=0.3804)
+  - marital-status_Married-civ-spouse: drop=-0.0048  (orig=0.3856 → mod=0.3905)
+  - age: drop=+0.0039  (orig=0.3856 → mod=0.3817)
+  - workclass_Private: drop=+0.0028  (orig=0.3856 → mod=0.3829)
+  - education-num: drop=+0.0018  (orig=0.3856 → mod=0.3838)
+  - capital-loss: drop=-0.0010  (orig=0.3856 → mod=0.3866)
+- Max prob_drop: 0.005913  Max prob_increase: -0.0112
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the known class distribution in the adult dataset, which socioeconomic or demographic features are historically more associated with <=50K vs >50K income?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the Adult Income Dataset, historical and statistical analyses show that individuals with higher education levels (especially beyond HS-grad), older age, higher working hours, and specific occupations such as professionals or technical roles are more likely to earn over $50K. Additionally, gender plays a notable role, with males historically being overrepresented in higher-income groups, though this varies by region and work context. Changing the current values to higher education, increased age, higher hours, and a higher-income occupation increases the model's prediction likelihood of >50K. Conversely, the current values (age=29, education-num=9, hours-per-week=40, occupation='Transport-moving') align with the lower-income bracket. The sex='Male' value, while potentially contributing to higher income in some contexts, is not sufficient on its own to overcome the low education and working hours typically associated with <=50K. Thus, these features are the most actionable levers to shift the prediction from <=50K to >50K.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: What features in the input (age, workclass, education-num, occupation, marital-status, race, sex) are commonly observed in <=50K cases versus >50K cases in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "lower"}, {"feature_key": "education-num", "action": "change", "new_value": "lower"}, {"feature_key": "occupation", "action": "change", "new_value": "non-professional"}, {"feature_key": "marital-status", "action": "change", "new_value": "not-married"}, {"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "female"}]
+- Explanation: In the Adult dataset, individuals with income >50K are typically older, have higher education levels (higher education-num), hold professional or technical occupations (e.g., Exec-managerial, Prof-specialty), are married, and are more likely to be White or female. Conversely, those with income ≤50K are more commonly younger, have lower education levels, work in lower-status occupations (e.g., Transport-moving, Other-service), are unmarried, and are more likely to be Black or male. The current individual (age=29, education-num=9, occupation='Transport-moving', married, Black, male) aligns with the profile of ≤50K cases, particularly in age, education, occupation, and race. The features that most distinguish ≤50K from >50K cases include lower education levels, lower occupational status, and demographic indicators such as race and marital status. These patterns are well-documented in statistical analyses of the dataset.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the known class distribution in the adult dataset, which socioeconomic or demographic features are historically more associated with <=50K vs >50K income?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 35}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the Adult Income Dataset, historical and statistical analyses show that individuals with higher education levels (especially beyond HS-grad), older age, higher working hours, and specific occupations such as professionals or technical roles are more likely to earn over $50K. Additionally, gender plays a notable role, with males historically being overrepresented in higher-income groups, though this varies by region and work context. Changing the current values to higher education, increased age, higher hours, and a higher-income occupation increases the model's prediction likelihood of >50K. Conversely, the current values (age=29, education-num=9, hours-per-week=40, occupation='Transport-moving') align with the lower-income bracket. The sex='Male' value, while potentially contributing to higher income in some contexts, is not sufficient on its own to overcome the low education and working hours typically associated with <=50K. Thus, these features are the most actionable levers to shift the prediction from <=50K to >50K.
+- Confidence: 0.94
+
+### COMPARISON Task
+- Query: What features in the input (age, workclass, education-num, occupation, marital-status, race, sex) are commonly observed in <=50K cases versus >50K cases in the Adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": "lower"}, {"feature_key": "education-num", "action": "change", "new_value": "lower"}, {"feature_key": "occupation", "action": "change", "new_value": "non-professional"}, {"feature_key": "marital-status", "action": "change", "new_value": "not-married"}, {"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "sex", "action": "change", "new_value": "female"}]
+- Explanation: In the Adult dataset, individuals with income >50K are typically older, have higher education levels (higher education-num), hold professional or technical occupations (e.g., Exec-managerial, Prof-specialty), are married, and are more likely to be White or female. Conversely, those with income ≤50K are more commonly younger, have lower education levels, work in lower-status occupations (e.g., Transport-moving, Other-service), are unmarried, and are more likely to be Black or male. The current individual (age=29, education-num=9, occupation='Transport-moving', married, Black, male) aligns with the profile of ≤50K cases, particularly in age, education, occupation, and race. The features that most distinguish ≤50K from >50K cases include lower education levels, lower occupational status, and demographic indicators such as race and marital status. These patterns are well-documented in statistical analyses of the dataset.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4656607210636139}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

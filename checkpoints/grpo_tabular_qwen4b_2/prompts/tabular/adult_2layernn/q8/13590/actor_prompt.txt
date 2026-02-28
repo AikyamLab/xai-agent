@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.54%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=53, workclass=Local-gov, fnlwgt=175897, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.009593).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - fnlwgt: +0.0094
+  - native-country_United-States: +0.0088
+  - race_Other: +0.0072
+  - relationship_Not-in-family: +0.0062
+  - education_5th-6th: +0.0054
+- Top negative features (shap_value):
+  - age: -0.0094
+  - native-country_Trinadad&Tobago: -0.0088
+  - race_Black: -0.0072
+  - relationship_Husband: -0.0062
+  - education_1st-4th: -0.0054
+- Max positive: 0.009411  Max negative: -0.009411
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0407
+  - native-country_Peru <= 0.00: +0.0335
+  - native-country_Guatemala <= 0.00: +0.0227
+  - native-country_Dominican-Republic <= 0.00: +0.0147
+  - native-country_Columbia <= 0.00: +0.0098
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.0761
+  - capital-loss <= -0.22: -0.0743
+  - native-country_Germany <= 0.00: -0.0536
+  - education-num <= -0.44: -0.0504
+  - hours-per-week <= -0.08: -0.0428
+- Max positive: 0.040678  Max negative: -0.07609
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0099
+  - native-country_United-States: +0.0060
+  - relationship_Husband: +0.0043
+  - age: +0.0019
+  - marital-status_Married-civ-spouse: +0.0009
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0065
+  - education-num: -0.0029
+  - occupation_Craft-repair: -0.0025
+  - hours-per-week: -0.0008
+  - capital-gain: -0.0004
+- Max positive: 0.009866  Max negative: -0.00648
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0096  (orig=0.6307 → mod=0.6212)
+  - education_HS-grad: drop=-0.0060  (orig=0.6307 → mod=0.6368)
+  - native-country_United-States: drop=+0.0059  (orig=0.6307 → mod=0.6249)
+  - relationship_Husband: drop=+0.0053  (orig=0.6307 → mod=0.6254)
+  - occupation_Craft-repair: drop=-0.0041  (orig=0.6307 → mod=0.6348)
+  - age: drop=+0.0039  (orig=0.6307 → mod=0.6268)
+  - workclass_Local-gov: drop=+0.0027  (orig=0.6307 → mod=0.6280)
+  - education-num: drop=-0.0019  (orig=0.6307 → mod=0.6327)
+  - marital-status_Married-civ-spouse: drop=+0.0016  (orig=0.6307 → mod=0.6291)
+  - capital-gain: drop=-0.0008  (orig=0.6307 → mod=0.6316)
+- Max prob_drop: 0.009593  Max prob_increase: -0.006025
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'fnlwgt' or 'education-num' given that the true class is <=50K and these features are not semantically linked to income level in the context of the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "exclude", "new_value": null}, {"feature_key": "education-num", "action": "exclude", "new_value": null}]
+- Explanation: In the context of the Adult Income dataset, 'fnlwgt' (final weight) is a survey weight used to account for sampling bias and is not directly related to actual income. It does not reflect income-level characteristics and should not be used as a proxy for income. Similarly, 'education-num' reflects years of education and is semantically related to income, but in this case, the individual has only a high school diploma (9 years), which is associated with lower income levels, making it unlikely to be a driver of a >50K prediction. However, if the model assigns high importance to these features due to spurious correlations (e.g., higher fnlwgt individuals being sampled more frequently or education-num being correlated with other socioeconomic indicators indirectly), it may reflect overfitting or spurious feature importance. Since the true label is <=50K and the individual has low education and no capital gains, the model's high confidence in predicting >50K suggests a potential spurious reliance on these features, especially fnlwgt, which is not semantically or causally linked to income.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature (e.g., age, workclass, race, sex) to the class <=50K and evaluate whether high attribution scores indicate misalignment with domain knowledge.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "mismatch", "new_value": "Male", "reason": "In the U.S. Census dataset, 'sex' is a strong predictor of income, with 'Male' individuals historically showing higher earnings than 'Female' individuals. However, the true label is <=50K, which suggests the model may have overestimated the impact of 'sex' despite domain knowledge indicating that 'Male' should be associated with higher income. The model assigning a confidence of 53.54% to >50K in a 'Male' with other mid-range features indicates a potential misalignment."}, {"feature_key": "education", "action": "mismatch", "new_value": "HS-grad", "reason": "Education level 'HS-grad' (high school graduate) is strongly associated with lower income levels. The model predicting >50K against this background suggests a misalignment with known domain patterns. High school education typically correlates with <=50K income, so a high attribution score for this feature in favor of >50K is semantically inconsistent."}, {"feature_key": "age", "action": "mismatch", "new_value": 53, "reason": "Age 53 is in the range where income typically stabilizes or declines slightly. While older individuals may have higher earnings, the correlation with >50K is weak in the absence of strong job or education context. The feature's contribution to a >50K prediction under this profile appears overstated by the model, especially given the low education level and non-high-earning occupation."}, {"feature_key": "workclass", "action": "mismatch", "new_value": "Local-gov", "reason": "Workclass 'Local-gov' is generally associated with lower pay, often below median income. Its inclusion in a prediction of >50K (which is higher than average) contradicts established domain knowledge. The model appears to overvalue this feature's contribution, suggesting misalignment with real-world economic patterns."}, {"feature_key": "occupation", "action": "mismatch", "new_value": "Craft-repair", "reason": "Occupation 'Craft-repair' is typically associated with mid-to-low income levels. It does not align with high-earning categories like managerial or professional roles. The model's prediction of >50K despite this occupation implies either incorrect feature weighting or a failure to apply semantic domain knowledge."}]
+- Explanation: The model predicted >50K for an individual with a low education level (HS-grad), male sex, age 53, and a non-earning occupation (Craft-repair). These features are semantically aligned with <=50K income. However, the model assigns a relatively high confidence (53.54%) to >50K, which indicates misalignment with domain knowledge. Each of the top five features—particularly sex, education, age, workclass, and occupation—has known semantic associations with lower income brackets. The model's over-attribution to these features in favor of >50K suggests a failure to apply domain-specific relevance, possibly due to overfitting or improper feature weighting.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'fnlwgt' or 'education-num' given that the true class is <=50K and these features are not semantically linked to income level in the context of the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "exclude", "new_value": null}, {"feature_key": "education-num", "action": "exclude", "new_value": null}]
+- Explanation: In the context of the Adult Income dataset, 'fnlwgt' (final weight) is a survey weight used to account for sampling bias and is not directly related to actual income. It does not reflect income-level characteristics and should not be used as a proxy for income. Similarly, 'education-num' reflects years of education and is semantically related to income, but in this case, the individual has only a high school diploma (9 years), which is associated with lower income levels, making it unlikely to be a driver of a >50K prediction. However, if the model assigns high importance to these features due to spurious correlations (e.g., higher fnlwgt individuals being sampled more frequently or education-num being correlated with other socioeconomic indicators indirectly), it may reflect overfitting or spurious feature importance. Since the true label is <=50K and the individual has low education and no capital gains, the model's high confidence in predicting >50K suggests a potential spurious reliance on these features, especially fnlwgt, which is not semantically or causally linked to income.
+- Confidence: 0.93
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature (e.g., age, workclass, race, sex) to the class <=50K and evaluate whether high attribution scores indicate misalignment with domain knowledge.
+- Status: Success
+- findings: [{"feature_key": "sex", "action": "mismatch", "new_value": "Male", "reason": "In the U.S. Census dataset, 'sex' is a strong predictor of income, with 'Male' individuals historically showing higher earnings than 'Female' individuals. However, the true label is <=50K, which suggests the model may have overestimated the impact of 'sex' despite domain knowledge indicating that 'Male' should be associated with higher income. The model assigning a confidence of 53.54% to >50K in a 'Male' with other mid-range features indicates a potential misalignment."}, {"feature_key": "education", "action": "mismatch", "new_value": "HS-grad", "reason": "Education level 'HS-grad' (high school graduate) is strongly associated with lower income levels. The model predicting >50K against this background suggests a misalignment with known domain patterns. High school education typically correlates with <=50K income, so a high attribution score for this feature in favor of >50K is semantically inconsistent."}, {"feature_key": "age", "action": "mismatch", "new_value": 53, "reason": "Age 53 is in the range where income typically stabilizes or declines slightly. While older individuals may have higher earnings, the correlation with >50K is weak in the absence of strong job or education context. The feature's contribution to a >50K prediction under this profile appears overstated by the model, especially given the low education level and non-high-earning occupation."}, {"feature_key": "workclass", "action": "mismatch", "new_value": "Local-gov", "reason": "Workclass 'Local-gov' is generally associated with lower pay, often below median income. Its inclusion in a prediction of >50K (which is higher than average) contradicts established domain knowledge. The model appears to overvalue this feature's contribution, suggesting misalignment with real-world economic patterns."}, {"feature_key": "occupation", "action": "mismatch", "new_value": "Craft-repair", "reason": "Occupation 'Craft-repair' is typically associated with mid-to-low income levels. It does not align with high-earning categories like managerial or professional roles. The model's prediction of >50K despite this occupation implies either incorrect feature weighting or a failure to apply semantic domain knowledge."}]
+- Explanation: The model predicted >50K for an individual with a low education level (HS-grad), male sex, age 53, and a non-earning occupation (Craft-repair). These features are semantically aligned with <=50K income. However, the model assigns a relatively high confidence (53.54%) to >50K, which indicates misalignment with domain knowledge. Each of the top five features—particularly sex, education, age, workclass, and occupation—has known semantic associations with lower income brackets. The model's over-attribution to these features in favor of >50K suggests a failure to apply domain-specific relevance, possibly due to overfitting or improper feature weighting.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

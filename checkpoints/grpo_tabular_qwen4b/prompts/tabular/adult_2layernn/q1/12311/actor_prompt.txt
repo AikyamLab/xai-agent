@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.5098
+
+## Input Data
+Features: age=24, workclass=Private, fnlwgt=88824, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Tech-support, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: native-country_Puerto-Rico <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: relationship_Not-in-family (prob drop: 0.00809).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0246
+  - native-country_Columbia: +0.0198
+  - native-country_Vietnam: +0.0196
+  - race_Other: +0.0066
+  - native-country_Portugal: +0.0059
+- Top negative features (shap_value):
+  - capital-loss: -0.0246
+  - native-country_Cuba: -0.0198
+  - native-country_Yugoslavia: -0.0196
+  - race_Black: -0.0066
+  - native-country_Puerto-Rico: -0.0059
+- Max positive: 0.024596  Max negative: -0.024596
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0755
+  - capital-gain <= -0.15: +0.0673
+  - native-country_South <= 0.00: +0.0472
+  - native-country_England <= 0.00: +0.0089
+- Top negative features (weight):
+  - native-country_Puerto-Rico <= 0.00: -0.1034
+  - native-country_Guatemala <= 0.00: -0.0817
+  - marital-status_Divorced <= 0.00: -0.0486
+  - workclass_Without-pay <= 0.00: -0.0338
+  - education_1st-4th <= 0.00: -0.0292
+- Max positive: 0.075524  Max negative: -0.103433
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0067
+  - marital-status_Never-married: +0.0058
+  - fnlwgt: +0.0037
+  - age: +0.0024
+  - workclass_Private: +0.0024
+- Top negative features (attribution_score):
+  - sex_Male: -0.0069
+  - education-num: -0.0066
+  - native-country_United-States: -0.0062
+  - race_White: -0.0022
+  - education_Bachelors: -0.0004
+- Max positive: 0.006747  Max negative: -0.006928
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Not-in-family: drop=+0.0081  (orig=0.3799 → mod=0.3718)
+  - marital-status_Never-married: drop=+0.0077  (orig=0.3799 → mod=0.3721)
+  - education-num: drop=-0.0066  (orig=0.3799 → mod=0.3864)
+  - sex_Male: drop=-0.0065  (orig=0.3799 → mod=0.3863)
+  - native-country_United-States: drop=-0.0049  (orig=0.3799 → mod=0.3847)
+  - race_White: drop=-0.0037  (orig=0.3799 → mod=0.3835)
+  - workclass_Private: drop=+0.0020  (orig=0.3799 → mod=0.3778)
+  - fnlwgt: drop=+0.0013  (orig=0.3799 → mod=0.3785)
+  - occupation_Tech-support: drop=+0.0009  (orig=0.3799 → mod=0.3789)
+  - age: drop=+0.0007  (orig=0.3799 → mod=0.3791)
+- Max prob_drop: 0.00809  Max prob_increase: -0.006584
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are traditionally associated with income <=50K in the Adult dataset?
+- Status: Success
+- findings: ["age", "marital-status", "occupation", "education", "hours-per-week"]
+- Explanation: In the Adult dataset, income levels are traditionally associated with several socio-demographic and employment features. Younger age (e.g., age < 30) is often correlated with lower income, as higher earning potential typically emerges with age and experience. Marital status plays a significant role: individuals who are 'Never-married' or 'Divorced' are more frequently found in the <=50K group compared to those in stable marital statuses. Occupation is strongly predictive—lower-income occupations such as 'Tech-support' or 'Other-service' are more common in the <=50K category. Education level shows a clear trend: those with lower education (e.g., 'Bachelors' is above median, but still below 'Masters' or 'Prof-school') often earn less, though 'Bachelors' is somewhat neutral. Hours per week can indicate work commitment; lower hours are associated with lower income. However, educational attainment and occupation are more consistently linked to income brackets than age alone. These features are well-documented in empirical studies and literature on the Adult dataset.
+- Confidence: 0.95
+
+### REASONING Task
+- Query: How might 'age=24' and 'marital-status=Never-married' influence the model's prediction of <=50K compared to typical income patterns?
+- Status: Success
+- Explanation: The model predicted an income of <=50K with a confidence of 50.98%, and the key features 'age=24' and 'marital-status=Never-married' play a significant role in shaping this outcome. Age=24 indicates an early stage in one's career, typically associated with lower income levels, as individuals at this age are often in entry-level jobs or still in the early phases of professional development. This age group generally has limited work experience, which correlates with lower earnings. Additionally, 'marital-status=Never-married' is linked to reduced financial stability and access to shared household income—common socio-economic factors that are often associated with lower income brackets. In datasets like the Adult Income dataset (used in such models), individuals who are never-married, especially young professionals, are statistically more likely to earn less than $50K annually. These features align with typical socioeconomic patterns that the model has learned from training data, where younger, unmarried individuals tend to fall into the lower income category. Thus, both features act as strong indicators prompting the model to favor the <=50K class.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the expected influence of 'education=Bachelors' and 'occupation=Tech-support' on income classification, given that higher education and tech roles are typically linked to higher income.
+- Status: Success
+- findings: [{"feature_key": "education", "action": "compare", "new_value": "Bachelors"}, {"feature_key": "occupation", "action": "compare", "new_value": "Tech-support"}]
+- Explanation: The model predicted an income of '≤50K' with 50.98% confidence. Both 'education=Bachelors' and 'occupation=Tech-support' are typically associated with higher earning potential. However, 'Tech-support' is generally a lower-paying occupation compared to managerial or professional roles, and 'Bachelors' degree holders often earn more than those with lower education levels, especially in high-demand fields. Despite the positive correlation between education and income, the occupation 'Tech-support' may dampen the expected income growth, leading to the model's classification of ≤50K. This suggests that while education provides a moderate upward bias, the occupation may act as a limiting factor, resulting in a lower income prediction. Thus, the combination of a Bachelors degree and a tech-support role appears to be a weaker signal for high income compared to other profiles.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

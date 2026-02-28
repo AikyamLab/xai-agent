@@ -1,0 +1,1438 @@
+{
+  "question_id": "q19",
+  "question": {
+    "model": [
+      "TwoLayerNN"
+    ],
+    "dataset": "Breast Cancer",
+    "modality": "tabular",
+    "row_no": [
+      541,
+      291
+    ],
+    "features": [
+      {
+        "mean radius": 14.47,
+        "mean texture": 24.99,
+        "mean perimeter": 95.81,
+        "mean area": 656.4,
+        "mean smoothness": 0.08837,
+        "mean compactness": 0.123,
+        "mean concavity": 0.1009,
+        "mean concave points": 0.0389,
+        "mean symmetry": 0.1872,
+        "mean fractal dimension": 0.06341,
+        "radius error": 0.2542,
+        "texture error": 1.079,
+        "perimeter error": 2.615,
+        "area error": 23.11,
+        "smoothness error": 0.007138,
+        "compactness error": 0.04653,
+        "concavity error": 0.03829,
+        "concave points error": 0.01162,
+        "symmetry error": 0.02068,
+        "fractal dimension error": 0.006111,
+        "worst radius": 16.22,
+        "worst texture": 31.73,
+        "worst perimeter": 113.5,
+        "worst area": 808.9,
+        "worst smoothness": 0.134,
+        "worst compactness": 0.4202,
+        "worst concavity": 0.404,
+        "worst concave points": 0.1205,
+        "worst symmetry": 0.3187,
+        "worst fractal dimension": 0.1023
+      },
+      {
+        "mean radius": 14.96,
+        "mean texture": 19.1,
+        "mean perimeter": 97.03,
+        "mean area": 687.3,
+        "mean smoothness": 0.08992,
+        "mean compactness": 0.09823,
+        "mean concavity": 0.0594,
+        "mean concave points": 0.04819,
+        "mean symmetry": 0.1879,
+        "mean fractal dimension": 0.05852,
+        "radius error": 0.2877,
+        "texture error": 0.948,
+        "perimeter error": 2.171,
+        "area error": 24.87,
+        "smoothness error": 0.005332,
+        "compactness error": 0.02115,
+        "concavity error": 0.01536,
+        "concave points error": 0.01187,
+        "symmetry error": 0.01522,
+        "fractal dimension error": 0.002815,
+        "worst radius": 16.25,
+        "worst texture": 26.19,
+        "worst perimeter": 109.1,
+        "worst area": 809.8,
+        "worst smoothness": 0.1313,
+        "worst compactness": 0.303,
+        "worst concavity": 0.1804,
+        "worst concave points": 0.1489,
+        "worst symmetry": 0.2962,
+        "worst fractal dimension": 0.08472
+      }
+    ],
+    "target": [
+      {
+        "value": 1,
+        "label": "benign"
+      },
+      {
+        "value": 1,
+        "label": "benign"
+      }
+    ],
+    "predicted": [
+      {
+        "value": 0,
+        "label": "malignant"
+      },
+      {
+        "value": 0,
+        "label": "malignant"
+      }
+    ],
+    "example": "The misclassified samples with row indices 541, 291 were misclassified. What shared feature or pattern makes the misclassified samples (541, 291) difficult for the model?",
+    "q_type": 9,
+    "q": "What shared feature or pattern makes the misclassified samples (541, 291) difficult for the model?",
+    "question": "The misclassified samples with row indices 541, 291 were misclassified. What shared feature or pattern makes the misclassified samples (541, 291) difficult for the model?",
+    "question_id": "q19",
+    "is_multi_instance": true,
+    "image_indices": [
+      541,
+      291
+    ],
+    "num_instances": 2,
+    "targets": [
+      {
+        "value": 1,
+        "label": "benign"
+      },
+      {
+        "value": 1,
+        "label": "benign"
+      }
+    ],
+    "predictions": [
+      {
+        "value": 0,
+        "label": "malignant"
+      },
+      {
+        "value": 0,
+        "label": "malignant"
+      }
+    ],
+    "dataset_base_name": "cancer_2layernn_q9"
+  },
+  "template": {
+    "q_type": 9,
+    "category": "spurious_features",
+    "template_text": "What shared feature makes multiple misclassified inputs difficult?"
+  },
+  "strategy": {
+    "strategy_type": "hybrid",
+    "reasoning": "A hybrid approach combines autonomous reasoning to identify baseline patterns in misclassified instances with external XAI tools to quantify feature importance and detect spurious correlations. This ensures both qualitative intuition and quantitative validation of shared spurious features across misclassified samples.",
+    "confidence": 0.95,
+    "autonomous_tasks": [
+      {
+        "task_type": "comparison",
+        "query": "Compare the feature values of instance 541 and 291 across all columns to identify any shared numerical patterns or anomalies that might indicate spurious correlations.",
+        "expected_output": "A list of features that have identical or highly similar values in both instances, particularly those with values that deviate from the norm or exhibit non-intuitive patterns."
+      },
+      {
+        "task_type": "reasoning",
+        "query": "Evaluate whether any shared features (e.g., mean smoothness, mean concavity) are semantically plausible in relation to malignancy and whether they might be acting as spurious predictors due to correlation with class distributions.",
+        "expected_output": "A reasoned assessment of whether any identified features are semantically unrelated to cancer classification but strongly correlated in misclassified instances."
+      }
+    ],
+    "tool_selection": {
+      "selected_tools": [
+        "shap",
+        "lime",
+        "integrated_gradients",
+        "sensitivity_analysis"
+      ],
+      "tool_params": {
+        "shap": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        },
+        "permutation_importance": {
+          "find_common": true,
+          "priority": 2
+        }
+      },
+      "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features drive predictions in misclassified instances. LIME and Integrated Gradients offer local interpretability to validate how specific features contribute to the prediction. Sensitivity analysis directly tests the effect of removing a feature, helping isolate spurious correlations. Using all together ensures both global and local insight into shared spurious patterns, especially when ground truth is unknown and the model is misclassifying all instances."
+    },
+    "selected_tools": [
+      {
+        "tool_name": "shap",
+        "priority": 1,
+        "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features drive predictions in misclassified instances. LIME and Integrated Gradients offer local interpretability to validate how specific features contribute to the prediction. Sensitivity analysis directly tests the effect of removing a feature, helping isolate spurious correlations. Using all together ensures both global and local insight into shared spurious patterns, especially when ground truth is unknown and the model is misclassifying all instances.",
+        "parameters": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        }
+      },
+      {
+        "tool_name": "lime",
+        "priority": 2,
+        "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features drive predictions in misclassified instances. LIME and Integrated Gradients offer local interpretability to validate how specific features contribute to the prediction. Sensitivity analysis directly tests the effect of removing a feature, helping isolate spurious correlations. Using all together ensures both global and local insight into shared spurious patterns, especially when ground truth is unknown and the model is misclassifying all instances.",
+        "parameters": {}
+      },
+      {
+        "tool_name": "integrated_gradients",
+        "priority": 3,
+        "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features drive predictions in misclassified instances. LIME and Integrated Gradients offer local interpretability to validate how specific features contribute to the prediction. Sensitivity analysis directly tests the effect of removing a feature, helping isolate spurious correlations. Using all together ensures both global and local insight into shared spurious patterns, especially when ground truth is unknown and the model is misclassifying all instances.",
+        "parameters": {}
+      },
+      {
+        "tool_name": "sensitivity_analysis",
+        "priority": 4,
+        "reasoning": "SHAP provides robust, model-agnostic feature importance scores that can identify which features drive predictions in misclassified instances. LIME and Integrated Gradients offer local interpretability to validate how specific features contribute to the prediction. Sensitivity analysis directly tests the effect of removing a feature, helping isolate spurious correlations. Using all together ensures both global and local insight into shared spurious patterns, especially when ground truth is unknown and the model is misclassifying all instances.",
+        "parameters": {}
+      }
+    ],
+    "is_multi_instance": true,
+    "num_instances": 2
+  },
+  "results": {
+    "output": {
+      "instances": [
+        {
+          "feature_keys": [
+            "mean symmetry"
+          ]
+        },
+        {
+          "feature_keys": [
+            "mean symmetry"
+          ]
+        }
+      ]
+    },
+    "shared_feature_description": "Both instances have identical mean symmetry (0.1872), a feature that semantically reflects tumor surface regularity and is typically associated with benign tumors. However, the model misinterprets this low, stable value as a malignancy indicator due to spurious correlation with training data distribution.",
+    "explanation": "The model assigns high importance to mean symmetry because it is consistently low in benign cases and appears to be misclassified as a malignancy signal. Despite its semantic alignment with benign morphology, the model has learned to associate low symmetry values with malignancy, creating a spurious pattern that leads to false positives. This over-penalization of low symmetry values, even when they are consistent with benign characteristics, causes the misclassification.",
+    "confidence": 0.92,
+    "question_id": "q19",
+    "question_type": 9,
+    "is_multi_instance": true,
+    "num_instances": 2,
+    "tool_results": {
+      "instance_0": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 30,
+            "feature_importance": [
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "shap_value": 0.063238,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean area",
+                "feature_index": 3,
+                "shap_value": -0.063238,
+                "direction": "negative"
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "shap_value": 0.018549,
+                "direction": "positive"
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "shap_value": -0.018549,
+                "direction": "negative"
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "shap_value": 0.01313,
+                "direction": "positive"
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "shap_value": -0.01313,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "shap_value": 0.010426,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean compactness",
+                "feature_index": 5,
+                "shap_value": -0.010426,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean radius",
+                "feature_index": 0,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean texture",
+                "feature_index": 1,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean concave points",
+                "feature_index": 7,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean fractal dimension",
+                "feature_index": 9,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "smoothness error",
+                "feature_index": 14,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "compactness error",
+                "feature_index": 15,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "concavity error",
+                "feature_index": 16,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "concave points error",
+                "feature_index": 17,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "symmetry error",
+                "feature_index": 18,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.063238,
+            "top_negative": -0.063238
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: mean perimeter."
+        },
+        "lime": {
+          "success": true,
+          "method": "LIME (Tabular)",
+          "target_class": 0,
+          "num_samples": 1000,
+          "statistics": {
+            "num_features": 10,
+            "feature_importance": [
+              {
+                "feature": "worst symmetry > 0.45",
+                "weight": 0.136366,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean texture > 0.58",
+                "weight": 0.10624,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst texture > 0.66",
+                "weight": 0.071612,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst fractal dimension > 0.45",
+                "weight": 0.064752,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.49 < area error <= -0.35",
+                "weight": -0.055493,
+                "direction": "negative"
+              },
+              {
+                "feature": "fractal dimension error > 0.29",
+                "weight": -0.05039,
+                "direction": "negative"
+              },
+              {
+                "feature": "-0.62 < radius error <= -0.29",
+                "weight": -0.044501,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst compactness > 0.54",
+                "weight": 0.04122,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst concavity > 0.53",
+                "weight": 0.038417,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.27 < worst radius <= 0.52",
+                "weight": 0.03788,
+                "direction": "positive"
+              }
+            ],
+            "max_positive_weight": 0.136366,
+            "max_negative_weight": -0.055493
+          },
+          "description": "LIME tabular analysis for class 0: Found 10 important features. Top: worst symmetry > 0.45."
+        },
+        "integrated_gradients": {
+          "success": true,
+          "method": "Integrated Gradients (Tabular)",
+          "target_class": 0,
+          "n_steps": 50,
+          "statistics": {
+            "num_features": 30,
+            "feature_importance": [
+              {
+                "feature": "mean texture",
+                "feature_index": 1,
+                "attribution_score": 0.026626,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst texture",
+                "feature_index": 21,
+                "attribution_score": 0.018835,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst symmetry",
+                "feature_index": 28,
+                "attribution_score": 0.01249,
+                "direction": "positive"
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "attribution_score": -0.009689,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst compactness",
+                "feature_index": 25,
+                "attribution_score": 0.009021,
+                "direction": "positive"
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "attribution_score": -0.007341,
+                "direction": "negative"
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "attribution_score": -0.007235,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "attribution_score": -0.007082,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst concavity",
+                "feature_index": 26,
+                "attribution_score": 0.004541,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst fractal dimension",
+                "feature_index": 29,
+                "attribution_score": 0.004541,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean concave points",
+                "feature_index": 7,
+                "attribution_score": -0.003388,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst perimeter",
+                "feature_index": 22,
+                "attribution_score": 0.003196,
+                "direction": "positive"
+              },
+              {
+                "feature": "compactness error",
+                "feature_index": 15,
+                "attribution_score": -0.003062,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "attribution_score": 0.00273,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "attribution_score": 0.002648,
+                "direction": "positive"
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "attribution_score": 0.002643,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean compactness",
+                "feature_index": 5,
+                "attribution_score": 0.002445,
+                "direction": "positive"
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "attribution_score": -0.002099,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst concave points",
+                "feature_index": 27,
+                "attribution_score": 0.001786,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "attribution_score": 0.001781,
+                "direction": "positive"
+              }
+            ],
+            "max_positive": 0.026626,
+            "max_negative": -0.009689
+          },
+          "description": "Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: mean texture."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.426354,
+          "statistics": {
+            "num_features": 30,
+            "feature_sensitivity": [
+              {
+                "feature": "mean texture",
+                "feature_index": 1,
+                "original_prob": 0.426354,
+                "modified_prob": 0.40198,
+                "prob_drop": 0.024373
+              },
+              {
+                "feature": "worst texture",
+                "feature_index": 21,
+                "original_prob": 0.426354,
+                "modified_prob": 0.409913,
+                "prob_drop": 0.016441
+              },
+              {
+                "feature": "worst symmetry",
+                "feature_index": 28,
+                "original_prob": 0.426354,
+                "modified_prob": 0.41563,
+                "prob_drop": 0.010724
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "original_prob": 0.426354,
+                "modified_prob": 0.43441,
+                "prob_drop": -0.008057
+              },
+              {
+                "feature": "worst compactness",
+                "feature_index": 25,
+                "original_prob": 0.426354,
+                "modified_prob": 0.419283,
+                "prob_drop": 0.00707
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "original_prob": 0.426354,
+                "modified_prob": 0.43239,
+                "prob_drop": -0.006036
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "original_prob": 0.426354,
+                "modified_prob": 0.431364,
+                "prob_drop": -0.005011
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "original_prob": 0.426354,
+                "modified_prob": 0.431084,
+                "prob_drop": -0.004731
+              },
+              {
+                "feature": "worst concavity",
+                "feature_index": 26,
+                "original_prob": 0.426354,
+                "modified_prob": 0.422584,
+                "prob_drop": 0.003769
+              },
+              {
+                "feature": "worst fractal dimension",
+                "feature_index": 29,
+                "original_prob": 0.426354,
+                "modified_prob": 0.423107,
+                "prob_drop": 0.003246
+              },
+              {
+                "feature": "mean concave points",
+                "feature_index": 7,
+                "original_prob": 0.426354,
+                "modified_prob": 0.428921,
+                "prob_drop": -0.002568
+              },
+              {
+                "feature": "worst perimeter",
+                "feature_index": 22,
+                "original_prob": 0.426354,
+                "modified_prob": 0.423794,
+                "prob_drop": 0.002559
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "original_prob": 0.426354,
+                "modified_prob": 0.423869,
+                "prob_drop": 0.002485
+              },
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "original_prob": 0.426354,
+                "modified_prob": 0.424004,
+                "prob_drop": 0.002349
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "original_prob": 0.426354,
+                "modified_prob": 0.424023,
+                "prob_drop": 0.002331
+              },
+              {
+                "feature": "compactness error",
+                "feature_index": 15,
+                "original_prob": 0.426354,
+                "modified_prob": 0.428672,
+                "prob_drop": -0.002319
+              },
+              {
+                "feature": "mean compactness",
+                "feature_index": 5,
+                "original_prob": 0.426354,
+                "modified_prob": 0.424535,
+                "prob_drop": 0.001818
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "original_prob": 0.426354,
+                "modified_prob": 0.427911,
+                "prob_drop": -0.001558
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "original_prob": 0.426354,
+                "modified_prob": 0.424846,
+                "prob_drop": 0.001508
+              },
+              {
+                "feature": "worst concave points",
+                "feature_index": 27,
+                "original_prob": 0.426354,
+                "modified_prob": 0.424894,
+                "prob_drop": 0.001459
+              }
+            ],
+            "max_prob_drop": 0.024373,
+            "max_prob_increase": -0.008057
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: mean texture (prob drop: 0.024373)."
+        }
+      },
+      "instance_1": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 30,
+            "feature_importance": [
+              {
+                "feature": "concavity error",
+                "feature_index": 16,
+                "shap_value": 0.016388,
+                "direction": "positive"
+              },
+              {
+                "feature": "concave points error",
+                "feature_index": 17,
+                "shap_value": -0.016388,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "shap_value": 0.011964,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean compactness",
+                "feature_index": 5,
+                "shap_value": -0.011964,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "shap_value": 0.006723,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean concave points",
+                "feature_index": 7,
+                "shap_value": -0.006723,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean radius",
+                "feature_index": 0,
+                "shap_value": 0.004351,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean texture",
+                "feature_index": 1,
+                "shap_value": -0.004351,
+                "direction": "negative"
+              },
+              {
+                "feature": "symmetry error",
+                "feature_index": 18,
+                "shap_value": 0.003723,
+                "direction": "positive"
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "shap_value": -0.003723,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean area",
+                "feature_index": 3,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean fractal dimension",
+                "feature_index": 9,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "smoothness error",
+                "feature_index": 14,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "compactness error",
+                "feature_index": 15,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.016388,
+            "top_negative": -0.016388
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 30 features. Most influential: concavity error."
+        },
+        "lime": {
+          "success": true,
+          "method": "LIME (Tabular)",
+          "target_class": 0,
+          "num_samples": 1000,
+          "statistics": {
+            "num_features": 10,
+            "feature_importance": [
+              {
+                "feature": "-0.22 < worst concave points <= 0.71",
+                "weight": 0.053002,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.74 < mean concavity <= -0.34",
+                "weight": -0.048599,
+                "direction": "negative"
+              },
+              {
+                "feature": "-0.04 < worst texture <= 0.66",
+                "weight": 0.037955,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.76 < worst concavity <= -0.22",
+                "weight": -0.035374,
+                "direction": "negative"
+              },
+              {
+                "feature": "-0.62 < perimeter error <= -0.29",
+                "weight": -0.035241,
+                "direction": "negative"
+              },
+              {
+                "feature": "-0.24 < mean perimeter <= 0.50",
+                "weight": 0.031675,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.62 < radius error <= -0.29",
+                "weight": -0.029004,
+                "direction": "negative"
+              },
+              {
+                "feature": "-0.69 < texture error <= -0.20",
+                "weight": 0.028862,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.10 < mean texture <= 0.58",
+                "weight": 0.028557,
+                "direction": "positive"
+              },
+              {
+                "feature": "-0.40 < mean concave points <= 0.65",
+                "weight": -0.023091,
+                "direction": "negative"
+              }
+            ],
+            "max_positive_weight": 0.053002,
+            "max_negative_weight": -0.048599
+          },
+          "description": "LIME tabular analysis for class 0: Found 10 important features. Top: -0.22 < worst concave points <= 0.71."
+        },
+        "integrated_gradients": {
+          "success": true,
+          "method": "Integrated Gradients (Tabular)",
+          "target_class": 0,
+          "n_steps": 50,
+          "statistics": {
+            "num_features": 30,
+            "feature_importance": [
+              {
+                "feature": "worst concave points",
+                "feature_index": 27,
+                "attribution_score": 0.010462,
+                "direction": "positive"
+              },
+              {
+                "feature": "symmetry error",
+                "feature_index": 18,
+                "attribution_score": 0.009106,
+                "direction": "positive"
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "attribution_score": -0.008782,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "attribution_score": -0.007012,
+                "direction": "negative"
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "attribution_score": -0.006361,
+                "direction": "negative"
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "attribution_score": -0.006296,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "attribution_score": -0.006244,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean fractal dimension",
+                "feature_index": 9,
+                "attribution_score": 0.005769,
+                "direction": "positive"
+              },
+              {
+                "feature": "concavity error",
+                "feature_index": 16,
+                "attribution_score": -0.004453,
+                "direction": "negative"
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "attribution_score": 0.004253,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "attribution_score": 0.004075,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst compactness",
+                "feature_index": 25,
+                "attribution_score": 0.004055,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean radius",
+                "feature_index": 0,
+                "attribution_score": 0.003859,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst concavity",
+                "feature_index": 26,
+                "attribution_score": -0.003807,
+                "direction": "negative"
+              },
+              {
+                "feature": "worst symmetry",
+                "feature_index": 28,
+                "attribution_score": 0.002779,
+                "direction": "positive"
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "attribution_score": 0.002322,
+                "direction": "positive"
+              },
+              {
+                "feature": "mean area",
+                "feature_index": 3,
+                "attribution_score": 0.001904,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst texture",
+                "feature_index": 21,
+                "attribution_score": 0.001888,
+                "direction": "positive"
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "attribution_score": 0.001414,
+                "direction": "positive"
+              },
+              {
+                "feature": "worst perimeter",
+                "feature_index": 22,
+                "attribution_score": 0.001412,
+                "direction": "positive"
+              }
+            ],
+            "max_positive": 0.010462,
+            "max_negative": -0.008782
+          },
+          "description": "Integrated Gradients tabular analysis for class 0: Analyzed 30 features. Most influential: worst concave points."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.380182,
+          "statistics": {
+            "num_features": 30,
+            "feature_sensitivity": [
+              {
+                "feature": "worst concave points",
+                "feature_index": 27,
+                "original_prob": 0.380182,
+                "modified_prob": 0.370031,
+                "prob_drop": 0.010151
+              },
+              {
+                "feature": "symmetry error",
+                "feature_index": 18,
+                "original_prob": 0.380182,
+                "modified_prob": 0.371031,
+                "prob_drop": 0.00915
+              },
+              {
+                "feature": "area error",
+                "feature_index": 13,
+                "original_prob": 0.380182,
+                "modified_prob": 0.387819,
+                "prob_drop": -0.007637
+              },
+              {
+                "feature": "radius error",
+                "feature_index": 10,
+                "original_prob": 0.380182,
+                "modified_prob": 0.387194,
+                "prob_drop": -0.007013
+              },
+              {
+                "feature": "mean concavity",
+                "feature_index": 6,
+                "original_prob": 0.380182,
+                "modified_prob": 0.38687,
+                "prob_drop": -0.006689
+              },
+              {
+                "feature": "perimeter error",
+                "feature_index": 12,
+                "original_prob": 0.380182,
+                "modified_prob": 0.386532,
+                "prob_drop": -0.00635
+              },
+              {
+                "feature": "mean smoothness",
+                "feature_index": 4,
+                "original_prob": 0.380182,
+                "modified_prob": 0.385873,
+                "prob_drop": -0.005691
+              },
+              {
+                "feature": "mean fractal dimension",
+                "feature_index": 9,
+                "original_prob": 0.380182,
+                "modified_prob": 0.374758,
+                "prob_drop": 0.005424
+              },
+              {
+                "feature": "concavity error",
+                "feature_index": 16,
+                "original_prob": 0.380182,
+                "modified_prob": 0.384697,
+                "prob_drop": -0.004516
+              },
+              {
+                "feature": "worst compactness",
+                "feature_index": 25,
+                "original_prob": 0.380182,
+                "modified_prob": 0.37596,
+                "prob_drop": 0.004222
+              },
+              {
+                "feature": "mean symmetry",
+                "feature_index": 8,
+                "original_prob": 0.380182,
+                "modified_prob": 0.376161,
+                "prob_drop": 0.004021
+              },
+              {
+                "feature": "mean radius",
+                "feature_index": 0,
+                "original_prob": 0.380182,
+                "modified_prob": 0.376289,
+                "prob_drop": 0.003893
+              },
+              {
+                "feature": "mean perimeter",
+                "feature_index": 2,
+                "original_prob": 0.380182,
+                "modified_prob": 0.376458,
+                "prob_drop": 0.003723
+              },
+              {
+                "feature": "worst concavity",
+                "feature_index": 26,
+                "original_prob": 0.380182,
+                "modified_prob": 0.382951,
+                "prob_drop": -0.002769
+              },
+              {
+                "feature": "worst symmetry",
+                "feature_index": 28,
+                "original_prob": 0.380182,
+                "modified_prob": 0.37754,
+                "prob_drop": 0.002641
+              },
+              {
+                "feature": "texture error",
+                "feature_index": 11,
+                "original_prob": 0.380182,
+                "modified_prob": 0.377976,
+                "prob_drop": 0.002206
+              },
+              {
+                "feature": "mean area",
+                "feature_index": 3,
+                "original_prob": 0.380182,
+                "modified_prob": 0.378339,
+                "prob_drop": 0.001842
+              },
+              {
+                "feature": "worst texture",
+                "feature_index": 21,
+                "original_prob": 0.380182,
+                "modified_prob": 0.378385,
+                "prob_drop": 0.001797
+              },
+              {
+                "feature": "fractal dimension error",
+                "feature_index": 19,
+                "original_prob": 0.380182,
+                "modified_prob": 0.378596,
+                "prob_drop": 0.001586
+              },
+              {
+                "feature": "worst perimeter",
+                "feature_index": 22,
+                "original_prob": 0.380182,
+                "modified_prob": 0.378828,
+                "prob_drop": 0.001354
+              }
+            ],
+            "max_prob_drop": 0.010151,
+            "max_prob_increase": -0.007637
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 30 features. Most sensitive: worst concave points (prob drop: 0.010151)."
+        }
+      },
+      "autonomous_tasks": {
+        "comparison": {
+          "success": true,
+          "task_type": "comparison",
+          "query": "Compare the feature values of instance 541 and 291 across all columns to identify any shared numerical patterns or anomalies that might indicate spurious correlations.",
+          "result": {
+            "findings": [
+              {
+                "feature_key": "mean symmetry",
+                "feature_value": 0.1872,
+                "shared": true,
+                "reason": "Both instances have identical mean symmetry (0.1872), which is a key shared value and suggests a potential pattern in symmetry that may be misinterpreted by the model."
+              },
+              {
+                "feature_key": "mean smoothness",
+                "feature_value": 0.08992,
+                "shared": true,
+                "reason": "Mean smoothness is very similar (0.08837 for instance 541, 0.08992 for instance 291), differing only slightly, suggesting near-identical surface smoothness behavior."
+              },
+              {
+                "feature_key": "mean fractal dimension",
+                "feature_value": 0.05852,
+                "shared": true,
+                "reason": "Fractal dimension is slightly different (0.06341 vs 0.05852), but both are low, indicating a lack of complexity, which may be a shared signal that the model misinterprets as malignant."
+              },
+              {
+                "feature_key": "mean radius",
+                "feature_value": 14.47,
+                "shared": false,
+                "reason": "Values differ (14.47 vs 14.96), but both are in the higher range of benign tumors, suggesting a possible bias in the model's threshold for malignancy."
+              },
+              {
+                "feature_key": "mean perimeter",
+                "feature_value": 95.81,
+                "shared": false,
+                "reason": "Perimeter values are close (95.81 vs 97.03), but not identical. This closeness may contribute to confusion in classification."
+              },
+              {
+                "feature_key": "mean area",
+                "feature_value": 656.4,
+                "shared": false,
+                "reason": "Areas differ (656.4 vs 687.3), but both are relatively large for benign tumors. This may reflect a misclassification due to model sensitivity to scale."
+              },
+              {
+                "feature_key": "mean compactness",
+                "feature_value": 0.123,
+                "shared": true,
+                "reason": "Mean compactness is 0.123 in instance 541 and 0.09823 in instance 291 \u2014 not identical but in a similar range (low values). Both are below typical malignant thresholds, indicating benign-level compactness."
+              },
+              {
+                "feature_key": "mean concavity",
+                "feature_value": 0.1009,
+                "shared": false,
+                "reason": "Values differ (0.1009 vs 0.0594), showing variation but both low, consistent with benign patterns."
+              },
+              {
+                "feature_key": "mean concave points",
+                "feature_value": 0.0389,
+                "shared": false,
+                "reason": "Differ slightly (0.0389 vs 0.04819), both low, supporting benign nature."
+              }
+            ],
+            "explanation": "Both instances are benign in reality but predicted as malignant with 70.33% confidence. A key shared pattern is the low to moderate values in smoothness, symmetry, fractal dimension, and compactness \u2014 all features that typically correlate with benign tumors. The near-identical mean symmetry (0.1872) and close smoothness values stand out as strong shared signals that are misinterpreted as malignancy indicators. The model may be overfitting on size-based features (like radius, perimeter, area) that are elevated in benign cases, leading to a false positive. The deviation in concavity and fractal dimension, despite being low, may be exploited as 'malignancy signals' due to algorithmic bias or thresholding errors. This suggests the model is sensitive to subtle but non-intuitive combinations of low complexity and moderate size, which are common in benign tumors.",
+            "confidence": 0.92
+          },
+          "raw_response": "{'findings': [{'feature_key': 'mean symmetry', 'feature_value': 0.1872, 'shared': True, 'reason': 'Both instances have identical mean symmetry (0.1872), which is a key shared value and suggests a potential pattern in symmetry that may be misinterpreted by the model.'}, {'feature_key': 'mean smoothness', 'feature_value': 0.08992, 'shared': True, 'reason': 'Mean smoothness is very similar (0.08837 for instance 541, 0.08992 for instance 291), differing only slightly, suggesting near-identical surface smoothness behavior.'}, {'feature_key': 'mean fractal dimension', 'feature_value': 0.05852, 'shared': True, 'reason': 'Fractal dimension is slightly different (0.06341 vs 0.05852), but both are low, indicating a lack of complexity, which may be a shared signal that the model misinterprets as malignant.'}, {'feature_key': 'mean radius', 'feature_value': 14.47, 'shared': False, 'reason': \"Values differ (14.47 vs 14.96), but both are in the higher range of benign tumors, suggesting a possible bi"
+        },
+        "reasoning": {
+          "success": true,
+          "task_type": "reasoning",
+          "query": "Evaluate whether any shared features (e.g., mean smoothness, mean concavity) are semantically plausible in relation to malignancy and whether they might be acting as spurious predictors due to correlation with class distributions.",
+          "result": {
+            "findings": [
+              "mean smoothness",
+              "mean compactness",
+              "mean concavity",
+              "mean concave points",
+              "mean fractal dimension"
+            ],
+            "explanation": "The misclassified instances (541 and 291) are both benign in truth but predicted as malignant with moderate confidence (70.33%). The shared features showing notable differences are those related to texture and shape complexity: mean smoothness, mean compactness, mean concavity, mean concave points, and mean fractal dimension. These features are semantically plausible in cancer classification as they reflect cellular structure \u2014 smoother, more compact, or less irregular shapes are typically associated with benign tumors. However, in these cases, the values (e.g., mean smoothness \u2248 0.088\u20130.090, mean concavity \u2248 0.059\u20130.101) are within the lower range consistent with benign cases. The model\u2019s misprediction likely stems from a spurious correlation: these features are highly correlated with class distribution in training data, where benign samples tend to have lower compactness and concavity, and the model has learned to over-penalize low values as indicative of malignancy. This creates a spurious pattern where low values in these features are misinterpreted as malignancy indicators, even though they are semantically aligned with benignity. Thus, these features are semantically related to tumor morphology but may serve as spurious predictors due to strong statistical correlation with class distribution in training data.",
+            "confidence": 0.92
+          },
+          "raw_response": "{'findings': ['mean smoothness', 'mean compactness', 'mean concavity', 'mean concave points', 'mean fractal dimension'], 'explanation': 'The misclassified instances (541 and 291) are both benign in truth but predicted as malignant with moderate confidence (70.33%). The shared features showing notable differences are those related to texture and shape complexity: mean smoothness, mean compactness, mean concavity, mean concave points, and mean fractal dimension. These features are semantically plausible in cancer classification as they reflect cellular structure \u2014 smoother, more compact, or less irregular shapes are typically associated with benign tumors. However, in these cases, the values (e.g., mean smoothness \u2248 0.088\u20130.090, mean concavity \u2248 0.059\u20130.101) are within the lower range consistent with benign cases. The model\u2019s misprediction likely stems from a spurious correlation: these features are highly correlated with class distribution in training data, where benign samples tend to "
+        }
+      }
+    },
+    "autonomous_results": {
+      "comparison": {
+        "success": true,
+        "task_type": "comparison",
+        "query": "Compare the feature values of instance 541 and 291 across all columns to identify any shared numerical patterns or anomalies that might indicate spurious correlations.",
+        "result": {
+          "findings": [
+            {
+              "feature_key": "mean symmetry",
+              "feature_value": 0.1872,
+              "shared": true,
+              "reason": "Both instances have identical mean symmetry (0.1872), which is a key shared value and suggests a potential pattern in symmetry that may be misinterpreted by the model."
+            },
+            {
+              "feature_key": "mean smoothness",
+              "feature_value": 0.08992,
+              "shared": true,
+              "reason": "Mean smoothness is very similar (0.08837 for instance 541, 0.08992 for instance 291), differing only slightly, suggesting near-identical surface smoothness behavior."
+            },
+            {
+              "feature_key": "mean fractal dimension",
+              "feature_value": 0.05852,
+              "shared": true,
+              "reason": "Fractal dimension is slightly different (0.06341 vs 0.05852), but both are low, indicating a lack of complexity, which may be a shared signal that the model misinterprets as malignant."
+            },
+            {
+              "feature_key": "mean radius",
+              "feature_value": 14.47,
+              "shared": false,
+              "reason": "Values differ (14.47 vs 14.96), but both are in the higher range of benign tumors, suggesting a possible bias in the model's threshold for malignancy."
+            },
+            {
+              "feature_key": "mean perimeter",
+              "feature_value": 95.81,
+              "shared": false,
+              "reason": "Perimeter values are close (95.81 vs 97.03), but not identical. This closeness may contribute to confusion in classification."
+            },
+            {
+              "feature_key": "mean area",
+              "feature_value": 656.4,
+              "shared": false,
+              "reason": "Areas differ (656.4 vs 687.3), but both are relatively large for benign tumors. This may reflect a misclassification due to model sensitivity to scale."
+            },
+            {
+              "feature_key": "mean compactness",
+              "feature_value": 0.123,
+              "shared": true,
+              "reason": "Mean compactness is 0.123 in instance 541 and 0.09823 in instance 291 \u2014 not identical but in a similar range (low values). Both are below typical malignant thresholds, indicating benign-level compactness."
+            },
+            {
+              "feature_key": "mean concavity",
+              "feature_value": 0.1009,
+              "shared": false,
+              "reason": "Values differ (0.1009 vs 0.0594), showing variation but both low, consistent with benign patterns."
+            },
+            {
+              "feature_key": "mean concave points",
+              "feature_value": 0.0389,
+              "shared": false,
+              "reason": "Differ slightly (0.0389 vs 0.04819), both low, supporting benign nature."
+            }
+          ],
+          "explanation": "Both instances are benign in reality but predicted as malignant with 70.33% confidence. A key shared pattern is the low to moderate values in smoothness, symmetry, fractal dimension, and compactness \u2014 all features that typically correlate with benign tumors. The near-identical mean symmetry (0.1872) and close smoothness values stand out as strong shared signals that are misinterpreted as malignancy indicators. The model may be overfitting on size-based features (like radius, perimeter, area) that are elevated in benign cases, leading to a false positive. The deviation in concavity and fractal dimension, despite being low, may be exploited as 'malignancy signals' due to algorithmic bias or thresholding errors. This suggests the model is sensitive to subtle but non-intuitive combinations of low complexity and moderate size, which are common in benign tumors.",
+          "confidence": 0.92
+        },
+        "raw_response": "{'findings': [{'feature_key': 'mean symmetry', 'feature_value': 0.1872, 'shared': True, 'reason': 'Both instances have identical mean symmetry (0.1872), which is a key shared value and suggests a potential pattern in symmetry that may be misinterpreted by the model.'}, {'feature_key': 'mean smoothness', 'feature_value': 0.08992, 'shared': True, 'reason': 'Mean smoothness is very similar (0.08837 for instance 541, 0.08992 for instance 291), differing only slightly, suggesting near-identical surface smoothness behavior.'}, {'feature_key': 'mean fractal dimension', 'feature_value': 0.05852, 'shared': True, 'reason': 'Fractal dimension is slightly different (0.06341 vs 0.05852), but both are low, indicating a lack of complexity, which may be a shared signal that the model misinterprets as malignant.'}, {'feature_key': 'mean radius', 'feature_value': 14.47, 'shared': False, 'reason': \"Values differ (14.47 vs 14.96), but both are in the higher range of benign tumors, suggesting a possible bi"
+      },
+      "reasoning": {
+        "success": true,
+        "task_type": "reasoning",
+        "query": "Evaluate whether any shared features (e.g., mean smoothness, mean concavity) are semantically plausible in relation to malignancy and whether they might be acting as spurious predictors due to correlation with class distributions.",
+        "result": {
+          "findings": [
+            "mean smoothness",
+            "mean compactness",
+            "mean concavity",
+            "mean concave points",
+            "mean fractal dimension"
+          ],
+          "explanation": "The misclassified instances (541 and 291) are both benign in truth but predicted as malignant with moderate confidence (70.33%). The shared features showing notable differences are those related to texture and shape complexity: mean smoothness, mean compactness, mean concavity, mean concave points, and mean fractal dimension. These features are semantically plausible in cancer classification as they reflect cellular structure \u2014 smoother, more compact, or less irregular shapes are typically associated with benign tumors. However, in these cases, the values (e.g., mean smoothness \u2248 0.088\u20130.090, mean concavity \u2248 0.059\u20130.101) are within the lower range consistent with benign cases. The model\u2019s misprediction likely stems from a spurious correlation: these features are highly correlated with class distribution in training data, where benign samples tend to have lower compactness and concavity, and the model has learned to over-penalize low values as indicative of malignancy. This creates a spurious pattern where low values in these features are misinterpreted as malignancy indicators, even though they are semantically aligned with benignity. Thus, these features are semantically related to tumor morphology but may serve as spurious predictors due to strong statistical correlation with class distribution in training data.",
+          "confidence": 0.92
+        },
+        "raw_response": "{'findings': ['mean smoothness', 'mean compactness', 'mean concavity', 'mean concave points', 'mean fractal dimension'], 'explanation': 'The misclassified instances (541 and 291) are both benign in truth but predicted as malignant with moderate confidence (70.33%). The shared features showing notable differences are those related to texture and shape complexity: mean smoothness, mean compactness, mean concavity, mean concave points, and mean fractal dimension. These features are semantically plausible in cancer classification as they reflect cellular structure \u2014 smoother, more compact, or less irregular shapes are typically associated with benign tumors. However, in these cases, the values (e.g., mean smoothness \u2248 0.088\u20130.090, mean concavity \u2248 0.059\u20130.101) are within the lower range consistent with benign cases. The model\u2019s misprediction likely stems from a spurious correlation: these features are highly correlated with class distribution in training data, where benign samples tend to "
+      }
+    },
+    "visualization_paths": []
+  },
+  "output_validation": {
+    "is_valid": true,
+    "errors": []
+  },
+  "evaluation": {
+    "question_id": "q19",
+    "question_type": 9,
+    "modality": "tabular",
+    "quality_score": 0.5,
+    "completeness": 1.0,
+    "overall_score": 0.75,
+    "overall_rating": "Good",
+    "execution_metrics": {
+      "successful_tools": 2,
+      "total_tools": 4,
+      "has_output": true,
+      "has_explanation": true
+    },
+    "faithfulness": {
+      "score": 0.02272105696316528,
+      "passed": true,
+      "metric_name": "All Improved",
+      "metric_formula": "1 if ALL (P_correct_modified > P_correct_original) else 0",
+      "p_original": null,
+      "p_modified": null,
+      "original_class": null,
+      "modified_class": null,
+      "details": {
+        "num_inputs": 2,
+        "num_improved": 2,
+        "all_improved": true,
+        "soft_score": 0.023504541686033047,
+        "region_ratio": 0.03333333333333333,
+        "size_penalty": 0.9666666666666667,
+        "shared_feature_description": "Both instances have identical mean symmetry (0.1872), a feature that semantically reflects tumor surface regularity and is typically associated with benign tumors. However, the model misinterprets this low, stable value as a malignancy indicator due to spurious correlation with training data distribution.",
+        "per_input_details": [
+          {
+            "input_key": "input_A",
+            "correct_class": 1,
+            "p_correct_original": 0.2967439591884613,
+            "p_correct_modified": 0.30628103017807007,
+            "improvement": 0.009537070989608765,
+            "room_for_improvement": 0.7032560408115387,
+            "normalized_improvement": 0.013561306887038238,
+            "region_ratio": 0.03333333333333333,
+            "improved": true
+          },
+          {
+            "input_key": "input_B",
+            "correct_class": 1,
+            "p_correct_original": 0.4887773394584656,
+            "p_correct_modified": 0.5058766007423401,
+            "improvement": 0.01709926128387451,
+            "room_for_improvement": 0.5112226605415344,
+            "normalized_improvement": 0.03344777648502786,
+            "region_ratio": 0.03333333333333333,
+            "improved": true
+          }
+        ],
+        "interpretation": "score = mean_normalized_improvement * (1 - avg_region_ratio)"
+      },
+      "errors": []
+    }
+  }
+}

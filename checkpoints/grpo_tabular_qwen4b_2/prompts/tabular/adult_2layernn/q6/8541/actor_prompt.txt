@@ -1,0 +1,152 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (52.88%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=53, workclass=Private, fnlwgt=104258, education=10th, education-num=6, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.012254).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0419
+  - native-country_United-States: +0.0172
+  - education_Preschool: +0.0161
+  - native-country_Haiti: +0.0156
+  - fnlwgt: +0.0137
+- Top negative features (shap_value):
+  - hours-per-week: -0.0419
+  - native-country_Trinadad&Tobago: -0.0172
+  - education_Prof-school: -0.0161
+  - native-country_Holand-Netherlands: -0.0156
+  - age: -0.0137
+- Max positive: 0.041884  Max negative: -0.041884
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0850
+  - capital-loss <= -0.22: +0.0761
+  - education-num <= -0.44: +0.0595
+  - hours-per-week <= -0.08: +0.0500
+  - workclass_Federal-gov <= 0.00: +0.0410
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0509
+  - native-country_Peru <= 0.00: -0.0257
+  - native-country_Portugal <= 0.00: -0.0184
+- Max positive: 0.085017  Max negative: -0.05093
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0133
+  - occupation_Craft-repair: +0.0042
+  - workclass_Private: +0.0042
+  - fnlwgt: +0.0039
+  - education_10th: +0.0032
+- Top negative features (attribution_score):
+  - sex_Male: -0.0087
+  - relationship_Husband: -0.0053
+  - native-country_United-States: -0.0050
+  - age: -0.0035
+  - marital-status_Married-civ-spouse: -0.0023
+- Max positive: 0.013251  Max negative: -0.008699
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0123  (orig=0.3843 → mod=0.3721)
+  - sex_Male: drop=-0.0091  (orig=0.3843 → mod=0.3934)
+  - occupation_Craft-repair: drop=+0.0069  (orig=0.3843 → mod=0.3774)
+  - relationship_Husband: drop=-0.0059  (orig=0.3843 → mod=0.3903)
+  - age: drop=-0.0051  (orig=0.3843 → mod=0.3894)
+  - native-country_United-States: drop=-0.0045  (orig=0.3843 → mod=0.3889)
+  - workclass_Private: drop=+0.0042  (orig=0.3843 → mod=0.3801)
+  - marital-status_Married-civ-spouse: drop=-0.0042  (orig=0.3843 → mod=0.3886)
+  - fnlwgt: drop=+0.0031  (orig=0.3843 → mod=0.3813)
+  - education_10th: drop=+0.0030  (orig=0.3843 → mod=0.3814)
+- Max prob_drop: 0.012254  Max prob_increase: -0.009055
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on socioeconomic factors, what features are most likely to increase income prediction in the context of the adult dataset (e.g., education, occupation, hours-per-week)?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: In the Adult Income dataset, higher education levels (as reflected in education-num) are strongly correlated with higher income. Education-num=13 corresponds to a 'Bachelors' or higher degree, which increases the likelihood of earning over 50K. Occupations like 'Prof-specialty' (professional/specialty jobs) are associated with higher income brackets compared to 'Craft-repair'. Increasing hours-per-week from 40 to 50 is a significant factor, as higher work hours often correlate with higher income, especially in professional roles. These changes are socially and economically plausible and align with known patterns in the dataset.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current feature values to known demographic trends associated with '>50K' income in adult census data.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the adult census dataset, individuals earning over $50K are typically associated with higher education levels (e.g., education-num ≥ 13), longer working hours (often >40 hours/week), and occupations in high-income categories such as 'Prof-specialty' or 'Exec-managerial'. While 'Private' workclass is common in both classes, higher-income individuals are more likely to be female (especially in professional roles) and have a higher educational attainment. Changing education-num to 13 (e.g., Bachelor's or higher), increasing hours-per-week to 60, and shifting occupation to 'Prof-specialty' aligns with known patterns of high-income earners. Notably, sex being female is correlated with higher income in the dataset, though this relationship is context-dependent and may reflect historical and structural factors. Selected changes reflect the most impactful and data-driven counterfactual shifts from the current low-income profile.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on socioeconomic factors, what features are most likely to increase income prediction in the context of the adult dataset (e.g., education, occupation, hours-per-week)?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}]
+- Explanation: In the Adult Income dataset, higher education levels (as reflected in education-num) are strongly correlated with higher income. Education-num=13 corresponds to a 'Bachelors' or higher degree, which increases the likelihood of earning over 50K. Occupations like 'Prof-specialty' (professional/specialty jobs) are associated with higher income brackets compared to 'Craft-repair'. Increasing hours-per-week from 40 to 50 is a significant factor, as higher work hours often correlate with higher income, especially in professional roles. These changes are socially and economically plausible and align with known patterns in the dataset.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current feature values to known demographic trends associated with '>50K' income in adult census data.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 60}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "sex", "action": "change", "new_value": "Female"}]
+- Explanation: In the adult census dataset, individuals earning over $50K are typically associated with higher education levels (e.g., education-num ≥ 13), longer working hours (often >40 hours/week), and occupations in high-income categories such as 'Prof-specialty' or 'Exec-managerial'. While 'Private' workclass is common in both classes, higher-income individuals are more likely to be female (especially in professional roles) and have a higher educational attainment. Changing education-num to 13 (e.g., Bachelor's or higher), increasing hours-per-week to 60, and shifting occupation to 'Prof-specialty' aligns with known patterns of high-income earners. Notably, sex being female is correlated with higher income in the dataset, though this relationship is context-dependent and may reflect historical and structural factors. Selected changes reflect the most impactful and data-driven counterfactual shifts from the current low-income profile.
+- Confidence: 0.92
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=53, workclass='Private', fnlwgt=104258, education='10th', education-num=6, marital-status='Married-civ-spouse', occupation='Craft-repair', relationship='Husband', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:d"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

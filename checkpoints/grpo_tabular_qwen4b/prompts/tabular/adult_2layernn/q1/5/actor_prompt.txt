@@ -1,0 +1,121 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6559
+
+## Input Data
+Features: age=34, workclass=Private, fnlwgt=198693, education=10th, education-num=6, marital-status=Never-married, occupation=Other-service, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.013846).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0382
+  - native-country_Vietnam: +0.0229
+  - workclass_Self-emp-not-inc: +0.0214
+  - native-country_Columbia: +0.0183
+  - native-country_Japan: +0.0147
+- Top negative features (shap_value):
+  - hours-per-week: -0.0382
+  - native-country_Yugoslavia: -0.0229
+  - workclass_State-gov: -0.0214
+  - native-country_Cuba: -0.0183
+  - native-country_Laos: -0.0147
+- Max positive: 0.03821  Max negative: -0.03821
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.0744
+  - capital-loss <= -0.22: +0.0620
+  - education-num <= -0.44: +0.0570
+  - education_Masters <= 0.00: +0.0474
+  - native-country_Portugal <= 0.00: +0.0447
+- Top negative features (weight):
+  - occupation_Armed-Forces <= 0.00: -0.0705
+  - native-country_Guatemala <= 0.00: -0.0672
+  - marital-status_Divorced <= 0.00: -0.0473
+  - native-country_Canada <= 0.00: -0.0084
+- Max positive: 0.074389  Max negative: -0.070534
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0163
+  - hours-per-week: +0.0099
+  - marital-status_Never-married: +0.0081
+  - relationship_Not-in-family: +0.0069
+  - occupation_Other-service: +0.0044
+- Top negative features (attribution_score):
+  - sex_Male: -0.0097
+  - native-country_United-States: -0.0058
+  - race_White: -0.0029
+  - fnlwgt: -0.0001
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.01634  Max negative: -0.009668
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0138  (orig=0.4148 → mod=0.4010)
+  - sex_Male: drop=-0.0096  (orig=0.4148 → mod=0.4245)
+  - relationship_Not-in-family: drop=+0.0086  (orig=0.4148 → mod=0.4062)
+  - marital-status_Never-married: drop=+0.0074  (orig=0.4148 → mod=0.4074)
+  - hours-per-week: drop=+0.0066  (orig=0.4148 → mod=0.4082)
+  - native-country_United-States: drop=-0.0061  (orig=0.4148 → mod=0.4209)
+  - occupation_Other-service: drop=+0.0053  (orig=0.4148 → mod=0.4095)
+  - education_10th: drop=+0.0047  (orig=0.4148 → mod=0.4101)
+  - race_White: drop=-0.0028  (orig=0.4148 → mod=0.4176)
+  - workclass_Private: drop=+0.0026  (orig=0.4148 → mod=0.4122)
+- Max prob_drop: 0.013846  Max prob_increase: -0.009646
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are known to be strongly correlated with income levels in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "6"}, {"feature_key": "hours-per-week", "action": "change", "new_value": "30"}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: In the Adult Income Dataset (also known as the Census Income Dataset), several features are well-documented to have strong correlations with income levels. 'education-num' is strongly correlated with income, as higher education levels (measured numerically) are associated with higher earning potential. 'hours-per-week' shows a positive correlation with income, with higher working hours often linked to higher income. 'workclass' (e.g., 'Private' vs. 'Self-emp-not-inc') influences income due to differences in job type and earnings. 'marital-status' and 'sex' are also known to have significant associations—'Never-married' and 'Male' are more commonly associated with lower income in the dataset, especially when combined with lower education levels. These features are grounded in domain knowledge and empirical studies on the dataset.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Given the prediction of <=50K, how might low education-num, never-married status, and private workclass influence the model's decision?
+- Status: Success
+- Explanation: The model predicted an income of <=50K, and this prediction is likely influenced by several key input features. The individual has an education-num of 6, which corresponds to a '10th' grade education—a relatively low level of formal education. Lower education levels are consistently associated with lower income potential in socioeconomic models. Additionally, the marital-status is 'Never-married', which is often correlated with reduced access to financial stability, shared resources, or employer-based benefits, further lowering predicted income. The workclass is 'Private', which is common among lower-income workers, especially when combined with limited education and lack of union or public sector benefits. While private sector employment can offer flexibility, it often lacks the higher wages or advancement opportunities seen in public or managerial roles. Together, these features—low education-num, never-married status, and private workclass—form a pattern commonly observed in populations with lower income outcomes. These patterns align with known socioeconomic trends where education, marital status, and employment type are strong predictors of income level in tabular datasets like the Census Income dataset.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of education-num=6 (10th grade) versus higher education levels on the likelihood of being classified as <=50K.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "increase", "new_value": 12}, {"feature_key": "education-num", "action": "increase", "new_value": 16}, {"feature_key": "education-num", "action": "increase", "new_value": 18}, {"feature_key": "education-num", "action": "increase", "new_value": 20}, {"feature_key": "education-num", "action": "increase", "new_value": 24}]
+- Explanation: In the context of the U.S. income dataset, higher education levels are strongly correlated with higher income. The 'education-num' feature represents years of education, with values like 6 corresponding to '10th grade', which is typically associated with lower socioeconomic status and lower earning potential. Increasing 'education-num' to levels such as 12 (High school graduate), 16 (Bachelor's degree), or 20+ (Graduate or professional degree) significantly increases the likelihood of being classified as >50K. This is consistent with domain knowledge that education level is a key predictor of income. Therefore, raising 'education-num' from 6 to higher values directly increases the probability of being predicted as >50K, thereby reducing the probability of being classified as <=50K.
+- Confidence: 0.97
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

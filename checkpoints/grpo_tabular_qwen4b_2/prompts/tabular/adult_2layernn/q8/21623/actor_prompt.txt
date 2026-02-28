@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (51.01%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=28, workclass=Private, fnlwgt=212091, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Machine-op-inspct, relationship=Husband, race=White, sex=Male, capital-gain=2580, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.011495).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_United-States: +0.0077
+  - native-country_Cuba: +0.0074
+  - race_Asian-Pac-Islander: +0.0071
+  - native-country_Holand-Netherlands: +0.0061
+  - workclass_State-gov: +0.0018
+- Top negative features (shap_value):
+  - native-country_Trinadad&Tobago: -0.0077
+  - native-country_Columbia: -0.0074
+  - race_Amer-Indian-Eskimo: -0.0071
+  - native-country_Haiti: -0.0061
+  - workclass_Self-emp-not-inc: -0.0018
+- Max positive: 0.007742  Max negative: -0.007742
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0523
+  - capital-gain > -0.15: +0.0517
+  - native-country_Dominican-Republic <= 0.00: +0.0294
+  - native-country_Iran <= 0.00: +0.0137
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0546
+  - education-num <= -0.44: -0.0533
+  - native-country_Cambodia <= 0.00: -0.0521
+  - hours-per-week <= -0.08: -0.0447
+  - native-country_Taiwan <= 0.00: -0.0401
+- Max positive: 0.052275  Max negative: -0.054573
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0102
+  - relationship_Husband: +0.0058
+  - native-country_United-States: +0.0057
+  - marital-status_Married-civ-spouse: +0.0015
+  - fnlwgt: +0.0009
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0061
+  - age: -0.0049
+  - workclass_Private: -0.0038
+  - education-num: -0.0029
+  - occupation_Machine-op-inspct: -0.0022
+- Max positive: 0.010163  Max negative: -0.006072
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0115  (orig=0.6248 → mod=0.6133)
+  - relationship_Husband: drop=+0.0063  (orig=0.6248 → mod=0.6186)
+  - age: drop=-0.0060  (orig=0.6248 → mod=0.6308)
+  - native-country_United-States: drop=+0.0050  (orig=0.6248 → mod=0.6198)
+  - education_HS-grad: drop=-0.0041  (orig=0.6248 → mod=0.6289)
+  - workclass_Private: drop=-0.0030  (orig=0.6248 → mod=0.6279)
+  - marital-status_Married-civ-spouse: drop=+0.0028  (orig=0.6248 → mod=0.6221)
+  - occupation_Machine-op-inspct: drop=-0.0025  (orig=0.6248 → mod=0.6273)
+  - education-num: drop=-0.0020  (orig=0.6248 → mod=0.6268)
+  - capital-gain: drop=+0.0010  (orig=0.6248 → mod=0.6238)
+- Max prob_drop: 0.011495  Max prob_increase: -0.005988
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Machine-op-inspct' or 'workclass=Private' be semantically irrelevant to predicting income <=50K in this individual case?
+- Status: Success
+- findings: []
+- Explanation: The features 'occupation=Machine-op-inspct' and 'workclass=Private' are not semantically无关 to the target class 'income <=50K' in this individual case. In the context of income prediction, 'workclass' and 'occupation' are typically associated with socioeconomic status and earning potential, but their actual predictive power is highly dependent on domain-specific correlations. However, in this individual's case, with age=28, education='HS-grad', hours-per-week=40, and sex='Male', the profile suggests a lower-income potential. The occupation 'Machine-op-inspct' is a non-managerial, hands-on role typically associated with moderate income, and 'Private' workclass is common among employed individuals with average earnings. There is no known structural or semantic pathway in the dataset or domain that would link these features to a prediction of >50K income when all other features indicate low-income eligibility. Therefore, no semantically unsupported reasoning pathways exist — the model's misprediction is not due to irrelevant feature usage. Instead, it may stem from overfitting, bias in generalization, or missing feature interactions. Since the question specifically asks for irrelevant parts causing wrong prediction, and no such irrelevant semantic link exists, the findings list remains empty.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true label (<=50K) with the model's confidence in predicting >50K, focusing on features with low domain knowledge connection to income.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "N/A"}, {"feature_key": "native-country", "action": "change", "new_value": "United-States"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a statistical weight used for sampling representation and does not reflect actual income or economic behavior. It has no direct semantic connection to income levels and is often ignored in income prediction tasks. Similarly, 'native-country' is a demographic attribute that may influence socioeconomic context but, in this case, being 'United-States' is not strongly predictive of income beyond basic demographic norms. The model's confidence (51.01%) suggests it may be attributing importance to these features due to data correlation or regularization, despite their lack of domain relevance. Thus, these features are high in model attribution (implicitly) but semantically disconnected from income prediction, making them candidates for scrutiny in misprediction analysis.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Machine-op-inspct' or 'workclass=Private' be semantically irrelevant to predicting income <=50K in this individual case?
+- Status: Success
+- findings: []
+- Explanation: The features 'occupation=Machine-op-inspct' and 'workclass=Private' are not semantically无关 to the target class 'income <=50K' in this individual case. In the context of income prediction, 'workclass' and 'occupation' are typically associated with socioeconomic status and earning potential, but their actual predictive power is highly dependent on domain-specific correlations. However, in this individual's case, with age=28, education='HS-grad', hours-per-week=40, and sex='Male', the profile suggests a lower-income potential. The occupation 'Machine-op-inspct' is a non-managerial, hands-on role typically associated with moderate income, and 'Private' workclass is common among employed individuals with average earnings. There is no known structural or semantic pathway in the dataset or domain that would link these features to a prediction of >50K income when all other features indicate low-income eligibility. Therefore, no semantically unsupported reasoning pathways exist — the model's misprediction is not due to irrelevant feature usage. Instead, it may stem from overfitting, bias in generalization, or missing feature interactions. Since the question specifically asks for irrelevant parts causing wrong prediction, and no such irrelevant semantic link exists, the findings list remains empty.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the true label (<=50K) with the model's confidence in predicting >50K, focusing on features with low domain knowledge connection to income.
+- Status: Success
+- findings: [{"feature_key": "fnlwgt", "action": "change", "new_value": "N/A"}, {"feature_key": "native-country", "action": "change", "new_value": "United-States"}]
+- Explanation: The feature 'fnlwgt' (final weight) is a statistical weight used for sampling representation and does not reflect actual income or economic behavior. It has no direct semantic connection to income levels and is often ignored in income prediction tasks. Similarly, 'native-country' is a demographic attribute that may influence socioeconomic context but, in this case, being 'United-States' is not strongly predictive of income beyond basic demographic norms. The model's confidence (51.01%) suggests it may be attributing importance to these features due to data correlation or regularization, despite their lack of domain relevance. Thus, these features are high in model attribution (implicitly) but semantically disconnected from income prediction, making them candidates for scrutiny in misprediction analysis.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

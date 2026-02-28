@@ -1,0 +1,145 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (59.83%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=80, workclass=Private, fnlwgt=107740, education=HS-grad, education-num=9, marital-status=Widowed, occupation=Handlers-cleaners, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.011131).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0237
+  - native-country_Vietnam: +0.0177
+  - occupation_Tech-support: +0.0165
+  - race_Other: +0.0132
+  - native-country_Iran: +0.0104
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0237
+  - native-country_Yugoslavia: -0.0177
+  - occupation_Transport-moving: -0.0165
+  - race_Black: -0.0132
+  - native-country_Ireland: -0.0104
+- Max positive: 0.023715  Max negative: -0.023715
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0833
+  - capital-gain <= -0.15: +0.0689
+  - hours-per-week <= -0.08: +0.0547
+  - education-num <= -0.44: +0.0503
+- Top negative features (weight):
+  - native-country_Holand-Netherlands <= 0.00: -0.0676
+  - marital-status_Divorced <= 0.00: -0.0510
+  - education_1st-4th <= 0.00: -0.0331
+  - native-country_Puerto-Rico <= 0.00: -0.0305
+  - native-country_South <= 0.00: -0.0260
+- Max positive: 0.083264  Max negative: -0.0676
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - hours-per-week: +0.0099
+  - relationship_Not-in-family: +0.0074
+  - occupation_Handlers-cleaners: +0.0067
+  - education_HS-grad: +0.0062
+  - workclass_Private: +0.0044
+- Top negative features (attribution_score):
+  - sex_Male: -0.0108
+  - native-country_United-States: -0.0065
+  - race_White: -0.0044
+  - age: -0.0006
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.009878  Max negative: -0.010825
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0111  (orig=0.4009 → mod=0.4120)
+  - relationship_Not-in-family: drop=+0.0075  (orig=0.4009 → mod=0.3934)
+  - hours-per-week: drop=+0.0063  (orig=0.4009 → mod=0.3946)
+  - native-country_United-States: drop=-0.0062  (orig=0.4009 → mod=0.4071)
+  - occupation_Handlers-cleaners: drop=+0.0052  (orig=0.4009 → mod=0.3957)
+  - education_HS-grad: drop=+0.0046  (orig=0.4009 → mod=0.3963)
+  - age: drop=+0.0045  (orig=0.4009 → mod=0.3963)
+  - race_White: drop=-0.0041  (orig=0.4009 → mod=0.4050)
+  - workclass_Private: drop=+0.0032  (orig=0.4009 → mod=0.3977)
+  - marital-status_Widowed: drop=+0.0027  (orig=0.4009 → mod=0.3982)
+- Max prob_drop: 0.007533  Max prob_increase: -0.011131
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What are the key demographic and socioeconomic features that typically correlate with income >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "direction": "positive", "explanation": "Higher age is often associated with greater work experience and potentially higher income, especially in later career stages."}, {"feature_key": "education-num", "direction": "positive", "explanation": "Higher levels of education (e.g., Bachelor's, Master's) strongly correlate with increased income potential and are consistently associated with income >50K."}, {"feature_key": "hours-per-week", "direction": "positive", "explanation": "Longer working hours are typically linked to higher income, as they may reflect greater work intensity or higher-paying jobs."}, {"feature_key": "capital-gain", "direction": "positive", "explanation": "Capital gains reflect investment income, which contributes directly to overall income and are positively correlated with >50K predictions."}, {"feature_key": "occupation", "direction": "positive", "explanation": "Occupations like 'Exec-managerial', 'Prof-specialty', and 'Prof-tech' are strongly associated with high income, while manual or service roles are more likely to predict \u226450K."}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels, longer work hours, greater capital gains, and specific high-income occupations are consistently associated with income above $50K. Age shows a positive trend as well, though its impact is more nuanced. These features are strongly predictive and align with socioeconomic factors known to influence income levels. The current instance has moderate education (HS-grad), low capital gains, and modest hours, which limits its prediction to ≤50K. Changing these features toward higher-value categories would increase the likelihood of predicting >50K.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How does the current instance's feature values compare to known examples of individuals predicted to be >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 80, "target_value": 39, "disparity": "High (current age is significantly older than typical >50K individuals)", "reason": "Most individuals predicted to earn >50K tend to be younger, typically in their 30s to 50s. Age 80 is extremely outlier and suggests lower earning potential, which conflicts with high-income predictions."}, {"feature_key": "education-num", "current_value": 9, "target_value": 13, "disparity": "Moderate (current education level is below average for high-income group)", "reason": "Higher education-num (e.g., 13 or above) is strongly correlated with >50K predictions. HS-grad (9) is at the lower end of education levels; a higher level like 'Bachelor\u2019s' or higher (e.g., 13+) is associated with greater income potential."}, {"feature_key": "hours-per-week", "current_value": 30, "target_value": 50, "disparity": "Moderate (current working hours are below typical for top earners)", "reason": "Individuals earning >50K often work more than 40 hours per week. 30 hours is standard for average earners, while 50+ hours reflect high engagement and higher earning potential."}, {"feature_key": "occupation", "current_value": "Handlers-cleaners", "target_value": "Exec-managerial", "disparity": "High (current occupation is low-wage)", "reason": "Occupations like 'Exec-managerial', 'Prof-specialty', or 'Tech-support' are disproportionately represented in >50K predictions. 'Handlers-cleaners' is associated with low-income jobs."}, {"feature_key": "workclass", "current_value": "Private", "target_value": "Private", "disparity": "None", "reason": "Private sector employment is common in both income groups and does not significantly influence the prediction."}]
+- Explanation: The current instance has several features that are strongly associated with lower income predictions. It features an extremely high age (80), which is atypical for high-income individuals, a low education level (HS-grad, education-num=9), and a low-wage occupation (Handlers-cleaners). Working only 30 hours per week also falls below the typical threshold for higher earners. To flip the prediction from ≤50K to >50K, the instance would need to increase working hours, improve education level, and shift to a higher-paying occupation. These changes align with known patterns in the dataset where higher education, higher work hours, and managerial/technical occupations are predictive of incomes above $50K.
+- Confidence: 0.97
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: What are the key demographic and socioeconomic features that typically correlate with income >50K in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "direction": "positive", "explanation": "Higher age is often associated with greater work experience and potentially higher income, especially in later career stages."}, {"feature_key": "education-num", "direction": "positive", "explanation": "Higher levels of education (e.g., Bachelor's, Master's) strongly correlate with increased income potential and are consistently associated with income >50K."}, {"feature_key": "hours-per-week", "direction": "positive", "explanation": "Longer working hours are typically linked to higher income, as they may reflect greater work intensity or higher-paying jobs."}, {"feature_key": "capital-gain", "direction": "positive", "explanation": "Capital gains reflect investment income, which contributes directly to overall income and are positively correlated with >50K predictions."}, {"feature_key": "occupation", "direction": "positive", "explanation": "Occupations like 'Exec-managerial', 'Prof-specialty', and 'Prof-tech' are strongly associated with high income, while manual or service roles are more likely to predict \u226450K."}]
+- Explanation: In the Adult Income dataset, individuals with higher education levels, longer work hours, greater capital gains, and specific high-income occupations are consistently associated with income above $50K. Age shows a positive trend as well, though its impact is more nuanced. These features are strongly predictive and align with socioeconomic factors known to influence income levels. The current instance has moderate education (HS-grad), low capital gains, and modest hours, which limits its prediction to ≤50K. Changing these features toward higher-value categories would increase the likelihood of predicting >50K.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How does the current instance's feature values compare to known examples of individuals predicted to be >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 80, "target_value": 39, "disparity": "High (current age is significantly older than typical >50K individuals)", "reason": "Most individuals predicted to earn >50K tend to be younger, typically in their 30s to 50s. Age 80 is extremely outlier and suggests lower earning potential, which conflicts with high-income predictions."}, {"feature_key": "education-num", "current_value": 9, "target_value": 13, "disparity": "Moderate (current education level is below average for high-income group)", "reason": "Higher education-num (e.g., 13 or above) is strongly correlated with >50K predictions. HS-grad (9) is at the lower end of education levels; a higher level like 'Bachelor\u2019s' or higher (e.g., 13+) is associated with greater income potential."}, {"feature_key": "hours-per-week", "current_value": 30, "target_value": 50, "disparity": "Moderate (current working hours are below typical for top earners)", "reason": "Individuals earning >50K often work more than 40 hours per week. 30 hours is standard for average earners, while 50+ hours reflect high engagement and higher earning potential."}, {"feature_key": "occupation", "current_value": "Handlers-cleaners", "target_value": "Exec-managerial", "disparity": "High (current occupation is low-wage)", "reason": "Occupations like 'Exec-managerial', 'Prof-specialty', or 'Tech-support' are disproportionately represented in >50K predictions. 'Handlers-cleaners' is associated with low-income jobs."}, {"feature_key": "workclass", "current_value": "Private", "target_value": "Private", "disparity": "None", "reason": "Private sector employment is common in both income groups and does not significantly influence the prediction."}]
+- Explanation: The current instance has several features that are strongly associated with lower income predictions. It features an extremely high age (80), which is atypical for high-income individuals, a low education level (HS-grad, education-num=9), and a low-wage occupation (Handlers-cleaners). Working only 30 hours per week also falls below the typical threshold for higher earners. To flip the prediction from ≤50K to >50K, the instance would need to increase working hours, improve education level, and shift to a higher-paying occupation. These changes align with known patterns in the dataset where higher education, higher work hours, and managerial/technical occupations are predictive of incomes above $50K.
+- Confidence: 0.97
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=80, workclass='Private', fnlwgt=107740, education='HS-grad', education-num=9, marital-status='Widowed', occupation='Handlers-cleaners', relationship='Not-in-family', race='White', sex='Male', capital-gain=0, capital-loss=0, hours-per-week=30, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

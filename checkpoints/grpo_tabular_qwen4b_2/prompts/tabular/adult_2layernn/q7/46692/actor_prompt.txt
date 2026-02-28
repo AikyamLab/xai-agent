@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change hours-per-week, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (53.38%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.5337941348552704}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4662058651447296}]
+- Part to Change: hours-per-week
+
+## Input Data
+Features: age=29, workclass=Private, fnlwgt=327779, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Handlers-cleaners, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=20, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.011381).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0534
+  - race_Amer-Indian-Eskimo: +0.0125
+  - native-country_United-States: +0.0114
+  - capital-gain: +0.0112
+  - native-country_Cuba: +0.0099
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0534
+  - race_Asian-Pac-Islander: -0.0125
+  - native-country_Trinadad&Tobago: -0.0114
+  - education-num: -0.0112
+  - native-country_Columbia: -0.0099
+- Max positive: 0.05344  Max negative: -0.05344
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0114  (orig=0.3855 → mod=0.3741)
+  - sex_Male: drop=-0.0108  (orig=0.3855 → mod=0.3964)
+  - native-country_United-States: drop=-0.0084  (orig=0.3855 → mod=0.3939)
+  - fnlwgt: drop=-0.0063  (orig=0.3855 → mod=0.3918)
+  - education_Some-college: drop=+0.0050  (orig=0.3855 → mod=0.3805)
+  - relationship_Husband: drop=-0.0031  (orig=0.3855 → mod=0.3886)
+  - occupation_Handlers-cleaners: drop=+0.0029  (orig=0.3855 → mod=0.3827)
+  - workclass_Private: drop=+0.0023  (orig=0.3855 → mod=0.3832)
+  - age: drop=+0.0021  (orig=0.3855 → mod=0.3834)
+  - race_White: drop=-0.0021  (orig=0.3855 → mod=0.3876)
+- Max prob_drop: 0.011381  Max prob_increase: -0.010845
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current prediction is <=50K with 0.5338 confidence, and the input includes a male with 29 years of age and 10 years of education, how might removing 'hours-per-week' affect the model's confidence in predicting <=50K?
+- Status: Success
+- findings: "The prediction remains <=50K after removing 'hours-per-week'."
+- Explanation: The current model predicts <=50K with 53.38% confidence based on the individual's demographic and employment profile, including 29 years of age, 10 years of education, and 20 hours per week. While 'hours-per-week' is often a strong predictor in income models—especially in datasets like the Census Income dataset—its influence is typically context-dependent. In this individual's case, the combination of being a male with a 'Private' job, 'Husband' relationship, and 'White' ethnicity suggests a stable, moderate-income profile. The low value (20 hours/week) is typical for non-high-wage occupations like 'Handlers-cleaners', and thus may not significantly shift the income prediction. Removing this feature would not introduce a strong signal to increase the predicted income to >50K. Instead, the model would continue to rely on other features such as education-num, workclass, and marital status, which are more consistently linked to income brackets. Without a clear compensatory signal from modified features, the prediction would remain stable at <=50K. Therefore, removing 'hours-per-week' would not alter the prediction direction and would not increase confidence in predicting >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: In typical income prediction models, is 'hours-per-week' more strongly associated with >50K outcomes among high-education males? Compare this to the model's top-5 predictions.
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "hours-per-week", "action": "change", "new_value": 10}]
+- Explanation: In domain knowledge, higher 'hours-per-week' is empirically associated with higher income potential, particularly among individuals with higher education levels and male demographic characteristics. Studies and labor market analyses indicate that working longer hours correlates with increased income, especially in skilled or professional occupations such as 'Handlers-cleaners' or 'Exec-managerial' roles. Given that the individual in question is a male with a college-level education ('Some-college'), increased hours-per-week (e.g., from 20 to 40) would plausibly lift the predicted income category above 50K due to stronger labor market returns. Conversely, reducing hours to 10 would likely reinforce the model’s original prediction of ≤50K. Though the model's top-5 predictions are not available, the presence of a strong, known correlation between hours-per-week and income in high-education males supports the empirical plausibility of this adjustment. The current prediction (≤50K) is therefore likely conservative under higher work hours.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the current prediction is <=50K with 0.5338 confidence, and the input includes a male with 29 years of age and 10 years of education, how might removing 'hours-per-week' affect the model's confidence in predicting <=50K?
+- Status: Success
+- findings: "The prediction remains <=50K after removing 'hours-per-week'."
+- Explanation: The current model predicts <=50K with 53.38% confidence based on the individual's demographic and employment profile, including 29 years of age, 10 years of education, and 20 hours per week. While 'hours-per-week' is often a strong predictor in income models—especially in datasets like the Census Income dataset—its influence is typically context-dependent. In this individual's case, the combination of being a male with a 'Private' job, 'Husband' relationship, and 'White' ethnicity suggests a stable, moderate-income profile. The low value (20 hours/week) is typical for non-high-wage occupations like 'Handlers-cleaners', and thus may not significantly shift the income prediction. Removing this feature would not introduce a strong signal to increase the predicted income to >50K. Instead, the model would continue to rely on other features such as education-num, workclass, and marital status, which are more consistently linked to income brackets. Without a clear compensatory signal from modified features, the prediction would remain stable at <=50K. Therefore, removing 'hours-per-week' would not alter the prediction direction and would not increase confidence in predicting >50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: In typical income prediction models, is 'hours-per-week' more strongly associated with >50K outcomes among high-education males? Compare this to the model's top-5 predictions.
+- Status: Success
+- findings: [{"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "hours-per-week", "action": "change", "new_value": 10}]
+- Explanation: In domain knowledge, higher 'hours-per-week' is empirically associated with higher income potential, particularly among individuals with higher education levels and male demographic characteristics. Studies and labor market analyses indicate that working longer hours correlates with increased income, especially in skilled or professional occupations such as 'Handlers-cleaners' or 'Exec-managerial' roles. Given that the individual in question is a male with a college-level education ('Some-college'), increased hours-per-week (e.g., from 20 to 40) would plausibly lift the predicted income category above 50K due to stronger labor market returns. Conversely, reducing hours to 10 would likely reinforce the model’s original prediction of ≤50K. Though the model's top-5 predictions are not available, the presence of a strong, known correlation between hours-per-week and income in high-education males supports the empirical plausibility of this adjustment. The current prediction (≤50K) is therefore likely conservative under higher work hours.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,55 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "Given the need to assess the impact of masking a specific feature (age) on a neural network prediction, a hybrid approach combining autonomous reasoning and external explainability tools ensures both interpretability and robustness. Autonomous analysis provides quick insights into feature priority based on domain knowledge and model structure, while XAI tools like SHAP and sensitivity analysis offer formal, data-driven validation of the effect of feature masking.",
+  "confidence": 0.85,
+  "autonomous_tasks": [
+    {
+      "task_type": "grounding",
+      "query": "In the adult dataset, how is age typically associated with income prediction in regression and classification models?",
+      "expected_output": "Age is typically positively correlated with income, with higher ages generally associated with higher income, especially after middle age, due to experience accumulation."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Given that age=39 is near the median for the adult dataset, how likely is it that masking this feature would shift the prediction from >50K to <=50K?",
+      "expected_output": "Masking age may reduce model confidence but is unlikely to reverse the prediction class unless age is a critical determinant for this instance. Given mid-range age and a relatively balanced confidence, it could be partial but not decisive."
+    },
+    {
+      "task_type": "comparison",
+      "query": "How does the model weight age compared to other features like education-num or workclass for high-income prediction?",
+      "expected_output": "Age likely has moderate importance\u2014less than education-num and marital status but more than race or native-country\u2014especially in the context of adult dataset demographics."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "focus_feature": "age"
+      },
+      "sensitivity_analysis": {
+        "focus_feature": "age"
+      }
+    },
+    "reasoning": "SHAP provides a fine-grained feature attribution, revealing age's contribution to the prediction. Sensitivity analysis via leave-one-out ablation measures how prediction probability changes when age is masked, directly answering the masking impact. Together, they offer complementary validation of feature importance."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a fine-grained feature attribution, revealing age's contribution to the prediction. Sensitivity analysis via leave-one-out ablation measures how prediction probability changes when age is masked, directly answering the masking impact. Together, they offer complementary validation of feature importance.",
+      "parameters": {
+        "focus_feature": "age"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides a fine-grained feature attribution, revealing age's contribution to the prediction. Sensitivity analysis via leave-one-out ablation measures how prediction probability changes when age is masked, directly answering the masking impact. Together, they offer complementary validation of feature importance.",
+      "parameters": {
+        "focus_feature": "age"
+      }
+    }
+  ]
+}

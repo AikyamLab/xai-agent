@@ -1,0 +1,133 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (52.21%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4779006838798523}
+
+## Input Data
+Features: age=37, workclass=State-gov, fnlwgt=60227, education=Bachelors, education-num=13, marital-status=Never-married, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=38, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.008772).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0220
+  - native-country_Vietnam: +0.0186
+  - native-country_Columbia: +0.0167
+  - native-country_France: +0.0102
+  - workclass_Without-pay: +0.0038
+- Top negative features (shap_value):
+  - capital-loss: -0.0220
+  - native-country_Yugoslavia: -0.0186
+  - native-country_Cuba: -0.0167
+  - native-country_Germany: -0.0102
+  - education_10th: -0.0038
+- Max positive: 0.022016  Max negative: -0.022016
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0780
+  - capital-gain <= -0.15: +0.0541
+  - hours-per-week <= -0.08: +0.0456
+  - race_Other <= 0.00: +0.0154
+  - native-country_Japan <= 0.00: +0.0050
+- Top negative features (weight):
+  - education_5th-6th <= 0.00: -0.0580
+  - marital-status_Divorced <= 0.00: -0.0529
+  - -0.05 < education-num <= 1.13: -0.0402
+  - native-country_Trinadad&Tobago <= 0.00: -0.0344
+  - workclass_Without-pay <= 0.00: -0.0342
+- Max positive: 0.077987  Max negative: -0.057999
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0072
+  - marital-status_Never-married: +0.0055
+  - fnlwgt: +0.0050
+  - occupation_Adm-clerical: +0.0043
+  - hours-per-week: +0.0027
+- Top negative features (attribution_score):
+  - education-num: -0.0081
+  - sex_Male: -0.0067
+  - native-country_United-States: -0.0051
+  - race_White: -0.0048
+  - education_Bachelors: -0.0001
+- Max positive: 0.007244  Max negative: -0.008127
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0088  (orig=0.3827 → mod=0.3740)
+  - sex_Male: drop=-0.0080  (orig=0.3827 → mod=0.3907)
+  - education-num: drop=-0.0077  (orig=0.3827 → mod=0.3904)
+  - relationship_Not-in-family: drop=+0.0076  (orig=0.3827 → mod=0.3752)
+  - native-country_United-States: drop=-0.0047  (orig=0.3827 → mod=0.3874)
+  - occupation_Adm-clerical: drop=+0.0040  (orig=0.3827 → mod=0.3788)
+  - race_White: drop=-0.0036  (orig=0.3827 → mod=0.3863)
+  - fnlwgt: drop=+0.0031  (orig=0.3827 → mod=0.3797)
+  - hours-per-week: drop=+0.0025  (orig=0.3827 → mod=0.3803)
+  - education_Bachelors: drop=+0.0015  (orig=0.3827 → mod=0.3812)
+- Max prob_drop: 0.008772  Max prob_increase: -0.007968
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the adult dataset domain knowledge, which features are historically known to be more predictive of income <=50K versus >50K?
+- Status: Success
+- findings: ["age", "workclass", "education", "marital-status", "occupation", "relationship", "race", "sex", "hours-per-week", "native-country"]
+- Explanation: In the Adult Income Dataset, income level is historically strongly influenced by several demographic and socioeconomic features. Individuals with lower education levels, unskilled or clerical occupations, and lower hours per week are more frequently predicted to earn <=50K. The 'Never-married' marital status and 'Not-in-family' relationship are associated with lower income. 'Male' sex shows mixed trends, but among lower-income groups, it is often correlated with <=50K. 'State-gov' workclass is typically associated with lower income compared to private or self-employment. Age has a moderate effect, with older individuals sometimes showing higher income, but younger or mid-age workers in lower-status jobs are more likely to fall below 50K. Native-country and race have indirect correlations, though they are often confounded by systemic biases. The features listed represent the strongest known predictors from domain literature and prior analyses of the dataset.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the input values for features like age, education-num, occupation, and marital-status differ between the <=50K and >50K class distributions in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 37, "class_distribution": {"<=50K": "Average age ~39, with a range of 20\u201360; higher concentrations in younger and middle-aged groups (25\u201345)", ">=50K": "Average age ~45, with a range of 25\u201370; higher proportion of older individuals (45+)"}, "analysis": "The current value (37) falls within the younger range of the <=50K class, which is consistent with the model's prediction. The >=50K class tends to have higher average ages, suggesting that age is a distinguishing factor favoring >50K predictions in older demographics."}, {"feature_key": "education-num", "current_value": 13, "class_distribution": {"<=50K": "Average education-num ~9\u201312; typically associated with lower educational attainment (e.g., High School, Some College)", ">=50K": "Average education-num ~13\u201316; strongly associated with higher education (e.g., Bachelors, Masters, Prof-school)"}, "analysis": "The current value of 13 corresponds to a 'Bachelors' education and falls in the upper end of the <=50K range. However, the >=50K class shows a stronger preference for higher education-num values. Thus, higher education-num values are more predictive of >50K income."}, {"feature_key": "occupation", "current_value": "Adm-clerical", "class_distribution": {"<=50K": "Common occupations: 'Adm-clerical', 'Other-service', 'Sales', 'Craft-repair'; mostly non-management roles", ">=50K": "Predominantly: 'Prof-specialty', 'Exec-managerial', 'Prof-school'; higher management or professional roles"}, "analysis": "The current occupation 'Adm-clerical' is typical of the <=50K class. In contrast, occupations like 'Prof-specialty' or 'Exec-managerial' are more frequently observed in the >50K group. Thus, occupation directly contributes to distinguishing the two classes."}, {"feature_key": "marital-status", "current_value": "Never-married", "class_distribution": {"<=50K": "Common: 'Never-married', 'Divorced', 'Separated'; often indicates single or non-traditional household status", ">=50K": "More common: 'Married-civ-spouse', 'Married-spouse-absent'; higher likelihood in married individuals"}, "analysis": "The current marital-status 'Never-married' is typical of the <=50K class. In the >50K group, being married (especially 'Married-civ-spouse') is more common, suggesting a socio-economic correlation with marital status."}]
+- Explanation: The model predicted <=50K based on input features that align with typical profiles of lower-income individuals. Key distinguishing factors include younger age, moderate education level (education-num = 13), non-management occupation (e.g., 'Adm-clerical'), and being never-married. In contrast, the >50K class is more likely to have higher age, higher education, professional or managerial occupations, and married status. These features form a clear pattern that separates the two income classes in the adult dataset.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Based on the adult dataset domain knowledge, which features are historically known to be more predictive of income <=50K versus >50K?
+- Status: Success
+- findings: ["age", "workclass", "education", "marital-status", "occupation", "relationship", "race", "sex", "hours-per-week", "native-country"]
+- Explanation: In the Adult Income Dataset, income level is historically strongly influenced by several demographic and socioeconomic features. Individuals with lower education levels, unskilled or clerical occupations, and lower hours per week are more frequently predicted to earn <=50K. The 'Never-married' marital status and 'Not-in-family' relationship are associated with lower income. 'Male' sex shows mixed trends, but among lower-income groups, it is often correlated with <=50K. 'State-gov' workclass is typically associated with lower income compared to private or self-employment. Age has a moderate effect, with older individuals sometimes showing higher income, but younger or mid-age workers in lower-status jobs are more likely to fall below 50K. Native-country and race have indirect correlations, though they are often confounded by systemic biases. The features listed represent the strongest known predictors from domain literature and prior analyses of the dataset.
+- Confidence: 0.97
+
+### COMPARISON Task
+- Query: How do the input values for features like age, education-num, occupation, and marital-status differ between the <=50K and >50K class distributions in the adult dataset?
+- Status: Success
+- findings: [{"feature_key": "age", "current_value": 37, "class_distribution": {"<=50K": "Average age ~39, with a range of 20\u201360; higher concentrations in younger and middle-aged groups (25\u201345)", ">=50K": "Average age ~45, with a range of 25\u201370; higher proportion of older individuals (45+)"}, "analysis": "The current value (37) falls within the younger range of the <=50K class, which is consistent with the model's prediction. The >=50K class tends to have higher average ages, suggesting that age is a distinguishing factor favoring >50K predictions in older demographics."}, {"feature_key": "education-num", "current_value": 13, "class_distribution": {"<=50K": "Average education-num ~9\u201312; typically associated with lower educational attainment (e.g., High School, Some College)", ">=50K": "Average education-num ~13\u201316; strongly associated with higher education (e.g., Bachelors, Masters, Prof-school)"}, "analysis": "The current value of 13 corresponds to a 'Bachelors' education and falls in the upper end of the <=50K range. However, the >=50K class shows a stronger preference for higher education-num values. Thus, higher education-num values are more predictive of >50K income."}, {"feature_key": "occupation", "current_value": "Adm-clerical", "class_distribution": {"<=50K": "Common occupations: 'Adm-clerical', 'Other-service', 'Sales', 'Craft-repair'; mostly non-management roles", ">=50K": "Predominantly: 'Prof-specialty', 'Exec-managerial', 'Prof-school'; higher management or professional roles"}, "analysis": "The current occupation 'Adm-clerical' is typical of the <=50K class. In contrast, occupations like 'Prof-specialty' or 'Exec-managerial' are more frequently observed in the >50K group. Thus, occupation directly contributes to distinguishing the two classes."}, {"feature_key": "marital-status", "current_value": "Never-married", "class_distribution": {"<=50K": "Common: 'Never-married', 'Divorced', 'Separated'; often indicates single or non-traditional household status", ">=50K": "More common: 'Married-civ-spouse', 'Married-spouse-absent'; higher likelihood in married individuals"}, "analysis": "The current marital-status 'Never-married' is typical of the <=50K class. In the >50K group, being married (especially 'Married-civ-spouse') is more common, suggesting a socio-economic correlation with marital status."}]
+- Explanation: The model predicted <=50K based on input features that align with typical profiles of lower-income individuals. Key distinguishing factors include younger age, moderate education level (education-num = 13), non-management occupation (e.g., 'Adm-clerical'), and being never-married. In contrast, the >50K class is more likely to have higher age, higher education, professional or managerial occupations, and married status. These features form a clear pattern that separates the two income classes in the adult dataset.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.4779006838798523}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

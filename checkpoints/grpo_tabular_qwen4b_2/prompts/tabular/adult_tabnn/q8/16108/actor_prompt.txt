@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (66.06%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=42, workclass=Local-gov, fnlwgt=131167, education=Masters, education-num=14, marital-status=Never-married, occupation=Prof-specialty, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=45, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Never-married.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Never-married (prob drop: 0.026661).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0661
+  - sex_Male: +0.0447
+  - native-country_Vietnam: +0.0409
+  - native-country_Columbia: +0.0322
+  - relationship_Not-in-family: +0.0300
+- Top negative features (shap_value):
+  - capital-loss: -0.0661
+  - native-country_Cambodia: -0.0447
+  - native-country_Yugoslavia: -0.0409
+  - native-country_Cuba: -0.0322
+  - relationship_Husband: -0.0300
+- Max positive: 0.066071  Max negative: -0.066071
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2466
+  - native-country_Germany <= 0.00: +0.1125
+  - capital-loss <= -0.22: +0.1095
+  - native-country_France <= 0.00: +0.0916
+  - marital-status_Married-AF-spouse <= 0.00: +0.0897
+- Top negative features (weight):
+  - education-num > 1.13: -0.0899
+  - native-country_Columbia <= 0.00: -0.0477
+  - native-country_Portugal <= 0.00: -0.0385
+- Max positive: 0.246614  Max negative: -0.089852
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Never-married: +0.0248
+  - relationship_Not-in-family: +0.0196
+  - sex_Female: +0.0022
+  - capital-gain: +0.0019
+  - fnlwgt: +0.0017
+- Top negative features (attribution_score):
+  - education-num: -0.0151
+  - occupation_Prof-specialty: -0.0101
+  - education_Masters: -0.0082
+  - age: -0.0036
+  - hours-per-week: -0.0023
+- Max positive: 0.024757  Max negative: -0.015077
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Never-married: drop=+0.0267  (orig=0.4160 → mod=0.3893)
+  - relationship_Not-in-family: drop=+0.0209  (orig=0.4160 → mod=0.3951)
+  - education-num: drop=-0.0117  (orig=0.4160 → mod=0.4276)
+  - occupation_Prof-specialty: drop=-0.0081  (orig=0.4160 → mod=0.4241)
+  - workclass_Local-gov: drop=+0.0058  (orig=0.4160 → mod=0.4102)
+  - education_Masters: drop=-0.0053  (orig=0.4160 → mod=0.4212)
+  - sex_Female: drop=+0.0048  (orig=0.4160 → mod=0.4111)
+  - age: drop=-0.0046  (orig=0.4160 → mod=0.4206)
+  - hours-per-week: drop=-0.0023  (orig=0.4160 → mod=0.4182)
+  - capital-loss: drop=+0.0019  (orig=0.4160 → mod=0.4140)
+- Max prob_drop: 0.026661  Max prob_increase: -0.01165
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the true class is <=50K, evaluate whether features like 'workclass=Local-gov', 'occupation=Prof-specialty', or 'sex=Female' have plausible semantic connections to income level, or if they are likely spurious correlations learned during training due to data bias or noise.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private", "justification": "The 'workclass=Local-gov' category is associated with government employment, which historically has lower average incomes compared to private sector jobs. However, local government employment can vary by region and role, and while it may correlate with lower income, it is not inherently spurious. Given that the true label is <=50K, and the model incorrectly predicted >50K, this feature might not strongly push toward higher income. Still, it has plausible domain relevance to income levels and should not be marked as irrelevant."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "justification": "The occupation 'Prof-specialty' (professional specialty) generally indicates a higher-income category, such as physicians or professionals. This feature has strong semantic correlation with higher income and is likely a major driver of the model's prediction of >50K. Given that the true label is <=50K, this feature is not irrelevant\u2014it is a plausible contributor to the error. Therefore, it is not semantically irrelevant."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "justification": "The feature 'sex=Female' is known to have a historical data bias in income distribution due to gender wage gaps, and in the original dataset, females are underrepresented in high-income brackets. However, this does not mean the feature is spurious\u2014rather, it reflects real socioeconomic disparities. While it may contribute to the model overestimating income for females, it is semantically relevant to income and cannot be ignored as irrelevant."}]
+- Explanation: All three features—workclass, occupation, and sex—are semantically relevant to income level in the context of the dataset. 'Local-gov' workclass may imply lower income but is not trivially irrelevant. 'Prof-specialty' is a high-income occupation and strongly correlates with >50K. 'Sex=Female' is associated with income disparities due to historical and structural biases, which means it is not a noise or spurious feature but a real-world confounder. Therefore, none of these features are semantically irrelevant. The model’s error likely stems from overfitting to data patterns involving high-income professional roles or misweighting of demographic factors, not from using irrelevant features.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the model's feature attribution scores (from XAI tools) with the known semantic relevance of features to income (e.g., education-num, age, hours-per-week). Identify any high-attribution features that lack semantic grounding.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 42, "semantic_relevance": "relevant"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "semantic_relevance": "relevant"}, {"feature_key": "education-num", "action": "change", "new_value": 14, "semantic_relevance": "relevant"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "semantic_relevance": "relevant"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "semantic_relevance": "relevant"}]
+- Explanation: The model predicted the individual as >50K when the true label was <=50K. Based on known semantic relevance in income prediction tasks, features such as 'age', 'education-num', 'marital-status', 'occupation', and 'workclass' are all established as semantically relevant to income levels. The current values show a 'Female' sex, 'White' race, and 'Not-in-family' relationship, which are typically less impactful or neutral in determining income in this dataset. However, the task only asks to assess high-attribution features against semantic grounding. Given no actual XAI attribution scores were provided, we cannot identify any feature with high attribution scores that lack semantic grounding. All listed features in the input are semantically grounded and commonly associated with income prediction. Therefore, there is no evidence of irrelevant or wrongly attributed features influencing the prediction. The model’s error may stem from other factors (e.g., class imbalance, bias in training data), but no high-attribution feature appears to be semantically unsupported.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the true class is <=50K, evaluate whether features like 'workclass=Local-gov', 'occupation=Prof-specialty', or 'sex=Female' have plausible semantic connections to income level, or if they are likely spurious correlations learned during training due to data bias or noise.
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private", "justification": "The 'workclass=Local-gov' category is associated with government employment, which historically has lower average incomes compared to private sector jobs. However, local government employment can vary by region and role, and while it may correlate with lower income, it is not inherently spurious. Given that the true label is <=50K, and the model incorrectly predicted >50K, this feature might not strongly push toward higher income. Still, it has plausible domain relevance to income levels and should not be marked as irrelevant."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "justification": "The occupation 'Prof-specialty' (professional specialty) generally indicates a higher-income category, such as physicians or professionals. This feature has strong semantic correlation with higher income and is likely a major driver of the model's prediction of >50K. Given that the true label is <=50K, this feature is not irrelevant\u2014it is a plausible contributor to the error. Therefore, it is not semantically irrelevant."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "justification": "The feature 'sex=Female' is known to have a historical data bias in income distribution due to gender wage gaps, and in the original dataset, females are underrepresented in high-income brackets. However, this does not mean the feature is spurious\u2014rather, it reflects real socioeconomic disparities. While it may contribute to the model overestimating income for females, it is semantically relevant to income and cannot be ignored as irrelevant."}]
+- Explanation: All three features—workclass, occupation, and sex—are semantically relevant to income level in the context of the dataset. 'Local-gov' workclass may imply lower income but is not trivially irrelevant. 'Prof-specialty' is a high-income occupation and strongly correlates with >50K. 'Sex=Female' is associated with income disparities due to historical and structural biases, which means it is not a noise or spurious feature but a real-world confounder. Therefore, none of these features are semantically irrelevant. The model’s error likely stems from overfitting to data patterns involving high-income professional roles or misweighting of demographic factors, not from using irrelevant features.
+- Confidence: 0.98
+
+### COMPARISON Task
+- Query: Compare the model's feature attribution scores (from XAI tools) with the known semantic relevance of features to income (e.g., education-num, age, hours-per-week). Identify any high-attribution features that lack semantic grounding.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 42, "semantic_relevance": "relevant"}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "semantic_relevance": "relevant"}, {"feature_key": "education-num", "action": "change", "new_value": 14, "semantic_relevance": "relevant"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married", "semantic_relevance": "relevant"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "semantic_relevance": "relevant"}]
+- Explanation: The model predicted the individual as >50K when the true label was <=50K. Based on known semantic relevance in income prediction tasks, features such as 'age', 'education-num', 'marital-status', 'occupation', and 'workclass' are all established as semantically relevant to income levels. The current values show a 'Female' sex, 'White' race, and 'Not-in-family' relationship, which are typically less impactful or neutral in determining income in this dataset. However, the task only asks to assess high-attribution features against semantic grounding. Given no actual XAI attribution scores were provided, we cannot identify any feature with high attribution scores that lack semantic grounding. All listed features in the input are semantically grounded and commonly associated with income prediction. Therefore, there is no evidence of irrelevant or wrongly attributed features influencing the prediction. The model’s error may stem from other factors (e.g., class imbalance, bias in training data), but no high-attribution feature appears to be semantically unsupported.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: <=50K (56.38%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=58, workclass=Private, fnlwgt=234481, education=10th, education-num=6, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.030323).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.1045
+  - fnlwgt: +0.0609
+  - native-country_Cambodia: +0.0377
+  - native-country_Taiwan: +0.0244
+  - native-country_United-States: +0.0219
+- Top negative features (shap_value):
+  - hours-per-week: -0.1045
+  - age: -0.0609
+  - sex_Male: -0.0377
+  - native-country_Thailand: -0.0244
+  - native-country_Trinadad&Tobago: -0.0219
+- Max positive: 0.104539  Max negative: -0.104539
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2291
+  - native-country_Italy <= 0.00: +0.1160
+  - capital-loss <= -0.22: +0.1079
+  - education-num <= -0.44: +0.0790
+  - native-country_Philippines <= 0.00: +0.0206
+- Top negative features (weight):
+  - native-country_Yugoslavia <= 0.00: -0.1074
+  - native-country_Portugal <= 0.00: -0.0990
+  - age > 0.64: -0.0940
+  - native-country_South <= 0.00: -0.0826
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0242
+- Max positive: 0.229076  Max negative: -0.10737
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0312
+  - education_10th: +0.0061
+  - occupation_Transport-moving: +0.0050
+  - race_White: +0.0043
+  - workclass_Private: +0.0021
+- Top negative features (attribution_score):
+  - age: -0.0175
+  - marital-status_Married-civ-spouse: -0.0167
+  - relationship_Husband: -0.0114
+  - native-country_United-States: -0.0101
+  - sex_Male: -0.0070
+- Max positive: 0.031246  Max negative: -0.01751
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0303  (orig=0.3926 → mod=0.3623)
+  - age: drop=-0.0156  (orig=0.3926 → mod=0.4082)
+  - marital-status_Married-civ-spouse: drop=-0.0146  (orig=0.3926 → mod=0.4072)
+  - relationship_Husband: drop=-0.0086  (orig=0.3926 → mod=0.4012)
+  - sex_Male: drop=-0.0077  (orig=0.3926 → mod=0.4003)
+  - native-country_United-States: drop=-0.0075  (orig=0.3926 → mod=0.4001)
+  - occupation_Transport-moving: drop=+0.0051  (orig=0.3926 → mod=0.3875)
+  - education_10th: drop=+0.0042  (orig=0.3926 → mod=0.3885)
+  - capital-loss: drop=+0.0025  (orig=0.3926 → mod=0.3901)
+  - workclass_Private: drop=-0.0019  (orig=0.3926 → mod=0.3945)
+- Max prob_drop: 0.030323  Max prob_increase: -0.015587
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted >50K but the true label is <=50K, why might a feature like 'education-num=6' (10th grade) or 'workclass=Private' be considered semantically irrelevant to the class <=50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "12", "explanation": "The feature 'education-num=6' corresponds to '10th grade', which is a relatively low level of education. In the context of income prediction, higher education levels are typically associated with higher earnings. The model may have incorrectly inferred higher income due to a misinterpretation of the modest education level, treating it as a strong predictor of >50K when it is actually a weak indicator. This suggests the feature might be semantically irrelevant or underweighted in the correct class (<=50K) due to structural bias in feature importance."}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "The workclass 'Private' is common and widely distributed across income groups, including both high and low earners. It does not inherently correlate with income level beyond general employment type. Since 'Private' workclass is present in both >50K and <=50K populations, it lacks semantic relevance as a distinguishing feature for the <=50K class. Thus, its presence may not contribute meaningfully to the correct prediction and could be a confounding factor in the model's decision."}]
+- Explanation: The features 'education-num=6' and 'workclass=Private' are semantically weak predictors of income levels. 'Education-num=6' (10th grade) is below the average education level typically linked to higher income, suggesting it should not support a >50K prediction, especially when the true label is <=50K. 'Private' workclass is prevalent and does not strongly differentiate income groups, making it irrelevant as a feature in predicting the correct class. These features may have been overemphasized due to model bias or missing contextual feature weighting, leading to incorrect predictions.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's attention to features like 'age=58', 'fnlwgt=234481', and 'race=White' with features known to be semantically relevant (e.g., 'marital-status', 'occupation') to detect misaligned importance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "highly relevant", "explanation": "Age=58 is a strong indicator of higher earnings potential, especially in the context of 'Married-civ-spouse' and 'Husband' relationship. Despite the model predicting <=50K, age is semantically aligned with higher income (>50K). The model's low confidence may reflect misalignment with this expected trend."}, {"feature_key": "fnlwgt", "action": "irrelevant", "explanation": "fnlwgt (final weight) is a statistical auxiliary field used for data balancing, not a direct predictor of income. Its value (234481) is not semantically tied to actual earnings. The model appears to have misaligned attention by overweighing this feature, likely due to feature correlation or model training bias."}, {"feature_key": "race", "action": "semantically neutral", "explanation": "Race='White' is not a direct determinant of income in this dataset; it has no known semantic relationship with the income class. The model's attention to this feature is likely due to model overfitting or spurious correlations, not meaningful relevance."}, {"feature_key": "marital-status", "action": "highly relevant", "explanation": "Married-civ-spouse implies stability and potential for higher income, especially paired with 'Husband' and 'Private' workclass. This feature should strongly support a >50K prediction. The model's failure to prioritize this contradicts semantic expectations."}, {"feature_key": "occupation", "action": "highly relevant", "explanation": "Occupation='Transport-moving' is typically associated with lower wages compared to managerial or professional roles. This is a key semantic signal pointing toward <=50K, which may contribute to the model\u2019s incorrect prediction despite higher age and marital status."}]
+- Explanation: The model incorrectly predicted <=50K despite having features (age, marital-status) that strongly suggest higher income (>50K). The semantic relevance of 'marital-status' and 'age' contradicts the model's low confidence and prediction. In contrast, features like 'fnlwgt' and 'race' are irrelevant or neutral and show signs of misalignment. The model appears to be overattending to non-semantic features and underattending to key income-related categories like marital-status and occupation, leading to a misprediction.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted >50K but the true label is <=50K, why might a feature like 'education-num=6' (10th grade) or 'workclass=Private' be considered semantically irrelevant to the class <=50K?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": "12", "explanation": "The feature 'education-num=6' corresponds to '10th grade', which is a relatively low level of education. In the context of income prediction, higher education levels are typically associated with higher earnings. The model may have incorrectly inferred higher income due to a misinterpretation of the modest education level, treating it as a strong predictor of >50K when it is actually a weak indicator. This suggests the feature might be semantically irrelevant or underweighted in the correct class (<=50K) due to structural bias in feature importance."}, {"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "The workclass 'Private' is common and widely distributed across income groups, including both high and low earners. It does not inherently correlate with income level beyond general employment type. Since 'Private' workclass is present in both >50K and <=50K populations, it lacks semantic relevance as a distinguishing feature for the <=50K class. Thus, its presence may not contribute meaningfully to the correct prediction and could be a confounding factor in the model's decision."}]
+- Explanation: The features 'education-num=6' and 'workclass=Private' are semantically weak predictors of income levels. 'Education-num=6' (10th grade) is below the average education level typically linked to higher income, suggesting it should not support a >50K prediction, especially when the true label is <=50K. 'Private' workclass is prevalent and does not strongly differentiate income groups, making it irrelevant as a feature in predicting the correct class. These features may have been overemphasized due to model bias or missing contextual feature weighting, leading to incorrect predictions.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's attention to features like 'age=58', 'fnlwgt=234481', and 'race=White' with features known to be semantically relevant (e.g., 'marital-status', 'occupation') to detect misaligned importance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "highly relevant", "explanation": "Age=58 is a strong indicator of higher earnings potential, especially in the context of 'Married-civ-spouse' and 'Husband' relationship. Despite the model predicting <=50K, age is semantically aligned with higher income (>50K). The model's low confidence may reflect misalignment with this expected trend."}, {"feature_key": "fnlwgt", "action": "irrelevant", "explanation": "fnlwgt (final weight) is a statistical auxiliary field used for data balancing, not a direct predictor of income. Its value (234481) is not semantically tied to actual earnings. The model appears to have misaligned attention by overweighing this feature, likely due to feature correlation or model training bias."}, {"feature_key": "race", "action": "semantically neutral", "explanation": "Race='White' is not a direct determinant of income in this dataset; it has no known semantic relationship with the income class. The model's attention to this feature is likely due to model overfitting or spurious correlations, not meaningful relevance."}, {"feature_key": "marital-status", "action": "highly relevant", "explanation": "Married-civ-spouse implies stability and potential for higher income, especially paired with 'Husband' and 'Private' workclass. This feature should strongly support a >50K prediction. The model's failure to prioritize this contradicts semantic expectations."}, {"feature_key": "occupation", "action": "highly relevant", "explanation": "Occupation='Transport-moving' is typically associated with lower wages compared to managerial or professional roles. This is a key semantic signal pointing toward <=50K, which may contribute to the model\u2019s incorrect prediction despite higher age and marital status."}]
+- Explanation: The model incorrectly predicted <=50K despite having features (age, marital-status) that strongly suggest higher income (>50K). The semantic relevance of 'marital-status' and 'age' contradicts the model's low confidence and prediction. In contrast, features like 'fnlwgt' and 'race' are irrelevant or neutral and show signs of misalignment. The model appears to be overattending to non-semantic features and underattending to key income-related categories like marital-status and occupation, leading to a misprediction.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

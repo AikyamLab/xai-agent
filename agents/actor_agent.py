@@ -1468,6 +1468,19 @@ JSON Response:"""
             if "part_to_change" in extracted:
                 context["part_to_change"] = extracted["part_to_change"]
 
+        # For vision Q7: pass the full class list when it is small enough to be useful
+        # (≤30 classes, e.g. STL-10).  Large datasets like CUB-200 are excluded until
+        # a dedicated evaluation strategy is chosen.
+        if question.get("q_type") == 7 and modality == "vision":
+            label_map = (model_info or {}).get("label_map", {})
+            if label_map:
+                if isinstance(label_map, dict):
+                    all_classes = [str(label_map[k]) for k in sorted(label_map.keys())]
+                else:
+                    all_classes = [str(c) for c in label_map]
+                if len(all_classes) <= 30:
+                    context["available_classes"] = all_classes
+
         return context
 
     def _generate_explanation_with_prompt_builder(

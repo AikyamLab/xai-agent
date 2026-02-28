@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (57.98%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=56, workclass=Self-emp-not-inc, fnlwgt=306633, education=Assoc-voc, education-num=11, marital-status=Married-civ-spouse, occupation=Prof-specialty, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Trinadad&Tobago.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: relationship_Husband (prob drop: 0.006884).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_United-States: +0.0181
+  - native-country_Cuba: +0.0178
+  - fnlwgt: +0.0157
+  - education_5th-6th: +0.0146
+  - native-country_Cambodia: +0.0108
+- Top negative features (shap_value):
+  - native-country_Trinadad&Tobago: -0.0181
+  - native-country_Columbia: -0.0178
+  - age: -0.0157
+  - education_1st-4th: -0.0146
+  - sex_Male: -0.0108
+- Max positive: 0.018062  Max negative: -0.018062
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education_7th-8th <= 0.00: +0.0585
+  - -0.05 < education-num <= 1.13: +0.0419
+  - marital-status_Divorced <= 0.00: +0.0390
+  - occupation_Armed-Forces <= 0.00: +0.0386
+  - native-country_Cuba <= 0.00: +0.0286
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0865
+  - capital-gain <= -0.15: -0.0650
+  - hours-per-week <= -0.08: -0.0465
+  - native-country_Taiwan <= 0.00: -0.0145
+- Max positive: 0.058512  Max negative: -0.086527
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0068
+  - relationship_Husband: +0.0051
+  - age: +0.0050
+  - marital-status_Married-civ-spouse: +0.0044
+  - native-country_United-States: +0.0036
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0023
+  - occupation_Prof-specialty: -0.0021
+  - education_Assoc-voc: -0.0011
+  - workclass_Self-emp-not-inc: -0.0010
+  - hours-per-week: -0.0007
+- Max positive: 0.0068  Max negative: -0.002272
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - relationship_Husband: drop=+0.0069  (orig=0.6410 → mod=0.6341)
+  - marital-status_Married-civ-spouse: drop=+0.0062  (orig=0.6410 → mod=0.6349)
+  - race_White: drop=+0.0044  (orig=0.6410 → mod=0.6366)
+  - sex_Male: drop=+0.0039  (orig=0.6410 → mod=0.6371)
+  - fnlwgt: drop=-0.0036  (orig=0.6410 → mod=0.6446)
+  - age: drop=+0.0027  (orig=0.6410 → mod=0.6383)
+  - education_Assoc-voc: drop=-0.0016  (orig=0.6410 → mod=0.6426)
+  - workclass_Self-emp-not-inc: drop=-0.0010  (orig=0.6410 → mod=0.6420)
+  - capital-gain: drop=-0.0009  (orig=0.6410 → mod=0.6419)
+  - education-num: drop=+0.0006  (orig=0.6410 → mod=0.6404)
+- Max prob_drop: 0.006884  Max prob_increase: -0.003593
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'workclass=Self-emp-not-inc' or 'occupation=Prof-specialty' be semantically unrelated to the outcome '<=50K' despite being high in model attribution?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: In the context of the adult income prediction task, the outcome '<=50K' is primarily influenced by socio-economic factors such as education, age, hours per week, and sex, which have well-documented correlations with income levels. 'workclass=Self-emp-not-inc' (self-employed, not incorporated) and 'occupation=Prof-specialty' (professional specialty) are high in model attribution but are semantically less directly linked to income outcomes compared to features like 'age' or 'hours-per-week'. Self-employment status may vary widely in income, and professional occupations like 'Prof-specialty' are often associated with higher wages, which could create a false positive attribution where the model overemphasizes these features due to statistical noise or collinearity with other strong predictors. Moreover, 'workclass' and 'occupation' are often highly correlated and may capture noise rather than meaningful causal relationships. Therefore, they are semantically less relevant to the target outcome when compared to more direct socio-demographic and behavioral indicators.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted importance of 'education-num' and 'age' to their known relevance in predicting income level; assess if any feature appears disproportionately important due to spurious correlation.
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "High", "spuriousness": "Low", "reason": "Age is a well-established predictor of income in socio-economic contexts. Older individuals (especially those over 50) often have accumulated work experience and higher earnings. The provided individual is 56 years old, which aligns with a higher income likelihood in real-world trends. This feature has strong, direct, and non-sporadic correlation with income, and no known spurious relationship in the dataset."}, {"feature_key": "education-num", "semantic_relevance": "Medium to High", "spuriousness": "Low to Medium", "reason": "Education level (via education-num) is generally correlated with earning potential. The individual has an 'Assoc-voc' education (education-num=11), which is typically associated with mid-level skills and moderate income. However, in some datasets, education-num may be correlated with other variables (e.g., age, workclass) due to selection bias or sampling skew. While not spurious, the effect might be weaker than expected given the individual's age and profession. Spuriousness arises only if education-num correlates with income through an unrelated factor (e.g., native-country), but such coupling is not evident here."}, {"feature_key": "workclass", "semantic_relevance": "Medium", "spuriousness": "Low", "reason": "The individual is a 'Self-emp-not-inc' worker, which is typically associated with higher income compared to government or private employment. This feature is semantically relevant but less predictive than age or education in isolation. No known spurious correlation is present."}, {"feature_key": "occupation", "semantic_relevance": "High", "spuriousness": "Low", "reason": "Prof-specialty is a high-income occupation (e.g., professionals in specialties like medicine, engineering). This strongly supports higher income. No spurious correlation is evident; occupation is a direct indicator of income potential."}, {"feature_key": "sex", "semantic_relevance": "Medium", "spuriousness": "Medium", "reason": "Male sex is often correlated with higher income in some datasets due to historical wage disparities. However, this is a known socio-economic bias and may represent spurious correlation. In this case, the individual is male and paired with a high-earning occupation (Prof-specialty), so the effect may be amplified. While not inherently spurious, it could contribute to model bias if not properly controlled."}]
+- Explanation: The model incorrectly predicted the individual as >50K when the true label was <=50K. While both 'age' and 'education-num' are semantically relevant, age (56 years) and occupation (Prof-specialty) have strong, direct links to higher income. However, the prediction error suggests that the model may have overestimated the importance of 'education-num' relative to its actual biological or economic role. Education-num may reflect a spurious correlation due to co-occurrence with other features (e.g., age, occupation) or dataset imbalance. Despite this, no strong evidence of spuriousness is present in the available features. The primary driver of the error could be over-reliance on 'education-num' or poor calibration in handling categorical-numeric interactions. Yet, all features show low to medium spuriousness, and no feature appears to drive the incorrect prediction due to a non-causal correlation.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might a feature like 'workclass=Self-emp-not-inc' or 'occupation=Prof-specialty' be semantically unrelated to the outcome '<=50K' despite being high in model attribution?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: In the context of the adult income prediction task, the outcome '<=50K' is primarily influenced by socio-economic factors such as education, age, hours per week, and sex, which have well-documented correlations with income levels. 'workclass=Self-emp-not-inc' (self-employed, not incorporated) and 'occupation=Prof-specialty' (professional specialty) are high in model attribution but are semantically less directly linked to income outcomes compared to features like 'age' or 'hours-per-week'. Self-employment status may vary widely in income, and professional occupations like 'Prof-specialty' are often associated with higher wages, which could create a false positive attribution where the model overemphasizes these features due to statistical noise or collinearity with other strong predictors. Moreover, 'workclass' and 'occupation' are often highly correlated and may capture noise rather than meaningful causal relationships. Therefore, they are semantically less relevant to the target outcome when compared to more direct socio-demographic and behavioral indicators.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's predicted importance of 'education-num' and 'age' to their known relevance in predicting income level; assess if any feature appears disproportionately important due to spurious correlation.
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "High", "spuriousness": "Low", "reason": "Age is a well-established predictor of income in socio-economic contexts. Older individuals (especially those over 50) often have accumulated work experience and higher earnings. The provided individual is 56 years old, which aligns with a higher income likelihood in real-world trends. This feature has strong, direct, and non-sporadic correlation with income, and no known spurious relationship in the dataset."}, {"feature_key": "education-num", "semantic_relevance": "Medium to High", "spuriousness": "Low to Medium", "reason": "Education level (via education-num) is generally correlated with earning potential. The individual has an 'Assoc-voc' education (education-num=11), which is typically associated with mid-level skills and moderate income. However, in some datasets, education-num may be correlated with other variables (e.g., age, workclass) due to selection bias or sampling skew. While not spurious, the effect might be weaker than expected given the individual's age and profession. Spuriousness arises only if education-num correlates with income through an unrelated factor (e.g., native-country), but such coupling is not evident here."}, {"feature_key": "workclass", "semantic_relevance": "Medium", "spuriousness": "Low", "reason": "The individual is a 'Self-emp-not-inc' worker, which is typically associated with higher income compared to government or private employment. This feature is semantically relevant but less predictive than age or education in isolation. No known spurious correlation is present."}, {"feature_key": "occupation", "semantic_relevance": "High", "spuriousness": "Low", "reason": "Prof-specialty is a high-income occupation (e.g., professionals in specialties like medicine, engineering). This strongly supports higher income. No spurious correlation is evident; occupation is a direct indicator of income potential."}, {"feature_key": "sex", "semantic_relevance": "Medium", "spuriousness": "Medium", "reason": "Male sex is often correlated with higher income in some datasets due to historical wage disparities. However, this is a known socio-economic bias and may represent spurious correlation. In this case, the individual is male and paired with a high-earning occupation (Prof-specialty), so the effect may be amplified. While not inherently spurious, it could contribute to model bias if not properly controlled."}]
+- Explanation: The model incorrectly predicted the individual as >50K when the true label was <=50K. While both 'age' and 'education-num' are semantically relevant, age (56 years) and occupation (Prof-specialty) have strong, direct links to higher income. However, the prediction error suggests that the model may have overestimated the importance of 'education-num' relative to its actual biological or economic role. Education-num may reflect a spurious correlation due to co-occurrence with other features (e.g., age, occupation) or dataset imbalance. Despite this, no strong evidence of spuriousness is present in the available features. The primary driver of the error could be over-reliance on 'education-num' or poor calibration in handling categorical-numeric interactions. Yet, all features show low to medium spuriousness, and no feature appears to drive the incorrect prediction due to a non-causal correlation.
+- Confidence: 0.93
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

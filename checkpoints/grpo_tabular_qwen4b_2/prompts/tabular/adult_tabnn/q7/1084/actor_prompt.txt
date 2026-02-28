@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change marital-status, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (74.01%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.7401141226291656}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.25988587737083435}]
+- Part to Change: marital-status
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=239577, education=Some-college, education-num=10, marital-status=Never-married, occupation=Prof-specialty, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=52, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.022737).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0563
+  - native-country_Peru: +0.0343
+  - native-country_Columbia: +0.0317
+  - sex_Male: +0.0308
+  - native-country_Trinadad&Tobago: +0.0157
+- Top negative features (shap_value):
+  - fnlwgt: -0.0563
+  - native-country_Outlying-US(Guam-USVI-etc): -0.0343
+  - native-country_Cuba: -0.0317
+  - native-country_Cambodia: -0.0308
+  - native-country_United-States: -0.0157
+- Max positive: 0.056272  Max negative: -0.056272
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0227  (orig=0.4354 → mod=0.4127)
+  - marital-status_Never-married: drop=+0.0153  (orig=0.4354 → mod=0.4201)
+  - relationship_Own-child: drop=+0.0104  (orig=0.4354 → mod=0.4250)
+  - sex_Male: drop=-0.0045  (orig=0.4354 → mod=0.4399)
+  - hours-per-week: drop=-0.0042  (orig=0.4354 → mod=0.4396)
+  - occupation_Prof-specialty: drop=-0.0032  (orig=0.4354 → mod=0.4386)
+  - capital-gain: drop=+0.0024  (orig=0.4354 → mod=0.4330)
+  - education_Some-college: drop=+0.0022  (orig=0.4354 → mod=0.4332)
+  - native-country_United-States: drop=+0.0019  (orig=0.4354 → mod=0.4335)
+  - capital-loss: drop=+0.0017  (orig=0.4354 → mod=0.4337)
+- Max prob_drop: 0.022737  Max prob_increase: -0.004494
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Never-married' and the model currently predicts <=50K with 74% confidence, how might changing marital-status to 'Married-civ-spouse' or 'Married-spouse' affect the model's prediction in terms of income classification?
+- Status: Success
+- findings: "Changing marital-status from 'Never-married' to 'Married-civ-spouse' or 'Married-spouse' is likely to increase the probability of predicting income >50K."
+- Explanation: In the Adult Income Classification dataset, marital status is a known socio-economic feature that correlates with income levels. Married individuals, particularly those in stable marital relationships like 'Married-civ-spouse' or 'Married-spouse', often have greater access to shared resources, higher work stability, and stronger job prospects compared to 'Never-married' individuals. As a result, the model typically assigns higher income predictions to married status categories. The current prediction of <=50K with 74% confidence when marital-status is 'Never-married' suggests a lower-income profile. Changing this to 'Married-civ-spouse' or 'Married-spouse' would likely shift the prediction toward >50K due to the positive association observed in training data between marital status and higher income. While specific model weights are not known, domain knowledge and feature correlations support this directional change.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the general importance of marital-status in the TabNN model relative to other categorical features like occupation or race based on domain knowledge and feature patterns in the training data.
+- Status: Success
+- findings: "marital-status is one of the most significant categorical features in predicting income, often outperforming occupation and race in terms of predictive power. In the training data, individuals who are 'Married-civ-spouse' or 'Married-spouse-absent' consistently show higher income probabilities, especially when combined with other socioeconomic features like education level and hours-per-week. In contrast, 'Never-married' individuals, such as in the current case, are predominantly predicted to have income \u226450K, even when other factors like high education or work class are present. This suggests that marital-status has strong domain-level correlation with economic stability and access to income-generating resources (e.g., household support, job networks). While occupation and race also contribute, marital-status is more directly tied to structural household dynamics that influence earning capacity, making it a more fundamental predictor than occupation (which may reflect job type) or race (which is a weaker predictor due to complex and often noisy associations)."
+- Explanation: Marital-status plays a crucial role in income prediction due to its strong correlation with household stability, shared resources, and social capital. In the dataset, married individuals are more likely to have higher incomes, and this pattern holds across various education and socioeconomic levels. Occupation and race provide secondary or context-dependent signals, but marital-status captures a structural factor that directly impacts income pathways. For example, a 'Never-married' individual with high education and work experience still faces structural disadvantages in earning potential compared to married counterparts with similar attributes. Thus, altering marital-status—such as changing from 'Never-married' to 'Married-civ-spouse'—would likely increase the income prediction above 50K, especially in conjunction with stable work and education levels. This domain knowledge aligns with observed patterns in the training data and supports the dominant predictive role of marital-status.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that marital-status is 'Never-married' and the model currently predicts <=50K with 74% confidence, how might changing marital-status to 'Married-civ-spouse' or 'Married-spouse' affect the model's prediction in terms of income classification?
+- Status: Success
+- findings: "Changing marital-status from 'Never-married' to 'Married-civ-spouse' or 'Married-spouse' is likely to increase the probability of predicting income >50K."
+- Explanation: In the Adult Income Classification dataset, marital status is a known socio-economic feature that correlates with income levels. Married individuals, particularly those in stable marital relationships like 'Married-civ-spouse' or 'Married-spouse', often have greater access to shared resources, higher work stability, and stronger job prospects compared to 'Never-married' individuals. As a result, the model typically assigns higher income predictions to married status categories. The current prediction of <=50K with 74% confidence when marital-status is 'Never-married' suggests a lower-income profile. Changing this to 'Married-civ-spouse' or 'Married-spouse' would likely shift the prediction toward >50K due to the positive association observed in training data between marital status and higher income. While specific model weights are not known, domain knowledge and feature correlations support this directional change.
+- Confidence: 0.87
+
+### COMPARISON Task
+- Query: Compare the general importance of marital-status in the TabNN model relative to other categorical features like occupation or race based on domain knowledge and feature patterns in the training data.
+- Status: Success
+- findings: "marital-status is one of the most significant categorical features in predicting income, often outperforming occupation and race in terms of predictive power. In the training data, individuals who are 'Married-civ-spouse' or 'Married-spouse-absent' consistently show higher income probabilities, especially when combined with other socioeconomic features like education level and hours-per-week. In contrast, 'Never-married' individuals, such as in the current case, are predominantly predicted to have income \u226450K, even when other factors like high education or work class are present. This suggests that marital-status has strong domain-level correlation with economic stability and access to income-generating resources (e.g., household support, job networks). While occupation and race also contribute, marital-status is more directly tied to structural household dynamics that influence earning capacity, making it a more fundamental predictor than occupation (which may reflect job type) or race (which is a weaker predictor due to complex and often noisy associations)."
+- Explanation: Marital-status plays a crucial role in income prediction due to its strong correlation with household stability, shared resources, and social capital. In the dataset, married individuals are more likely to have higher incomes, and this pattern holds across various education and socioeconomic levels. Occupation and race provide secondary or context-dependent signals, but marital-status captures a structural factor that directly impacts income pathways. For example, a 'Never-married' individual with high education and work experience still faces structural disadvantages in earning potential compared to married counterparts with similar attributes. Thus, altering marital-status—such as changing from 'Never-married' to 'Married-civ-spouse'—would likely increase the income prediction above 50K, especially in conjunction with stable work and education levels. This domain knowledge aligns with observed patterns in the training data and supports the dominant predictive role of marital-status.
+- Confidence: 0.94
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

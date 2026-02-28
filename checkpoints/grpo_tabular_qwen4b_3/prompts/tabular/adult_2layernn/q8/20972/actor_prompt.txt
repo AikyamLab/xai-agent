@@ -1,0 +1,137 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (57.06%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=56, workclass=Private, fnlwgt=231232, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Adm-clerical, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=30, native-country=Canada
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: hours-per-week.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008448).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0333
+  - native-country_United-States: +0.0177
+  - marital-status_Never-married: +0.0124
+  - native-country_Ecuador: +0.0056
+  - native-country_Yugoslavia: +0.0036
+- Top negative features (shap_value):
+  - capital-loss: -0.0333
+  - native-country_Trinadad&Tobago: -0.0177
+  - marital-status_Married-spouse-absent: -0.0124
+  - native-country_Dominican-Republic: -0.0056
+  - native-country_Vietnam: -0.0036
+- Max positive: 0.033327  Max negative: -0.033327
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Canada > 0.00: +0.0556
+  - marital-status_Divorced <= 0.00: +0.0476
+  - education_1st-4th <= 0.00: +0.0470
+  - -0.05 < education-num <= 1.13: +0.0465
+  - education_5th-6th <= 0.00: +0.0436
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0767
+  - capital-gain <= -0.15: -0.0738
+  - native-country_China <= 0.00: -0.0472
+  - hours-per-week <= -0.08: -0.0448
+  - native-country_Italy <= 0.00: -0.0269
+- Max positive: 0.055631  Max negative: -0.076739
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0089
+  - sex_Male: +0.0085
+  - relationship_Husband: +0.0070
+  - race_White: +0.0043
+  - marital-status_Married-civ-spouse: +0.0036
+- Top negative features (attribution_score):
+  - hours-per-week: -0.0116
+  - workclass_Private: -0.0045
+  - occupation_Adm-clerical: -0.0020
+  - capital-gain: -0.0004
+  - capital-loss: -0.0000
+- Max positive: 0.008898  Max negative: -0.011632
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0084  (orig=0.6389 → mod=0.6305)
+  - hours-per-week: drop=-0.0084  (orig=0.6389 → mod=0.6473)
+  - relationship_Husband: drop=+0.0084  (orig=0.6389 → mod=0.6305)
+  - education-num: drop=+0.0084  (orig=0.6389 → mod=0.6305)
+  - marital-status_Married-civ-spouse: drop=+0.0060  (orig=0.6389 → mod=0.6329)
+  - race_White: drop=+0.0054  (orig=0.6389 → mod=0.6335)
+  - workclass_Private: drop=-0.0038  (orig=0.6389 → mod=0.6427)
+  - native-country_Canada: drop=+0.0031  (orig=0.6389 → mod=0.6358)
+  - education_Bachelors: drop=+0.0018  (orig=0.6389 → mod=0.6371)
+  - occupation_Adm-clerical: drop=-0.0015  (orig=0.6389 → mod=0.6404)
+- Max prob_drop: 0.008448  Max prob_increase: -0.008422
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Adm-clerical' be semantically linked to >50K despite the true label being <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "spurious_association", "new_value": "Private"}, {"feature_key": "occupation", "action": "spurious_association", "new_value": "Adm-clerical"}, {"feature_key": "age", "action": "relevant", "new_value": 56}, {"feature_key": "education", "action": "relevant", "new_value": "Bachelors"}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": 30}, {"feature_key": "sex", "action": "relevant", "new_value": "Male"}, {"feature_key": "race", "action": "relevant", "new_value": "White"}]
+- Explanation: In the context of the UCI Adult Income dataset, 'workclass'='Private' and 'occupation'='Adm-clerical' are commonly associated with lower to middle-income brackets, not high income (>50K). However, these features may be spuriously correlated with >50K due to data imbalances or proxies in training data (e.g., over-representation of 'Private' workers in high-income samples). Empirical analysis shows that 'age', 'education', 'hours-per-week', 'sex', and 'race' are more directly linked to income levels. The model's 57% confidence suggests uncertainty, and the true label being <=50K indicates a misalignment. The features 'workclass=Private' and 'occupation=Adm-clerical' are not semantically linked to >50K income; instead, they appear to be part of a spurious pattern due to feature co-occurrence or bias in the dataset. Thus, these features are flagged as spuriously associated, while others are relevant predictors of income level.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence and feature attribution to known income-related features (e.g., education-num, age, hours-per-week) versus less relevant ones (e.g., race, sex, workclass)
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 56, "category": "high-attribution", "relevance": "high", "reason": "Age is a well-documented factor in income prediction, with older individuals typically showing higher earning potential. The value 56 is within the typical range for high income, suggesting strong semantic relevance to predicting >50K."}, {"feature_key": "education-num", "action": "change", "new_value": 13, "category": "high-attribution", "relevance": "high", "reason": "Education level (Bachelors) strongly correlates with income. A bachelor's degree is associated with higher earnings, making this feature semantically relevant to predicting >50K."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "category": "high-attribution", "relevance": "high", "reason": "Higher hours-per-week are associated with greater income. A value of 30 is relatively high and may contribute positively to the prediction of >50K."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "category": "high-attribution", "relevance": "low", "reason": "While workclass is a nominal feature, 'Private' is commonly associated with higher income, but its correlation is weaker than education or age. It may contribute to model bias due to data distribution, not direct income causality."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "category": "high-attribution", "relevance": "low", "reason": "Sex has been shown to be a demographic variable with strong historical bias in income modeling, but it is not a direct causal factor. Its inclusion may lead to spurious predictions due to societal factors, not income per se."}, {"feature_key": "race", "action": "change", "new_value": "White", "category": "high-attribution", "relevance": "very low", "reason": "Race has no direct income relation in the model context. The assignment of 'White' does not correlate with income levels and may contribute to model bias or misclassification based on demographic stratification, not actual earning behavior."}]
+- Explanation: The model predicted >50K for an individual whose true label was <=50K, despite having a high-confidence prediction (57.06%). The key features with high semantic relevance — age, education-num, and hours-per-week — are all favorable for higher income. However, features like race and sex, although appearing in top-attribution lists, lack direct income causality and may introduce bias. The model likely overestimated income due to reliance on features with indirect or biased associations (e.g., sex, race), rather than strong causal predictors like education and age. This suggests the wrong prediction stems from misattribution of relevance to demographic features with minimal direct correlation to income levels.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Private' or 'occupation=Adm-clerical' be semantically linked to >50K despite the true label being <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "spurious_association", "new_value": "Private"}, {"feature_key": "occupation", "action": "spurious_association", "new_value": "Adm-clerical"}, {"feature_key": "age", "action": "relevant", "new_value": 56}, {"feature_key": "education", "action": "relevant", "new_value": "Bachelors"}, {"feature_key": "hours-per-week", "action": "relevant", "new_value": 30}, {"feature_key": "sex", "action": "relevant", "new_value": "Male"}, {"feature_key": "race", "action": "relevant", "new_value": "White"}]
+- Explanation: In the context of the UCI Adult Income dataset, 'workclass'='Private' and 'occupation'='Adm-clerical' are commonly associated with lower to middle-income brackets, not high income (>50K). However, these features may be spuriously correlated with >50K due to data imbalances or proxies in training data (e.g., over-representation of 'Private' workers in high-income samples). Empirical analysis shows that 'age', 'education', 'hours-per-week', 'sex', and 'race' are more directly linked to income levels. The model's 57% confidence suggests uncertainty, and the true label being <=50K indicates a misalignment. The features 'workclass=Private' and 'occupation=Adm-clerical' are not semantically linked to >50K income; instead, they appear to be part of a spurious pattern due to feature co-occurrence or bias in the dataset. Thus, these features are flagged as spuriously associated, while others are relevant predictors of income level.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the model's confidence and feature attribution to known income-related features (e.g., education-num, age, hours-per-week) versus less relevant ones (e.g., race, sex, workclass)
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 56, "category": "high-attribution", "relevance": "high", "reason": "Age is a well-documented factor in income prediction, with older individuals typically showing higher earning potential. The value 56 is within the typical range for high income, suggesting strong semantic relevance to predicting >50K."}, {"feature_key": "education-num", "action": "change", "new_value": 13, "category": "high-attribution", "relevance": "high", "reason": "Education level (Bachelors) strongly correlates with income. A bachelor's degree is associated with higher earnings, making this feature semantically relevant to predicting >50K."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 30, "category": "high-attribution", "relevance": "high", "reason": "Higher hours-per-week are associated with greater income. A value of 30 is relatively high and may contribute positively to the prediction of >50K."}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "category": "high-attribution", "relevance": "low", "reason": "While workclass is a nominal feature, 'Private' is commonly associated with higher income, but its correlation is weaker than education or age. It may contribute to model bias due to data distribution, not direct income causality."}, {"feature_key": "sex", "action": "change", "new_value": "Male", "category": "high-attribution", "relevance": "low", "reason": "Sex has been shown to be a demographic variable with strong historical bias in income modeling, but it is not a direct causal factor. Its inclusion may lead to spurious predictions due to societal factors, not income per se."}, {"feature_key": "race", "action": "change", "new_value": "White", "category": "high-attribution", "relevance": "very low", "reason": "Race has no direct income relation in the model context. The assignment of 'White' does not correlate with income levels and may contribute to model bias or misclassification based on demographic stratification, not actual earning behavior."}]
+- Explanation: The model predicted >50K for an individual whose true label was <=50K, despite having a high-confidence prediction (57.06%). The key features with high semantic relevance — age, education-num, and hours-per-week — are all favorable for higher income. However, features like race and sex, although appearing in top-attribution lists, lack direct income causality and may introduce bias. The model likely overestimated income due to reliance on features with indirect or biased associations (e.g., sex, race), rather than strong causal predictors like education and age. This suggests the wrong prediction stems from misattribution of relevance to demographic features with minimal direct correlation to income levels.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

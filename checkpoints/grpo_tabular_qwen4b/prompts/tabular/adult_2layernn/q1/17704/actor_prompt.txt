@@ -1,0 +1,122 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6463
+
+## Input Data
+Features: age=41, workclass=Private, fnlwgt=184102, education=11th, education-num=7, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.014623).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0404
+  - race_Black: +0.0394
+  - education_Some-college: +0.0232
+  - native-country_Japan: +0.0229
+  - occupation_Transport-moving: +0.0178
+- Top negative features (shap_value):
+  - hours-per-week: -0.0404
+  - race_Other: -0.0394
+  - marital-status_Divorced: -0.0232
+  - native-country_Laos: -0.0229
+  - occupation_Tech-support: -0.0178
+- Max positive: 0.040373  Max negative: -0.040373
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0809
+  - capital-gain <= -0.15: +0.0679
+  - marital-status_Divorced > 0.00: +0.0555
+  - education-num <= -0.44: +0.0498
+  - native-country_Yugoslavia <= 0.00: +0.0367
+- Top negative features (weight):
+  - native-country_Hong <= 0.00: -0.0739
+  - native-country_Laos <= 0.00: -0.0361
+  - native-country_Guatemala <= 0.00: -0.0306
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0187
+- Max positive: 0.080944  Max negative: -0.073914
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0137
+  - marital-status_Divorced: +0.0128
+  - education_11th: +0.0072
+  - relationship_Not-in-family: +0.0055
+  - occupation_Other-service: +0.0048
+- Top negative features (attribution_score):
+  - sex_Male: -0.0102
+  - native-country_United-States: -0.0056
+  - race_White: -0.0009
+  - age: -0.0007
+  - fnlwgt: -0.0001
+- Max positive: 0.013701  Max negative: -0.010201
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0146  (orig=0.4125 → mod=0.3979)
+  - marital-status_Divorced: drop=+0.0122  (orig=0.4125 → mod=0.4003)
+  - sex_Male: drop=-0.0098  (orig=0.4125 → mod=0.4223)
+  - education_11th: drop=+0.0097  (orig=0.4125 → mod=0.4027)
+  - relationship_Not-in-family: drop=+0.0065  (orig=0.4125 → mod=0.4060)
+  - occupation_Other-service: drop=+0.0051  (orig=0.4125 → mod=0.4074)
+  - native-country_United-States: drop=-0.0045  (orig=0.4125 → mod=0.4170)
+  - workclass_Private: drop=+0.0038  (orig=0.4125 → mod=0.4086)
+  - capital-loss: drop=+0.0008  (orig=0.4125 → mod=0.4116)
+  - capital-gain: drop=+0.0007  (orig=0.4125 → mod=0.4118)
+- Max prob_drop: 0.014623  Max prob_increase: -0.009822
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are likely to be strong indicators for income <=50K based on domain knowledge (e.g., education level, age, workclass, marital status)?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 7}, {"feature_key": "age", "action": "change", "new_value": 41}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: Based on domain knowledge from the classic 'Adult' dataset (e.g., census income prediction), individuals with lower education levels (e.g., '11th' corresponding to education-num=7) are more likely to earn ≤50K. Age of 41 is moderate and not strongly indicative but does not show strong upward trend toward higher income. Workclass='Private' is common among lower-income groups, especially when combined with lower education. Marital status 'Divorced' is associated with lower income stability and is predictive of lower earnings. Hours-per-week=40 is modest and not indicative of high-income status. These features collectively align with known patterns where lower education, private employment, and non-regular family structures correlate with income ≤50K.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Why might education-num=7 (11th grade) and marital-status=Divorced be indicative of lower income, while workclass=Private might suggest higher income potential?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 7}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}]
+- Explanation: Education-level is strongly correlated with earning potential. An education-num of 7 corresponds to '11th grade', which typically indicates limited formal education and lower career advancement opportunities, often leading to lower-income occupations. Marital status as 'Divorced' may correlate with reduced access to financial stability, such as shared household income or employer-sponsored benefits, and may also indicate lower socioeconomic resources. In contrast, workclass='Private' is often associated with self-employment or wage-based employment in the private sector, which can offer higher earning potential, especially with greater job stability and advancement. However, the low education level and single-divorced status may offset the positive aspects of private sector employment, resulting in a net prediction of lower income. Thus, education-num and marital-status are more predictive of income constraints than workclass in this context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the impact of age and education-num on income class predictions in general, and how they may conflict or align with the model's decision?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 60}, {"feature_key": "education-num", "action": "increase", "new_value": 12}]
+- Explanation: In general, both age and education-num are positively correlated with higher income levels in income prediction models. Older individuals and those with higher education levels tend to have greater earnings. However, in the current case, the individual has a relatively low education level (education-num=7, corresponding to '11th grade') and a moderate age (41), which are both below typical thresholds for high-income groups. Increasing either feature would likely shift the predicted income class from '≤50K' to '>50K', as these features contribute to stronger economic productivity signals. While both features independently favor higher income, they do not conflict—their effects align, reinforcing each other in predicting a higher income. The model’s prediction of ≤50K is consistent with the low values of both features. Thus, improving either would have a synergistic effect on pushing the prediction upward.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

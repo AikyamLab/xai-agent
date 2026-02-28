@@ -1,0 +1,50 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning with robust external explainability tools to ensure both domain-consistent interpretation and quantified feature importance. Autonomous reasoning helps identify baseline priors (e.g., features commonly known to be irrelevant in cancer diagnostics), while tools like SHAP and sensitivity analysis provide statistically grounded, model-agnostic attribution scores that quantify the minimal impact of each feature on the prediction.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "reasoning",
+      "query": "Based on medical knowledge of breast cancer features, which tumor features are generally known to have minimal diagnostic relevance for distinguishing benign from malignant tumors?",
+      "expected_output": "A list of feature names that are known in the domain to be less influential in predicting benign vs. malignant outcomes"
+    },
+    {
+      "task_type": "comparison",
+      "query": "Compare the magnitude of feature values (e.g., mean radius, mean fractal dimension) with known distributions in cancer datasets\u2014identify which features are close to average or fall within wide variability ranges.",
+      "expected_output": "Feature names that exhibit low variation or are outside typical diagnostic ranges, indicating potential irrelevance"
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "background_samples": 100
+      },
+      "sensitivity_analysis": {
+        "n_repeats": 10
+      }
+    },
+    "reasoning": "SHAP provides a consistent, theoretically grounded attribution for each feature based on game theory, ideal for tabular data with mixed scales. Sensitivity analysis directly measures the impact of removing or setting individual features to zero, offering clear insight into which features have minimal effect on the final prediction. These tools complement autonomous reasoning by providing empirical, reproducible evidence of low responsibility, while avoiding reliance on potentially biased or oversimplified model interpretations."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP provides a consistent, theoretically grounded attribution for each feature based on game theory, ideal for tabular data with mixed scales. Sensitivity analysis directly measures the impact of removing or setting individual features to zero, offering clear insight into which features have minimal effect on the final prediction. These tools complement autonomous reasoning by providing empirical, reproducible evidence of low responsibility, while avoiding reliance on potentially biased or oversimplified model interpretations.",
+      "parameters": {
+        "background_samples": 100
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 2,
+      "reasoning": "SHAP provides a consistent, theoretically grounded attribution for each feature based on game theory, ideal for tabular data with mixed scales. Sensitivity analysis directly measures the impact of removing or setting individual features to zero, offering clear insight into which features have minimal effect on the final prediction. These tools complement autonomous reasoning by providing empirical, reproducible evidence of low responsibility, while avoiding reliance on potentially biased or oversimplified model interpretations.",
+      "parameters": {
+        "n_repeats": 10
+      }
+    }
+  ]
+}

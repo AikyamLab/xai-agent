@@ -1,0 +1,114 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.6860
+
+## Input Data
+Features: age=58, workclass=Private, fnlwgt=141379, education=HS-grad, education-num=9, marital-status=Divorced, occupation=Adm-clerical, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=42, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: race_Black.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Divorced.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.014186).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - race_Black: +0.0402
+  - occupation_Tech-support: +0.0199
+  - native-country_Vietnam: +0.0186
+  - native-country_France: +0.0163
+  - capital-loss: +0.0091
+- Top negative features (shap_value):
+  - race_Other: -0.0402
+  - occupation_Transport-moving: -0.0199
+  - native-country_Yugoslavia: -0.0186
+  - native-country_Germany: -0.0163
+  - hours-per-week: -0.0091
+- Max positive: 0.040177  Max negative: -0.040177
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0774
+  - capital-gain <= -0.15: +0.0701
+  - education-num <= -0.44: +0.0599
+  - native-country_Vietnam <= 0.00: +0.0067
+- Top negative features (weight):
+  - native-country_Haiti <= 0.00: -0.0593
+  - native-country_Peru <= 0.00: -0.0359
+  - native-country_England <= 0.00: -0.0320
+  - education_1st-4th <= 0.00: -0.0267
+  - native-country_South <= 0.00: -0.0241
+- Max positive: 0.077371  Max negative: -0.059275
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Divorced: +0.0148
+  - education_HS-grad: +0.0093
+  - sex_Female: +0.0066
+  - relationship_Not-in-family: +0.0065
+  - occupation_Adm-clerical: +0.0055
+- Top negative features (attribution_score):
+  - race_White: -0.0040
+  - native-country_United-States: -0.0038
+  - hours-per-week: -0.0009
+  - age: -0.0005
+  - workclass_Federal-gov: -0.0000
+- Max positive: 0.014839  Max negative: -0.00399
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0142  (orig=0.4221 → mod=0.4079)
+  - education_HS-grad: drop=+0.0095  (orig=0.4221 → mod=0.4126)
+  - relationship_Not-in-family: drop=+0.0089  (orig=0.4221 → mod=0.4132)
+  - occupation_Adm-clerical: drop=+0.0079  (orig=0.4221 → mod=0.4142)
+  - sex_Female: drop=+0.0075  (orig=0.4221 → mod=0.4146)
+  - workclass_Private: drop=+0.0041  (orig=0.4221 → mod=0.4181)
+  - race_White: drop=-0.0031  (orig=0.4221 → mod=0.4252)
+  - native-country_United-States: drop=-0.0026  (orig=0.4221 → mod=0.4248)
+  - education-num: drop=+0.0022  (orig=0.4221 → mod=0.4199)
+  - age: drop=+0.0015  (orig=0.4221 → mod=0.4206)
+- Max prob_drop: 0.014186  Max prob_increase: -0.003076
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify which input features are most logically tied to the class '<=50K' in the context of the adult income dataset
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 58}, {"feature_key": "education-num", "action": "change", "new_value": 9}, {"feature_key": "hours-per-week", "action": "change", "new_value": 42}, {"feature_key": "sex", "action": "change", "new_value": "Female"}, {"feature_key": "relationship", "action": "change", "new_value": "Not-in-family"}]
+- Explanation: In the Adult Income dataset, individuals earning <=50K are often associated with lower education levels, less work hours, and specific demographic characteristics. The current value of age=58 suggests a mature age group, which in practice is often correlated with lower income. Education-num=9 corresponds to 'HS-grad', which is below higher education levels (e.g., Bachelor's or higher) and is consistently associated with the <=50K class. Hours-per-week=42 is moderate and not particularly high, which may support lower earnings. Being female (sex='Female') historically correlates with lower median income in this dataset, especially when combined with non-spouse household structures. Relationship='Not-in-family' implies no dependents or family support, which may reduce financial stability and income. These features together form a profile that is strongly aligned with the <=50K prediction, despite the lack of high capital gains or high-paying occupations.
+- Confidence: 0.94
+
+### REASONING Task
+- Query: Evaluate how features such as age, education-num, and marital-status may influence income prediction, especially in the context of the model's prediction of <=50K
+- Status: Success
+- Explanation: The model predicted an income of <=50K with 68.6% confidence. Based on domain knowledge and typical patterns in income prediction models (such as the classic UCI Adult Income dataset), several features contribute to this outcome. Age (58) is relatively high, which might suggest higher earning potential, but in many models, age alone is not a strong predictor. Education-num (9) corresponds to 'HS-grad', which is associated with lower income earning potential compared to higher education levels like 'Bachelors' or 'Masters'. Marital-status='Divorced' may reduce household income stability and could contribute to lower income prediction, especially in models that infer economic support from marital status. Occupation='Adm-clerical' typically indicates a lower-paying job category compared to managerial or professional roles. Sex='Female' has historically been correlated with lower income in such datasets, though this may be biased. Workclass='Private' is common and does not strongly bias earnings upward. Capital-gain and capital-loss are both zero, indicating no investment returns, which may suppress income prediction. Hours-per-week=42 is within a standard range and does not strongly indicate higher income. Overall, the combination of lower education level, non-marital status, and female sex contributes to a model leaning toward <=50K. These factors align with known demographic and socioeconomic trends in income prediction.
+- Confidence: 0.92
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

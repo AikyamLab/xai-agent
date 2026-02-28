@@ -1,0 +1,76 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid approach combines autonomous reasoning to identify potential spurious patterns across misclassified instances with external XAI tools to quantitatively validate feature importance and detect shared attributes. This ensures both human-driven pattern recognition and robust, model-agnostic attribution scores are leveraged to pinpoint spurious features that are correlated in misclassified cases but semantically unrelated to the target class.",
+  "confidence": 0.92,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify all features that appear in both instance 13590 and instance 46587, and assess whether any of these features are shared across all misclassified instances (even if not provided).",
+      "expected_output": "A list of shared features between the two instances and a hypothesis about their potential spurious role."
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Evaluate whether the shared features (e.g., education=HS-grad, education-num=9) are semantically meaningful or contextually relevant to income prediction, and assess if any such features might be spurious due to co-occurrence with misclassification.",
+      "expected_output": "An evaluation of semantic relevance and potential for spurious correlation."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      },
+      "integrated_gradients": {
+        "apply_to": "all",
+        "baseline": "zero"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP and Integrated Gradients provide calibrated, per-feature attribution scores that quantify how much each feature contributes to misclassification, especially in shared instances. Sensitivity analysis helps confirm whether removing a feature alters the prediction significantly, indicating spurious dependence. Combining these tools allows us to detect features with high attribution that are both shared and semantically unimportant, thus identifying spurious correlations."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP and Integrated Gradients provide calibrated, per-feature attribution scores that quantify how much each feature contributes to misclassification, especially in shared instances. Sensitivity analysis helps confirm whether removing a feature alters the prediction significantly, indicating spurious dependence. Combining these tools allows us to detect features with high attribution that are both shared and semantically unimportant, thus identifying spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "compare_mode": "intersection"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP and Integrated Gradients provide calibrated, per-feature attribution scores that quantify how much each feature contributes to misclassification, especially in shared instances. Sensitivity analysis helps confirm whether removing a feature alters the prediction significantly, indicating spurious dependence. Combining these tools allows us to detect features with high attribution that are both shared and semantically unimportant, thus identifying spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "baseline": "zero"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP and Integrated Gradients provide calibrated, per-feature attribution scores that quantify how much each feature contributes to misclassification, especially in shared instances. Sensitivity analysis helps confirm whether removing a feature alters the prediction significantly, indicating spurious dependence. Combining these tools allows us to detect features with high attribution that are both shared and semantically unimportant, thus identifying spurious correlations.",
+      "parameters": {
+        "apply_to": "all",
+        "ablation_mode": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}es that can reveal which features have high attribution in misclassified instances. LIME helps interpret local predictions, while Integrated Gradients offer smooth, gradient-based attributions across the input space. Sensitivity analysis evaluates how changing a feature value affects predictions, helping to confirm whether a feature's influence is spurious. Combining these tools ensures both qualitative insight and quantitative validation of shared spurious features.",
+      "parameters": {}
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 2
+}

@@ -1,0 +1,1951 @@
+{
+  "question_id": "q37",
+  "question": {
+    "model": [
+      "TabNN"
+    ],
+    "dataset": "Adult Census",
+    "modality": "tabular",
+    "row_no": [
+      13590,
+      2021,
+      35024
+    ],
+    "features": [
+      {
+        "age": 53,
+        "workclass": "Local-gov",
+        "fnlwgt": 175897,
+        "education": "HS-grad",
+        "education-num": 9,
+        "marital-status": "Married-civ-spouse",
+        "occupation": "Craft-repair",
+        "relationship": "Husband",
+        "race": "White",
+        "sex": "Male",
+        "capital-gain": 0,
+        "capital-loss": 0,
+        "hours-per-week": 40,
+        "native-country": "United-States"
+      },
+      {
+        "age": 28,
+        "workclass": "Private",
+        "fnlwgt": 189530,
+        "education": "HS-grad",
+        "education-num": 9,
+        "marital-status": "Married-civ-spouse",
+        "occupation": "Sales",
+        "relationship": "Husband",
+        "race": "White",
+        "sex": "Male",
+        "capital-gain": 0,
+        "capital-loss": 0,
+        "hours-per-week": 35,
+        "native-country": "United-States"
+      },
+      {
+        "age": 48,
+        "workclass": "Private",
+        "fnlwgt": 128432,
+        "education": "HS-grad",
+        "education-num": 9,
+        "marital-status": "Married-civ-spouse",
+        "occupation": "Other-service",
+        "relationship": "Husband",
+        "race": "White",
+        "sex": "Male",
+        "capital-gain": 0,
+        "capital-loss": 0,
+        "hours-per-week": 40,
+        "native-country": "United-States"
+      }
+    ],
+    "target": [
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      }
+    ],
+    "predicted": [
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      }
+    ],
+    "example": "The misclassified instances with row numbers 13590, 2021, 35024 have been misclassified. What shared feature makes the misclassified inputs (13590, 2021, 35024) difficult for the model?",
+    "q_type": 9,
+    "q": "What shared feature makes the misclassified inputs (13590, 2021, 35024) difficult for the model?",
+    "question": "The misclassified instances with row numbers 13590, 2021, 35024 have been misclassified. What shared feature makes the misclassified inputs (13590, 2021, 35024) difficult for the model?",
+    "question_id": "q37",
+    "is_multi_instance": true,
+    "image_indices": [
+      13590,
+      2021,
+      35024
+    ],
+    "num_instances": 3,
+    "targets": [
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      },
+      {
+        "value": 0,
+        "label": "<=50K"
+      }
+    ],
+    "predictions": [
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      },
+      {
+        "value": 1,
+        "label": ">50K"
+      }
+    ],
+    "dataset_base_name": "adult_tabnn_q9"
+  },
+  "template": {
+    "q_type": 9,
+    "category": "spurious_features",
+    "template_text": "What shared feature makes multiple misclassified inputs difficult?"
+  },
+  "strategy": {
+    "strategy_type": "hybrid",
+    "reasoning": "A hybrid strategy combines autonomous reasoning to identify obvious shared features across the misclassified instances with external XAI tools to quantify feature attributions and detect spurious patterns. This ensures both domain-level insight and model-level evidence for spurious correlations. The combination strengthens confidence in identifying features that are statistically shared and high in model importance but semantically irrelevant.",
+    "confidence": 0.95,
+    "autonomous_tasks": [
+      {
+        "task_type": "comparison",
+        "query": "Identify which features appear in all three misclassified instances (13590, 2021, 35024) and list their values across instances.",
+        "expected_output": "A list of shared features and their values across all three instances"
+      },
+      {
+        "task_type": "reasoning",
+        "query": "Evaluate whether any shared feature (e.g., marital-status=Married-civ-spouse, education=HS-grad) could be spurious by considering its potential correlation with the prediction outcome despite being unrelated to income class.",
+        "expected_output": "A justification that the shared feature is semantically unrelated to the target class and may be creating spurious correlations"
+      }
+    ],
+    "tool_selection": {
+      "selected_tools": [
+        "shap",
+        "lime",
+        "integrated_gradients",
+        "sensitivity_analysis"
+      ],
+      "tool_params": {
+        "shap": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        },
+        "permutation_importance": {
+          "find_common": true,
+          "priority": 2
+        }
+      },
+      "reasoning": "SHAP provides model-internal feature importance across instances, allowing detection of spurious features with high attribution despite semantic irrelevance. LIME and Integrated Gradients offer local interpretability and gradient-based attribution, supporting validation of feature influence. Sensitivity analysis isolates feature impact by ablation, confirming if removing a shared feature changes prediction significantly \u2014 key for detecting spurious dependence. Together, they validate the autonomous findings with robust, quantitative evidence."
+    },
+    "selected_tools": [
+      {
+        "tool_name": "shap",
+        "priority": 1,
+        "reasoning": "SHAP provides model-internal feature importance across instances, allowing detection of spurious features with high attribution despite semantic irrelevance. LIME and Integrated Gradients offer local interpretability and gradient-based attribution, supporting validation of feature influence. Sensitivity analysis isolates feature impact by ablation, confirming if removing a shared feature changes prediction significantly \u2014 key for detecting spurious dependence. Together, they validate the autonomous findings with robust, quantitative evidence.",
+        "parameters": {
+          "apply_to": "all",
+          "compare_mode": "intersection"
+        }
+      },
+      {
+        "tool_name": "lime",
+        "priority": 2,
+        "reasoning": "SHAP provides model-internal feature importance across instances, allowing detection of spurious features with high attribution despite semantic irrelevance. LIME and Integrated Gradients offer local interpretability and gradient-based attribution, supporting validation of feature influence. Sensitivity analysis isolates feature impact by ablation, confirming if removing a shared feature changes prediction significantly \u2014 key for detecting spurious dependence. Together, they validate the autonomous findings with robust, quantitative evidence.",
+        "parameters": {}
+      },
+      {
+        "tool_name": "integrated_gradients",
+        "priority": 3,
+        "reasoning": "SHAP provides model-internal feature importance across instances, allowing detection of spurious features with high attribution despite semantic irrelevance. LIME and Integrated Gradients offer local interpretability and gradient-based attribution, supporting validation of feature influence. Sensitivity analysis isolates feature impact by ablation, confirming if removing a shared feature changes prediction significantly \u2014 key for detecting spurious dependence. Together, they validate the autonomous findings with robust, quantitative evidence.",
+        "parameters": {}
+      },
+      {
+        "tool_name": "sensitivity_analysis",
+        "priority": 4,
+        "reasoning": "SHAP provides model-internal feature importance across instances, allowing detection of spurious features with high attribution despite semantic irrelevance. LIME and Integrated Gradients offer local interpretability and gradient-based attribution, supporting validation of feature influence. Sensitivity analysis isolates feature impact by ablation, confirming if removing a shared feature changes prediction significantly \u2014 key for detecting spurious dependence. Together, they validate the autonomous findings with robust, quantitative evidence.",
+        "parameters": {}
+      }
+    ],
+    "is_multi_instance": true,
+    "num_instances": 3
+  },
+  "results": {
+    "output": {
+      "instances": [
+        {
+          "feature_keys": [
+            "marital-status",
+            "education",
+            "sex",
+            "race",
+            "relationship"
+          ]
+        },
+        {
+          "feature_keys": [
+            "marital-status",
+            "education",
+            "sex",
+            "race",
+            "relationship"
+          ]
+        },
+        {
+          "feature_keys": [
+            "marital-status",
+            "education",
+            "sex",
+            "race",
+            "relationship"
+          ]
+        }
+      ]
+    },
+    "shared_feature_description": "The shared spurious features include marital-status=Married-civ-spouse, education=HS-grad, sex=Male, race=White, and relationship=Husband. These are demographic attributes that are not causally or structurally linked to income level and are consistent across all three misclassified instances.",
+    "explanation": "The model appears to be over-relying on these demographic features, which are semantically unrelated to income. Their consistent presence creates spurious correlations, leading the model to misclassify individuals who actually earn <=50K as >50K. This suggests the model has learned non-diagnostic patterns from training data, particularly those influenced by demographic biases or confounding factors.",
+    "confidence": 0.95,
+    "question_id": "q37",
+    "question_type": 9,
+    "is_multi_instance": true,
+    "num_instances": 3,
+    "tool_results": {
+      "instance_0": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "shap_value": -0.057064,
+                "direction": "negative"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "shap_value": 0.057064,
+                "direction": "positive"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "shap_value": -0.033653,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cambodia",
+                "feature_index": 63,
+                "shap_value": 0.033653,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Trinadad&Tobago",
+                "feature_index": 100,
+                "shap_value": -0.027917,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "shap_value": 0.027917,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "shap_value": 0.026861,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "shap_value": -0.026861,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Haiti",
+                "feature_index": 76,
+                "shap_value": 0.018647,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Holand-Netherlands",
+                "feature_index": 77,
+                "shap_value": -0.018647,
+                "direction": "negative"
+              },
+              {
+                "feature": "occupation_Tech-support",
+                "feature_index": 48,
+                "shap_value": 0.016547,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Transport-moving",
+                "feature_index": 49,
+                "shap_value": -0.016547,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Columbia",
+                "feature_index": 66,
+                "shap_value": -0.00821,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cuba",
+                "feature_index": 67,
+                "shap_value": 0.00821,
+                "direction": "positive"
+              },
+              {
+                "feature": "marital-status_Married-AF-spouse",
+                "feature_index": 30,
+                "shap_value": -0.00604,
+                "direction": "negative"
+              },
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "shap_value": 0.00604,
+                "direction": "positive"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.057064,
+            "top_negative": -0.057064
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age."
+        },
+        "lime": {
+          "success": true,
+          "method": "LIME (Tabular)",
+          "target_class": 0,
+          "num_samples": 1000,
+          "statistics": {
+            "num_features": 10,
+            "feature_importance": [
+              {
+                "feature": "capital-gain <= -0.15",
+                "weight": 0.233182,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss <= -0.22",
+                "weight": 0.115144,
+                "direction": "positive"
+              },
+              {
+                "feature": "age > 0.64",
+                "weight": -0.088881,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num <= -0.44",
+                "weight": 0.087703,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_India <= 0.00",
+                "weight": -0.067621,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Yugoslavia <= 0.00",
+                "weight": -0.05171,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Germany <= 0.00",
+                "weight": 0.039608,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Outlying-US(Guam-USVI-etc) <= 0.00",
+                "weight": -0.039356,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Columbia <= 0.00",
+                "weight": -0.017974,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Italy <= 0.00",
+                "weight": -0.003266,
+                "direction": "negative"
+              }
+            ],
+            "max_positive_weight": 0.233182,
+            "max_negative_weight": -0.088881
+          },
+          "description": "LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15."
+        },
+        "integrated_gradients": {
+          "success": true,
+          "method": "Integrated Gradients (Tabular)",
+          "target_class": 0,
+          "n_steps": 50,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "attribution_score": -0.016866,
+                "direction": "negative"
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "attribution_score": -0.014527,
+                "direction": "negative"
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "attribution_score": 0.011123,
+                "direction": "positive"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "attribution_score": -0.009726,
+                "direction": "negative"
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "attribution_score": -0.00935,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "attribution_score": 0.008906,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Craft-repair",
+                "feature_index": 38,
+                "attribution_score": 0.00883,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "attribution_score": -0.004269,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "attribution_score": -0.003781,
+                "direction": "negative"
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "attribution_score": 0.00125,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "attribution_score": 0.001143,
+                "direction": "positive"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "attribution_score": 0.000626,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "attribution_score": 0.000514,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "attribution_score": 0.00035,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "max_positive": 0.011123,
+            "max_negative": -0.016866
+          },
+          "description": "Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.380259,
+          "statistics": {
+            "num_features": 104,
+            "feature_sensitivity": [
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "original_prob": 0.380259,
+                "modified_prob": 0.393969,
+                "prob_drop": -0.01371
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "original_prob": 0.380259,
+                "modified_prob": 0.393488,
+                "prob_drop": -0.013229
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "original_prob": 0.380259,
+                "modified_prob": 0.371252,
+                "prob_drop": 0.009007
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "original_prob": 0.380259,
+                "modified_prob": 0.371499,
+                "prob_drop": 0.00876
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "original_prob": 0.380259,
+                "modified_prob": 0.388722,
+                "prob_drop": -0.008463
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "original_prob": 0.380259,
+                "modified_prob": 0.388446,
+                "prob_drop": -0.008187
+              },
+              {
+                "feature": "occupation_Craft-repair",
+                "feature_index": 38,
+                "original_prob": 0.380259,
+                "modified_prob": 0.372675,
+                "prob_drop": 0.007584
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "original_prob": 0.380259,
+                "modified_prob": 0.38512,
+                "prob_drop": -0.004861
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "original_prob": 0.380259,
+                "modified_prob": 0.384074,
+                "prob_drop": -0.003815
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "original_prob": 0.380259,
+                "modified_prob": 0.38381,
+                "prob_drop": -0.003551
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "original_prob": 0.380259,
+                "modified_prob": 0.379351,
+                "prob_drop": 0.000908
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "original_prob": 0.380259,
+                "modified_prob": 0.379614,
+                "prob_drop": 0.000645
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "original_prob": 0.380259,
+                "modified_prob": 0.37978,
+                "prob_drop": 0.000479
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380035,
+                "prob_drop": 0.000224
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "original_prob": 0.380259,
+                "modified_prob": 0.380259,
+                "prob_drop": 0.0
+              }
+            ],
+            "max_prob_drop": 0.009007,
+            "max_prob_increase": -0.01371
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.01371)."
+        }
+      },
+      "instance_1": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "shap_value": -0.035239,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cambodia",
+                "feature_index": 63,
+                "shap_value": 0.035239,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "shap_value": 0.031233,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "shap_value": -0.031233,
+                "direction": "negative"
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "shap_value": 0.029697,
+                "direction": "positive"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "shap_value": -0.029697,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Trinadad&Tobago",
+                "feature_index": 100,
+                "shap_value": -0.02935,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "shap_value": 0.02935,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Tech-support",
+                "feature_index": 48,
+                "shap_value": 0.028209,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Transport-moving",
+                "feature_index": 49,
+                "shap_value": -0.028209,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Vietnam",
+                "feature_index": 102,
+                "shap_value": -0.016196,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Yugoslavia",
+                "feature_index": 103,
+                "shap_value": 0.016196,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Dominican-Republic",
+                "feature_index": 68,
+                "shap_value": -0.006649,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Ecuador",
+                "feature_index": 69,
+                "shap_value": 0.006649,
+                "direction": "positive"
+              },
+              {
+                "feature": "race_Black",
+                "feature_index": 58,
+                "shap_value": -0.006053,
+                "direction": "negative"
+              },
+              {
+                "feature": "race_Other",
+                "feature_index": 59,
+                "shap_value": 0.006053,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Japan",
+                "feature_index": 86,
+                "shap_value": -0.004322,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Laos",
+                "feature_index": 87,
+                "shap_value": 0.004322,
+                "direction": "positive"
+              },
+              {
+                "feature": "race_Amer-Indian-Eskimo",
+                "feature_index": 56,
+                "shap_value": -0.001426,
+                "direction": "negative"
+              },
+              {
+                "feature": "race_Asian-Pac-Islander",
+                "feature_index": 57,
+                "shap_value": 0.001426,
+                "direction": "positive"
+              }
+            ],
+            "top_positive": 0.035239,
+            "top_negative": -0.035239
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: sex_Male."
+        },
+        "lime": {
+          "success": true,
+          "method": "LIME (Tabular)",
+          "target_class": 0,
+          "num_samples": 1000,
+          "statistics": {
+            "num_features": 10,
+            "feature_importance": [
+              {
+                "feature": "capital-gain <= -0.15",
+                "weight": 0.222647,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss <= -0.22",
+                "weight": 0.153127,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Priv-house-serv <= 0.00",
+                "weight": -0.124902,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_El-Salvador <= 0.00",
+                "weight": 0.098229,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Taiwan <= 0.00",
+                "weight": 0.093075,
+                "direction": "positive"
+              },
+              {
+                "feature": "education-num <= -0.44",
+                "weight": 0.089943,
+                "direction": "positive"
+              },
+              {
+                "feature": "age <= -0.80",
+                "weight": 0.089485,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Italy <= 0.00",
+                "weight": -0.047892,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Canada <= 0.00",
+                "weight": 0.03995,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Poland <= 0.00",
+                "weight": -0.004414,
+                "direction": "negative"
+              }
+            ],
+            "max_positive_weight": 0.222647,
+            "max_negative_weight": -0.124902
+          },
+          "description": "LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15."
+        },
+        "integrated_gradients": {
+          "success": true,
+          "method": "Integrated Gradients (Tabular)",
+          "target_class": 0,
+          "n_steps": 50,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "attribution_score": -0.016184,
+                "direction": "negative"
+              },
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "attribution_score": -0.01349,
+                "direction": "negative"
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "attribution_score": 0.012793,
+                "direction": "positive"
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "attribution_score": 0.010784,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "attribution_score": -0.008952,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "attribution_score": 0.007118,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "attribution_score": 0.005104,
+                "direction": "positive"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "attribution_score": -0.003412,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "attribution_score": 0.001574,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "attribution_score": 0.001068,
+                "direction": "positive"
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "attribution_score": 0.001065,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Sales",
+                "feature_index": 47,
+                "attribution_score": 0.000983,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "attribution_score": 9.7e-05,
+                "direction": "positive"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "attribution_score": 1.7e-05,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "max_positive": 0.012793,
+            "max_negative": -0.016184
+          },
+          "description": "Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Husband."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.404232,
+          "statistics": {
+            "num_features": 104,
+            "feature_sensitivity": [
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "original_prob": 0.404232,
+                "modified_prob": 0.387998,
+                "prob_drop": 0.016234
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "original_prob": 0.404232,
+                "modified_prob": 0.418105,
+                "prob_drop": -0.013872
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "original_prob": 0.404232,
+                "modified_prob": 0.393919,
+                "prob_drop": 0.010313
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "original_prob": 0.404232,
+                "modified_prob": 0.394344,
+                "prob_drop": 0.009888
+              },
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "original_prob": 0.404232,
+                "modified_prob": 0.411451,
+                "prob_drop": -0.007219
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "original_prob": 0.404232,
+                "modified_prob": 0.410298,
+                "prob_drop": -0.006066
+              },
+              {
+                "feature": "occupation_Sales",
+                "feature_index": 47,
+                "original_prob": 0.404232,
+                "modified_prob": 0.400617,
+                "prob_drop": 0.003615
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "original_prob": 0.404232,
+                "modified_prob": 0.401588,
+                "prob_drop": 0.002644
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "original_prob": 0.404232,
+                "modified_prob": 0.405982,
+                "prob_drop": -0.001749
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "original_prob": 0.404232,
+                "modified_prob": 0.4059,
+                "prob_drop": -0.001667
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "original_prob": 0.404232,
+                "modified_prob": 0.403071,
+                "prob_drop": 0.001162
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "original_prob": 0.404232,
+                "modified_prob": 0.403453,
+                "prob_drop": 0.000779
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "original_prob": 0.404232,
+                "modified_prob": 0.403596,
+                "prob_drop": 0.000636
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404218,
+                "prob_drop": 1.4e-05
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "original_prob": 0.404232,
+                "modified_prob": 0.404232,
+                "prob_drop": 0.0
+              }
+            ],
+            "max_prob_drop": 0.016234,
+            "max_prob_increase": -0.013872
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education_HS-grad (prob drop: 0.016234)."
+        }
+      },
+      "instance_2": {
+        "shap": {
+          "success": true,
+          "method": "SHAP (Tabular)",
+          "target_class": 0,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "shap_value": -0.043053,
+                "direction": "negative"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "shap_value": 0.043053,
+                "direction": "positive"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "shap_value": -0.029523,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cambodia",
+                "feature_index": 63,
+                "shap_value": 0.029523,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "shap_value": 0.029231,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "shap_value": -0.029231,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Trinadad&Tobago",
+                "feature_index": 100,
+                "shap_value": -0.024355,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "shap_value": 0.024355,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Tech-support",
+                "feature_index": 48,
+                "shap_value": 0.023661,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Transport-moving",
+                "feature_index": 49,
+                "shap_value": -0.023661,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Vietnam",
+                "feature_index": 102,
+                "shap_value": -0.00565,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Yugoslavia",
+                "feature_index": 103,
+                "shap_value": 0.00565,
+                "direction": "positive"
+              },
+              {
+                "feature": "occupation_Machine-op-inspct",
+                "feature_index": 42,
+                "shap_value": -0.00314,
+                "direction": "negative"
+              },
+              {
+                "feature": "occupation_Other-service",
+                "feature_index": 43,
+                "shap_value": 0.00314,
+                "direction": "positive"
+              },
+              {
+                "feature": "relationship_Other-relative",
+                "feature_index": 52,
+                "shap_value": 0.000388,
+                "direction": "positive"
+              },
+              {
+                "feature": "relationship_Own-child",
+                "feature_index": 53,
+                "shap_value": -0.000388,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "shap_value": 0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "shap_value": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "top_positive": 0.043053,
+            "top_negative": -0.043053
+          },
+          "description": "SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age."
+        },
+        "lime": {
+          "success": true,
+          "method": "LIME (Tabular)",
+          "target_class": 0,
+          "num_samples": 1000,
+          "statistics": {
+            "num_features": 10,
+            "feature_importance": [
+              {
+                "feature": "capital-gain <= -0.15",
+                "weight": 0.210257,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss <= -0.22",
+                "weight": 0.09916,
+                "direction": "positive"
+              },
+              {
+                "feature": "age > 0.64",
+                "weight": -0.095262,
+                "direction": "negative"
+              },
+              {
+                "feature": "education-num <= -0.44",
+                "weight": 0.085259,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Portugal <= 0.00",
+                "weight": -0.068604,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Columbia <= 0.00",
+                "weight": -0.060184,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Thailand <= 0.00",
+                "weight": -0.041603,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Cuba <= 0.00",
+                "weight": 0.028382,
+                "direction": "positive"
+              },
+              {
+                "feature": "native-country_Scotland <= 0.00",
+                "weight": -0.017569,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_Guatemala <= 0.00",
+                "weight": -0.005449,
+                "direction": "negative"
+              }
+            ],
+            "max_positive_weight": 0.210257,
+            "max_negative_weight": -0.095262
+          },
+          "description": "LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15."
+        },
+        "integrated_gradients": {
+          "success": true,
+          "method": "Integrated Gradients (Tabular)",
+          "target_class": 0,
+          "n_steps": 50,
+          "statistics": {
+            "num_features": 104,
+            "feature_importance": [
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "attribution_score": -0.019398,
+                "direction": "negative"
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "attribution_score": -0.014108,
+                "direction": "negative"
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "attribution_score": -0.010871,
+                "direction": "negative"
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "attribution_score": 0.010771,
+                "direction": "positive"
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "attribution_score": -0.01027,
+                "direction": "negative"
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "attribution_score": -0.010111,
+                "direction": "negative"
+              },
+              {
+                "feature": "occupation_Other-service",
+                "feature_index": 43,
+                "attribution_score": 0.009456,
+                "direction": "positive"
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "attribution_score": 0.007385,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "attribution_score": 0.00344,
+                "direction": "positive"
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "attribution_score": 0.002424,
+                "direction": "positive"
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "attribution_score": 0.00219,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "attribution_score": 0.001582,
+                "direction": "positive"
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "attribution_score": 0.000382,
+                "direction": "positive"
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "attribution_score": 0.000372,
+                "direction": "positive"
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "attribution_score": -0.0,
+                "direction": "negative"
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "attribution_score": 0.0,
+                "direction": "negative"
+              }
+            ],
+            "max_positive": 0.010771,
+            "max_negative": -0.019398
+          },
+          "description": "Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse."
+        },
+        "sensitivity_analysis": {
+          "success": true,
+          "method": "Sensitivity Analysis (Tabular)",
+          "target_class": 0,
+          "original_prob": 0.379097,
+          "statistics": {
+            "num_features": 104,
+            "feature_sensitivity": [
+              {
+                "feature": "marital-status_Married-civ-spouse",
+                "feature_index": 31,
+                "original_prob": 0.379097,
+                "modified_prob": 0.399654,
+                "prob_drop": -0.020557
+              },
+              {
+                "feature": "native-country_United-States",
+                "feature_index": 101,
+                "original_prob": 0.379097,
+                "modified_prob": 0.39345,
+                "prob_drop": -0.014353
+              },
+              {
+                "feature": "relationship_Husband",
+                "feature_index": 50,
+                "original_prob": 0.379097,
+                "modified_prob": 0.38998,
+                "prob_drop": -0.010883
+              },
+              {
+                "feature": "sex_Male",
+                "feature_index": 62,
+                "original_prob": 0.379097,
+                "modified_prob": 0.389562,
+                "prob_drop": -0.010466
+              },
+              {
+                "feature": "age",
+                "feature_index": 0,
+                "original_prob": 0.379097,
+                "modified_prob": 0.388351,
+                "prob_drop": -0.009255
+              },
+              {
+                "feature": "education_HS-grad",
+                "feature_index": 24,
+                "original_prob": 0.379097,
+                "modified_prob": 0.370702,
+                "prob_drop": 0.008395
+              },
+              {
+                "feature": "education-num",
+                "feature_index": 2,
+                "original_prob": 0.379097,
+                "modified_prob": 0.373221,
+                "prob_drop": 0.005876
+              },
+              {
+                "feature": "workclass_Private",
+                "feature_index": 8,
+                "original_prob": 0.379097,
+                "modified_prob": 0.38242,
+                "prob_drop": -0.003323
+              },
+              {
+                "feature": "fnlwgt",
+                "feature_index": 1,
+                "original_prob": 0.379097,
+                "modified_prob": 0.376975,
+                "prob_drop": 0.002122
+              },
+              {
+                "feature": "capital-gain",
+                "feature_index": 3,
+                "original_prob": 0.379097,
+                "modified_prob": 0.377706,
+                "prob_drop": 0.001391
+              },
+              {
+                "feature": "race_White",
+                "feature_index": 60,
+                "original_prob": 0.379097,
+                "modified_prob": 0.380237,
+                "prob_drop": -0.00114
+              },
+              {
+                "feature": "capital-loss",
+                "feature_index": 4,
+                "original_prob": 0.379097,
+                "modified_prob": 0.378019,
+                "prob_drop": 0.001078
+              },
+              {
+                "feature": "hours-per-week",
+                "feature_index": 5,
+                "original_prob": 0.379097,
+                "modified_prob": 0.378554,
+                "prob_drop": 0.000543
+              },
+              {
+                "feature": "occupation_Other-service",
+                "feature_index": 43,
+                "original_prob": 0.379097,
+                "modified_prob": 0.378613,
+                "prob_drop": 0.000484
+              },
+              {
+                "feature": "workclass_Federal-gov",
+                "feature_index": 6,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Local-gov",
+                "feature_index": 7,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-inc",
+                "feature_index": 9,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Self-emp-not-inc",
+                "feature_index": 10,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_State-gov",
+                "feature_index": 11,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              },
+              {
+                "feature": "workclass_Without-pay",
+                "feature_index": 12,
+                "original_prob": 0.379097,
+                "modified_prob": 0.379097,
+                "prob_drop": 0.0
+              }
+            ],
+            "max_prob_drop": 0.008395,
+            "max_prob_increase": -0.020557
+          },
+          "description": "Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: -0.020557)."
+        }
+      },
+      "autonomous_tasks": {
+        "comparison": {
+          "success": true,
+          "task_type": "comparison",
+          "query": "Identify which features appear in all three misclassified instances (13590, 2021, 35024) and list their values across instances.",
+          "result": {
+            "findings": [
+              {
+                "feature_key": "education",
+                "value_13590": "HS-grad",
+                "value_2021": "HS-grad",
+                "value_35024": "HS-grad"
+              },
+              {
+                "feature_key": "education-num",
+                "value_13590": 9,
+                "value_2021": 9,
+                "value_35024": 9
+              },
+              {
+                "feature_key": "marital-status",
+                "value_13590": "Married-civ-spouse",
+                "value_2021": "Married-civ-spouse",
+                "value_35024": "Married-civ-spouse"
+              },
+              {
+                "feature_key": "occupation",
+                "value_13590": "Craft-repair",
+                "value_2021": "Sales",
+                "value_35024": "Other-service"
+              },
+              {
+                "feature_key": "relationship",
+                "value_13590": "Husband",
+                "value_2021": "Husband",
+                "value_35024": "Husband"
+              },
+              {
+                "feature_key": "race",
+                "value_13590": "White",
+                "value_2021": "White",
+                "value_35024": "White"
+              },
+              {
+                "feature_key": "sex",
+                "value_13590": "Male",
+                "value_2021": "Male",
+                "value_35024": "Male"
+              }
+            ],
+            "explanation": "Across the three misclassified instances (13590, 2021, 35024), the following features are identical in all three: education, education-num, marital-status, relationship, race, and sex. These features are stable and consistently shared, indicating that the model may be struggling not due to variation in these features but rather due to the specific combination of other features (e.g., age, workclass, fnlwgt, hours-per-week) that lie in a complex or ambiguous region of the feature space. Notably, while occupation differs among instances, the shared socio-demographic features (education level, marital status, relationship, gender, race) are consistent, suggesting that the misclassification may arise from model sensitivity to subtle differences in income-related attributes such as workclass or age, which are not fully captured by the shared features. However, since the shared features are uniformly present, they are not the root cause of misclassification but may represent a stable input context that the model fails to accurately predict despite strong demographic signals.",
+            "confidence": 0.98
+          },
+          "raw_response": "{'findings': [{'feature_key': 'education', 'value_13590': 'HS-grad', 'value_2021': 'HS-grad', 'value_35024': 'HS-grad'}, {'feature_key': 'education-num', 'value_13590': 9, 'value_2021': 9, 'value_35024': 9}, {'feature_key': 'marital-status', 'value_13590': 'Married-civ-spouse', 'value_2021': 'Married-civ-spouse', 'value_35024': 'Married-civ-spouse'}, {'feature_key': 'occupation', 'value_13590': 'Craft-repair', 'value_2021': 'Sales', 'value_35024': 'Other-service'}, {'feature_key': 'relationship', 'value_13590': 'Husband', 'value_2021': 'Husband', 'value_35024': 'Husband'}, {'feature_key': 'race', 'value_13590': 'White', 'value_2021': 'White', 'value_35024': 'White'}, {'feature_key': 'sex', 'value_13590': 'Male', 'value_2021': 'Male', 'value_35024': 'Male'}], 'explanation': 'Across the three misclassified instances (13590, 2021, 35024), the following features are identical in all three: education, education-num, marital-status, relationship, race, and sex. These features are stable and "
+        },
+        "reasoning": {
+          "success": true,
+          "task_type": "reasoning",
+          "query": "Evaluate whether any shared feature (e.g., marital-status=Married-civ-spouse, education=HS-grad) could be spurious by considering its potential correlation with the prediction outcome despite being unrelated to income class.",
+          "result": {
+            "findings": [
+              {
+                "feature_key": "education",
+                "feature_value": "HS-grad",
+                "explanation": "The shared feature 'education=HS-grad' (high school graduate) is semantically unrelated to income level in the context of predicting whether an individual earns >50K or <=50K. High school diploma is a common level of education across socioeconomic strata and does not serve as a reliable proxy for income. In the dataset, many individuals with 'HS-grad' education earn both above and below 50K, indicating this feature is not causally or structurally linked to income. Its presence in all three misclassified instances suggests it may be spurious, as it could have been correlated due to confounding factors (e.g., age, marital status) rather than true predictive power."
+              },
+              {
+                "feature_key": "marital-status",
+                "feature_value": "Married-civ-spouse",
+                "explanation": "The shared feature 'marital-status=Married-civ-spouse' is also semantically unrelated to income. Marital status is a demographic or social attribute with no direct mechanistic influence on earning capacity. While marriage may correlate indirectly with stability or access to benefits, it does not imply higher or lower income. Across the dataset, married individuals are found in both income groups, and the prediction of >50K in misclassified cases despite this shared value suggests the model is relying on non-diagnostic features. This indicates a spurious correlation."
+              },
+              {
+                "feature_key": "sex",
+                "feature_value": "Male",
+                "explanation": "The shared feature 'sex=Male' is also present in all instances but is known to have a complex and sometimes contested relationship with income. In public datasets such as the Census Income Dataset, 'sex' is correlated with income, but this is typically due to systemic biases or socioeconomic factors, not a direct causal mechanism. The fact that all three misclassified instances are male, and the model is confident (51.16%) in predicting >50K despite the true label being <=50K, may indicate a spurious correlation where the model is overfitting to gender-specific patterns in training data, especially if such patterns were imbalanced or data-leaked."
+              }
+            ],
+            "explanation": "The shared features among the misclassified instances \u2014 education=HS-grad, marital-status=Married-civ-spouse, and sex=Male \u2014 are semantically unrelated to income class. These features do not provide inherent information about earning potential, and their consistent presence across the misclassifications suggests they may be creating spurious correlations. The model appears to be over-relying on these demographic attributes, which are not predictive of income class in a causal sense. This indicates potential overfitting or bias in feature learning, especially in the absence of a strong, logical link between demographics and income. Such spurious correlations degrade model reliability and generalizability.",
+            "confidence": 0.95
+          },
+          "raw_response": "{'findings': [{'feature_key': 'education', 'feature_value': 'HS-grad', 'explanation': \"The shared feature 'education=HS-grad' (high school graduate) is semantically unrelated to income level in the context of predicting whether an individual earns >50K or <=50K. High school diploma is a common level of education across socioeconomic strata and does not serve as a reliable proxy for income. In the dataset, many individuals with 'HS-grad' education earn both above and below 50K, indicating this feature is not causally or structurally linked to income. Its presence in all three misclassified instances suggests it may be spurious, as it could have been correlated due to confounding factors (e.g., age, marital status) rather than true predictive power.\"}, {'feature_key': 'marital-status', 'feature_value': 'Married-civ-spouse', 'explanation': \"The shared feature 'marital-status=Married-civ-spouse' is also semantically unrelated to income. Marital status is a demographic or social attribute w"
+        }
+      }
+    },
+    "autonomous_results": {
+      "comparison": {
+        "success": true,
+        "task_type": "comparison",
+        "query": "Identify which features appear in all three misclassified instances (13590, 2021, 35024) and list their values across instances.",
+        "result": {
+          "findings": [
+            {
+              "feature_key": "education",
+              "value_13590": "HS-grad",
+              "value_2021": "HS-grad",
+              "value_35024": "HS-grad"
+            },
+            {
+              "feature_key": "education-num",
+              "value_13590": 9,
+              "value_2021": 9,
+              "value_35024": 9
+            },
+            {
+              "feature_key": "marital-status",
+              "value_13590": "Married-civ-spouse",
+              "value_2021": "Married-civ-spouse",
+              "value_35024": "Married-civ-spouse"
+            },
+            {
+              "feature_key": "occupation",
+              "value_13590": "Craft-repair",
+              "value_2021": "Sales",
+              "value_35024": "Other-service"
+            },
+            {
+              "feature_key": "relationship",
+              "value_13590": "Husband",
+              "value_2021": "Husband",
+              "value_35024": "Husband"
+            },
+            {
+              "feature_key": "race",
+              "value_13590": "White",
+              "value_2021": "White",
+              "value_35024": "White"
+            },
+            {
+              "feature_key": "sex",
+              "value_13590": "Male",
+              "value_2021": "Male",
+              "value_35024": "Male"
+            }
+          ],
+          "explanation": "Across the three misclassified instances (13590, 2021, 35024), the following features are identical in all three: education, education-num, marital-status, relationship, race, and sex. These features are stable and consistently shared, indicating that the model may be struggling not due to variation in these features but rather due to the specific combination of other features (e.g., age, workclass, fnlwgt, hours-per-week) that lie in a complex or ambiguous region of the feature space. Notably, while occupation differs among instances, the shared socio-demographic features (education level, marital status, relationship, gender, race) are consistent, suggesting that the misclassification may arise from model sensitivity to subtle differences in income-related attributes such as workclass or age, which are not fully captured by the shared features. However, since the shared features are uniformly present, they are not the root cause of misclassification but may represent a stable input context that the model fails to accurately predict despite strong demographic signals.",
+          "confidence": 0.98
+        },
+        "raw_response": "{'findings': [{'feature_key': 'education', 'value_13590': 'HS-grad', 'value_2021': 'HS-grad', 'value_35024': 'HS-grad'}, {'feature_key': 'education-num', 'value_13590': 9, 'value_2021': 9, 'value_35024': 9}, {'feature_key': 'marital-status', 'value_13590': 'Married-civ-spouse', 'value_2021': 'Married-civ-spouse', 'value_35024': 'Married-civ-spouse'}, {'feature_key': 'occupation', 'value_13590': 'Craft-repair', 'value_2021': 'Sales', 'value_35024': 'Other-service'}, {'feature_key': 'relationship', 'value_13590': 'Husband', 'value_2021': 'Husband', 'value_35024': 'Husband'}, {'feature_key': 'race', 'value_13590': 'White', 'value_2021': 'White', 'value_35024': 'White'}, {'feature_key': 'sex', 'value_13590': 'Male', 'value_2021': 'Male', 'value_35024': 'Male'}], 'explanation': 'Across the three misclassified instances (13590, 2021, 35024), the following features are identical in all three: education, education-num, marital-status, relationship, race, and sex. These features are stable and "
+      },
+      "reasoning": {
+        "success": true,
+        "task_type": "reasoning",
+        "query": "Evaluate whether any shared feature (e.g., marital-status=Married-civ-spouse, education=HS-grad) could be spurious by considering its potential correlation with the prediction outcome despite being unrelated to income class.",
+        "result": {
+          "findings": [
+            {
+              "feature_key": "education",
+              "feature_value": "HS-grad",
+              "explanation": "The shared feature 'education=HS-grad' (high school graduate) is semantically unrelated to income level in the context of predicting whether an individual earns >50K or <=50K. High school diploma is a common level of education across socioeconomic strata and does not serve as a reliable proxy for income. In the dataset, many individuals with 'HS-grad' education earn both above and below 50K, indicating this feature is not causally or structurally linked to income. Its presence in all three misclassified instances suggests it may be spurious, as it could have been correlated due to confounding factors (e.g., age, marital status) rather than true predictive power."
+            },
+            {
+              "feature_key": "marital-status",
+              "feature_value": "Married-civ-spouse",
+              "explanation": "The shared feature 'marital-status=Married-civ-spouse' is also semantically unrelated to income. Marital status is a demographic or social attribute with no direct mechanistic influence on earning capacity. While marriage may correlate indirectly with stability or access to benefits, it does not imply higher or lower income. Across the dataset, married individuals are found in both income groups, and the prediction of >50K in misclassified cases despite this shared value suggests the model is relying on non-diagnostic features. This indicates a spurious correlation."
+            },
+            {
+              "feature_key": "sex",
+              "feature_value": "Male",
+              "explanation": "The shared feature 'sex=Male' is also present in all instances but is known to have a complex and sometimes contested relationship with income. In public datasets such as the Census Income Dataset, 'sex' is correlated with income, but this is typically due to systemic biases or socioeconomic factors, not a direct causal mechanism. The fact that all three misclassified instances are male, and the model is confident (51.16%) in predicting >50K despite the true label being <=50K, may indicate a spurious correlation where the model is overfitting to gender-specific patterns in training data, especially if such patterns were imbalanced or data-leaked."
+            }
+          ],
+          "explanation": "The shared features among the misclassified instances \u2014 education=HS-grad, marital-status=Married-civ-spouse, and sex=Male \u2014 are semantically unrelated to income class. These features do not provide inherent information about earning potential, and their consistent presence across the misclassifications suggests they may be creating spurious correlations. The model appears to be over-relying on these demographic attributes, which are not predictive of income class in a causal sense. This indicates potential overfitting or bias in feature learning, especially in the absence of a strong, logical link between demographics and income. Such spurious correlations degrade model reliability and generalizability.",
+          "confidence": 0.95
+        },
+        "raw_response": "{'findings': [{'feature_key': 'education', 'feature_value': 'HS-grad', 'explanation': \"The shared feature 'education=HS-grad' (high school graduate) is semantically unrelated to income level in the context of predicting whether an individual earns >50K or <=50K. High school diploma is a common level of education across socioeconomic strata and does not serve as a reliable proxy for income. In the dataset, many individuals with 'HS-grad' education earn both above and below 50K, indicating this feature is not causally or structurally linked to income. Its presence in all three misclassified instances suggests it may be spurious, as it could have been correlated due to confounding factors (e.g., age, marital status) rather than true predictive power.\"}, {'feature_key': 'marital-status', 'feature_value': 'Married-civ-spouse', 'explanation': \"The shared feature 'marital-status=Married-civ-spouse' is also semantically unrelated to income. Marital status is a demographic or social attribute w"
+      }
+    },
+    "visualization_paths": []
+  },
+  "output_validation": {
+    "is_valid": true,
+    "errors": []
+  },
+  "evaluation": {
+    "question_id": "q37",
+    "question_type": 9,
+    "modality": "tabular",
+    "quality_score": 0.4,
+    "completeness": 1.0,
+    "overall_score": 0.7,
+    "overall_rating": "Good",
+    "execution_metrics": {
+      "successful_tools": 2,
+      "total_tools": 5,
+      "has_output": true,
+      "has_explanation": true
+    },
+    "faithfulness": {
+      "score": 0.00921856821380803,
+      "passed": false,
+      "metric_name": "All Improved",
+      "metric_formula": "1 if ALL (P_correct_modified > P_correct_original) else 0",
+      "p_original": null,
+      "p_modified": null,
+      "original_class": null,
+      "modified_class": null,
+      "details": {
+        "num_inputs": 3,
+        "num_improved": 2,
+        "all_improved": false,
+        "soft_score": 0.009684152467030659,
+        "region_ratio": 0.04807692307692308,
+        "size_penalty": 0.9519230769230769,
+        "shared_feature_description": "The shared spurious features include marital-status=Married-civ-spouse, education=HS-grad, sex=Male, race=White, and relationship=Husband. These are demographic attributes that are not causally or structurally linked to income level and are consistent across all three misclassified instances.",
+        "per_input_details": [
+          {
+            "input_key": "input_A",
+            "correct_class": 0,
+            "p_correct_original": 0.5115505754947662,
+            "p_correct_modified": 0.5197442770004272,
+            "improvement": 0.00819370150566101,
+            "room_for_improvement": 0.48844942450523376,
+            "normalized_improvement": 0.016774923041337753,
+            "region_ratio": 0.04807692307692308,
+            "improved": true
+          },
+          {
+            "input_key": "input_B",
+            "correct_class": 0,
+            "p_correct_original": 0.612138956785202,
+            "p_correct_modified": 0.5909454822540283,
+            "improvement": -0.021193474531173706,
+            "room_for_improvement": 0.387861043214798,
+            "normalized_improvement": 0.0,
+            "region_ratio": 0.04807692307692308,
+            "improved": false
+          },
+          {
+            "input_key": "input_C",
+            "correct_class": 0,
+            "p_correct_original": 0.5066166818141937,
+            "p_correct_modified": 0.5126742124557495,
+            "improvement": 0.006057530641555786,
+            "room_for_improvement": 0.4933833181858063,
+            "normalized_improvement": 0.012277534359754221,
+            "region_ratio": 0.04807692307692308,
+            "improved": true
+          }
+        ],
+        "interpretation": "score = mean_normalized_improvement * (1 - avg_region_ratio)"
+      },
+      "errors": []
+    }
+  }
+}

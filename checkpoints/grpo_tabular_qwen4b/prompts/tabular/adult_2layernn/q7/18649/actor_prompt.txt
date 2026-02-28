@@ -1,0 +1,102 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change relationship, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (60.92%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6092272102832794}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.3907727897167206}]
+- Part to Change: relationship
+
+## Input Data
+Features: age=25, workclass=Private, fnlwgt=122999, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Craft-repair, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: native-country_Haiti.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: sex_Male (prob drop: -0.009804).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Haiti: +0.0154
+  - native-country_Columbia: +0.0141
+  - occupation_Tech-support: +0.0106
+  - age: +0.0074
+  - education_1st-4th: +0.0035
+- Top negative features (shap_value):
+  - native-country_Holand-Netherlands: -0.0154
+  - native-country_Cuba: -0.0141
+  - occupation_Transport-moving: -0.0106
+  - fnlwgt: -0.0074
+  - education_5th-6th: -0.0035
+- Max positive: 0.015425  Max negative: -0.015425
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=-0.0098  (orig=0.4035 → mod=0.4133)
+  - education_HS-grad: drop=+0.0071  (orig=0.4035 → mod=0.3964)
+  - occupation_Craft-repair: drop=+0.0070  (orig=0.4035 → mod=0.3966)
+  - relationship_Own-child: drop=+0.0065  (orig=0.4035 → mod=0.3970)
+  - marital-status_Never-married: drop=+0.0062  (orig=0.4035 → mod=0.3973)
+  - education-num: drop=+0.0047  (orig=0.4035 → mod=0.3989)
+  - workclass_Private: drop=+0.0036  (orig=0.4035 → mod=0.3999)
+  - age: drop=+0.0031  (orig=0.4035 → mod=0.4004)
+  - native-country_United-States: drop=-0.0031  (orig=0.4035 → mod=0.4067)
+  - fnlwgt: drop=+0.0011  (orig=0.4035 → mod=0.4025)
+- Max prob_drop: 0.007111  Max prob_increase: -0.009804
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the individual is 'Own-child' and male, with age 25, workclass Private, and education HS-grad, how might the model interpret a change in relationship to other categories (e.g., Never-married, Other-relative)?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Never-married"}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative"}]
+- Explanation: The model currently predicts income ≤50K for an individual with 'Own-child' relationship, which is often associated with younger, unmarried individuals without stable housing or employment support. Changing the relationship to 'Never-married' maintains a similar demographic profile, but may slightly reduce the model's perception of social stability, potentially reinforcing the prediction of lower income. 'Other-relative' introduces a more complex social structure, possibly indicating a household with extended family, which might suggest greater stability or access to resources. However, in the context of this dataset, 'Other-relative' is less frequently observed and often associated with individuals who may have lower economic stability or less formal employment. Thus, while both changes are plausible, the model may retain or slightly increase the prediction of ≤50K income, as neither category strongly signals higher economic status. The core predictor remains age and education level, which are held constant, so the impact is indirect but pattern-based.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's current prediction confidence and class to a hypothetical scenario where relationship is set to 'Unmarried' or 'Husband' while keeping all other features constant.
+- Status: Success
+- findings: "The model's current prediction is '\u226450K' with a confidence of 60.92%. When the 'relationship' feature is changed to 'Unmarried' or 'Husband', the prediction remains unchanged at '\u226450K'. The model does not show a significant shift in class or confidence. This suggests that the 'relationship' feature has minimal influence on the income prediction in this dataset, given the current feature set and the model's learned patterns."
+- Explanation: The 'relationship' feature in the dataset is categorical and currently holds the value 'Own-child'. Changing it to 'Unmarried' or 'Husband' does not significantly alter the model's output because these values are not strongly correlated with income in the training data. The model appears to treat 'relationship' as a relatively stable or low-impact feature, especially when compared to others like 'hours-per-week', 'age', or 'sex'. Since the prediction class and confidence remain the same, the model is stable under this variation. This indicates that the prediction is not sensitive to changes in relationship status, suggesting robustness in this particular feature dimension.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that the individual is 'Own-child' and male, with age 25, workclass Private, and education HS-grad, how might the model interpret a change in relationship to other categories (e.g., Never-married, Other-relative)?
+- Status: Success
+- findings: [{"feature_key": "relationship", "action": "change", "new_value": "Never-married"}, {"feature_key": "relationship", "action": "change", "new_value": "Other-relative"}]
+- Explanation: The model currently predicts income ≤50K for an individual with 'Own-child' relationship, which is often associated with younger, unmarried individuals without stable housing or employment support. Changing the relationship to 'Never-married' maintains a similar demographic profile, but may slightly reduce the model's perception of social stability, potentially reinforcing the prediction of lower income. 'Other-relative' introduces a more complex social structure, possibly indicating a household with extended family, which might suggest greater stability or access to resources. However, in the context of this dataset, 'Other-relative' is less frequently observed and often associated with individuals who may have lower economic stability or less formal employment. Thus, while both changes are plausible, the model may retain or slightly increase the prediction of ≤50K income, as neither category strongly signals higher economic status. The core predictor remains age and education level, which are held constant, so the impact is indirect but pattern-based.
+- Confidence: 0.85
+
+### COMPARISON Task
+- Query: Compare the model's current prediction confidence and class to a hypothetical scenario where relationship is set to 'Unmarried' or 'Husband' while keeping all other features constant.
+- Status: Success
+- findings: "The model's current prediction is '\u226450K' with a confidence of 60.92%. When the 'relationship' feature is changed to 'Unmarried' or 'Husband', the prediction remains unchanged at '\u226450K'. The model does not show a significant shift in class or confidence. This suggests that the 'relationship' feature has minimal influence on the income prediction in this dataset, given the current feature set and the model's learned patterns."
+- Explanation: The 'relationship' feature in the dataset is categorical and currently holds the value 'Own-child'. Changing it to 'Unmarried' or 'Husband' does not significantly alter the model's output because these values are not strongly correlated with income in the training data. The model appears to treat 'relationship' as a relatively stable or low-impact feature, especially when compared to others like 'hours-per-week', 'age', or 'sex'. Since the prediction class and confidence remain the same, the model is stable under this variation. This indicates that the prediction is not sensitive to changes in relationship status, suggesting robustness in this particular feature dimension.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

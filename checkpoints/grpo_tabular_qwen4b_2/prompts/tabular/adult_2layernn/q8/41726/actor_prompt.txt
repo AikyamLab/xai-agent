@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (54.92%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=57, workclass=Private, fnlwgt=127779, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Honduras.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.009168).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Hong: +0.0195
+  - fnlwgt: +0.0175
+  - native-country_United-States: +0.0146
+  - native-country_Cuba: +0.0112
+  - native-country_Yugoslavia: +0.0083
+- Top negative features (shap_value):
+  - native-country_Honduras: -0.0195
+  - age: -0.0175
+  - native-country_Trinadad&Tobago: -0.0146
+  - native-country_Columbia: -0.0112
+  - native-country_Vietnam: -0.0083
+- Max positive: 0.019548  Max negative: -0.019548
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0523
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: +0.0184
+  - marital-status_Married-AF-spouse <= 0.00: +0.0145
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0850
+  - capital-gain <= -0.15: -0.0609
+  - education-num <= -0.44: -0.0558
+  - hours-per-week <= -0.08: -0.0396
+  - workclass_Federal-gov <= 0.00: -0.0353
+- Max positive: 0.052282  Max negative: -0.085002
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0086
+  - native-country_United-States: +0.0075
+  - age: +0.0041
+  - occupation_Exec-managerial: +0.0034
+  - relationship_Husband: +0.0031
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0051
+  - workclass_Private: -0.0039
+  - fnlwgt: -0.0027
+  - education-num: -0.0024
+  - hours-per-week: -0.0008
+- Max positive: 0.008629  Max negative: -0.005086
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0092  (orig=0.6340 → mod=0.6248)
+  - native-country_United-States: drop=+0.0071  (orig=0.6340 → mod=0.6268)
+  - relationship_Husband: drop=+0.0063  (orig=0.6340 → mod=0.6277)
+  - age: drop=+0.0047  (orig=0.6340 → mod=0.6292)
+  - education_HS-grad: drop=-0.0045  (orig=0.6340 → mod=0.6384)
+  - workclass_Private: drop=-0.0043  (orig=0.6340 → mod=0.6383)
+  - occupation_Exec-managerial: drop=+0.0040  (orig=0.6340 → mod=0.6300)
+  - marital-status_Married-civ-spouse: drop=+0.0038  (orig=0.6340 → mod=0.6301)
+  - fnlwgt: drop=-0.0030  (orig=0.6340 → mod=0.6369)
+  - education-num: drop=-0.0015  (orig=0.6340 → mod=0.6355)
+- Max prob_drop: 0.009168  Max prob_increase: -0.004459
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted >50K for an individual with <=50K true label, evaluate whether occupation=Exec-managerial or race=White could be spurious features learned due to imbalanced data or confounding correlations in the training set.
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "race", "action": "change", "new_value": "Black"}]
+- Explanation: The individual's true label is <=50K, but the model predicted >50K with high confidence, possibly due to spurious correlations. In the dataset, 'Exec-managerial' occupation and 'White' race are historically correlated with higher incomes, especially in historical training data where socioeconomic status and race may have been confounded. These features might have been falsely learned as strong indicators of >50K income due to imbalanced representation or co-occurrence in training examples, rather than direct causal relevance. Changing occupation to a lower-income group (e.g., 'Other-service') and race to a group less associated with high income (e.g., 'Black') helps break these spurious associations and aligns the feature profile with the true label. Thus, these features are semantically inconsistent with the <=50K outcome and likely contributed to the wrong prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features such as age, education-num, and fnlwgt to the class <=50K, and identify if any feature with high attribution (like occupation or workclass) lacks direct relevance to income.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "reason": "Age is strongly correlated with income levels, as older individuals tend to have more accumulated work experience and higher earnings. Age=57 is above the median age in the dataset, which typically aligns with higher income, reinforcing the model's prediction of >50K despite the true label being <=50K."}, {"feature_key": "education-num", "relevance": "high", "reason": "Education level is a well-established predictor of income. 'HS-grad' (education-num=9) indicates a relatively low education level, which historically correlates with lower income. This feature contradicts the prediction of >50K and suggests potential misalignment in the model\u2019s reasoning."}, {"feature_key": "occupation", "relevance": "high", "reason": "Occupation like 'Exec-managerial' is directly linked to high income. This category has strong positive correlation with >50K income, and thus, its presence strongly supports the model's prediction of >50K, despite the true label being <=50K."}, {"feature_key": "workclass", "relevance": "medium", "reason": "Private sector employment is common and not strongly indicative of income level on its own. While 'Private' is associated with higher income in general, it does not provide strong directional bias. Its contribution is indirect and depends on other features like occupation and education."}, {"feature_key": "sex", "relevance": "low", "reason": "In the target dataset, sex has minimal direct impact on income in national-level analysis. In this case, 'Male' is not inherently linked to higher or lower income groups, especially when other features like occupation dominate. It lacks semantic relevance as a standalone predictor."}]
+- Explanation: The model incorrectly predicted >50K when the true label is <=50K. Features like age, education-num, and occupation are semantically relevant to income levels. However, the presence of 'Exec-managerial' occupation and age=57 supports higher income, while education-num=9 (HS-grad) weakens that prediction. The model may be over-relying on occupation and age, which are high-attribution features, at the expense of lower-evidence features such as sex or workclass. The inconsistency suggests a misalignment between high-attribution features and the correct class. Education-num has a direct explanatory power in income, and its low value undermines the prediction of >50K. Therefore, while occupation and age are semantically relevant, they may be overemphasized, leading to a wrong prediction against the true label.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given the model predicted >50K for an individual with <=50K true label, evaluate whether occupation=Exec-managerial or race=White could be spurious features learned due to imbalanced data or confounding correlations in the training set.
+- Status: Success
+- findings: [{"feature_key": "occupation", "action": "change", "new_value": "Other-service"}, {"feature_key": "race", "action": "change", "new_value": "Black"}]
+- Explanation: The individual's true label is <=50K, but the model predicted >50K with high confidence, possibly due to spurious correlations. In the dataset, 'Exec-managerial' occupation and 'White' race are historically correlated with higher incomes, especially in historical training data where socioeconomic status and race may have been confounded. These features might have been falsely learned as strong indicators of >50K income due to imbalanced representation or co-occurrence in training examples, rather than direct causal relevance. Changing occupation to a lower-income group (e.g., 'Other-service') and race to a group less associated with high income (e.g., 'Black') helps break these spurious associations and aligns the feature profile with the true label. Thus, these features are semantically inconsistent with the <=50K outcome and likely contributed to the wrong prediction.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of features such as age, education-num, and fnlwgt to the class <=50K, and identify if any feature with high attribution (like occupation or workclass) lacks direct relevance to income.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance": "high", "reason": "Age is strongly correlated with income levels, as older individuals tend to have more accumulated work experience and higher earnings. Age=57 is above the median age in the dataset, which typically aligns with higher income, reinforcing the model's prediction of >50K despite the true label being <=50K."}, {"feature_key": "education-num", "relevance": "high", "reason": "Education level is a well-established predictor of income. 'HS-grad' (education-num=9) indicates a relatively low education level, which historically correlates with lower income. This feature contradicts the prediction of >50K and suggests potential misalignment in the model\u2019s reasoning."}, {"feature_key": "occupation", "relevance": "high", "reason": "Occupation like 'Exec-managerial' is directly linked to high income. This category has strong positive correlation with >50K income, and thus, its presence strongly supports the model's prediction of >50K, despite the true label being <=50K."}, {"feature_key": "workclass", "relevance": "medium", "reason": "Private sector employment is common and not strongly indicative of income level on its own. While 'Private' is associated with higher income in general, it does not provide strong directional bias. Its contribution is indirect and depends on other features like occupation and education."}, {"feature_key": "sex", "relevance": "low", "reason": "In the target dataset, sex has minimal direct impact on income in national-level analysis. In this case, 'Male' is not inherently linked to higher or lower income groups, especially when other features like occupation dominate. It lacks semantic relevance as a standalone predictor."}]
+- Explanation: The model incorrectly predicted >50K when the true label is <=50K. Features like age, education-num, and occupation are semantically relevant to income levels. However, the presence of 'Exec-managerial' occupation and age=57 supports higher income, while education-num=9 (HS-grad) weakens that prediction. The model may be over-relying on occupation and age, which are high-attribution features, at the expense of lower-evidence features such as sex or workclass. The inconsistency suggests a misalignment between high-attribution features and the correct class. Education-num has a direct explanatory power in income, and its low value undermines the prediction of >50K. Therefore, while occupation and age are semantically relevant, they may be overemphasized, leading to a wrong prediction against the true label.
+- Confidence: 0.94
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

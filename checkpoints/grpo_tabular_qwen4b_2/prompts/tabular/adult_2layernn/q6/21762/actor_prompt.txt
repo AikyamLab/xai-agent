@@ -1,0 +1,143 @@
+You are an XAI expert. Propose a change plan to FLIP the prediction.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. How should the instance change to flip the model into greater than 50K?
+
+## Current State
+- Current Prediction: <=50K (70.88%)
+- Target Prediction: greater than 50K
+
+## Input Data
+Features: age=19, workclass=Self-emp-not-inc, fnlwgt=30800, education=10th, education-num=6, marital-status=Married-spouse-absent, occupation=Adm-clerical, relationship=Unmarried, race=Amer-Indian-Eskimo, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: education-num (prob drop: 0.011258).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0419
+  - education-num: +0.0223
+  - education_Preschool: +0.0204
+  - native-country_Canada: +0.0076
+  - workclass_Without-pay: +0.0051
+- Top negative features (shap_value):
+  - hours-per-week: -0.0419
+  - capital-gain: -0.0223
+  - education_Prof-school: -0.0204
+  - native-country_China: -0.0076
+  - education_10th: -0.0051
+- Max positive: 0.041944  Max negative: -0.041944
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-loss <= -0.22: +0.0787
+  - capital-gain <= -0.15: +0.0707
+  - education-num <= -0.44: +0.0529
+  - race_Amer-Indian-Eskimo > 0.00: +0.0517
+  - native-country_Yugoslavia <= 0.00: +0.0501
+- Top negative features (weight):
+  - marital-status_Divorced <= 0.00: -0.0453
+  - native-country_Outlying-US(Guam-USVI-etc) <= 0.00: -0.0325
+- Max positive: 0.078666  Max negative: -0.0453
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0125
+  - fnlwgt: +0.0080
+  - relationship_Unmarried: +0.0069
+  - workclass_Self-emp-not-inc: +0.0063
+  - marital-status_Married-spouse-absent: +0.0048
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0050
+  - capital-loss: -0.0003
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Private: +0.0000
+- Max positive: 0.012452  Max negative: -0.005012
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0113  (orig=0.4277 → mod=0.4164)
+  - fnlwgt: drop=+0.0073  (orig=0.4277 → mod=0.4204)
+  - relationship_Unmarried: drop=+0.0069  (orig=0.4277 → mod=0.4208)
+  - workclass_Self-emp-not-inc: drop=+0.0057  (orig=0.4277 → mod=0.4220)
+  - marital-status_Married-spouse-absent: drop=+0.0038  (orig=0.4277 → mod=0.4239)
+  - education_10th: drop=+0.0037  (orig=0.4277 → mod=0.4240)
+  - race_Amer-Indian-Eskimo: drop=+0.0036  (orig=0.4277 → mod=0.4241)
+  - age: drop=+0.0030  (orig=0.4277 → mod=0.4247)
+  - native-country_United-States: drop=-0.0024  (orig=0.4277 → mod=0.4301)
+  - occupation_Adm-clerical: drop=+0.0022  (orig=0.4277 → mod=0.4255)
+- Max prob_drop: 0.011258  Max prob_increase: -0.002371
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to predict <=50K, given the current prediction and top-5 probabilities?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: The model predicts <=50K with 70.88% confidence, suggesting the current instance is typical of lower-income outcomes. In income prediction models like those in the Census Income dataset, features such as age, education level, work hours, occupation, and sex are strong predictors of income bracket. Higher age correlates with more work experience and potential earnings. Increasing education-num (e.g., from 10th to higher levels) improves income potential. Higher hours-per-week (e.g., from 40 to 80) are associated with higher earnings. Occupations like 'Prof-specialty' are linked to high income, while 'Adm-clerical' are typically lower paying. Sex differences are observed, with males historically scoring higher in income predictions, especially in high-wage sectors. Changing these features increases the likelihood of predicting >50K by aligning the instance with high-income profiles.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What change to a feature (e.g. increase age, higher education-num, or change occupation) would most plausibly shift the model's confidence from <=50K to >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65, "impact_direction": "positive", "impact_magnitude": "high"}, {"feature_key": "education-num", "action": "increase", "new_value": 16, "impact_direction": "positive", "impact_magnitude": "high"}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 80, "impact_direction": "positive", "impact_magnitude": "medium"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact_direction": "positive", "impact_magnitude": "medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact_direction": "positive", "impact_magnitude": "medium"}]
+- Explanation: The model predicts <=50K with 70.88% confidence, indicating the instance is currently classified in the lower-income bracket. In the Adult Income dataset, higher income is typically associated with older age, higher education level, higher hours worked per week, and occupations in specialized or managerial fields. Increasing 'age' to 65 aligns with typical higher-income profiles. Raising 'education-num' to 16 (e.g., Bachelor's or above) significantly boosts income potential. Increasing 'hours-per-week' to 80 (though extreme, it reflects high work intensity) has a noticeable positive effect. Changing 'occupation' to 'Prof-specialty' (a higher-paying role) and 'workclass' to 'Private' (which tends to correlate with higher income) also contribute positively. These changes are grounded in domain knowledge and feature correlations observed in similar tabular income prediction models. Among these, age and education-num have the most consistent and high-impact relationships with income in the dataset.
+- Confidence: 0.94
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are most likely to influence the model's decision to predict <=50K, given the current prediction and top-5 probabilities?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 60}, {"feature_key": "education-num", "action": "change", "new_value": 12}, {"feature_key": "hours-per-week", "action": "change", "new_value": 80}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}, {"feature_key": "sex", "action": "change", "new_value": "Male"}]
+- Explanation: The model predicts <=50K with 70.88% confidence, suggesting the current instance is typical of lower-income outcomes. In income prediction models like those in the Census Income dataset, features such as age, education level, work hours, occupation, and sex are strong predictors of income bracket. Higher age correlates with more work experience and potential earnings. Increasing education-num (e.g., from 10th to higher levels) improves income potential. Higher hours-per-week (e.g., from 40 to 80) are associated with higher earnings. Occupations like 'Prof-specialty' are linked to high income, while 'Adm-clerical' are typically lower paying. Sex differences are observed, with males historically scoring higher in income predictions, especially in high-wage sectors. Changing these features increases the likelihood of predicting >50K by aligning the instance with high-income profiles.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: What change to a feature (e.g. increase age, higher education-num, or change occupation) would most plausibly shift the model's confidence from <=50K to >50K?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "increase", "new_value": 65, "impact_direction": "positive", "impact_magnitude": "high"}, {"feature_key": "education-num", "action": "increase", "new_value": 16, "impact_direction": "positive", "impact_magnitude": "high"}, {"feature_key": "hours-per-week", "action": "increase", "new_value": 80, "impact_direction": "positive", "impact_magnitude": "medium"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty", "impact_direction": "positive", "impact_magnitude": "medium"}, {"feature_key": "workclass", "action": "change", "new_value": "Private", "impact_direction": "positive", "impact_magnitude": "medium"}]
+- Explanation: The model predicts <=50K with 70.88% confidence, indicating the instance is currently classified in the lower-income bracket. In the Adult Income dataset, higher income is typically associated with older age, higher education level, higher hours worked per week, and occupations in specialized or managerial fields. Increasing 'age' to 65 aligns with typical higher-income profiles. Raising 'education-num' to 16 (e.g., Bachelor's or above) significantly boosts income potential. Increasing 'hours-per-week' to 80 (though extreme, it reflects high work intensity) has a noticeable positive effect. Changing 'occupation' to 'Prof-specialty' (a higher-paying role) and 'workclass' to 'Private' (which tends to correlate with higher income) also contribute positively. These changes are grounded in domain knowledge and feature correlations observed in similar tabular income prediction models. Among these, age and education-num have the most consistent and high-impact relationships with income in the dataset.
+- Confidence: 0.94
+
+## Your Task
+Propose a SPECIFIC change plan that would flip the prediction to "greater than 50K".
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "change_plan": [
+            {
+                "feature_key": "feature_name",
+                "action": "change",
+                "new_value": <value>
+            }
+        ]
+        // Available features: ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country']
+        // Current values: age=19, workclass='Self-emp-not-inc', fnlwgt=30800, education='10th', education-num=6, marital-status='Married-spouse-absent', occupation='Adm-clerical', relationship='Unmarried', race='Amer-Indian-Eskimo', sex='Female', capital-gain=0, capital-loss=0, hours-per-week=40, native-country='United-States'
+        // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
+        // Include multiple entries if changing several features is needed to flip the prediction
+    },
+    "explanation": "2-3 sentences explaining why this change would flip the prediction",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- action must be one of: "change", "delete", "swap", "add"
+- For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
+  - if the action is "delete", new_value automatically sets to null
+  - bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- The change should be MINIMAL but sufficient to flip prediction
+
+Respond with ONLY JSON:

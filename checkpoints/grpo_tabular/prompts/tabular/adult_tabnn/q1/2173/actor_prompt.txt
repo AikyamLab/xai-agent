@@ -1,0 +1,120 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: <=50K
+Confidence: 0.8412
+
+## Input Data
+Features: age=26, workclass=Private, fnlwgt=86483, education=10th, education-num=6, marital-status=Divorced, occupation=Other-service, relationship=Not-in-family, race=White, sex=Female, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: relationship_Not-in-family.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: marital-status_Divorced (prob drop: 0.011213).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - capital-loss: +0.0543
+  - race_Black: +0.0354
+  - age: +0.0350
+  - native-country_Vietnam: +0.0251
+  - sex_Male: +0.0244
+- Top negative features (shap_value):
+  - hours-per-week: -0.0543
+  - race_Other: -0.0354
+  - fnlwgt: -0.0350
+  - native-country_Yugoslavia: -0.0251
+  - native-country_Cambodia: -0.0244
+- Max positive: 0.054288  Max negative: -0.054288
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2132
+  - native-country_Greece <= 0.00: +0.1120
+  - capital-loss <= -0.22: +0.1070
+  - education-num <= -0.44: +0.0992
+  - education_Prof-school <= 0.00: +0.0930
+- Top negative features (weight):
+  - native-country_Scotland <= 0.00: -0.0688
+  - native-country_Haiti <= 0.00: -0.0165
+- Max positive: 0.21316  Max negative: -0.068822
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - relationship_Not-in-family: +0.0128
+  - marital-status_Divorced: +0.0119
+  - education-num: +0.0098
+  - occupation_Other-service: +0.0083
+  - age: +0.0060
+- Top negative features (attribution_score):
+  - native-country_United-States: -0.0010
+  - sex_Female: -0.0005
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+  - workclass_Self-emp-inc: -0.0000
+- Max positive: 0.012815  Max negative: -0.00103
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Divorced: drop=+0.0112  (orig=0.4604 → mod=0.4492)
+  - relationship_Not-in-family: drop=+0.0078  (orig=0.4604 → mod=0.4526)
+  - education-num: drop=+0.0075  (orig=0.4604 → mod=0.4529)
+  - age: drop=+0.0034  (orig=0.4604 → mod=0.4570)
+  - occupation_Other-service: drop=+0.0029  (orig=0.4604 → mod=0.4575)
+  - education_10th: drop=-0.0025  (orig=0.4604 → mod=0.4629)
+  - capital-gain: drop=+0.0015  (orig=0.4604 → mod=0.4589)
+  - race_White: drop=+0.0011  (orig=0.4604 → mod=0.4593)
+  - capital-loss: drop=+0.0007  (orig=0.4604 → mod=0.4597)
+  - sex_Female: drop=+0.0006  (orig=0.4604 → mod=0.4598)
+- Max prob_drop: 0.011213  Max prob_increase: -0.002484
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Identify the features from the input that are likely to be strong predictors of income ≤50K based on common socioeconomic patterns in the Adult dataset.
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 6}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "marital-status", "action": "change", "new_value": "Divorced"}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service"}]
+- Explanation: The prediction of income ≤50K is strongly associated with features indicating lower educational attainment (education-num=6, education='10th'), working in the private sector without benefits, being divorced (often linked to lower household income), and holding a low-status occupation like 'Other-service'. These features align with known socioeconomic patterns contributing to lower income in the Adult dataset. The model's high confidence (84.12%) supports that these inputs are influential.
+- Confidence: 0.92
+
+### REASONING Task
+- Query: Explain how the feature values (e.g., education=10th, workclass=Private, marital-status=Divorced) contribute to the model's prediction of income ≤50K.
+- Status: Success
+- findings: "The low education level (10th grade), private workclass (not government or professional), and divorced marital status are commonly correlated with lower income in the Adult dataset, supporting class 0 prediction."
+- Explanation: The model's prediction of income ≤50K is influenced by several key features. The education level of '10th' grade is one of the lowest in the dataset, which is strongly associated with lower income potential. The 'Private' workclass typically indicates employment in non-governmental or non-professional sectors, often linked to lower earnings. The 'Divorced' marital status may reflect economic instability or lack of dual-income household, further contributing to lower income predictability. These features collectively align with patterns in the Adult dataset where lower education, non-professional employment, and unmarried status are associated with income ≤50K.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the importance of education-num, workclass, and occupation in influencing the predicted income class, using the model's prediction probability and feature context.
+- Status: Success
+- findings: "education-num likely has higher influence due to its direct numerical enrollment; workclass and occupation may carry significant but secondary impact."
+- Explanation: The model predicts income ≤50K with 84.12% confidence. Among the features, education-num (6) is low compared to higher education levels, indicating limited educational attainment, which typically correlates with lower income. While workclass ('Private') and occupation ('Other-service') are also indicative of lower-income roles, education-num is a more direct and quantifiable predictor, as it increases consecutively with years of schooling. Therefore, education-num likely has a stronger influence on the model’s prediction compared to workclass or occupation, which are categorical but may reflect socioeconomic status in a less direct way.
+- Confidence: 0.78
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

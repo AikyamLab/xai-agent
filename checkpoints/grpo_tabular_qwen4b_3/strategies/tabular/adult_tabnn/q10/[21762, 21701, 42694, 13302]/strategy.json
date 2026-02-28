@@ -1,0 +1,70 @@
+{
+  "strategy_type": "hybrid",
+  "reasoning": "A hybrid strategy is chosen to combine autonomous reasoning with external XAI tools for a comprehensive and precise analysis. Autonomous reasoning allows for initial pattern detection based on feature-level contrasts, while XAI tools provide quantified, model-agnostic attributions that highlight why specific features drive the prediction differences, especially in similar but divergent instances.",
+  "confidence": 0.95,
+  "autonomous_tasks": [
+    {
+      "task_type": "comparison",
+      "query": "Identify key feature differences between Instance A (21762) and Instance D (13302) in terms of age, workclass, education, marital-status, and occupation, focusing on features that may influence the <=50K vs >50K classification.",
+      "expected_output": "A list of distinct feature values and their potential impact on the prediction outcome"
+    },
+    {
+      "task_type": "reasoning",
+      "query": "Why might the high 'fnlwgt' and 'exec-managerial' occupation in Instance D (13302) lead to a misclassification despite similar overall structure to correct cases?",
+      "expected_output": "A plausible explanation rooted in domain understanding and feature semantics (e.g., executive roles typically associated with higher income)."
+    }
+  ],
+  "tool_selection": {
+    "selected_tools": [
+      "shap",
+      "integrated_gradients",
+      "sensitivity_analysis"
+    ],
+    "tool_params": {
+      "shap": {
+        "apply_to": "both",
+        "comparison_mode": "difference"
+      },
+      "integrated_gradients": {
+        "apply_to": "both",
+        "baseline": "mean"
+      },
+      "sensitivity_analysis": {
+        "apply_to": "both",
+        "perturbation_method": "leave-one-out"
+      }
+    },
+    "reasoning": "SHAP and Integrated Gradients provide consistent, interpretable per-feature contributions across instances, enabling contrastive analysis of why one instance is classified correctly and another incorrectly. Sensitivity analysis helps isolate which features most strongly affect the prediction margin, revealing the minimal changes that could reverse classification. This combination enhances robustness over relying on just autonomous inference."
+  },
+  "selected_tools": [
+    {
+      "tool_name": "shap",
+      "priority": 1,
+      "reasoning": "SHAP and Integrated Gradients provide consistent, interpretable per-feature contributions across instances, enabling contrastive analysis of why one instance is classified correctly and another incorrectly. Sensitivity analysis helps isolate which features most strongly affect the prediction margin, revealing the minimal changes that could reverse classification. This combination enhances robustness over relying on just autonomous inference.",
+      "parameters": {
+        "apply_to": "both",
+        "comparison_mode": "difference"
+      }
+    },
+    {
+      "tool_name": "integrated_gradients",
+      "priority": 2,
+      "reasoning": "SHAP and Integrated Gradients provide consistent, interpretable per-feature contributions across instances, enabling contrastive analysis of why one instance is classified correctly and another incorrectly. Sensitivity analysis helps isolate which features most strongly affect the prediction margin, revealing the minimal changes that could reverse classification. This combination enhances robustness over relying on just autonomous inference.",
+      "parameters": {
+        "apply_to": "both",
+        "baseline": "mean"
+      }
+    },
+    {
+      "tool_name": "sensitivity_analysis",
+      "priority": 3,
+      "reasoning": "SHAP and Integrated Gradients provide consistent, interpretable per-feature contributions across instances, enabling contrastive analysis of why one instance is classified correctly and another incorrectly. Sensitivity analysis helps isolate which features most strongly affect the prediction margin, revealing the minimal changes that could reverse classification. This combination enhances robustness over relying on just autonomous inference.",
+      "parameters": {
+        "apply_to": "both",
+        "perturbation_method": "leave-one-out"
+      }
+    }
+  ],
+  "is_multi_instance": true,
+  "num_instances": 4
+}

@@ -1,0 +1,119 @@
+You are an XAI expert. Based on the analysis, identify the MOST RESPONSIBLE part.
+
+## Question
+The model predicted the individual's income to be greater than 50K. Which input features were most responsible for this prediction?
+
+## Model Prediction
+Class: >50K
+Confidence: 0.6509
+
+## Input Data
+Features: age=38, workclass=Private, fnlwgt=119177, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Sales, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis Results
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.013005).
+
+## Detailed Tool Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0688
+  - native-country_Cambodia: +0.0361
+  - native-country_United-States: +0.0359
+  - occupation_Prof-specialty: +0.0320
+  - native-country_Cuba: +0.0246
+- Top negative features (shap_value):
+  - capital-loss: -0.0688
+  - sex_Male: -0.0361
+  - native-country_Trinadad&Tobago: -0.0359
+  - occupation_Priv-house-serv: -0.0320
+  - native-country_Columbia: -0.0246
+- Max positive: 0.068805  Max negative: -0.068805
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - -0.05 < education-num <= 1.13: +0.0576
+  - native-country_Laos <= 0.00: +0.0571
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2079
+  - education_Preschool <= 0.00: -0.1211
+  - capital-loss <= -0.22: -0.1015
+  - native-country_China <= 0.00: -0.0985
+  - native-country_Puerto-Rico <= 0.00: -0.0645
+- Max positive: 0.057572  Max negative: -0.207877
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0165
+  - relationship_Husband: +0.0150
+  - education-num: +0.0145
+  - sex_Male: +0.0114
+  - education_Bachelors: +0.0111
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0062
+  - workclass_Private: -0.0027
+  - capital-gain: -0.0015
+  - age: -0.0007
+  - hours-per-week: -0.0007
+- Max positive: 0.016531  Max negative: -0.006184
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0130  (orig=0.6572 → mod=0.6442)
+  - marital-status_Married-civ-spouse: drop=+0.0117  (orig=0.6572 → mod=0.6455)
+  - relationship_Husband: drop=+0.0097  (orig=0.6572 → mod=0.6475)
+  - education_Bachelors: drop=+0.0067  (orig=0.6572 → mod=0.6505)
+  - sex_Male: drop=+0.0053  (orig=0.6572 → mod=0.6520)
+  - native-country_United-States: drop=+0.0046  (orig=0.6572 → mod=0.6526)
+  - fnlwgt: drop=-0.0044  (orig=0.6572 → mod=0.6616)
+  - race_White: drop=+0.0036  (orig=0.6572 → mod=0.6536)
+  - workclass_Private: drop=+0.0024  (orig=0.6572 → mod=0.6548)
+  - capital-gain: drop=-0.0010  (orig=0.6572 → mod=0.6582)
+- Max prob_drop: 0.013005  Max prob_increase: -0.004389
+
+## Autonomous Reasoning Results
+
+### GROUNDING Task
+- Query: Which features in the input are typically associated with higher income in the adult income dataset?
+- Status: Success
+- findings: [{"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}, {"feature_key": "capital-gain", "action": "change", "new_value": 0}, {"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}]
+- Explanation: In the Adult Income dataset, features such as education-num, hours-per-week, and workclass are strongly associated with higher income (>50K). Higher education levels (e.g., Bachelors, education-num=13) and longer working hours (e.g., 40 hours/week) are consistently correlated with higher income. The 'Private' workclass is common among high-income individuals, and marital status like 'Married-civ-spouse' indicates stability, which is also linked to higher earnings. Capital-gain is not strongly predictive on its own, and values of zero do not disqualify high income. These features are well-documented in literature and model studies as predictive of the '>50K' class.
+- Confidence: 0.97
+
+### REASONING Task
+- Query: Given the input features, how might 'education=Bachelors' and 'occupation=Sales' influence the likelihood of income >50K?
+- Status: Success
+- Explanation: In the context of the Kaggle 'Income Prediction' dataset (also known as the Adult Census Income Dataset), 'education' and 'occupation' are strongly correlated with income outcomes. An individual with a 'Bachelors' degree (education-level) typically has a higher probability of earning above $50K due to greater access to higher-paying jobs and better job stability. Similarly, the occupation 'Sales' is associated with a moderate to above-average income, though it is generally not among the highest-earning occupations like 'Exec-managerial' or 'Prof-specialty'. However, in the context of this dataset, the combination of a Bachelor's degree and being in a sales role still places the individual in a category that is predictive of higher income, particularly when combined with other favorable features such as being male, married, and working in the U.S. While not the strongest predictors, these features contribute to the model's elevated confidence in predicting income >50K. The model may have emphasized these features due to their established statistical association with higher income levels in the training data.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the predictive strength of categorical features (e.g., workclass, race, sex) versus numerical features (e.g., age, fnlwgt) in the context of income classification
+- Status: Success
+- findings: [{"feature_type": "categorical", "examples": ["workclass", "education", "marital-status", "occupation", "relationship", "race", "sex", "native-country"], "strength": "high", "reason": "Categorical features often encode discrete, socially significant attributes that directly influence income outcomes. For instance, 'workclass' (e.g., 'Private' vs. 'Self-emp-not-inc') and 'occupation' (e.g., 'Exec-managerial' vs. 'Farming-fishing') are strongly correlated with income levels. In this case, 'Private' workclass and 'Sales' occupation are common in higher-income groups. Similarly, 'Married-civ-spouse' and 'Husband' relationship may imply greater financial stability, contributing positively to income prediction. Race and sex, though historically sensitive, are included in the model and may carry statistical associations with income, even if ethically charged."}, {"feature_type": "numerical", "examples": ["age", "fnlwgt", "education-num", "capital-gain", "capital-loss", "hours-per-week"], "strength": "moderate", "reason": "Numerical features provide continuous data that can scale with income. 'Age' and 'hours-per-week' are intuitive drivers\u2014older individuals or those working more hours may earn more. However, in this specific case, age=38 is below the typical age range for high-income earners, and hours-per-week=40 is standard. 'fnlwgt' (family net worth proxy) is less directly tied to actual income and may be more a measure of socioeconomic status than income itself. Education-num=13 (Bachelors) is a moderate predictor, but the categorical 'education' feature already captures this meaningfully. Thus, numerical features contribute indirectly and 'less directly' than categorical ones in this context."}]
+- Explanation: Categorical features have stronger predictive power in income classification due to their direct encoding of job type, marital status, and demographic factors that are strongly associated with income distribution. These features often contain non-linear and non-monotonic relationships with income, making them more discriminative than continuous numerical features, which are more uniformly distributed or less informative in this dataset. While numerical features like age and hours-per-week contribute, their effects are often weaker or secondary to categorical groupings that reflect occupational and social status.
+- Confidence: 0.94
+
+## Your Task
+Identify the MOST RESPONSIBLE part that caused this prediction.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is most responsible",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

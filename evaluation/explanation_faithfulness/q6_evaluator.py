@@ -1374,6 +1374,12 @@ class Q6Evaluator(BaseEvaluator):
         Returns:
             EvaluationResult with flip success score (1 or 0)
         """
+        # Vision uses a completely separate logic path (any flip = pass, stores top-3).
+        if self.modality == 'vision':
+            return self._evaluate_vision(
+                agent_output, original_input, model, original_prediction, **kwargs
+            )
+
         # Get change plan from agent output.
         # Vision always returns a single dict; text/tabular may return a list of dicts.
         output_data = agent_output.get('output', {})
@@ -1462,8 +1468,8 @@ class Q6Evaluator(BaseEvaluator):
             # Prob breakdown: original class tracked; no specific target class
             p_original_class_original = p_original
             p_original_class_modified  = p_modified
-            p_target_class_before   = None
-            p_target_class_after    = None
+            p_target_class_original = None
+            p_target_class_modified = None
         else:
             # Specific target class requested
             flipped_correctly = (modified_class == expected_class_idx)
@@ -1512,6 +1518,144 @@ class Q6Evaluator(BaseEvaluator):
                 "p_target_class_modified":    p_target_class_modified,
             }
         )
+
+    # =========================================================================
+    # Vision-specific Q6 logic
+    # =========================================================================
+
+    def _evaluate_vision(
+        self,
+        agent_output: Dict[str, Any],
+        original_input: Any,
+        model: nn.Module,
+        original_prediction: Dict[str, Any],
+        **kwargs
+    ) -> EvaluationResult:
+        """Vision Q6: any change in top-1 prediction counts as a pass.
+
+        No specific target class is embedded in the vision prompt, so we just
+        check whether the top-1 class changed.  Top-3 predictions before and
+        after modification are stored in the details for inspection.
+        """
+        output_data = agent_output.get('output', {})
+        change_plan_raw = output_data.get('change_plan', {})
+
+        if isinstance(change_plan_raw, dict):
+            change_plans = [change_plan_raw] if change_plan_raw else []
+        elif isinstance(change_plan_raw, list):
+            change_plans = [p for p in change_plan_raw if isinstance(p, dict)]
+        else:
+            change_plans = []
+
+        if not change_plans:
+            return EvaluationResult(
+                score=0.0,
+                passed=False,
+                metric_name=self.metric_name,
+                metric_formula="1 if R1_modified != original_class else 0",
+                errors=["No change plan provided by agent"]
+            )
+
+        # Apply each plan sequentially (SD inpainting or gray fill).
+        modified_input = original_input
+        region_ratio = 0.0
+        for plan in change_plans:
+            region = self._extract_region_from_change_plan(plan)
+            if region is None:
+                continue
+            err = self._validate_change_plan_region(region, original_input, **kwargs)
+            if err:
+                return EvaluationResult(
+                    score=0.0,
+                    passed=False,
+                    metric_name=self.metric_name,
+                    metric_formula="1 if R1_modified != original_class else 0",
+                    errors=[f"Invalid change_plan region: {err}"]
+                )
+            action = plan.get('action', 'change')
+            new_value = plan.get('new_value')
+            modified_input = self._apply_change_plan(
+                modified_input, region, action, new_value, kwargs
+            )
+            region_ratio += self.compute_region_ratio(region, original_input)
+        region_ratio = min(1.0, region_ratio)
+
+        # Run model on original and modified images.
+        processor = kwargs.get('processor')
+        device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
+        modified_prediction = self.get_prediction(model, modified_input, processor, device)
+
+        original_class_idx = original_prediction.get('predicted_class_idx', 0)
+        modified_class = modified_prediction.get('predicted_class_idx', -1)
+        original_probs = original_prediction.get('probabilities')
+        modified_probs = modified_prediction.get('probabilities')
+
+        # Top-3 predictions before and after.
+        class_names_map = kwargs.get('class_names')
+        top3_original = self._get_top3_predictions(original_probs, class_names_map)
+        top3_modified = self._get_top3_predictions(modified_probs, class_names_map)
+
+        # Any flip in top-1 = pass.
+        flipped = (modified_class != original_class_idx)
+
+        # Soft score: probability drop of the original class (higher = more convincing).
+        p_original = float(original_probs[original_class_idx]) if original_probs is not None else None
+        p_modified = float(modified_probs[original_class_idx]) if modified_probs is not None else None
+        if p_original is not None and p_modified is not None:
+            soft_score = max(0.0, p_original - p_modified)
+        else:
+            soft_score = 1.0 if flipped else 0.0
+
+        size_penalty = 1.0 - region_ratio
+        score = soft_score * size_penalty
+
+        return EvaluationResult(
+            score=score,
+            passed=flipped,
+            metric_name=self.metric_name,
+            metric_formula="1 if R1_modified != original_class else 0",
+            original_class=str(original_class_idx),
+            modified_class=str(modified_class),
+            p_original=p_original,
+            p_modified=p_modified,
+            details={
+                "change_plan": change_plan_raw,
+                "expected_class": "any different class",
+                "soft_score": soft_score,
+                "region_ratio": region_ratio,
+                "size_penalty": size_penalty,
+                "flipped": flipped,
+                "interpretation": "score = P_drop(original_class) * (1 - region_ratio)",
+                "p_original_class_original": p_original,
+                "p_original_class_modified": p_modified,
+                "top3_predictions_original": top3_original,
+                "top3_predictions_modified": top3_modified,
+            }
+        )
+
+    @staticmethod
+    def _get_top3_predictions(probs, class_names=None) -> list:
+        """Return top-3 predictions sorted by probability (highest first).
+
+        Each entry: {"class_idx": int, "probability": float, "class_name": str (if available)}.
+        """
+        if probs is None:
+            return []
+        n = len(probs)
+        top3_idx = sorted(range(n), key=lambda i: float(probs[i]), reverse=True)[:3]
+        results = []
+        for idx in top3_idx:
+            entry: Dict[str, Any] = {
+                "class_idx": int(idx),
+                "probability": float(probs[idx]),
+            }
+            if class_names is not None:
+                if isinstance(class_names, dict):
+                    entry["class_name"] = str(class_names.get(idx, str(idx)))
+                elif hasattr(class_names, '__getitem__') and idx < len(class_names):
+                    entry["class_name"] = str(class_names[idx])
+            results.append(entry)
+        return results
 
     def _apply_change_plan(self, original_input, region, action, new_value, kwargs) -> Any:
         """Apply the agent's change plan to produce a modified input.

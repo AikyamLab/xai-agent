@@ -1,0 +1,135 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.31%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=37, workclass=Self-emp-not-inc, fnlwgt=188563, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.011281).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0276
+  - native-country_Cuba: +0.0087
+  - native-country_Laos: +0.0064
+  - education_5th-6th: +0.0053
+  - native-country_United-States: +0.0043
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0276
+  - native-country_Columbia: -0.0087
+  - native-country_Japan: -0.0064
+  - education_1st-4th: -0.0053
+  - native-country_Trinadad&Tobago: -0.0043
+- Max positive: 0.02761  Max negative: -0.02761
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0585
+  - native-country_Columbia <= 0.00: +0.0493
+  - native-country_South <= 0.00: +0.0474
+  - native-country_El-Salvador <= 0.00: +0.0449
+  - native-country_England <= 0.00: +0.0390
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0781
+  - capital-gain <= -0.15: -0.0681
+  - education-num <= -0.44: -0.0550
+- Max positive: 0.058517  Max negative: -0.078131
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0095
+  - hours-per-week: +0.0079
+  - relationship_Husband: +0.0036
+  - native-country_United-States: +0.0035
+  - marital-status_Married-civ-spouse: +0.0025
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0074
+  - occupation_Transport-moving: -0.0036
+  - education-num: -0.0030
+  - workclass_Self-emp-not-inc: -0.0025
+  - age: -0.0008
+- Max positive: 0.009483  Max negative: -0.007375
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0113  (orig=0.6302 → mod=0.6189)
+  - education_HS-grad: drop=-0.0063  (orig=0.6302 → mod=0.6365)
+  - relationship_Husband: drop=+0.0055  (orig=0.6302 → mod=0.6247)
+  - occupation_Transport-moving: drop=-0.0051  (orig=0.6302 → mod=0.6353)
+  - hours-per-week: drop=+0.0049  (orig=0.6302 → mod=0.6253)
+  - marital-status_Married-civ-spouse: drop=+0.0041  (orig=0.6302 → mod=0.6261)
+  - education-num: drop=-0.0020  (orig=0.6302 → mod=0.6322)
+  - native-country_United-States: drop=+0.0014  (orig=0.6302 → mod=0.6288)
+  - workclass_Self-emp-not-inc: drop=-0.0012  (orig=0.6302 → mod=0.6314)
+  - age: drop=-0.0008  (orig=0.6302 → mod=0.6310)
+- Max prob_drop: 0.011281  Max prob_increase: -0.006256
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Self-emp-not-inc' or 'occupation=Transport-moving' be incorrectly associated with the >50K class despite the true label being <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "The 'Self-emp-not-inc' workclass may be correlated with higher income due to self-employment offering flexibility and potentially higher earning potential. However, in reality, self-employment is not universally associated with high income, and this feature might be spuriously correlated with >50K due to imbalanced data or dataset bias where certain workclasses (like self-employment) are overrepresented in the >50K class. Changing it to 'Local-gov', which is commonly associated with lower income levels, could reduce this spurious association and better align with the true label of <=50K."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "explanation": "The occupation 'Transport-moving' is a blue-collar, physically demanding job with typically lower earnings. It is not inherently linked to high income. However, in the training data, this occupation might have been co-occurring with other features (e.g., high hours-per-week or male sex) that are associated with higher income. This creates a spurious correlation where 'Transport-moving' appears to predict >50K due to co-occurrence with other income-increasing features. Replacing it with 'Other-service', a more common and lower-paying occupation, reduces this false signal."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "explanation": "The individual works 55 hours per week, which is above average and might correlate with higher income. However, this is not a reliable proxy for income, especially when other features (such as occupation or education) are modest. An overrepresentation of high-hour workers in the >50K class could create a spurious correlation. Reducing hours to 40 removes a potential artificial boost to the model's prediction, making the classification more aligned with the true label of <=50K."}, {"feature_key": "age", "action": "change", "new_value": 30, "explanation": "Age=37 is moderately young, and while some earnings increase with age, the correlation is not strong. However, if the training data incidentally groups younger individuals with higher income due to misclassification or sampling bias, this could create a spurious effect. Changing age to 30 weakens any age-based income assumption and helps isolate whether income prediction stems from actual patterns or artifacts."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "explanation": "The model predicts >50K for a male individual, which is consistent with historical data patterns showing higher male income in certain categories. However, this might be a spurious correlation driven by data skew, where men are overrepresented in higher-income groups. Changing 'sex' to 'Female' could break this pattern, especially if female workers in similar occupations are underrepresented in the >50K class. This adjustment highlights potential gender bias in the model\u2019s learning process."}]
+- Explanation: The model's prediction of >50K despite the true label being <=50K may stem from spurious correlations between selected features (notably workclass and occupation) and income outcomes, driven by data distribution patterns rather than actual causal links. Features like 'Self-emp-not-inc' and 'Transport-moving' are not inherently tied to high income and may appear correlated due to co-occurrence with other features (e.g., high hours or male sex). These correlations are artifacts of dataset imbalance or bias. By altering these features to more commonly associated low-income categories or reducing high-hour exposure, we isolate and weaken these spurious signals, improving model robustness and aligning predictions with true labels.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the class <=50K (e.g., age, education, marital-status) versus the model's predicted importance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": 37, "relevance": "low", "reason": "Age of 37 is common across income classes; no strong association with <=50K. Typical for mid-career, but not diagnostic."}, {"feature_key": "workclass", "action": "relevant", "new_value": "Self-emp-not-inc", "relevance": "moderate", "reason": "Self-employment may correlate with higher income, but in this case, it does not strongly distinguish from <=50K. Still, it's more relevant to >50K in general."}, {"feature_key": "education", "action": "relevant", "new_value": "HS-grad", "relevance": "low", "reason": "High school graduate is below average education level. Strongly associated with <=50K, especially in U.S. labor markets. This supports the true label."}, {"feature_key": "marital-status", "action": "relevant", "new_value": "Married-civ-spouse", "relevance": "moderate", "reason": "Married individuals often have higher income due to household support. This feature favors >50K, which may contribute to model's overconfidence in >50K prediction."}, {"feature_key": "occupation", "action": "relevant", "new_value": "Transport-moving", "relevance": "low", "reason": "Transport-moving is a lower-wage occupation. Strongly associated with <=50K. Should support true label of <=50K but model misclassified."}]
+- Explanation: The model predicted >50K when the true label is <=50K, despite key features like low education ('HS-grad'), low-wage occupation ('Transport-moving'), and no capital gains/losses suggesting a lower income profile. Features such as marital-status (Married-civ-spouse) and workclass (Self-emp-not-inc) carry moderate relevance toward higher income, yet they are not sufficient to override the strong signal from education and occupation. The model's confidence (53.31%) is low, suggesting uncertainty, but the misprediction appears due to overemphasizing structural factors (e.g., marital status) and underweighting socioeconomic indicators like education and occupation. No feature is irrelevant—however, the model appears to have misassigned semantic relevance, particularly to marital-status and workclass, which do not strongly support >50K in this context.
+- Confidence: 0.93
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Self-emp-not-inc' or 'occupation=Transport-moving' be incorrectly associated with the >50K class despite the true label being <=50K?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Local-gov", "explanation": "The 'Self-emp-not-inc' workclass may be correlated with higher income due to self-employment offering flexibility and potentially higher earning potential. However, in reality, self-employment is not universally associated with high income, and this feature might be spuriously correlated with >50K due to imbalanced data or dataset bias where certain workclasses (like self-employment) are overrepresented in the >50K class. Changing it to 'Local-gov', which is commonly associated with lower income levels, could reduce this spurious association and better align with the true label of <=50K."}, {"feature_key": "occupation", "action": "change", "new_value": "Other-service", "explanation": "The occupation 'Transport-moving' is a blue-collar, physically demanding job with typically lower earnings. It is not inherently linked to high income. However, in the training data, this occupation might have been co-occurring with other features (e.g., high hours-per-week or male sex) that are associated with higher income. This creates a spurious correlation where 'Transport-moving' appears to predict >50K due to co-occurrence with other income-increasing features. Replacing it with 'Other-service', a more common and lower-paying occupation, reduces this false signal."}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40, "explanation": "The individual works 55 hours per week, which is above average and might correlate with higher income. However, this is not a reliable proxy for income, especially when other features (such as occupation or education) are modest. An overrepresentation of high-hour workers in the >50K class could create a spurious correlation. Reducing hours to 40 removes a potential artificial boost to the model's prediction, making the classification more aligned with the true label of <=50K."}, {"feature_key": "age", "action": "change", "new_value": 30, "explanation": "Age=37 is moderately young, and while some earnings increase with age, the correlation is not strong. However, if the training data incidentally groups younger individuals with higher income due to misclassification or sampling bias, this could create a spurious effect. Changing age to 30 weakens any age-based income assumption and helps isolate whether income prediction stems from actual patterns or artifacts."}, {"feature_key": "sex", "action": "change", "new_value": "Female", "explanation": "The model predicts >50K for a male individual, which is consistent with historical data patterns showing higher male income in certain categories. However, this might be a spurious correlation driven by data skew, where men are overrepresented in higher-income groups. Changing 'sex' to 'Female' could break this pattern, especially if female workers in similar occupations are underrepresented in the >50K class. This adjustment highlights potential gender bias in the model\u2019s learning process."}]
+- Explanation: The model's prediction of >50K despite the true label being <=50K may stem from spurious correlations between selected features (notably workclass and occupation) and income outcomes, driven by data distribution patterns rather than actual causal links. Features like 'Self-emp-not-inc' and 'Transport-moving' are not inherently tied to high income and may appear correlated due to co-occurrence with other features (e.g., high hours or male sex). These correlations are artifacts of dataset imbalance or bias. By altering these features to more commonly associated low-income categories or reducing high-hour exposure, we isolate and weaken these spurious signals, improving model robustness and aligning predictions with true labels.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the class <=50K (e.g., age, education, marital-status) versus the model's predicted importance.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "relevant", "new_value": 37, "relevance": "low", "reason": "Age of 37 is common across income classes; no strong association with <=50K. Typical for mid-career, but not diagnostic."}, {"feature_key": "workclass", "action": "relevant", "new_value": "Self-emp-not-inc", "relevance": "moderate", "reason": "Self-employment may correlate with higher income, but in this case, it does not strongly distinguish from <=50K. Still, it's more relevant to >50K in general."}, {"feature_key": "education", "action": "relevant", "new_value": "HS-grad", "relevance": "low", "reason": "High school graduate is below average education level. Strongly associated with <=50K, especially in U.S. labor markets. This supports the true label."}, {"feature_key": "marital-status", "action": "relevant", "new_value": "Married-civ-spouse", "relevance": "moderate", "reason": "Married individuals often have higher income due to household support. This feature favors >50K, which may contribute to model's overconfidence in >50K prediction."}, {"feature_key": "occupation", "action": "relevant", "new_value": "Transport-moving", "relevance": "low", "reason": "Transport-moving is a lower-wage occupation. Strongly associated with <=50K. Should support true label of <=50K but model misclassified."}]
+- Explanation: The model predicted >50K when the true label is <=50K, despite key features like low education ('HS-grad'), low-wage occupation ('Transport-moving'), and no capital gains/losses suggesting a lower income profile. Features such as marital-status (Married-civ-spouse) and workclass (Self-emp-not-inc) carry moderate relevance toward higher income, yet they are not sufficient to override the strong signal from education and occupation. The model's confidence (53.31%) is low, suggesting uncertainty, but the misprediction appears due to overemphasizing structural factors (e.g., marital status) and underweighting socioeconomic indicators like education and occupation. No feature is irrelevant—however, the model appears to have misassigned semantic relevance, particularly to marital-status and workclass, which do not strongly support >50K in this context.
+- Confidence: 0.93
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

@@ -1,0 +1,100 @@
+You are an XAI expert. Predict the new class after modifying the specified part in the question.
+
+## Question
+The model predicted the individual’s income to be less than or equal to 50K. If we remove/change hours-per-week, how would the prediction change??
+
+## Current State
+- Current Prediction: <=50K (62.46%)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': '<=50K', 'probability': 0.6246310174465179}, {'class_idx': 1, 'class_name': '>50K', 'probability': 0.37536898255348206}]
+- Part to Change: hours-per-week
+
+## Input Data
+Features: age=18, workclass=State-gov, fnlwgt=109445, education=HS-grad, education-num=9, marital-status=Never-married, occupation=Other-service, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=25, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: hours-per-week (prob drop: 0.010376).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_Self-emp-not-inc: +0.0313
+  - native-country_Columbia: +0.0118
+  - age: +0.0112
+  - occupation_Tech-support: +0.0059
+  - native-country_Trinadad&Tobago: +0.0046
+- Top negative features (shap_value):
+  - workclass_State-gov: -0.0313
+  - native-country_Cuba: -0.0118
+  - fnlwgt: -0.0112
+  - occupation_Transport-moving: -0.0059
+  - native-country_United-States: -0.0046
+- Max positive: 0.031262  Max negative: -0.031262
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - hours-per-week: drop=+0.0104  (orig=0.4072 → mod=0.3969)
+  - sex_Male: drop=-0.0099  (orig=0.4072 → mod=0.4171)
+  - native-country_United-States: drop=-0.0058  (orig=0.4072 → mod=0.4131)
+  - age: drop=+0.0055  (orig=0.4072 → mod=0.4017)
+  - relationship_Own-child: drop=+0.0040  (orig=0.4072 → mod=0.4032)
+  - marital-status_Never-married: drop=+0.0037  (orig=0.4072 → mod=0.4035)
+  - occupation_Other-service: drop=+0.0034  (orig=0.4072 → mod=0.4039)
+  - education_HS-grad: drop=+0.0032  (orig=0.4072 → mod=0.4041)
+  - fnlwgt: drop=+0.0029  (orig=0.4072 → mod=0.4043)
+  - workclass_State-gov: drop=-0.0022  (orig=0.4072 → mod=0.4095)
+- Max prob_drop: 0.010376  Max prob_increase: -0.009875
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that hours-per-week is typically associated with income levels, and the current prediction is <=50K with low confidence, how might removing this feature influence the model's decision if it was previously contributing to high probability of >50K?
+- Status: Success
+- Explanation: The current model predicts an income of <=50K with 62.46% confidence. The feature 'hours-per-week' is known in domain knowledge to be positively correlated with higher income levels—individuals who work longer hours are more likely to earn above $50K. In the current instance, the value is 25 hours per week, which is moderate. If this feature were removed, the model would lose a key signal that could have pushed the prediction toward >50K. Since the prediction is currently only moderately confident and the feature is known to be a strong contributor to higher income outcomes, its removal would likely reduce the model's ability to detect the presence of higher-income patterns. As a result, the model would likely default to the base prediction (<=50K), especially if the model is not using the feature in a strong discriminative way. Therefore, removing 'hours-per-week' would not push the prediction toward >50K; instead, it would reinforce or maintain the <=50K outcome, particularly given the current low confidence and the fact that the individual's other features (e.g., low education-num, young age, own-child relationship) align with lower income. Hence, removal would make the prediction more conservative.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction confidence (0.6246) to what might be expected if hours-per-week is set to zero or removed from the input, considering the feature's typical correlation with income in the dataset.
+- Status: Success
+- findings: {"predicted_confidence": 0.65, "class_shift": "no_shift"}
+- Explanation: The feature 'hours-per-week' is generally positively correlated with higher income in this dataset, as individuals working longer hours are more likely to earn more than $50K. However, in the current instance, the individual's hours-per-week is 25, which is moderate. Setting it to zero would likely reduce the income likelihood, but since the prediction class is already '≤50K' and the model has a moderate confidence (62.46%), removing or setting this feature to zero does not induce a class shift. The model has already accounted for the current value, and the absence of a strong signal in the data for high-income individuals with low hours suggests that the class prediction remains stable. Thus, confidence slightly increases due to reduced noise or missing data impact, but no class change occurs.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Given that hours-per-week is typically associated with income levels, and the current prediction is <=50K with low confidence, how might removing this feature influence the model's decision if it was previously contributing to high probability of >50K?
+- Status: Success
+- Explanation: The current model predicts an income of <=50K with 62.46% confidence. The feature 'hours-per-week' is known in domain knowledge to be positively correlated with higher income levels—individuals who work longer hours are more likely to earn above $50K. In the current instance, the value is 25 hours per week, which is moderate. If this feature were removed, the model would lose a key signal that could have pushed the prediction toward >50K. Since the prediction is currently only moderately confident and the feature is known to be a strong contributor to higher income outcomes, its removal would likely reduce the model's ability to detect the presence of higher-income patterns. As a result, the model would likely default to the base prediction (<=50K), especially if the model is not using the feature in a strong discriminative way. Therefore, removing 'hours-per-week' would not push the prediction toward >50K; instead, it would reinforce or maintain the <=50K outcome, particularly given the current low confidence and the fact that the individual's other features (e.g., low education-num, young age, own-child relationship) align with lower income. Hence, removal would make the prediction more conservative.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the current prediction confidence (0.6246) to what might be expected if hours-per-week is set to zero or removed from the input, considering the feature's typical correlation with income in the dataset.
+- Status: Success
+- findings: {"predicted_confidence": 0.65, "class_shift": "no_shift"}
+- Explanation: The feature 'hours-per-week' is generally positively correlated with higher income in this dataset, as individuals working longer hours are more likely to earn more than $50K. However, in the current instance, the individual's hours-per-week is 25, which is moderate. Setting it to zero would likely reduce the income likelihood, but since the prediction class is already '≤50K' and the model has a moderate confidence (62.46%), removing or setting this feature to zero does not induce a class shift. The model has already accounted for the current value, and the absence of a strong signal in the data for high-income individuals with low hours suggests that the class prediction remains stable. Thus, confidence slightly increases due to reduced noise or missing data impact, but no class change occurs.
+- Confidence: 0.92
+
+## Your Task
+Predict what the NEW prediction would be after removing/changing the specified part.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "changed_class": "predicted class name after modification",
+        "changed_confidence": 0.0-1.0
+    },
+    "explanation": "2-3 sentences explaining why the prediction would change to this class",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- changed_class: The class the model would predict AFTER the modification
+- This is often the second-most-likely class (top-2) but could be different
+- Consider what features remain after the modification
+- changed_confidence: Your estimate of the new prediction's confidence
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

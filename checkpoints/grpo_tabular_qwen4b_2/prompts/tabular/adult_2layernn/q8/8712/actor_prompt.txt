@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.31%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=37, workclass=Self-emp-not-inc, fnlwgt=188563, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Transport-moving, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=55, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: workclass_Self-emp-not-inc.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.011281).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - workclass_State-gov: +0.0250
+  - native-country_Taiwan: +0.0230
+  - native-country_Cuba: +0.0117
+  - native-country_United-States: +0.0115
+  - native-country_Ireland: +0.0049
+- Top negative features (shap_value):
+  - workclass_Self-emp-not-inc: -0.0250
+  - native-country_Thailand: -0.0230
+  - native-country_Columbia: -0.0117
+  - native-country_Trinadad&Tobago: -0.0115
+  - native-country_Iran: -0.0049
+- Max positive: 0.025007  Max negative: -0.025007
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0517
+  - hours-per-week > 0.34: +0.0479
+  - native-country_Peru <= 0.00: +0.0395
+  - native-country_Guatemala <= 0.00: +0.0343
+  - marital-status_Never-married <= 0.00: +0.0324
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0835
+  - capital-gain <= -0.15: -0.0738
+  - education-num <= -0.44: -0.0525
+  - education_Masters <= 0.00: -0.0324
+- Max positive: 0.051697  Max negative: -0.083502
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0095
+  - hours-per-week: +0.0079
+  - relationship_Husband: +0.0036
+  - native-country_United-States: +0.0035
+  - marital-status_Married-civ-spouse: +0.0025
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0074
+  - occupation_Transport-moving: -0.0036
+  - education-num: -0.0030
+  - workclass_Self-emp-not-inc: -0.0025
+  - age: -0.0008
+- Max positive: 0.009483  Max negative: -0.007375
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0113  (orig=0.6302 → mod=0.6189)
+  - education_HS-grad: drop=-0.0063  (orig=0.6302 → mod=0.6365)
+  - relationship_Husband: drop=+0.0055  (orig=0.6302 → mod=0.6247)
+  - occupation_Transport-moving: drop=-0.0051  (orig=0.6302 → mod=0.6353)
+  - hours-per-week: drop=+0.0049  (orig=0.6302 → mod=0.6253)
+  - marital-status_Married-civ-spouse: drop=+0.0041  (orig=0.6302 → mod=0.6261)
+  - education-num: drop=-0.0020  (orig=0.6302 → mod=0.6322)
+  - native-country_United-States: drop=+0.0014  (orig=0.6302 → mod=0.6288)
+  - workclass_Self-emp-not-inc: drop=-0.0012  (orig=0.6302 → mod=0.6314)
+  - age: drop=-0.0008  (orig=0.6302 → mod=0.6310)
+- Max prob_drop: 0.011281  Max prob_increase: -0.006256
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Self-emp-not-inc' or 'occupation=Transport-moving' be spurious features in the context of income prediction for <=50K individuals?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction for individuals earning <=50K, 'Self-emp-not-inc' (self-employed not incorporated) and 'Transport-moving' are potentially spurious features. Self-employment, especially non-incorporated, may be associated with higher income variability and financial risk, which could be correlated with higher earnings, but it does not inherently correlate with lower income. Similarly, 'Transport-moving' is a physically demanding occupation with limited career growth paths and often lower wage potential, yet it may not be a strong predictor of income levels. In datasets like the Adult Income Dataset, the true predictors of <=50K are more frequently linked to education level, age, work hours, and marital status. These features might appear relevant due to data leakage, co-occurrence bias, or spurious correlations arising from demographic groupings rather than causal influence. Thus, they may not semantically contribute to predicting low income and could be considered irrelevant or noise in this context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the class <=50K (e.g., age, education, marital-status) and contrast it with the model's predicted importance.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance_score": 0.85, "model_importance": 0.12, "mismatch": true, "explanation": "Age is strongly correlated with income levels in population demographics. Individuals over 50 are more likely to earn >50K, so age should be highly relevant. However, the model assigns low importance, suggesting a mismatch in interpretation."}, {"feature_key": "education", "relevance_score": 0.78, "model_importance": 0.18, "mismatch": true, "explanation": "Higher education levels (e.g., Bachelor\u2019s or above) are strongly associated with higher income. The individual has only 'HS-grad', which is below average for >50K earnings. Yet the model assigns modest importance, underplaying its semantic relevance."}, {"feature_key": "marital-status", "relevance_score": 0.82, "model_importance": 0.21, "mismatch": true, "explanation": "Married individuals, especially those in household roles like 'Married-civ-spouse', often have higher income due to joint economic responsibilities or stability. The model assigns only moderate importance, underestimating its predictive value."}, {"feature_key": "hours-per-week", "relevance_score": 0.65, "model_importance": 0.3, "mismatch": false, "explanation": "Higher hours are generally associated with higher income. The value is 55, which is above average. The model correctly identifies this as moderately important, aligning with semantic expectations."}, {"feature_key": "sex", "relevance_score": 0.5, "model_importance": 0.45, "mismatch": false, "explanation": "While sex is a sensitive feature in real-world income data, in the original dataset (Census Income), sex has weak predictive power and is often not a strong signal. The model assigns high importance here, which may be due to noise or bias. However, this is not a clear semantic mismatch given historical context. Still, it raises a concern about model fairness and relevance."}]
+- Explanation: The model incorrectly predicted >50K for an individual with only a high school diploma, being married, young (age 37), working in a low-skill occupation (transport-moving), and with no capital gains. Semantic analysis shows that key features like age, education, and marital-status should strongly influence income prediction, yet the model assigns them low to moderate importance. This misalignment likely contributes to the wrong prediction. In contrast, hours-per-week and sex show a closer semantic alignment, though sex’s high importance may stem from data bias. Thus, the model's underweighting of age and education is a critical failure in capturing relevant demographic signals for the ≤50K class.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=Self-emp-not-inc' or 'occupation=Transport-moving' be spurious features in the context of income prediction for <=50K individuals?
+- Status: Success
+- findings: [{"feature_key": "workclass", "action": "change", "new_value": "Private"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction for individuals earning <=50K, 'Self-emp-not-inc' (self-employed not incorporated) and 'Transport-moving' are potentially spurious features. Self-employment, especially non-incorporated, may be associated with higher income variability and financial risk, which could be correlated with higher earnings, but it does not inherently correlate with lower income. Similarly, 'Transport-moving' is a physically demanding occupation with limited career growth paths and often lower wage potential, yet it may not be a strong predictor of income levels. In datasets like the Adult Income Dataset, the true predictors of <=50K are more frequently linked to education level, age, work hours, and marital status. These features might appear relevant due to data leakage, co-occurrence bias, or spurious correlations arising from demographic groupings rather than causal influence. Thus, they may not semantically contribute to predicting low income and could be considered irrelevant or noise in this context.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each feature to the class <=50K (e.g., age, education, marital-status) and contrast it with the model's predicted importance.
+- Status: Success
+- findings: [{"feature_key": "age", "relevance_score": 0.85, "model_importance": 0.12, "mismatch": true, "explanation": "Age is strongly correlated with income levels in population demographics. Individuals over 50 are more likely to earn >50K, so age should be highly relevant. However, the model assigns low importance, suggesting a mismatch in interpretation."}, {"feature_key": "education", "relevance_score": 0.78, "model_importance": 0.18, "mismatch": true, "explanation": "Higher education levels (e.g., Bachelor\u2019s or above) are strongly associated with higher income. The individual has only 'HS-grad', which is below average for >50K earnings. Yet the model assigns modest importance, underplaying its semantic relevance."}, {"feature_key": "marital-status", "relevance_score": 0.82, "model_importance": 0.21, "mismatch": true, "explanation": "Married individuals, especially those in household roles like 'Married-civ-spouse', often have higher income due to joint economic responsibilities or stability. The model assigns only moderate importance, underestimating its predictive value."}, {"feature_key": "hours-per-week", "relevance_score": 0.65, "model_importance": 0.3, "mismatch": false, "explanation": "Higher hours are generally associated with higher income. The value is 55, which is above average. The model correctly identifies this as moderately important, aligning with semantic expectations."}, {"feature_key": "sex", "relevance_score": 0.5, "model_importance": 0.45, "mismatch": false, "explanation": "While sex is a sensitive feature in real-world income data, in the original dataset (Census Income), sex has weak predictive power and is often not a strong signal. The model assigns high importance here, which may be due to noise or bias. However, this is not a clear semantic mismatch given historical context. Still, it raises a concern about model fairness and relevance."}]
+- Explanation: The model incorrectly predicted >50K for an individual with only a high school diploma, being married, young (age 37), working in a low-skill occupation (transport-moving), and with no capital gains. Semantic analysis shows that key features like age, education, and marital-status should strongly influence income prediction, yet the model assigns them low to moderate importance. This misalignment likely contributes to the wrong prediction. In contrast, hours-per-week and sex show a closer semantic alignment, though sex’s high importance may stem from data bias. Thus, the model's underweighting of age and education is a critical failure in capturing relevant demographic signals for the ≤50K class.
+- Confidence: 0.96
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

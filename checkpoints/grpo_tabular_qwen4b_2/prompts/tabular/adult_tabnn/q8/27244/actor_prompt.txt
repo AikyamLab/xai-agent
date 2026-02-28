@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (53.46%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=52, workclass=Local-gov, fnlwgt=152795, education=Some-college, education-num=10, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.01562).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Cambodia: +0.0394
+  - fnlwgt: +0.0310
+  - native-country_United-States: +0.0231
+  - native-country_Yugoslavia: +0.0135
+  - occupation_Transport-moving: +0.0109
+- Top negative features (shap_value):
+  - sex_Male: -0.0394
+  - age: -0.0310
+  - native-country_Trinadad&Tobago: -0.0231
+  - native-country_Vietnam: -0.0135
+  - occupation_Tech-support: -0.0109
+- Max positive: 0.039415  Max negative: -0.039415
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - education_Preschool <= 0.00: +0.1057
+  - age > 0.64: +0.0881
+  - 0.00 < marital-status_Married-civ-spouse <= 1.00: +0.0758
+  - native-country_Poland <= 0.00: +0.0591
+  - education_9th <= 0.00: +0.0529
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.1990
+  - capital-loss <= -0.22: -0.1220
+  - native-country_Canada <= 0.00: -0.0880
+  - native-country_Peru <= 0.00: -0.0465
+- Max positive: 0.105723  Max negative: -0.198972
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0198
+  - relationship_Husband: +0.0143
+  - age: +0.0093
+  - sex_Male: +0.0092
+  - workclass_Local-gov: +0.0036
+- Top negative features (attribution_score):
+  - occupation_Craft-repair: -0.0098
+  - race_White: -0.0034
+  - fnlwgt: -0.0031
+  - education_Some-college: -0.0029
+  - capital-gain: -0.0011
+- Max positive: 0.019791  Max negative: -0.009781
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0156  (orig=0.6306 → mod=0.6149)
+  - occupation_Craft-repair: drop=-0.0096  (orig=0.6306 → mod=0.6402)
+  - relationship_Husband: drop=+0.0087  (orig=0.6306 → mod=0.6219)
+  - age: drop=+0.0064  (orig=0.6306 → mod=0.6241)
+  - sex_Male: drop=+0.0062  (orig=0.6306 → mod=0.6243)
+  - education_Some-college: drop=-0.0035  (orig=0.6306 → mod=0.6340)
+  - fnlwgt: drop=-0.0019  (orig=0.6306 → mod=0.6324)
+  - capital-loss: drop=-0.0013  (orig=0.6306 → mod=0.6319)
+  - native-country_United-States: drop=+0.0013  (orig=0.6306 → mod=0.6293)
+  - workclass_Local-gov: drop=-0.0010  (orig=0.6306 → mod=0.6316)
+- Max prob_drop: 0.01562  Max prob_increase: -0.009636
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a proxy for total household income) be spuriously correlated with the >50K class even though it is not directly related to earnings?
+- Status: Success
+- Explanation: fnlwgt (final weight) is a statistical proxy used during data collection to ensure representativeness and is not a direct measure of individual income. It is typically derived from survey weights to balance the sample across demographic groups. However, in the training dataset of the income prediction model, individuals with higher fnlwgt may be overrepresented in the data due to sampling practices. This can lead to a spurious correlation between fnlwgt and the >50K outcome. Specifically, if individuals from higher-income brackets are more likely to be included in the dataset with higher weights, the model may learn to associate higher fnlwgt with higher income, even though fnlwgt does not reflect actual earnings. As a result, the model may misclassify a <=50K individual as >50K when the fnlwgt value is high due to this indirect and artificial correlation, rather than actual income signals. This spurious correlation is particularly strong in imbalanced datasets where certain demographic groups are under- or over-sampled.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age', 'education-num', and 'workclass' to the target class (<=50K), and assess whether the model's high attribution to any of these features aligns with their actual relevance.
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "high", "explanation": "Age is strongly associated with income levels, as older individuals tend to have higher earnings due to accumulated experience and seniority. The individual is 52 years old, which is above the typical median age for employees in the <=50K group, suggesting a higher likelihood of being in the >50K bracket. However, age alone does not determine income and should be considered in context with other factors like education and occupation."}, {"feature_key": "education-num", "semantic_relevance": "high", "explanation": "Education level is a key predictor of income. The individual has 'Some-college' (education-num=10), which is below the median for higher-earning categories. This suggests a lower probability of earning >50K, especially in combination with a modest workclass and low capital gains. The model's prediction of >50K despite this lower education level may be misaligned."}, {"feature_key": "workclass", "semantic_relevance": "moderate", "explanation": "Workclass ('Local-gov') is typically associated with lower-paying government jobs. While not directly a strong predictor like education or age, government employment often lacks the high earning potential of private sector or executive roles. The model may be incorrectly attributing higher income to this workclass, indicating potential misalignment in feature relevance."}]
+- Explanation: Among the features evaluated, 'age' and 'education-num' are semantically more relevant to the target class (<=50K) than 'workclass'. The individual is 52 years old (suggesting higher income potential), yet has only 'Some-college' education (indicating lower income potential). This contradiction suggests that the model may be overemphasizing age or misattributing relevance to workclass, leading to a false prediction of >50K when the true label is <=50K. The model's 53.46% confidence appears low given the conflicting signals from education and age, indicating possible overfitting or misalignment in feature importance.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'fnlwgt' (a proxy for total household income) be spuriously correlated with the >50K class even though it is not directly related to earnings?
+- Status: Success
+- Explanation: fnlwgt (final weight) is a statistical proxy used during data collection to ensure representativeness and is not a direct measure of individual income. It is typically derived from survey weights to balance the sample across demographic groups. However, in the training dataset of the income prediction model, individuals with higher fnlwgt may be overrepresented in the data due to sampling practices. This can lead to a spurious correlation between fnlwgt and the >50K outcome. Specifically, if individuals from higher-income brackets are more likely to be included in the dataset with higher weights, the model may learn to associate higher fnlwgt with higher income, even though fnlwgt does not reflect actual earnings. As a result, the model may misclassify a <=50K individual as >50K when the fnlwgt value is high due to this indirect and artificial correlation, rather than actual income signals. This spurious correlation is particularly strong in imbalanced datasets where certain demographic groups are under- or over-sampled.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age', 'education-num', and 'workclass' to the target class (<=50K), and assess whether the model's high attribution to any of these features aligns with their actual relevance.
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "high", "explanation": "Age is strongly associated with income levels, as older individuals tend to have higher earnings due to accumulated experience and seniority. The individual is 52 years old, which is above the typical median age for employees in the <=50K group, suggesting a higher likelihood of being in the >50K bracket. However, age alone does not determine income and should be considered in context with other factors like education and occupation."}, {"feature_key": "education-num", "semantic_relevance": "high", "explanation": "Education level is a key predictor of income. The individual has 'Some-college' (education-num=10), which is below the median for higher-earning categories. This suggests a lower probability of earning >50K, especially in combination with a modest workclass and low capital gains. The model's prediction of >50K despite this lower education level may be misaligned."}, {"feature_key": "workclass", "semantic_relevance": "moderate", "explanation": "Workclass ('Local-gov') is typically associated with lower-paying government jobs. While not directly a strong predictor like education or age, government employment often lacks the high earning potential of private sector or executive roles. The model may be incorrectly attributing higher income to this workclass, indicating potential misalignment in feature relevance."}]
+- Explanation: Among the features evaluated, 'age' and 'education-num' are semantically more relevant to the target class (<=50K) than 'workclass'. The individual is 52 years old (suggesting higher income potential), yet has only 'Some-college' education (indicating lower income potential). This contradiction suggests that the model may be overemphasizing age or misattributing relevance to workclass, leading to a false prediction of >50K when the true label is <=50K. The model's 53.46% confidence appears low given the conflicting signals from education and age, indicating possible overfitting or misalignment in feature importance.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

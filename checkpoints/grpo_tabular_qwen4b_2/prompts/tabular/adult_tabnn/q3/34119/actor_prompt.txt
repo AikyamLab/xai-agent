@@ -1,0 +1,130 @@
+You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
+
+## Question
+The model predicted the individual's income to be less than or equal to 50K. Which specific input features most distinguished this prediction from the next-best alternative?
+
+## Predictions
+- Top-1: <=50K (79.19%)
+- Top-2: {'class_idx': 1, 'class_name': '>50K', 'probability': 0.2080940157175064}
+
+## Input Data
+Features: age=23, workclass=Private, fnlwgt=393248, education=Some-college, education-num=10, marital-status=Never-married, occupation=Adm-clerical, relationship=Own-child, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- lime: Success - LIME tabular analysis for class 0: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 0: Analyzed 104 features. Most influential: age.
+- sensitivity_analysis: Success - Sensitivity analysis for class 0: Ablated 104 features. Most sensitive: age (prob drop: 0.011597).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - age: +0.0505
+  - sex_Male: +0.0286
+  - native-country_Columbia: +0.0250
+  - native-country_Trinadad&Tobago: +0.0186
+  - native-country_France: +0.0131
+- Top negative features (shap_value):
+  - fnlwgt: -0.0505
+  - native-country_Cambodia: -0.0286
+  - native-country_Cuba: -0.0250
+  - native-country_United-States: -0.0186
+  - native-country_Germany: -0.0131
+- Max positive: 0.050462  Max negative: -0.050462
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - capital-gain <= -0.15: +0.2298
+  - capital-loss <= -0.22: +0.1068
+  - native-country_Japan <= 0.00: +0.0804
+  - age <= -0.80: +0.0756
+  - native-country_Cambodia <= 0.00: +0.0620
+- Top negative features (weight):
+  - marital-status_Widowed <= 0.00: -0.0579
+  - education_1st-4th <= 0.00: -0.0423
+- Max positive: 0.229807  Max negative: -0.057914
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - age: +0.0122
+  - marital-status_Never-married: +0.0114
+  - relationship_Own-child: +0.0103
+  - education_Some-college: +0.0040
+  - occupation_Adm-clerical: +0.0039
+- Top negative features (attribution_score):
+  - fnlwgt: -0.0041
+  - sex_Male: -0.0025
+  - race_White: -0.0009
+  - workclass_Federal-gov: -0.0000
+  - workclass_Local-gov: -0.0000
+- Max positive: 0.012238  Max negative: -0.004119
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - age: drop=+0.0116  (orig=0.4482 → mod=0.4366)
+  - marital-status_Never-married: drop=+0.0089  (orig=0.4482 → mod=0.4392)
+  - relationship_Own-child: drop=+0.0088  (orig=0.4482 → mod=0.4393)
+  - native-country_United-States: drop=+0.0047  (orig=0.4482 → mod=0.4435)
+  - education_Some-college: drop=+0.0029  (orig=0.4482 → mod=0.4453)
+  - fnlwgt: drop=+0.0023  (orig=0.4482 → mod=0.4458)
+  - workclass_Private: drop=-0.0023  (orig=0.4482 → mod=0.4504)
+  - occupation_Adm-clerical: drop=+0.0020  (orig=0.4482 → mod=0.4462)
+  - capital-loss: drop=+0.0018  (orig=0.4482 → mod=0.4463)
+  - capital-gain: drop=+0.0016  (orig=0.4482 → mod=0.4466)
+- Max prob_drop: 0.011597  Max prob_increase: -0.002284
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with lower income (<50K) in the adult dataset context?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 23}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult Income Dataset (used in the UCI Machine Learning Repository), domain knowledge shows that individuals with lower education levels, younger age, single marital status, and lower-paying occupations are commonly associated with income <=50K. The current input has age=23 (young), education='Some-college' (below high school or associate level), marital-status='Never-married' (single), occupation='Adm-clerical' (a typical lower-wage clerical role), and hours-per-week=40 (moderate but not high), all of which are indicators historically correlated with lower income. These features together form a profile consistent with the model's <=50K prediction. While 'workclass' is 'Private' (common across income levels), and 'race' or 'sex' do not consistently correlate with income in adjusted models, the combination of education, age, marital status, and occupation strongly supports the prediction.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How do the values of the given input features for <=50K differ from typical patterns observed in >50K individuals?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: The individual predicted to earn <=50K exhibits several characteristics that differ from typical >50K profiles. Younger age (23 vs typical >35), being Never-married (vs Married-civ-spouse common in higher earners), lower education level (education-num=10 vs typical 13+), fewer working hours (40 vs 50+), and a lower-earning occupation (Adm-clerical vs Prof-specialty) are key distinguishing factors. These patterns align with known demographic and socioeconomic trends where individuals with lower education, less work experience, and limited professional advancement tend to earn below $50K.
+- Confidence: 0.96
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Which features in the input are commonly associated with lower income (<50K) in the adult dataset context?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 23}, {"feature_key": "education", "action": "change", "new_value": "Some-college"}, {"feature_key": "marital-status", "action": "change", "new_value": "Never-married"}, {"feature_key": "occupation", "action": "change", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "change", "new_value": 40}]
+- Explanation: In the Adult Income Dataset (used in the UCI Machine Learning Repository), domain knowledge shows that individuals with lower education levels, younger age, single marital status, and lower-paying occupations are commonly associated with income <=50K. The current input has age=23 (young), education='Some-college' (below high school or associate level), marital-status='Never-married' (single), occupation='Adm-clerical' (a typical lower-wage clerical role), and hours-per-week=40 (moderate but not high), all of which are indicators historically correlated with lower income. These features together form a profile consistent with the model's <=50K prediction. While 'workclass' is 'Private' (common across income levels), and 'race' or 'sex' do not consistently correlate with income in adjusted models, the combination of education, age, marital status, and occupation strongly supports the prediction.
+- Confidence: 0.96
+
+### COMPARISON Task
+- Query: How do the values of the given input features for <=50K differ from typical patterns observed in >50K individuals?
+- Status: Success
+- findings: [{"feature_key": "age", "action": "change", "new_value": 39}, {"feature_key": "marital-status", "action": "change", "new_value": "Married-civ-spouse"}, {"feature_key": "education-num", "action": "change", "new_value": 13}, {"feature_key": "hours-per-week", "action": "change", "new_value": 50}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: The individual predicted to earn <=50K exhibits several characteristics that differ from typical >50K profiles. Younger age (23 vs typical >35), being Never-married (vs Married-civ-spouse common in higher earners), lower education level (education-num=10 vs typical 13+), fewer working hours (40 vs 50+), and a lower-earning occupation (Adm-clerical vs Prof-specialty) are key distinguishing factors. These patterns align with known demographic and socioeconomic trends where individuals with lower education, less work experience, and limited professional advancement tend to earn below $50K.
+- Confidence: 0.96
+
+## Your Task
+Identify the part that DISTINGUISHES <=50K from {'class_idx': 1, 'class_name': '>50K', 'probability': 0.2080940157175064}.
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

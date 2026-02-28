@@ -25,10 +25,45 @@ import json
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 
 # ── Modality inference ────────────────────────────────────────────────────────
+
+def parse_data_range(s: str) -> Optional[Tuple[int, int]]:
+    """
+    Parse a per-dataset data-range string.
+
+    "all"      → None         (no limit; use every question in the dataset)
+    "0-200"    → (0, 200)     (questions at interleaved indices 0 .. 199)
+    "50-150"   → (50, 150)
+
+    The range is applied AFTER round-robin interleaving across Q-types so
+    that the slice is always balanced:  "0-100" with 5 Q-types and 40
+    questions each gives exactly 20 questions per Q-type (100 total per
+    dataset), not a lopsided cut that drops later Q-types entirely.
+
+    Raises:
+        ValueError: for unrecognised format or end <= start.
+    """
+    import re as _re
+    s = s.strip()
+    if s.lower() == "all":
+        return None
+    m = _re.match(r"^(\d+)-(\d+)$", s)
+    if m:
+        start, end = int(m.group(1)), int(m.group(2))
+        if end <= start:
+            raise ValueError(
+                f"data_range end ({end}) must be greater than start ({start})"
+            )
+        return start, end
+    raise ValueError(
+        f"Unrecognised data_range {s!r}. "
+        f"Use 'all' or 'START-END' (e.g. '0-100', '0-200')."
+    )
+
 
 _MODALITY_PREFIXES = {
     "tabular": ["adult", "cancer"],
@@ -91,6 +126,47 @@ class XAIRLDataset:
             self._rng.shuffle(questions)
         return [questions[i: i + batch_size] for i in range(0, len(questions), batch_size)]
 
+    def get_stratified_batches(self, batch_size: int) -> List[List[Dict[str, Any]]]:
+        """
+        Split questions into batches with stratified Q-type sampling.
+
+        Each batch contains as even a mix of Q-types as possible by interleaving
+        Q-type groups in round-robin order before slicing into fixed-size batches.
+        Each Q-type group is independently shuffled so question order within a
+        type is still random across epochs.
+        """
+        from collections import defaultdict
+
+        # Group by q_type
+        groups: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        for q in self.questions:
+            groups[q.get("q_type", 0)].append(q)
+
+        # Shuffle each group independently
+        shuffled: Dict[int, List[Dict[str, Any]]] = {}
+        for qt, qs in groups.items():
+            qs_copy = list(qs)
+            if self.shuffle:
+                self._rng.shuffle(qs_copy)
+            shuffled[qt] = qs_copy
+
+        # Round-robin interleave across Q-types
+        sorted_types = sorted(shuffled.keys())
+        iters = {qt: iter(shuffled[qt]) for qt in sorted_types}
+        interleaved: List[Dict[str, Any]] = []
+        while True:
+            added = False
+            for qt in sorted_types:
+                try:
+                    interleaved.append(next(iters[qt]))
+                    added = True
+                except StopIteration:
+                    pass
+            if not added:
+                break
+
+        return [interleaved[i: i + batch_size] for i in range(0, len(interleaved), batch_size)]
+
     # ── Factory: from dataset_name + q_types + mode ───────────────────────────
 
     @classmethod
@@ -102,6 +178,7 @@ class XAIRLDataset:
         modality: Optional[str] = None,
         base_dir: Optional[str] = None,
         max_questions: Optional[int] = None,
+        data_range: Optional[Tuple[int, int]] = None,
         shuffle: bool = True,
         seed: int = 42,
     ) -> "XAIRLDataset":
@@ -118,6 +195,11 @@ class XAIRLDataset:
             modality:      If None, auto-inferred from dataset_name.
             base_dir:      Project root. Defaults to two levels above this file.
             max_questions: Cap total questions loaded (for debugging).
+            data_range:    Per-dataset slice as (start, end) int tuple.
+                           Applied after round-robin Q-type interleaving so
+                           the slice is balanced across Q-types.
+                           None → no limit (same as "all").
+                           Use parse_data_range() to convert a string flag.
             shuffle:       Shuffle on get_batches().
             seed:          Random seed.
 
@@ -169,6 +251,30 @@ class XAIRLDataset:
             f"loaded {len(all_questions)} questions from {modality}/"
         )
 
+        if data_range is not None:
+            # Interleave across Q-types before slicing so the range is
+            # balanced.  Without this, "0-100" on a dataset with 5 Q-types
+            # × 40 questions would grab Q1(40)+Q3(40)+Q5(20) and miss Q6/Q7
+            # entirely.  With interleaving it gives exactly 20 per Q-type.
+            by_qt: Dict[int, List] = defaultdict(list)
+            for q in all_questions:
+                by_qt[q.get("q_type", 0)].append(q)
+            sorted_types = sorted(by_qt.keys())
+            iters = {qt: iter(by_qt[qt]) for qt in sorted_types}
+            interleaved: List[Dict[str, Any]] = []
+            while True:
+                added = False
+                for qt in sorted_types:
+                    try:
+                        interleaved.append(next(iters[qt]))
+                        added = True
+                    except StopIteration:
+                        pass
+                if not added:
+                    break
+            start, end = data_range
+            all_questions = interleaved[start:end]
+
         if max_questions is not None:
             all_questions = all_questions[:max_questions]
 
@@ -180,8 +286,10 @@ class XAIRLDataset:
         dataset_names: List[str],
         mode: str,
         q_types: Optional[List[int]] = None,
+        per_dataset_q_types: Optional[Dict[str, List[int]]] = None,
         base_dir: Optional[str] = None,
         max_questions: Optional[int] = None,
+        data_range: Optional[Tuple[int, int]] = None,
         shuffle: bool = True,
         seed: int = 42,
     ) -> "XAIRLDataset":
@@ -189,6 +297,14 @@ class XAIRLDataset:
         Load and merge questions from multiple dataset_names.
 
         Useful for training across multiple datasets / modalities simultaneously.
+        ``data_range`` is applied independently per dataset before merging, so
+        each dataset contributes at most ``end - start`` questions (balanced
+        across Q-types).
+
+        Args:
+            per_dataset_q_types: Optional dict mapping dataset_name to a list of
+                q_types, overriding the global ``q_types`` for that dataset.
+                Example: {"cancer_tabnn": [1,3,5,6,7,9], "cancer_2layernn": [1,3,5,6,7,9]}
 
         Example::
 
@@ -196,15 +312,18 @@ class XAIRLDataset:
                 dataset_names=["adult_2layernn", "adult_tabnn", "cancer_2layernn"],
                 mode="train",
                 q_types=[1, 2, 3],
+                data_range=(0, 100),   # first 100 from each dataset
             )
         """
         all_questions: List[Dict[str, Any]] = []
         for name in dataset_names:
+            effective_q_types = (per_dataset_q_types or {}).get(name, q_types)
             sub = cls.from_dataset_name(
                 dataset_name=name,
                 mode=mode,
-                q_types=q_types,
+                q_types=effective_q_types,
                 base_dir=base_dir,
+                data_range=data_range,
                 shuffle=False,
                 seed=seed,
             )

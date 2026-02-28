@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (52.07%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=42, workclass=State-gov, fnlwgt=191814, education=HS-grad, education-num=9, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: native-country_Haiti.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: native-country_China <= 0.00.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: sex_Male.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: sex_Male (prob drop: 0.008775).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - native-country_Haiti: +0.0166
+  - occupation_Tech-support: +0.0155
+  - native-country_United-States: +0.0130
+  - native-country_Cuba: +0.0121
+  - education_Doctorate: +0.0111
+- Top negative features (shap_value):
+  - native-country_Holand-Netherlands: -0.0166
+  - occupation_Transport-moving: -0.0155
+  - native-country_Trinadad&Tobago: -0.0130
+  - native-country_Columbia: -0.0121
+  - education_Bachelors: -0.0111
+- Max positive: 0.016572  Max negative: -0.016572
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - marital-status_Divorced <= 0.00: +0.0450
+  - native-country_Dominican-Republic <= 0.00: +0.0449
+  - native-country_Honduras <= 0.00: +0.0408
+  - native-country_Columbia <= 0.00: +0.0105
+- Top negative features (weight):
+  - native-country_China <= 0.00: -0.0892
+  - capital-loss <= -0.22: -0.0854
+  - capital-gain <= -0.15: -0.0673
+  - education-num <= -0.44: -0.0544
+  - hours-per-week <= -0.08: -0.0416
+- Max positive: 0.044953  Max negative: -0.089217
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - sex_Male: +0.0073
+  - native-country_United-States: +0.0047
+  - marital-status_Married-civ-spouse: +0.0035
+  - race_White: +0.0013
+  - relationship_Husband: +0.0013
+- Top negative features (attribution_score):
+  - education_HS-grad: -0.0061
+  - education-num: -0.0032
+  - occupation_Craft-repair: -0.0014
+  - hours-per-week: -0.0009
+  - capital-gain: -0.0003
+- Max positive: 0.007254  Max negative: -0.006134
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - sex_Male: drop=+0.0088  (orig=0.6273 → mod=0.6185)
+  - education_HS-grad: drop=-0.0073  (orig=0.6273 → mod=0.6346)
+  - occupation_Craft-repair: drop=-0.0060  (orig=0.6273 → mod=0.6333)
+  - marital-status_Married-civ-spouse: drop=+0.0042  (orig=0.6273 → mod=0.6231)
+  - relationship_Husband: drop=+0.0042  (orig=0.6273 → mod=0.6231)
+  - native-country_United-States: drop=+0.0035  (orig=0.6273 → mod=0.6238)
+  - education-num: drop=-0.0027  (orig=0.6273 → mod=0.6300)
+  - workclass_State-gov: drop=+0.0019  (orig=0.6273 → mod=0.6254)
+  - age: drop=+0.0012  (orig=0.6273 → mod=0.6261)
+  - capital-loss: drop=-0.0009  (orig=0.6273 → mod=0.6282)
+- Max prob_drop: 0.008775  Max prob_increase: -0.007314
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=State-gov' or 'occupation=Craft-repair' be spurious in predicting >50K when the true label is <=50K?
+- Status: Success
+- Explanation: The features 'workclass=State-gov' and 'occupation=Craft-repair' may appear correlated with the target class >50K due to historical labeling bias in the dataset. Specifically, individuals in the 'State-gov' workclass or 'Craft-repair' occupation may have been overrepresented in the >50K class not because of inherent income levels, but because of data collection biases—such as higher-income individuals being more likely to be sampled or reported in certain demographics where these occupations were associated with higher socioeconomic status in the original data collection. Additionally, 'Craft-repair' may be associated with lower-income groups in reality, but if the dataset was collected from government programs or statistical surveys that disproportionately included middle- or upper-income individuals with certain workclass affiliations, this could create spurious correlations. This leads the model to associate these features with >50K not through causal relevance, but due to biased data distribution or selection, especially when combined with other attributes like 'race=White' or 'sex=Male', which also show strong correlations in the training data. Thus, the prediction is likely driven by data leakage or biased representativeness rather than semantic or functional relevance.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the true class (<=50K) with the model's confidence in that feature’s contribution to the >50K prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "downgrade", "new_value": "30"}, {"feature_key": "workclass", "action": "downgrade", "new_value": "Private"}, {"feature_key": "education", "action": "downgrade", "new_value": "Some-college"}, {"feature_key": "occupation", "action": "downgrade", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "downgrade", "new_value": "35"}]
+- Explanation: The model predicted >50K with 52.07% confidence despite the true label being <=50K. Semantically, features like 'age', 'education', 'occupation', and 'hours-per-week' are known to be strongly correlated with income levels in the dataset. However, the current values (age=42, HS-grad, Craft-repair, 40 hours/week) are typical of individuals earning <=50K. The model's prediction is likely influenced by non-semantic factors or overestimations in feature weighting. The 'workclass' as 'State-gov' is associated with lower income, and reducing it to 'Private' (which is more common among higher earners) would create a semantic inconsistency. Downgrading these features to more typical values of <=50K individuals helps reduce the model's misattribution. Hence, the model likely assigns undue weight to features that are semantically irrelevant to the true class. The ranking prioritizes features with the highest perceived model attribution despite low semantic alignment with <=50K income.
+- Confidence: 0.92
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'workclass=State-gov' or 'occupation=Craft-repair' be spurious in predicting >50K when the true label is <=50K?
+- Status: Success
+- Explanation: The features 'workclass=State-gov' and 'occupation=Craft-repair' may appear correlated with the target class >50K due to historical labeling bias in the dataset. Specifically, individuals in the 'State-gov' workclass or 'Craft-repair' occupation may have been overrepresented in the >50K class not because of inherent income levels, but because of data collection biases—such as higher-income individuals being more likely to be sampled or reported in certain demographics where these occupations were associated with higher socioeconomic status in the original data collection. Additionally, 'Craft-repair' may be associated with lower-income groups in reality, but if the dataset was collected from government programs or statistical surveys that disproportionately included middle- or upper-income individuals with certain workclass affiliations, this could create spurious correlations. This leads the model to associate these features with >50K not through causal relevance, but due to biased data distribution or selection, especially when combined with other attributes like 'race=White' or 'sex=Male', which also show strong correlations in the training data. Thus, the prediction is likely driven by data leakage or biased representativeness rather than semantic or functional relevance.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of each input feature to the true class (<=50K) with the model's confidence in that feature’s contribution to the >50K prediction.
+- Status: Success
+- findings: [{"feature_key": "age", "action": "downgrade", "new_value": "30"}, {"feature_key": "workclass", "action": "downgrade", "new_value": "Private"}, {"feature_key": "education", "action": "downgrade", "new_value": "Some-college"}, {"feature_key": "occupation", "action": "downgrade", "new_value": "Adm-clerical"}, {"feature_key": "hours-per-week", "action": "downgrade", "new_value": "35"}]
+- Explanation: The model predicted >50K with 52.07% confidence despite the true label being <=50K. Semantically, features like 'age', 'education', 'occupation', and 'hours-per-week' are known to be strongly correlated with income levels in the dataset. However, the current values (age=42, HS-grad, Craft-repair, 40 hours/week) are typical of individuals earning <=50K. The model's prediction is likely influenced by non-semantic factors or overestimations in feature weighting. The 'workclass' as 'State-gov' is associated with lower income, and reducing it to 'Private' (which is more common among higher earners) would create a semantic inconsistency. Downgrading these features to more typical values of <=50K individuals helps reduce the model's misattribution. Hence, the model likely assigns undue weight to features that are semantically irrelevant to the true class. The ranking prioritizes features with the highest perceived model attribution despite low semantic alignment with <=50K income.
+- Confidence: 0.92
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

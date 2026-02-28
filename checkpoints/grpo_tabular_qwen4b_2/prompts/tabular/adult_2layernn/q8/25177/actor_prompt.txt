@@ -1,0 +1,136 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (55.36%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=63, workclass=Private, fnlwgt=137192, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Craft-repair, relationship=Husband, race=Asian-Pac-Islander, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=40, native-country=South
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-loss <= -0.22.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: education-num.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: education-num (prob drop: 0.007684).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0282
+  - fnlwgt: +0.0107
+  - race_Other: +0.0089
+  - education_Doctorate: +0.0069
+  - native-country_United-States: +0.0059
+- Top negative features (shap_value):
+  - capital-loss: -0.0282
+  - age: -0.0107
+  - race_Black: -0.0089
+  - education_Bachelors: -0.0069
+  - native-country_Trinadad&Tobago: -0.0059
+- Max positive: 0.028213  Max negative: -0.028213
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Dominican-Republic <= 0.00: +0.0540
+  - marital-status_Divorced <= 0.00: +0.0449
+  - -0.05 < education-num <= 1.13: +0.0400
+  - race_Other <= 0.00: +0.0282
+  - workclass_Without-pay <= 0.00: +0.0211
+- Top negative features (weight):
+  - capital-loss <= -0.22: -0.0947
+  - capital-gain <= -0.15: -0.0719
+  - hours-per-week <= -0.08: -0.0503
+  - native-country_India <= 0.00: -0.0273
+- Max positive: 0.054036  Max negative: -0.094711
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - education-num: +0.0096
+  - sex_Male: +0.0068
+  - relationship_Husband: +0.0049
+  - age: +0.0024
+  - marital-status_Married-civ-spouse: +0.0023
+- Top negative features (attribution_score):
+  - native-country_South: -0.0047
+  - workclass_Private: -0.0032
+  - fnlwgt: -0.0009
+  - hours-per-week: -0.0008
+  - capital-gain: -0.0005
+- Max positive: 0.0096  Max negative: -0.004732
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - education-num: drop=+0.0077  (orig=0.6350 → mod=0.6273)
+  - native-country_South: drop=-0.0050  (orig=0.6350 → mod=0.6400)
+  - marital-status_Married-civ-spouse: drop=+0.0048  (orig=0.6350 → mod=0.6302)
+  - sex_Male: drop=+0.0043  (orig=0.6350 → mod=0.6306)
+  - relationship_Husband: drop=+0.0041  (orig=0.6350 → mod=0.6308)
+  - age: drop=+0.0026  (orig=0.6350 → mod=0.6324)
+  - occupation_Craft-repair: drop=-0.0013  (orig=0.6350 → mod=0.6363)
+  - workclass_Private: drop=-0.0013  (orig=0.6350 → mod=0.6363)
+  - capital-gain: drop=-0.0009  (orig=0.6350 → mod=0.6358)
+  - education_Bachelors: drop=-0.0006  (orig=0.6350 → mod=0.6356)
+- Max prob_drop: 0.007684  Max prob_increase: -0.005015
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'race=Asian-Pac-Islander' or 'occupation=Craft-repair' when these features are semantically unrelated to income level <=50K in the context of fair and meaningful classification?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction, 'race=Asian-Pac-Islander' and 'occupation=Craft-repair' may exhibit spurious correlations with income due to historical biases, data collection anomalies, or imbalances in training data. For instance, 'Asian-Pac-Islander' may be underrepresented in high-income groups in the dataset, leading the model to associate this race with lower income as a statistical artifact. Similarly, 'Craft-repair' might be correlated with lower income not due to inherent characteristics but because of population distribution imbalances or data leakage from demographics. These features are semantically unrelated to individual earning ability and thus contribute to biased or misleading model predictions. Changing their values to more commonly associated categories (e.g., 'White' and 'Prof-specialty') helps isolate whether the model's prediction stems from spurious correlations rather than meaningful patterns.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age=63' and 'education=Bachelors' to the true label '<=50K'—do these features align with known income trends? If not, why might the model still assign them high importance?
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "high", "reason": "In general, older individuals (especially those over 50) tend to have higher incomes, and there is strong domain knowledge linking age to income levels. However, the true label is '<=50K', which suggests low income despite the age being 63. This may indicate a possible mismatch or outlier behavior, where older individuals still earn below 50K, which could be contextually valid (e.g., lower-paying jobs, part-time work). Still, age is semantically relevant to income prediction."}, {"feature_key": "education", "semantic_relevance": "high", "reason": "Individuals with a 'Bachelors' degree typically have higher earning potential than those with lower degrees. The true label is '<=50K', which contradicts the expected income trend for someone with a Bachelor's degree. This suggests that the model may have misaligned its prediction despite strong semantic evidence that 'education=Bachelors' should increase the likelihood of earning >50K. This misprediction may indicate a flaw in how the model weights or learns from such features, possibly due to overfitting, biased training data, or missing interaction terms."}]
+- Explanation: Both 'age' and 'education' are semantically strongly related to income levels. Age increases with experience and often correlates with higher earnings, though older individuals may still earn below $50K in certain professions or regions. Education level, especially 'Bachelors', is a well-established predictor of higher income. The fact that the model predicted >50K for a person with a Bachelors degree and age 63, while the true label is <=50K, suggests a potential misalignment in the model’s learned relationships—possibly due to data bias, lack of feature interactions, or insufficient context (e.g., occupation, workclass) to resolve the contradiction. Thus, these features are semantically relevant, but the model’s assignment of high importance may be incorrect due to lack of contextual supervision or model calibration issues.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might the model assign high importance to 'race=Asian-Pac-Islander' or 'occupation=Craft-repair' when these features are semantically unrelated to income level <=50K in the context of fair and meaningful classification?
+- Status: Success
+- findings: [{"feature_key": "race", "action": "change", "new_value": "White"}, {"feature_key": "occupation", "action": "change", "new_value": "Prof-specialty"}]
+- Explanation: In the context of income prediction, 'race=Asian-Pac-Islander' and 'occupation=Craft-repair' may exhibit spurious correlations with income due to historical biases, data collection anomalies, or imbalances in training data. For instance, 'Asian-Pac-Islander' may be underrepresented in high-income groups in the dataset, leading the model to associate this race with lower income as a statistical artifact. Similarly, 'Craft-repair' might be correlated with lower income not due to inherent characteristics but because of population distribution imbalances or data leakage from demographics. These features are semantically unrelated to individual earning ability and thus contribute to biased or misleading model predictions. Changing their values to more commonly associated categories (e.g., 'White' and 'Prof-specialty') helps isolate whether the model's prediction stems from spurious correlations rather than meaningful patterns.
+- Confidence: 0.92
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'age=63' and 'education=Bachelors' to the true label '<=50K'—do these features align with known income trends? If not, why might the model still assign them high importance?
+- Status: Success
+- findings: [{"feature_key": "age", "semantic_relevance": "high", "reason": "In general, older individuals (especially those over 50) tend to have higher incomes, and there is strong domain knowledge linking age to income levels. However, the true label is '<=50K', which suggests low income despite the age being 63. This may indicate a possible mismatch or outlier behavior, where older individuals still earn below 50K, which could be contextually valid (e.g., lower-paying jobs, part-time work). Still, age is semantically relevant to income prediction."}, {"feature_key": "education", "semantic_relevance": "high", "reason": "Individuals with a 'Bachelors' degree typically have higher earning potential than those with lower degrees. The true label is '<=50K', which contradicts the expected income trend for someone with a Bachelor's degree. This suggests that the model may have misaligned its prediction despite strong semantic evidence that 'education=Bachelors' should increase the likelihood of earning >50K. This misprediction may indicate a flaw in how the model weights or learns from such features, possibly due to overfitting, biased training data, or missing interaction terms."}]
+- Explanation: Both 'age' and 'education' are semantically strongly related to income levels. Age increases with experience and often correlates with higher earnings, though older individuals may still earn below $50K in certain professions or regions. Education level, especially 'Bachelors', is a well-established predictor of higher income. The fact that the model predicted >50K for a person with a Bachelors degree and age 63, while the true label is <=50K, suggests a potential misalignment in the model’s learned relationships—possibly due to data bias, lack of feature interactions, or insufficient context (e.g., occupation, workclass) to resolve the contradiction. Thus, these features are semantically relevant, but the model’s assignment of high importance may be incorrect due to lack of contextual supervision or model calibration issues.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:

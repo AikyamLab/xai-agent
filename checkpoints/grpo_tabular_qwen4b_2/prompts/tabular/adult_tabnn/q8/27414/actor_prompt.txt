@@ -1,0 +1,134 @@
+You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
+
+## Question
+The model predicted the individual to be >50K (True label was <=50K). Is there any irrelevant part in this input that causes the model’s wrong prediction?
+
+## Misclassification
+- Model Predicted: >50K (71.63%)
+- Ground Truth: Unknown
+
+## Input Data
+Features: age=38, workclass=Private, fnlwgt=237713, education=Bachelors, education-num=13, marital-status=Married-civ-spouse, occupation=Exec-managerial, relationship=Husband, race=White, sex=Male, capital-gain=0, capital-loss=0, hours-per-week=60, native-country=United-States
+## XAI Analysis
+### XAI Tool Results Summary
+- shap: Success - SHAP tabular analysis for class 1: Analyzed 104 features. Most influential: capital-loss.
+- lime: Success - LIME tabular analysis for class 1: Found 10 important features. Top: capital-gain <= -0.15.
+- integrated_gradients: Success - Integrated Gradients tabular analysis for class 1: Analyzed 104 features. Most influential: marital-status_Married-civ-spouse.
+- sensitivity_analysis: Success - Sensitivity analysis for class 1: Ablated 104 features. Most sensitive: marital-status_Married-civ-spouse (prob drop: 0.008553).
+
+### Detailed Statistics
+
+### shap:
+- Top positive features (shap_value):
+  - hours-per-week: +0.0587
+  - native-country_Cambodia: +0.0493
+  - native-country_United-States: +0.0413
+  - native-country_Hong: +0.0411
+  - workclass_State-gov: +0.0283
+- Top negative features (shap_value):
+  - capital-loss: -0.0587
+  - sex_Male: -0.0493
+  - native-country_Trinadad&Tobago: -0.0413
+  - native-country_Honduras: -0.0411
+  - workclass_Self-emp-not-inc: -0.0283
+- Max positive: 0.058697  Max negative: -0.058697
+- Total features: 104
+
+### lime:
+- Top positive features (weight):
+  - native-country_Dominican-Republic <= 0.00: +0.0899
+  - native-country_Hungary <= 0.00: +0.0845
+  - -0.05 < education-num <= 1.13: +0.0742
+  - native-country_South <= 0.00: +0.0655
+  - native-country_Thailand <= 0.00: +0.0315
+- Top negative features (weight):
+  - capital-gain <= -0.15: -0.2067
+  - native-country_Jamaica <= 0.00: -0.1055
+  - capital-loss <= -0.22: -0.0954
+  - native-country_Canada <= 0.00: -0.0451
+- Max positive: 0.089942  Max negative: -0.206706
+- Total features: 10
+
+### integrated_gradients:
+- Top positive features (attribution_score):
+  - marital-status_Married-civ-spouse: +0.0141
+  - education-num: +0.0131
+  - relationship_Husband: +0.0130
+  - occupation_Exec-managerial: +0.0124
+  - sex_Male: +0.0115
+- Top negative features (attribution_score):
+  - workclass_Private: -0.0030
+  - capital-gain: -0.0017
+  - race_White: -0.0008
+  - age: -0.0006
+  - capital-loss: -0.0005
+- Max positive: 0.014072  Max negative: -0.002953
+- Total features: 104
+
+### sensitivity_analysis:
+- Top sensitive features (prob_drop):
+  - marital-status_Married-civ-spouse: drop=+0.0086  (orig=0.6718 → mod=0.6632)
+  - education-num: drop=+0.0080  (orig=0.6718 → mod=0.6638)
+  - sex_Male: drop=+0.0066  (orig=0.6718 → mod=0.6652)
+  - relationship_Husband: drop=+0.0064  (orig=0.6718 → mod=0.6654)
+  - occupation_Exec-managerial: drop=+0.0053  (orig=0.6718 → mod=0.6665)
+  - education_Bachelors: drop=+0.0050  (orig=0.6718 → mod=0.6668)
+  - native-country_United-States: drop=+0.0028  (orig=0.6718 → mod=0.6690)
+  - hours-per-week: drop=+0.0024  (orig=0.6718 → mod=0.6694)
+  - capital-gain: drop=-0.0012  (orig=0.6718 → mod=0.6730)
+  - fnlwgt: drop=+0.0011  (orig=0.6718 → mod=0.6707)
+- Max prob_drop: 0.008553  Max prob_increase: -0.001161
+
+## Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Exec-managerial' or 'relationship=Husband' be semantically irrelevant to the true class (<=50K) despite high model confidence?
+- Status: Success
+- Explanation: The features 'occupation=Exec-managerial' and 'relationship=Husband' are unlikely to have a direct, causal or semantically relevant impact on income level in the context of the true label <=50K. While 'Exec-managerial' might suggest a high-income profession, the model's prediction of >50K despite the true label being <=50K implies a spurious correlation. In reality, income is more directly influenced by factors such as age, education-num, hours-per-week, and capital gains. 'Occupation' is often a proxy for work type, and within the dataset, occupations like 'Exec-managerial' are typically associated with higher income, which could bias the model toward predicting >50K. However, the true income class is not determined by occupation alone — especially when paired with other features like capital-gain=0 and hours-per-week=60, which are not strongly indicative of high income. Similarly, 'relationship=Husband' is a demographic social category with no direct causal link to income levels; marital status does not inherently determine earnings. Thus, these features may have been correlated with income in the training data due to confounding factors (e.g., married individuals working in high-income jobs), leading to spurious associations that the model has learned. The model's high confidence (71.63%) suggests overreliance on such correlated but irrelevant features, resulting in a misclassification.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education=Bachelors' and 'age=38' to the true class (<=50K) and assess if high model attribution contradicts their actual relevance.
+- Status: Success
+- findings: [{"feature_key": "education", "value": "Bachelors", "relevance_to_true_class": "high", "attribution_conflict": "low", "reason": "In the context of income prediction, holding a Bachelor's degree is generally associated with higher income levels. Domain knowledge indicates that individuals with 'Bachelors' education are more likely to earn >50K, especially when combined with other factors like occupation and work hours. Given the true label is <=50K, this creates a semantic inconsistency in the model's attribution\u2014yet the model incorrectly predicts >50K. Thus, high attribution to 'education=Bachelors' may reflect a misalignment with the actual outcome, suggesting possible overfitting or incorrect feature weighting."}, {"feature_key": "age", "value": 38, "relevance_to_true_class": "moderate", "attribution_conflict": "low", "reason": "Age 38 is typically associated with mid-career status and can correlate with higher income, but it is not a strong standalone predictor for >50K versus <=50K. In domain knowledge, age alone does not reliably distinguish income brackets, especially when compared to education or occupation. The fact that the model attributes high confidence to 'age=38' in a prediction that is incorrect (since true label is <=50K) suggests the model may be overemphasizing this feature, despite its limited relevance in this specific context."}]
+- Explanation: The model predicted >50K when the true label is <=50K, which is a critical error. While both 'education=Bachelors' and 'age=38' are semantically relevant in the context of income, domain knowledge shows that 'Bachelors' education strongly correlates with higher income, so its high attribution should increase confidence in a >50K prediction. However, the model's incorrect outcome suggests either misattribution or poor calibration. Similarly, 'age=38' has moderate relevance but is not sufficient to override the expected income pattern. The high model confidence (71.63%) despite a known negative outcome implies the model may be over-relying on features that are not actually sufficient to determine the correct class, particularly in the face of a true label indicating lower income. This indicates a potential failure in the model's ability to balance feature relevance with class prior knowledge.
+- Confidence: 0.95
+
+### Autonomous Reasoning Results
+
+### REASONING Task
+- Query: Why might 'occupation=Exec-managerial' or 'relationship=Husband' be semantically irrelevant to the true class (<=50K) despite high model confidence?
+- Status: Success
+- Explanation: The features 'occupation=Exec-managerial' and 'relationship=Husband' are unlikely to have a direct, causal or semantically relevant impact on income level in the context of the true label <=50K. While 'Exec-managerial' might suggest a high-income profession, the model's prediction of >50K despite the true label being <=50K implies a spurious correlation. In reality, income is more directly influenced by factors such as age, education-num, hours-per-week, and capital gains. 'Occupation' is often a proxy for work type, and within the dataset, occupations like 'Exec-managerial' are typically associated with higher income, which could bias the model toward predicting >50K. However, the true income class is not determined by occupation alone — especially when paired with other features like capital-gain=0 and hours-per-week=60, which are not strongly indicative of high income. Similarly, 'relationship=Husband' is a demographic social category with no direct causal link to income levels; marital status does not inherently determine earnings. Thus, these features may have been correlated with income in the training data due to confounding factors (e.g., married individuals working in high-income jobs), leading to spurious associations that the model has learned. The model's high confidence (71.63%) suggests overreliance on such correlated but irrelevant features, resulting in a misclassification.
+- Confidence: 0.95
+
+### COMPARISON Task
+- Query: Compare the semantic relevance of 'education=Bachelors' and 'age=38' to the true class (<=50K) and assess if high model attribution contradicts their actual relevance.
+- Status: Success
+- findings: [{"feature_key": "education", "value": "Bachelors", "relevance_to_true_class": "high", "attribution_conflict": "low", "reason": "In the context of income prediction, holding a Bachelor's degree is generally associated with higher income levels. Domain knowledge indicates that individuals with 'Bachelors' education are more likely to earn >50K, especially when combined with other factors like occupation and work hours. Given the true label is <=50K, this creates a semantic inconsistency in the model's attribution\u2014yet the model incorrectly predicts >50K. Thus, high attribution to 'education=Bachelors' may reflect a misalignment with the actual outcome, suggesting possible overfitting or incorrect feature weighting."}, {"feature_key": "age", "value": 38, "relevance_to_true_class": "moderate", "attribution_conflict": "low", "reason": "Age 38 is typically associated with mid-career status and can correlate with higher income, but it is not a strong standalone predictor for >50K versus <=50K. In domain knowledge, age alone does not reliably distinguish income brackets, especially when compared to education or occupation. The fact that the model attributes high confidence to 'age=38' in a prediction that is incorrect (since true label is <=50K) suggests the model may be overemphasizing this feature, despite its limited relevance in this specific context."}]
+- Explanation: The model predicted >50K when the true label is <=50K, which is a critical error. While both 'education=Bachelors' and 'age=38' are semantically relevant in the context of income, domain knowledge shows that 'Bachelors' education strongly correlates with higher income, so its high attribution should increase confidence in a >50K prediction. However, the model's incorrect outcome suggests either misattribution or poor calibration. Similarly, 'age=38' has moderate relevance but is not sufficient to override the expected income pattern. The high model confidence (71.63%) despite a known negative outcome implies the model may be over-relying on features that are not actually sufficient to determine the correct class, particularly in the face of a true label indicating lower income. This indicates a potential failure in the model's ability to balance feature relevance with class prior knowledge.
+- Confidence: 0.95
+
+## Your Task
+Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
+This is a part that:
+- Has HIGH attribution from the model
+- But is NOT semantically related to the correct class
+- Examples: background, watermarks, artifacts, spurious correlations
+
+## REQUIRED OUTPUT FORMAT (JSON only)
+{
+    "output": {
+        "feature_keys": ["feature_name"]  // column/feature names; list one or more features
+    },
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
+    "confidence": 0.0-1.0
+}
+
+**Critical Requirements:**
+- For vision: bounding_box MUST be within image bounds (x in [0, 224], y in [0, 224])
+- For text: spans as a list of {start_index, end_index} character positions (one or more spans)
+- For tabular: feature_keys as a list of column names (one or more features)
+- Base your decision on the attribution analysis
+
+Respond with ONLY JSON:
