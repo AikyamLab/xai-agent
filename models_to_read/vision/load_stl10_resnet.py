@@ -8,7 +8,8 @@ import os
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+# DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DATASET_ROOT = '/content/xai-agent/dataset/image'
 NUM_CLASSES = 10
 
 LABEL_MAP = {

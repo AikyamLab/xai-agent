@@ -309,7 +309,8 @@ class BaselinePipeline:
                     split = question.get("split", "test")
                     data = self.data_model_loader.load_sample(index=sample_idx, split=split)
                     input_tensor = data.get("image")
-                    loaded_data_path = f"dataset_index_{sample_idx}"
+                    # loaded_data_path = f"dataset_index_{sample_idx}"
+                    loaded_data_path = input_tensor  # Pass the PIL Image directly
 
                 if self.data_model_loader:
                     prediction = self.data_model_loader.predict(input_tensor)
