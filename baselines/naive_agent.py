@@ -64,14 +64,33 @@ class NaiveAgent(BaseBaseline):
             prompt = self._build_naive_prompt(
                 question, model_info, prediction, input_path
             )
-            images = (
-                [input_path]
-                if input_path
-                and modality == "vision"
-                and not input_path.startswith("text_")
-                and not input_path.startswith("tabular_")
-                else None
-            )
+            # images = (
+            #     [input_path]
+            #     if input_path
+            #     and modality == "vision"
+            #     and not input_path.startswith("text_")
+            #     and not input_path.startswith("tabular_")
+            #     else None
+            # )
+            # from PIL import Image
+            # images = (
+            #     [input_path]
+            #     if input_path
+            #     and modality == "vision"
+            #     and (isinstance(input_path, Image.Image) or (isinstance(input_path, str) and not input_path.startswith("text_") and not input_path.startswith("tabular_")))
+            #     else None
+            # )
+               # NEW:
+            from PIL import Image
+            if input_path and modality == "vision":
+                if isinstance(input_path, Image.Image):
+                    images = [input_path]
+                elif isinstance(input_path, str) and not input_path.startswith("text_") and not input_path.startswith("tabular_"):
+                    images = [input_path]
+                else:
+                    images = None
+            else:
+                images = None
 
         # Single VLM call
         print("  Calling VLM (single pass, no tools)...")

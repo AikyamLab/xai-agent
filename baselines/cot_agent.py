@@ -115,13 +115,24 @@ class CoTAgent(BaseBaseline):
             prompt = self._build_cot_prompt(
                 question, model_info, prediction, input_path, all_tool_results
             )
-            images = (
-                [input_path]
-                if input_path and modality == "vision"
-                and not input_path.startswith("text_")
-                and not input_path.startswith("tabular_")
-                else None
-            )
+            # images = (
+            #     [input_path]
+            #     if input_path and modality == "vision"
+            #     and not input_path.startswith("text_")
+            #     and not input_path.startswith("tabular_")
+            #     else None
+            # )
+               # NEW:
+            from PIL import Image
+            if input_path and modality == "vision":
+                if isinstance(input_path, Image.Image):
+                    images = [input_path]
+                elif isinstance(input_path, str) and not input_path.startswith("text_") and not input_path.startswith("tabular_"):
+                    images = [input_path]
+                else:
+                    images = None
+            else:
+                images = None
 
         # Step 3: Single VLM call
         print("  Calling VLM (Chain-of-Thought, single pass)...")
