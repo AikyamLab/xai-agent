@@ -218,6 +218,12 @@ def predict(
         predicted_class = int(torch.argmax(probabilities).item())
         confidence = float(probabilities[predicted_class].item())
 
+    top5_predictions = sorted([
+        {"class_idx": 0, "class_name": LABEL_MAP[0], "probability": float(probabilities[0].item())},
+        {"class_idx": 1, "class_name": LABEL_MAP[1], "probability": float(probabilities[1].item())},
+        {"class_idx": 2, "class_name": LABEL_MAP[2], "probability": float(probabilities[2].item())},
+    ], key=lambda x: x["probability"], reverse=True)
+
     return {
         "success": True,
         "predicted_class_idx": predicted_class,
@@ -228,6 +234,7 @@ def predict(
             "neutral": float(probabilities[1].item()),
             "contradiction": float(probabilities[2].item())
         },
+        "top5_predictions": top5_predictions,
         "raw_logits": logits[0].cpu().numpy().tolist(),
         "device": str(DEVICE)
     }

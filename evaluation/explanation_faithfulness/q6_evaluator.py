@@ -121,8 +121,8 @@ class Q6Evaluator(BaseEvaluator):
 
         modified_prediction = self.get_prediction(model, modified_input, processor, device)
         modified_class = modified_prediction.get('predicted_class_idx', -1)
-        modified_probs = modified_prediction.get('probabilities')
-        original_probs = original_prediction.get('probabilities')
+        modified_probs = self._normalize_probs(modified_prediction.get('probabilities'))
+        original_probs = self._normalize_probs(original_prediction.get('probabilities'))
         original_class_idx = original_prediction.get('predicted_class_idx', 0)
 
         # expected_class_idx == -1 means "any different class" (e.g. vision Q6 has no
@@ -263,8 +263,8 @@ class Q6Evaluator(BaseEvaluator):
 
         original_class_idx = original_prediction.get('predicted_class_idx', 0)
         modified_class = modified_prediction.get('predicted_class_idx', -1)
-        original_probs = original_prediction.get('probabilities')
-        modified_probs = modified_prediction.get('probabilities')
+        original_probs = self._normalize_probs(original_prediction.get('probabilities'))
+        modified_probs = self._normalize_probs(modified_prediction.get('probabilities'))
 
         # Top-3 predictions before and after.
         class_names_map = kwargs.get('class_names')

@@ -77,6 +77,7 @@ class GRPOConfig:
     """
     learning_rate: float = 1e-5
     kl_coef: float = 0.0
+    start_step: int = 0
     num_rollouts: int = 4
     rollouts_override: Dict[int, int] = field(default_factory=dict)
     stratify_by_qtype: bool = True
@@ -521,6 +522,11 @@ class GRPOTrainer:
                 batches = dataset.get_batches(self.cfg.batch_size)
 
             for batch_idx, question_batch in enumerate(batches):
+                if self._step < self.cfg.start_step:
+                    print(f"  [resume] Skipping step {self._step} (< start_step={self.cfg.start_step})")
+                    self._step += 1
+                    continue
+
                 t0 = time.time()
                 print(
                     f"\n[Step {self._step}] Batch {batch_idx+1}: "

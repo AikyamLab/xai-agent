@@ -9,6 +9,7 @@ Feature extraction (bounding boxes, importance regions) is done by the Actor Age
 through VLM reasoning on the visualization outputs.
 """
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 from pathlib import Path
@@ -815,6 +816,7 @@ class LIMETextTool(BaseTool):
         # Detect dual-input NLI model (e.g., SNLI: premise + hypothesis)
         sample_data = self.data_model_loader.current_sample_data or {}
         is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        is_dual_input = is_nli and len(inspect.signature(model.forward).parameters) >= 2
 
         if is_nli:
             # For NLI, LIME perturbs only the premise; hypothesis stays fixed
@@ -848,8 +850,10 @@ class LIMETextTool(BaseTool):
                         token_ids = processor(t)
                         input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
 
-                        if is_nli:
+                        if is_dual_input:
                             logits = model(input_tensor, hyp_tensor)
+                        elif is_nli:
+                            logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
                         else:
                             logits = model(input_tensor)
 
@@ -943,6 +947,7 @@ class IntegratedGradientsTextTool(BaseTool):
         # Detect dual-input NLI model (e.g., SNLI: premise + hypothesis)
         sample_data = self.data_model_loader.current_sample_data or {}
         is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        is_dual_input = is_nli and len(inspect.signature(model.forward).parameters) >= 2
 
         if is_nli:
             text = sample_data.get('premise', '')
@@ -989,16 +994,14 @@ class IntegratedGradientsTextTool(BaseTool):
             if embedding_layer is None:
                 return json.dumps({"success": False, "error": "No embedding layer found in model"})
 
-            if is_nli:
-                # For NLI: LayerIntegratedGradients on a shared embedding layer
-                # intercepts BOTH premise and hypothesis embedding calls, corrupting
-                # hypothesis embeddings during interpolation → zero attributions.
-                # Fix: use IntegratedGradients on premise embeddings with a hook that
-                # only replaces the first (premise) embedding call.
+            if is_dual_input:
+                # Dual-input NLI (e.g. CNN_SNLI): use IntegratedGradients on premise
+                # embeddings with a hook that only replaces the first embedding call.
                 premise_embeds = embedding_layer(input_tensor).detach().clone().requires_grad_(True)
                 baseline_embeds = embedding_layer(torch.zeros_like(input_tensor).to(device)).detach().clone()
 
                 def forward_from_embeds(prem_embeds):
+                    batch_size = prem_embeds.shape[0]
                     call_count = [0]
                     def hook_fn(module, inp, out):
                         call_count[0] += 1
@@ -1006,7 +1009,9 @@ class IntegratedGradientsTextTool(BaseTool):
                             return prem_embeds
                         return out  # Second call = hypothesis, keep original
                     handle = embedding_layer.register_forward_hook(hook_fn)
-                    logits = model(input_tensor, hyp_tensor)
+                    expanded_input = input_tensor.expand(batch_size, -1)
+                    expanded_hyp = hyp_tensor.expand(batch_size, -1)
+                    logits = model(expanded_input, expanded_hyp)
                     handle.remove()
                     if logits.shape[-1] == 1:
                         prob_pos = torch.sigmoid(logits)
@@ -1021,7 +1026,7 @@ class IntegratedGradientsTextTool(BaseTool):
                     n_steps=n_steps
                 )
             else:
-                # Standard single-input: use LayerIntegratedGradients
+                # Standard single-input (IMDB or single-input SNLI): LayerIntegratedGradients
                 def forward_func(input_ids):
                     logits = model(input_ids)
                     if logits.shape[-1] == 1:
@@ -1110,6 +1115,7 @@ class SHAPTextTool(BaseTool):
 
         sample_data = self.data_model_loader.current_sample_data or {}
         is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        is_dual_input = is_nli and len(inspect.signature(model.forward).parameters) >= 2
 
         if is_nli:
             text = sample_data.get('premise', '')
@@ -1155,8 +1161,10 @@ class SHAPTextTool(BaseTool):
                         token_ids = processor(masked_text)
                         input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
 
-                        if is_nli:
+                        if is_dual_input:
                             logits = model(input_tensor, hyp_tensor)
+                        elif is_nli:
+                            logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
                         else:
                             logits = model(input_tensor)
 
@@ -1241,6 +1249,7 @@ class SensitivityAnalysisTextTool(BaseTool):
 
         sample_data = self.data_model_loader.current_sample_data or {}
         is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        is_dual_input = is_nli and len(inspect.signature(model.forward).parameters) >= 2
 
         if is_nli:
             text = sample_data.get('premise', '')
@@ -1277,8 +1286,10 @@ class SensitivityAnalysisTextTool(BaseTool):
                     token_ids = processor(input_text)
                     input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
 
-                    if is_nli:
+                    if is_dual_input:
                         logits = model(input_tensor, hyp_tensor)
+                    elif is_nli:
+                        logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
                     else:
                         logits = model(input_tensor)
 
@@ -1339,6 +1350,35 @@ class SensitivityAnalysisTextTool(BaseTool):
 # Tabular-specific XAI Tool Implementations
 # ===================================================================
 
+def _aggregate_encoded_to_original(items, score_key, encoded_to_original, raw_features_dict):
+    """
+    Aggregate one-hot encoded feature attributions back to original feature names.
+    Sums attribution scores for all encoded features belonging to the same original column.
+    Returns list sorted by absolute score descending, with 'value' showing the raw feature value.
+    """
+    agg = {}
+    for item in items:
+        enc_name = item.get("feature", "")
+        orig_col = encoded_to_original.get(enc_name, enc_name)
+        score = item.get(score_key, 0.0)
+        if orig_col not in agg:
+            raw_val = raw_features_dict.get(orig_col, "?") if raw_features_dict else "?"
+            agg[orig_col] = {"feature": orig_col, "value": raw_val, score_key: 0.0}
+        agg[orig_col][score_key] += score
+    result = list(agg.values())
+    for item in result:
+        item["direction"] = "positive" if item[score_key] > 0 else "negative"
+    result.sort(key=lambda x: abs(x[score_key]), reverse=True)
+    return result
+
+
+def _extract_feature_name_from_lime_condition(condition, feature_names_sorted_by_len):
+    """Extract the base feature name from a LIME condition string (e.g. '0.50 < feat <= 1.00' -> 'feat')."""
+    for name in feature_names_sorted_by_len:
+        if name in condition:
+            return name
+    return condition
+
 class SHAPTabularTool(BaseTool):
     """Tool for executing SHAP analysis on tabular data."""
 
@@ -1365,6 +1405,7 @@ class SHAPTabularTool(BaseTool):
         features = self.data_model_loader.get_current_features()
         if features is None:
             return json.dumps({"success": False, "error": "No tabular data available. Load a sample first."})
+
 
         feature_names = self.data_model_loader.get_feature_names()
 
@@ -1412,8 +1453,8 @@ class SHAPTabularTool(BaseTool):
                 vals = shap_values.flatten()
 
             # Build feature importance list
-            feature_importance = []
             names = feature_names if feature_names else [f"feature_{i}" for i in range(len(vals))]
+            feature_importance = []
             for i, (name, val) in enumerate(zip(names, vals)):
                 feature_importance.append({
                     "feature": name,
@@ -1422,7 +1463,15 @@ class SHAPTabularTool(BaseTool):
                     "direction": "positive" if val > 0 else "negative"
                 })
 
-            feature_importance.sort(key=lambda x: abs(x['shap_value']), reverse=True)
+            # Aggregate one-hot features back to original feature names (adult datasets)
+            encoded_to_original = self.data_model_loader.get_encoded_to_original()
+            raw_features_dict = self.data_model_loader.get_raw_features_dict()
+            if encoded_to_original is not None:
+                feature_importance = _aggregate_encoded_to_original(
+                    feature_importance, "shap_value", encoded_to_original, raw_features_dict
+                )
+            else:
+                feature_importance.sort(key=lambda x: abs(x['shap_value']), reverse=True)
 
             result = {
                 "success": True,
@@ -1520,13 +1569,26 @@ class LIMETabularTool(BaseTool):
 
             explanation_list = explanation.as_list(label=target_class)
 
-            feature_importance = []
-            for feat_desc, weight in explanation_list[:20]:
-                feature_importance.append({
-                    "feature": feat_desc,
-                    "weight": round(float(weight), 6),
-                    "direction": "positive" if weight > 0 else "negative"
-                })
+            # Aggregate one-hot features back to original feature names (adult datasets)
+            encoded_to_original = self.data_model_loader.get_encoded_to_original()
+            raw_features_dict = self.data_model_loader.get_raw_features_dict()
+            if encoded_to_original is not None:
+                names_by_len = sorted(names, key=len, reverse=True)
+                converted = []
+                for feat_desc, weight in explanation_list:
+                    base_name = _extract_feature_name_from_lime_condition(feat_desc, names_by_len)
+                    converted.append({"feature": base_name, "weight": round(float(weight), 6)})
+                feature_importance = _aggregate_encoded_to_original(
+                    converted, "weight", encoded_to_original, raw_features_dict
+                )
+            else:
+                feature_importance = []
+                for feat_desc, weight in explanation_list[:20]:
+                    feature_importance.append({
+                        "feature": feat_desc,
+                        "weight": round(float(weight), 6),
+                        "direction": "positive" if weight > 0 else "negative"
+                    })
 
             result = {
                 "success": True,
@@ -1618,7 +1680,15 @@ class IntegratedGradientsTabularTool(BaseTool):
                     "direction": "positive" if score > 0 else "negative"
                 })
 
-            feature_importance.sort(key=lambda x: abs(x['attribution_score']), reverse=True)
+            # Aggregate one-hot features back to original feature names (adult datasets)
+            encoded_to_original = self.data_model_loader.get_encoded_to_original()
+            raw_features_dict = self.data_model_loader.get_raw_features_dict()
+            if encoded_to_original is not None:
+                feature_importance = _aggregate_encoded_to_original(
+                    feature_importance, "attribution_score", encoded_to_original, raw_features_dict
+                )
+            else:
+                feature_importance.sort(key=lambda x: abs(x['attribution_score']), reverse=True)
 
             result = {
                 "success": True,
@@ -1695,21 +1765,46 @@ class SensitivityAnalysisTabularTool(BaseTool):
 
             names = feature_names if feature_names else [f"feature_{i}" for i in range(features.shape[0])]
 
-            # Leave-one-out: zero out each feature and measure probability change
-            feature_sensitivity = []
-            for i in range(features.shape[0]):
-                modified = features.clone()
-                modified[i] = 0.0
-                modified_prob = get_prob(modified)
-                prob_drop = original_prob - modified_prob
+            encoded_to_original = self.data_model_loader.get_encoded_to_original()
+            raw_features_dict = self.data_model_loader.get_raw_features_dict()
 
-                feature_sensitivity.append({
-                    "feature": names[i],
-                    "feature_index": i,
-                    "original_prob": round(float(original_prob), 6),
-                    "modified_prob": round(float(modified_prob), 6),
-                    "prob_drop": round(float(prob_drop), 6)
-                })
+            feature_sensitivity = []
+            if encoded_to_original is not None:
+                # Group encoded feature indices by original feature and ablate together
+                from collections import defaultdict
+                orig_to_indices = defaultdict(list)
+                for i, name in enumerate(names):
+                    orig_col = encoded_to_original.get(name, name)
+                    orig_to_indices[orig_col].append(i)
+
+                for orig_col, indices in orig_to_indices.items():
+                    modified = features.clone()
+                    for idx in indices:
+                        modified[idx] = 0.0
+                    modified_prob = get_prob(modified)
+                    prob_drop = original_prob - modified_prob
+                    raw_val = raw_features_dict.get(orig_col, "?") if raw_features_dict else "?"
+                    feature_sensitivity.append({
+                        "feature": orig_col,
+                        "value": raw_val,
+                        "original_prob": round(float(original_prob), 6),
+                        "modified_prob": round(float(modified_prob), 6),
+                        "prob_drop": round(float(prob_drop), 6)
+                    })
+            else:
+                # Leave-one-out: zero out each feature individually
+                for i in range(features.shape[0]):
+                    modified = features.clone()
+                    modified[i] = 0.0
+                    modified_prob = get_prob(modified)
+                    prob_drop = original_prob - modified_prob
+                    feature_sensitivity.append({
+                        "feature": names[i],
+                        "feature_index": i,
+                        "original_prob": round(float(original_prob), 6),
+                        "modified_prob": round(float(modified_prob), 6),
+                        "prob_drop": round(float(prob_drop), 6)
+                    })
 
             # Sort by absolute prob_drop
             feature_sensitivity.sort(key=lambda x: abs(x['prob_drop']), reverse=True)

@@ -25,6 +25,11 @@ def get_label_map(root_path):
 
 LABEL_MAP = get_label_map(DATASET_ROOT)
 
+# Module-level dataset cache: CUB_Dataset reads 3 CSV files on __init__.
+# With 128 parallel rollout workers each calling load_data(), caching avoids
+# redundant file I/O and excessive object allocation.
+_dataset_cache: dict = {}
+
 
 class CUB_Dataset(torch.utils.data.Dataset):
     def __init__(self, root, dataset_type='test', transform=None, target_transform=None):
@@ -84,7 +89,7 @@ def load_model(model_path: str):
     Returns:
         tuple: A tuple containing the loaded model and the image transform.
     """
-    model = models.resnet50(pretrained=True)
+    model = models.resnet50(weights=None)
 
     for param in model.parameters():
         param.requires_grad = False
@@ -99,7 +104,10 @@ def load_model(model_path: str):
     ]))
 
     model.fc = classifier
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    # map_location='cpu' + assign=True: avoids meta-tensor errors when the
+    # model's parameters are on the meta device (PyTorch 2.1+ lazy init).
+    state_dict = torch.load(model_path, map_location='cpu')
+    model.load_state_dict(state_dict, assign=True)
     model = model.to(DEVICE)
     model.eval()
 
@@ -125,18 +133,16 @@ def load_data(index: int, split: str = "test") -> Dict[str, Any]:
             - index: Sample index
     """
     transform = get_transform()
-    
-    dataset_with_transform = CUB_Dataset(
-        root=DATASET_ROOT,
-        dataset_type=split,
-        transform=transform
-    )
-    
-    dataset_raw = CUB_Dataset(
-        root=DATASET_ROOT,
-        dataset_type=split,
-        transform=None
-    )
+
+    key_t = f"{split}_with_transform"
+    key_r = f"{split}_raw"
+    if key_t not in _dataset_cache:
+        _dataset_cache[key_t] = CUB_Dataset(root=DATASET_ROOT, dataset_type=split, transform=transform)
+    if key_r not in _dataset_cache:
+        _dataset_cache[key_r] = CUB_Dataset(root=DATASET_ROOT, dataset_type=split, transform=None)
+
+    dataset_with_transform = _dataset_cache[key_t]
+    dataset_raw             = _dataset_cache[key_r]
 
     if index < 0 or index >= len(dataset_raw):
         raise IndexError(f"Index {index} out of range. Dataset has {len(dataset_raw)} samples.")

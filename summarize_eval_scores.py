@@ -11,7 +11,7 @@ from collections import defaultdict
 
 EVAL_ROOT = Path(
     "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-    "/baseline_outputs/Qwen4B/evaluations"
+    "/baseline_outputs/test_Qwen30B_eval_outputs2/evaluations"
 )
 
 # SCORE_KEYS = ["overall_score", "quality_score", "completeness"]
@@ -220,6 +220,24 @@ def print_table(rows):
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Summarize evaluation scores.")
+    parser.add_argument(
+        "--modality",
+        default=None,
+        help="Filter by modality (e.g. 'vision', 'tabular'). Omit to include all.",
+    )
+    args = parser.parse_args()
+
     data = collect(EVAL_ROOT)
+
+    if args.modality is not None:
+        if args.modality not in data:
+            print(f"No data found for modality '{args.modality}'. "
+                  f"Available: {sorted(data.keys())}")
+            raise SystemExit(1)
+        data = {args.modality: data[args.modality]}
+
     rows = summarize(data)
     print_table(rows)

@@ -155,7 +155,7 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     original_features=per_inst_orig
                 )
                 modified_pred = self.get_prediction(model, masked_input, processor, device)
-                modified_probs = modified_pred.get('probabilities')
+                modified_probs = self._normalize_probs(modified_pred.get('probabilities'))
 
                 if modified_probs is None:
                     improvements.append(False)

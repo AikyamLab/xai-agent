@@ -90,6 +90,14 @@ def _load_and_preprocess_data():
     X_all_arr = X_transformed.toarray() if hasattr(X_transformed, 'toarray') else np.array(X_transformed)
 
     # Store original DataFrame indices for train/test sets
+    # Build encoded→original mapping for aggregating attributions back to original features
+    encoded_to_original = {}
+    for name in numerical_cols:
+        encoded_to_original[name] = name
+    for col, categories in zip(categorical_cols, cat_encoder.categories_):
+        for cat in categories:
+            encoded_to_original[f"{col}_{cat}"] = col
+
     _cache["preprocessor"] = preprocessor
     _cache["df"] = df
     _cache["y_series"] = y
@@ -97,6 +105,7 @@ def _load_and_preprocess_data():
     _cache["train_indices"] = set(y_train.index.tolist())
     _cache["test_indices"] = set(y_test.index.tolist())
     _cache["feature_names"] = feature_names
+    _cache["encoded_to_original"] = encoded_to_original
     # Map from original DataFrame index to positional index in X_all
     _cache["orig_to_pos"] = {orig_idx: pos for pos, orig_idx in enumerate(df.index.tolist())}
 
@@ -156,14 +165,27 @@ def load_data(index: int, split: str = "test") -> Dict[str, Any]:
     label = int(_cache["y_series"].iloc[pos])
     feature_names = _cache["feature_names"]
 
-    # Build feature dict
+    # Build encoded feature dict
     features_dict = {}
     for i, name in enumerate(feature_names):
         features_dict[name] = float(features[i].item())
 
+    # Raw (pre-encoding) feature values from original DataFrame
+    raw_features_dict = {}
+    for col in _cache["df"].columns:
+        if col == "class":
+            continue
+        val = _cache["df"].loc[index, col]
+        try:
+            raw_features_dict[col] = val.item()
+        except AttributeError:
+            raw_features_dict[col] = str(val)
+
     return {
-        "features": features,           # Tensor [num_features]
-        "features_dict": features_dict,  # {feature_name: value}
+        "features": features,                               # Tensor [num_features]
+        "features_dict": features_dict,                    # {encoded_name: value}
+        "raw_features_dict": raw_features_dict,            # {original_col: raw_value}
+        "encoded_to_original": _cache["encoded_to_original"],
         "label": label,
         "label_name": LABEL_MAP.get(label, f"class_{label}"),
         "index": index,

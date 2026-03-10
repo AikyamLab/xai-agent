@@ -4,6 +4,7 @@ Base Evaluator classes for XAI Agent Framework
 Defines the abstract interface for explanation faithfulness evaluation.
 """
 
+import inspect
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -272,7 +273,11 @@ class BaseEvaluator(ABC):
                 hypothesis_ids = processor(input_data['hypothesis'])
                 premise_tensor = torch.tensor([premise_ids], dtype=torch.long).to(device)
                 hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
-                outputs = model(premise_tensor, hypothesis_tensor)
+                n_forward_params = len(inspect.signature(model.forward).parameters)
+                if n_forward_params >= 2:
+                    outputs = model(premise_tensor, hypothesis_tensor)
+                else:
+                    outputs = model(torch.cat([premise_tensor, hypothesis_tensor], dim=1))
             else:
                 # If input is already a tensor, use directly (skip processor)
                 # This handles tabular data where features are pre-processed tensors

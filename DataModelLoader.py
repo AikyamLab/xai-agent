@@ -165,6 +165,20 @@ class DataModelLoader:
             return self.loader_module._cache["feature_names"]
         return None
 
+    def get_encoded_to_original(self) -> Optional[dict]:
+        """Returns mapping from encoded feature name to original feature name (adult/one-hot datasets only)."""
+        if self.current_sample_data and "encoded_to_original" in self.current_sample_data:
+            return self.current_sample_data["encoded_to_original"]
+        if hasattr(self.loader_module, '_cache') and self.loader_module._cache.get("encoded_to_original"):
+            return self.loader_module._cache["encoded_to_original"]
+        return None
+
+    def get_raw_features_dict(self) -> Optional[dict]:
+        """Returns original (pre-encoding) feature values for the current sample."""
+        if self.current_sample_data and "raw_features_dict" in self.current_sample_data:
+            return self.current_sample_data["raw_features_dict"]
+        return None
+
     def get_training_data(self) -> Optional[torch.Tensor]:
         """Returns training data tensor (for SHAP/LIME background data)."""
         if not hasattr(self.loader_module, '_cache'):

@@ -101,6 +101,8 @@ class Q5Evaluator(BaseEvaluator):
         original_probs = original_prediction.get('probabilities')
         modified_probs = modified_prediction.get('probabilities')
         if original_probs is not None and modified_probs is not None:
+            original_probs = self._normalize_probs(original_probs)
+            modified_probs = self._normalize_probs(modified_probs)
             p_orig = float(original_probs[original_class])
             p_mod = float(modified_probs[original_class])
             prob_drop = p_orig - p_mod  # positive = class weakened

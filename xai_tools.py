@@ -194,7 +194,7 @@ def _preprocess_image(
         input_tensor = processor(image)
         if input_tensor.dim() == 3:
             input_tensor = input_tensor.unsqueeze(0)
-        return input_tensor.to(device)
+        return input_tensor.to(device).float()
 
     if model_type in ["timm", "local_pth"]:
         # Standard ImageNet preprocessing
@@ -225,7 +225,9 @@ def _preprocess_image(
             ])
             input_tensor = preprocess(image).unsqueeze(0)
 
-    return input_tensor.to(device)
+    # Explicitly cast to float32: guards against global dtype contamination
+    # (e.g. from diffusers fp16 pipeline or concurrent timm pretrained loading).
+    return input_tensor.to(device).float()
 
 
 # ===================================================================
@@ -273,7 +275,7 @@ def execute_gradcam(
         if input_tensor is None:
             input_tensor = _preprocess_image(image, model_type, processor, device)
         else:
-            input_tensor = input_tensor.to(device)
+            input_tensor = input_tensor.to(device).float()
         target_layer = _get_target_layer(model)
 
         # Initialize LayerGradCam
@@ -384,7 +386,7 @@ def execute_integrated_gradients(
         if input_tensor is None:
             input_tensor = _preprocess_image(image, model_type, processor, device)
         else:
-            input_tensor = input_tensor.to(device)
+            input_tensor = input_tensor.to(device).float()
 
         # Create baseline (black image)
         baseline = torch.zeros_like(input_tensor)
@@ -813,11 +815,12 @@ def execute_object_detection(
     try:
         original_size = image.size
 
-        # Load YOLO model
+        # Load YOLO model; force float32 to prevent auto-fp16 on CUDA
         yolo_model = YOLO('yolov8n.pt')
+        yolo_model.model.float()
 
-        # Run detection
-        results = yolo_model(image, conf=confidence_threshold)
+        # Run detection (half=False: suppress ultralytics' fp16 auto-detection)
+        results = yolo_model(image, conf=confidence_threshold, half=False)
 
         # Extract detection info
         detections = []
@@ -924,7 +927,7 @@ def execute_guided_backprop(
         if input_tensor is None:
             input_tensor = _preprocess_image(image, model_type, processor, device)
         else:
-            input_tensor = input_tensor.to(device)
+            input_tensor = input_tensor.to(device).float()
 
         # Initialize GuidedBackprop
         guided_bp = GuidedBackprop(model)
@@ -1025,7 +1028,7 @@ def execute_layer_cam(
         if input_tensor is None:
             input_tensor = _preprocess_image(image, model_type, processor, device)
         else:
-            input_tensor = input_tensor.to(device)
+            input_tensor = input_tensor.to(device).float()
 
         # Use specified layer or get target layer
         if layer_name:
@@ -1136,7 +1139,7 @@ def execute_sensitivity_analysis(
         if input_tensor is None:
             input_tensor = _preprocess_image(image, model_type, processor, device)
         else:
-            input_tensor = input_tensor.to(device)
+            input_tensor = input_tensor.to(device).float()
         with torch.no_grad():
             original_output = model(input_tensor)
             original_prob = torch.nn.functional.softmax(original_output, dim=1)[0, target_class].item()

@@ -37,6 +37,12 @@ def get_transform():
     ])
 
 
+# Module-level dataset cache: STL10 loads all 8000 images into a numpy array
+# (~220 MB each). Without caching, every load_data() call allocates 2×220 MB;
+# with 128 parallel rollout workers this peaks at ~56 GB RAM and causes OOM.
+_dataset_cache: dict = {}
+
+
 def load_model(model_path: str):
     """
     Loads the STL-10 ResNet model using timm.
@@ -47,8 +53,11 @@ def load_model(model_path: str):
     Returns:
         tuple: A tuple containing the loaded model and the image transform.
     """
-    model = timm.create_model("resnet50", pretrained=True, num_classes=NUM_CLASSES)
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    model = timm.create_model("resnet50", pretrained=False, num_classes=NUM_CLASSES)
+    # map_location='cpu' + assign=True: avoids meta-tensor errors when timm
+    # uses lazy/meta initialization (PyTorch 2.1+).
+    state_dict = torch.load(model_path, map_location='cpu')
+    model.load_state_dict(state_dict, assign=True)
     model = model.to(DEVICE)
     model.eval()
 
@@ -75,21 +84,16 @@ def load_data(index: int, split: str = "test") -> Dict[str, Any]:
     """
     transform = get_transform()
 
-    # Load dataset with transform for model input
-    dataset_with_transform = STL10(
-        root=DATASET_ROOT,
-        split=split,
-        download=False,
-        transform=transform
-    )
+    # Use cached dataset instances to avoid reloading 8000 images on every call.
+    key_t = f"{split}_with_transform"
+    key_r = f"{split}_raw"
+    if key_t not in _dataset_cache:
+        _dataset_cache[key_t] = STL10(root=DATASET_ROOT, split=split, download=False, transform=transform)
+    if key_r not in _dataset_cache:
+        _dataset_cache[key_r] = STL10(root=DATASET_ROOT, split=split, download=False, transform=None)
 
-    # Load dataset without transform for raw image
-    dataset_raw = STL10(
-        root=DATASET_ROOT,
-        split=split,
-        download=False,
-        transform=None
-    )
+    dataset_with_transform = _dataset_cache[key_t]
+    dataset_raw             = _dataset_cache[key_r]
 
     if index < 0 or index >= len(dataset_raw):
         raise IndexError(f"Index {index} out of range. Dataset has {len(dataset_raw)} samples.")

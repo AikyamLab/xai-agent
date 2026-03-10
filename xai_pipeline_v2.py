@@ -543,7 +543,11 @@ class XAIPipelineV2:
                     if inst_a_feats:
                         model_info['feature_names'] = list(inst_a_feats.keys())
 
-                # Initialize DataModelLoader
+                # Initialize DataModelLoader (release old model from CUDA cache first)
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
                     modality=modality
@@ -1895,12 +1899,19 @@ class XAIPipelineV2:
 
                 print(f"Model loaded: {model_info['architecture']}")
 
-                # Instantiate the new DataModelLoader
+                # Instantiate the new DataModelLoader (release old model from CUDA first)
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
                     modality=modality
                 )
-                
+                # Sync processor from DataModelLoader (registered in sys.modules, always correct)
+                # so model_info['processor'] is consistent with what tools/maskers use
+                model_info['processor'] = self.data_model_loader.get_processor()
+
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
                 self.proposer.set_tool_registry(self.actor.tool_registry)
@@ -2131,11 +2142,17 @@ class XAIPipelineV2:
 
                 print(f"Model loaded: {model_info['architecture']}")
 
-                # Initialize DataModelLoader
+                # Initialize DataModelLoader (release old model from CUDA first)
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
                     modality=modality
                 )
+                # Sync processor from DataModelLoader (registered in sys.modules, always correct)
+                model_info['processor'] = self.data_model_loader.get_processor()
 
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
