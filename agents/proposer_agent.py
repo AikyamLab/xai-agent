@@ -175,7 +175,11 @@ class ProposerAgent(BaseAgent):
 
             # Build instances list for multi-instance prompt
             instances = [
-                {'prediction': pred, 'path': path}
+                {
+                    'prediction': pred,
+                    'path': path,
+                    'ground_truth': pred.get('ground_truth_name')
+                }
                 for pred, path in zip(predictions, input_paths)
             ]
 
@@ -185,7 +189,8 @@ class ProposerAgent(BaseAgent):
                 strategy = self._generate_strategy_multi(
                     prompt_builder=prompt_builder,
                     context=context,
-                    instances=instances
+                    instances=instances,
+                    question=question
                 )
             else:
                 raise RuntimeError(
@@ -282,8 +287,8 @@ class ProposerAgent(BaseAgent):
             context["input_data"] = features
             context["feature_names"] = list(features.keys()) if isinstance(features, dict) else []
             if isinstance(features, dict):
-                feat_str = ", ".join(f"{k}={v}" for k, v in list(features.items())[:10])
-                context["data_description"] = f"Features: {feat_str}"
+                feat_names = list(features.keys())
+                context["data_description"] = f"Feature names: {', '.join(feat_names)}"
             else:
                 context["data_description"] = str(features)[:400]
 
@@ -298,17 +303,7 @@ class ProposerAgent(BaseAgent):
 
         # Add ground_truth for spurious feature questions (Q8-Q10)
         if question.get("q_type") in [8, 9, 10]:
-            target_info = question.get("target", {})
-            if isinstance(target_info, list):
-                # Multi-instance: extract labels from list of target dicts
-                context["ground_truth"] = [
-                    t.get("label", t.get("value", "Unknown")) if isinstance(t, dict) else t
-                    for t in target_info
-                ]
-            elif isinstance(target_info, dict):
-                context["ground_truth"] = target_info.get("label", target_info.get("value", "Unknown"))
-            else:
-                context["ground_truth"] = target_info
+            context["ground_truth"] = prediction.get('ground_truth_name')
 
         return context
 
@@ -349,6 +344,11 @@ class ProposerAgent(BaseAgent):
                 context[f"image_path_{i}"] = path
                 context[f"image_description_{i}"] = f"Image at index {question.get('image_indices', [])[i] if i < len(question.get('image_indices', [])) else 'unknown'}"
 
+        # For Q4 vision: set _A/_B aliases for the A/B prompt template
+        if question.get('q_type') == 4 and modality == "vision":
+            context['image_description_A'] = context.get('image_description_0', 'Image A')
+            context['image_description_B'] = context.get('image_description_1', 'Image B')
+
         # Add targets from question
         targets = question.get('targets', [])
         context["targets"] = targets
@@ -363,6 +363,7 @@ class ProposerAgent(BaseAgent):
         if modality in ('text', 'tabular'):
             features_list = question.get('features', [])
             image_indices = question.get('image_indices', question.get('row_no', []))
+            q_type = question.get('q_type')
             if isinstance(features_list, list):
                 descriptions = []
                 for i, feat in enumerate(features_list):
@@ -372,10 +373,20 @@ class ProposerAgent(BaseAgent):
                         preview = text[:150] + "..." if len(text) > 150 else text
                         descriptions.append(f"Instance {chr(65+i)} (index {idx}): \"{preview}\"")
                     elif modality == 'tabular':
-                        feat_str = ", ".join(f"{k}={v}" for k, v in list(feat.items())[:8])
-                        descriptions.append(f"Instance {chr(65+i)} (index {idx}): {feat_str}")
+                        # Proposer only needs instance labels/indices; feature names listed once below
+                        descriptions.append(f"Instance {chr(65+i)} (index {idx})")
                 desc_key = 'text_description' if modality == 'text' else 'data_description'
-                context[desc_key] = "\n".join(descriptions)
+                if modality == 'tabular' and features_list and isinstance(features_list[0], dict):
+                    feat_names = list(features_list[0].keys())
+                    context[desc_key] = "\n".join(descriptions) + f"\nFeature names: {', '.join(feat_names)}"
+                else:
+                    context[desc_key] = "\n".join(descriptions)
+                # For Q4: also expose per-instance _A/_B keys used by the A/B prompt template
+                if q_type == 4:
+                    if len(descriptions) >= 1:
+                        context[desc_key + '_A'] = descriptions[0]
+                    if len(descriptions) >= 2:
+                        context[desc_key + '_B'] = descriptions[1]
 
         return context
 
@@ -383,11 +394,15 @@ class ProposerAgent(BaseAgent):
         self,
         prompt_builder: Any,
         context: Dict[str, Any],
-        instances: List[Dict[str, Any]]
+        instances: List[Dict[str, Any]],
+        question: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """Generate strategy using multi-instance prompt builder."""
         prompt = prompt_builder.build_proposer_prompt_multi(context, instances)
         print(f"\n  Generated multi-instance proposer prompt ({len(prompt)} chars)")
+
+        if question:
+            self._save_prompt(prompt, question, "proposer_prompt")
 
         strategy = self.invoke_vlm_for_json(prompt)
 
@@ -443,6 +458,9 @@ class ProposerAgent(BaseAgent):
                 "tool_name": tool_name,
                 "priority": priority,
                 "reasoning": tool_selection.get('reasoning', ''),
+                # NOTE: 'parameters' is stored here but intentionally NOT applied at runtime.
+                # ActorAgent._get_fixed_tool_params() provides deterministic fixed values instead.
+                # To re-enable LLM-driven params, pass tool_spec['parameters'] in actor_agent._execute_tools().
                 "parameters": tool_params if isinstance(tool_params, dict) else {}
             })
 
@@ -714,6 +732,7 @@ Generate a new strategy in the same JSON format as before.
             prompt = base_prompt
 
         print(f"\n  Generated Q4 proposer prompt ({len(prompt)} chars)")
+        self._save_prompt(prompt, question, "proposer_prompt")
 
         strategy = self.invoke_vlm_for_json(prompt)
 

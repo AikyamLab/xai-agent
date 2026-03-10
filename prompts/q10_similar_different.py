@@ -51,18 +51,29 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
-        # Build instance info
+        # Build instance info for ALL instances, marking each as CORRECT or WRONG
         instance_info = ""
-        if instances and len(instances) >= 2:
-            inst_a = instances[0]
-            inst_b = instances[1]
-            pred_a = inst_a.get('prediction', {})
-            pred_b = inst_b.get('prediction', {})
-            instance_info = f"""- Instance A (CORRECT): Predicted {pred_a.get('predicted_class_name', 'Unknown')} (Ground Truth: {inst_a.get('ground_truth', 'Same')})
-- Instance B (WRONG): Predicted {pred_b.get('predicted_class_name', 'Unknown')} (Ground Truth: {inst_b.get('ground_truth', 'Different')})"""
+        if instances:
+            for i, inst in enumerate(instances):
+                pred = inst.get('prediction', {})
+                pred_name = pred.get('predicted_class_name', 'Unknown')
+                gt_name = pred.get('ground_truth_name', 'Unknown')
+                is_correct = (pred_name == gt_name)
+                status = "CORRECT" if is_correct else "WRONG"
+                instance_info += f"- Instance {chr(65+i)}: Predicted {pred_name} (Ground Truth: {gt_name}) [{status}]\n"
         else:
-            instance_info = """- Instance A: Correctly classified
-- Instance B: Incorrectly classified (similar to A but wrong prediction)"""
+            predictions = context.get('predictions', [])
+            targets = context.get('targets', [])
+            num = context.get('num_instances', 2)
+            for i in range(num):
+                pred = predictions[i] if i < len(predictions) else {}
+                pred_name = pred.get('predicted_class_name', 'Unknown')
+                gt_name = pred.get('ground_truth_name', 'Unknown')
+                is_correct = (pred_name == gt_name)
+                status = "CORRECT" if is_correct else "WRONG"
+                instance_info += f"- Instance {chr(65+i)}: Predicted {pred_name} (Ground Truth: {gt_name}) [{status}]\n"
+
+        num_instances = len(instances) if instances else context.get('num_instances', 2)
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on SIMILAR {modality_config['input_type']}.
 
@@ -72,18 +83,12 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
 - Model: {context.get('model_info', {}).get('model_name', 'Unknown')}
 - Architecture: {context.get('model_info', {}).get('architecture', 'Unknown')}
 
-**Instance Predictions**:
+**Instance Predictions** ({num_instances} instances — some CORRECTLY classified, some MISCLASSIFIED):
 {instance_info}
-- **Note**: Both instances are SIMILAR but have DIFFERENT prediction outcomes
+**Input Content**:
+{context.get(modality_config['description_key'], 'Not available')}
 
-**Input Content Descriptions**:
-- Instance A: {context.get(modality_config['description_key'] + '_A', context.get(modality_config['description_key'], 'Not available'))}
-- Instance B: {context.get(modality_config['description_key'] + '_B', 'Not available')}
-
-**Task**: Design a strategy to identify DISTINCT {modality_config['element_type']} that explain why:
-- Instance A is classified CORRECTLY
-- Instance B is classified INCORRECTLY
-The goal is to find features that are AS DIFFERENT AS POSSIBLE between the correct and wrong prediction.
+**Task**: Design a strategy to identify DISTINCT {modality_config['element_type']} that explain why some instances are classified CORRECTLY while others are MISCLASSIFIED. Find the features that differ between correctly and incorrectly classified instances.
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -213,14 +218,29 @@ Provide your strategy as a JSON object:
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
 
+        # Build per-instance prediction summary for context
+        context_lines = []
+        predictions = context.get('predictions', [])
+        for i, pred in enumerate(predictions):
+            pred_name = pred.get('predicted_class_name', 'Unknown')
+            gt_name = pred.get('ground_truth_name', 'Unknown')
+            is_correct = (pred_name == gt_name)
+            status = "correctly classified" if is_correct else "incorrectly classified"
+            context_lines.append(f"- Instance {chr(65+i)}: Predicted {pred_name} (Ground Truth: {gt_name}) — {status}")
+        if not context_lines:
+            context_lines = [
+                "- Some instances: correctly classified",
+                "- Other instances: incorrectly classified (similar inputs but wrong prediction)",
+            ]
+        context_summary = "\n".join(context_lines)
+
         prompt = f"""You are an XAI expert. Explain why similar instances have different prediction outcomes.
 
 ## Question
 {context.get('user_question', self.question_template)}
 
 ## Context
-- Instance A: Correctly classified
-- Instance B: Incorrectly classified (similar to A but wrong prediction)
+{context_summary}
 {size_constraint}{instance_data_section}
 
 ## XAI Analysis

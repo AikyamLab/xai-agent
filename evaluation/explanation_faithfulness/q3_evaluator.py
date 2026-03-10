@@ -110,7 +110,7 @@ class Q3Evaluator(BaseEvaluator):
         device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
 
         modified_prediction = self.get_prediction(model, masked_input, processor, device)
-        modified_probs = modified_prediction.get('probabilities')
+        modified_probs = self._normalize_probs(modified_prediction.get('probabilities'))
 
         if modified_probs is None:
             return EvaluationResult(

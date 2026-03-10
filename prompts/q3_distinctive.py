@@ -45,7 +45,14 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
         top1_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
-        top2_class = top5[1] if len(top5) > 1 else 'Unknown'
+        if len(top5) > 1:
+            top2_class = top5[1]
+        else:
+            probs = prediction.get('probabilities', {})
+            if isinstance(probs, dict) and len(probs) > 1:
+                top2_class = sorted(probs, key=probs.get, reverse=True)[1]
+            else:
+                top2_class = 'Unknown'
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -165,7 +172,14 @@ Provide your strategy as a JSON object:
         tool_results = results.get('tool_results', {})
 
         top1 = prediction.get('predicted_class_name', 'Top-1')
-        top2 = top5[1] if len(top5) > 1 else 'Top-2'
+        if len(top5) > 1:
+            top2 = top5[1]
+        else:
+            probs = prediction.get('probabilities', {})
+            if isinstance(probs, dict) and len(probs) > 1:
+                top2 = sorted(probs, key=probs.get, reverse=True)[1]
+            else:
+                top2 = 'Top-2'
 
         # Get image size constraint for vision modality
         image_width, image_height = self._get_image_size_from_results(tool_results)

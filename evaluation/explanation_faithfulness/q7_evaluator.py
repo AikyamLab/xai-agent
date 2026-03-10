@@ -68,11 +68,9 @@ class Q7Evaluator(BaseEvaluator):
             )
 
         # Extract original class probabilities
-        original_probs = original_prediction.get('probabilities')
+        original_probs = self._normalize_probs(original_prediction.get('probabilities'))
         original_class = original_prediction.get('predicted_class_idx', 0)
         if original_probs is not None:
-            if isinstance(original_probs, dict):
-                original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
             p_original = float(original_probs[original_class])
         else:
             p_original = None
@@ -124,7 +122,7 @@ class Q7Evaluator(BaseEvaluator):
 
         modified_prediction = self.get_prediction(model, modified_input, processor, device)
         actual_modified_class = modified_prediction.get('predicted_class_idx', -1)
-        modified_probs = modified_prediction.get('probabilities')
+        modified_probs = self._normalize_probs(modified_prediction.get('probabilities'))
         p_modified = float(modified_probs[original_class]) if modified_probs is not None else None
 
         # Convert agent's prediction to index for comparison
@@ -193,11 +191,9 @@ class Q7Evaluator(BaseEvaluator):
                 errors=["Agent did not provide changed_class prediction"]
             )
 
-        original_probs = original_prediction.get('probabilities')
+        original_probs = self._normalize_probs(original_prediction.get('probabilities'))
         original_class = original_prediction.get('predicted_class_idx', 0)
         if original_probs is not None:
-            if isinstance(original_probs, dict):
-                original_probs = [original_probs[k] for k in sorted(original_probs.keys())]
             p_original = float(original_probs[original_class])
         else:
             p_original = None
@@ -244,7 +240,7 @@ class Q7Evaluator(BaseEvaluator):
         device = kwargs.get('device', 'cuda' if torch.cuda.is_available() else 'cpu')
         modified_prediction = self.get_prediction(model, modified_input, processor, device)
         actual_modified_class = modified_prediction.get('predicted_class_idx', -1)
-        modified_probs = modified_prediction.get('probabilities')
+        modified_probs = self._normalize_probs(modified_prediction.get('probabilities'))
         p_modified = float(modified_probs[original_class]) if modified_probs is not None else None
 
         # Map agent's predicted class name → index using vision-aware fuzzy matching.

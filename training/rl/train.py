@@ -129,6 +129,9 @@ def parse_args():
                    help="LoRA rank for create_lora_training_client_async")
     p.add_argument("--load_checkpoint", type=str, default=None,
                    help="Resume from a Tinker checkpoint path")
+    p.add_argument("--start_step", type=int, default=0,
+                   help="Skip the first N steps (use with --load_checkpoint to resume training). "
+                        "E.g. --load_checkpoint checkpoint_step_25 --start_step 26")
 
     # ── Pipeline directories ──────────────────────────────────────────────────
     p.add_argument("--output_dir",  type=str, default="checkpoints/grpo",
@@ -170,6 +173,8 @@ def parse_args():
     p.add_argument("--temperature",    type=float, default=1.0)
     p.add_argument("--save_every",     type=int,   default=50)
     p.add_argument("--eval_every",     type=int,   default=20)
+    p.add_argument("--eval_max_questions", type=int, default=None,
+                   help="Max eval questions per eval callback. None → use all eval questions.")
     p.add_argument("--seed",           type=int,   default=42)
     p.add_argument("--num_workers",    type=int,   default=1,
                    help="Parallel rollout workers per batch step (default: 1 = sequential). "
@@ -313,6 +318,7 @@ async def main():
     cfg = GRPOConfig(
         learning_rate=args.lr,
         kl_coef=args.kl_coef,
+        start_step=args.start_step,
         num_rollouts=args.num_rollouts,
         rollouts_override=rollouts_override,
         stratify_by_qtype=args.stratify_by_qtype,
@@ -351,7 +357,9 @@ async def main():
         import math as _math
         from training.rl.rollout import do_group_rollout as _rollout
 
-        eval_questions = list(eval_ds.questions)[:min(8, len(eval_ds))]
+        eval_questions = list(eval_ds.questions)
+        if args.eval_max_questions is not None:
+            eval_questions = eval_questions[:args.eval_max_questions]
         rewards   = []
         per_q     = []   # list of {q_type, row_no, reward, n_transitions}
         n_errors  = 0

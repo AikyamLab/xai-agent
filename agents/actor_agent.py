@@ -201,8 +201,8 @@ class ActorAgent(BaseAgent):
         print("  Step 1.5: Executing autonomous tasks...")
         autonomous_results = self._execute_autonomous_tasks(
             strategy=strategy,
-            input_path=input_path or "",
-            prediction=prediction or {},
+            input_paths=[input_path or ""],
+            predictions=[prediction or {}],
             question=question,
             tool_results=tool_results
         )
@@ -353,8 +353,8 @@ class ActorAgent(BaseAgent):
         print("  Step 1.5: Executing autonomous tasks...")
         autonomous_results = self._execute_autonomous_tasks(
             strategy=strategy,
-            input_path=input_paths[0] if input_paths else "",
-            prediction=predictions[0] if predictions else {},
+            input_paths=input_paths,
+            predictions=predictions or [],
             question=question,
             tool_results=combined_tool_results
         )
@@ -654,8 +654,8 @@ class ActorAgent(BaseAgent):
         print("  Step 3.5: Executing autonomous tasks...")
         autonomous_results = self._execute_autonomous_tasks(
             strategy=strategy,
-            input_path=inst_a['path'],
-            prediction=inst_a['prediction'],
+            input_paths=[inst_a['path'], inst_b['path']],
+            predictions=[inst_a['prediction'], inst_b['prediction']],
             question=question,
             tool_results=combined_tool_results
         )
@@ -899,10 +899,12 @@ class ActorAgent(BaseAgent):
                 continue
 
             print(f"  Executing {tool_name}...")
+            fixed_params = self._get_fixed_tool_params(tool_name, modality)
             result_str = tool.run(
                 image_path=input_path,
                 target_class=target_class,
-                image_id=f"{image_id_prefix}_{tool_name}"
+                image_id=f"{image_id_prefix}_{tool_name}",
+                **fixed_params
             )
             result = json.loads(result_str)
 
@@ -948,11 +950,33 @@ class ActorAgent(BaseAgent):
             "visualization_paths": all_viz_paths,
         }
 
+    def _get_fixed_tool_params(self, tool_name: str, modality: str) -> Dict[str, Any]:
+        """
+        Return fixed runtime parameters for each tool.
+
+        LLM-proposed tool_params from the strategy (stored in tool_spec['parameters'])
+        are intentionally NOT applied — use this method instead so parameters are
+        always deterministic and reproducible.
+        To re-enable LLM-driven params in future, replace calls to this method with
+        tool_spec.get('parameters', {}) in _execute_tools.
+        """
+        if tool_name == 'lime':
+            return {'num_samples': 1000}
+        if tool_name == 'shap' and modality == 'vision':
+            return {'num_samples': 200}
+        if tool_name == 'integrated_gradients':
+            return {'n_steps': 100}
+        if tool_name == 'object_detection':
+            return {'confidence_threshold': 0.25}
+        if tool_name == 'sensitivity_analysis' and modality == 'vision':
+            return {'perturbation_type': 'blur'}
+        return {}
+
     def _execute_autonomous_tasks(
         self,
         strategy: Dict[str, Any],
-        input_path: str,
-        prediction: Dict[str, Any],
+        input_paths: List[str],
+        predictions: List[Dict[str, Any]],
         question: Dict[str, Any],
         tool_results: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -961,8 +985,8 @@ class ActorAgent(BaseAgent):
 
         Args:
             strategy: Strategy containing autonomous_tasks
-            input_path: Path to input data
-            prediction: Model prediction results
+            input_paths: Paths to all input instances
+            predictions: Model prediction results for all instances
             question: Question dictionary
             tool_results: Results from XAI tools (for image size info)
 
@@ -991,16 +1015,21 @@ class ActorAgent(BaseAgent):
                 task_type=task_type,
                 query=query,
                 expected_output=expected_output,
-                prediction=prediction,
+                predictions=predictions,
                 question=question,
                 modality=modality,
                 tool_results=tool_results
             )
 
-            # Prepare images for VLM (vision modality)
+            # Save prompt for inspection (same path convention as proposer/actor prompts)
+            self._save_prompt(prompt, question, f"{task_type}_prompt")
+
+            # Prepare images for VLM (vision modality): pass ALL instances' images
             images = []
-            if modality == "vision" and input_path and os.path.exists(input_path):
-                images.append(input_path)
+            if modality == "vision":
+                for p in input_paths:
+                    if p and os.path.exists(p):
+                        images.append(p)
 
             # Call VLM and parse JSON, with retry on parse failure
             parsed = self.invoke_vlm_for_json(prompt, images if images else None)
@@ -1021,7 +1050,7 @@ class ActorAgent(BaseAgent):
         task_type: str,
         query: str,
         expected_output: str,
-        prediction: Dict[str, Any],
+        predictions: List[Dict[str, Any]],
         question: Dict[str, Any],
         modality: str,
         tool_results: Optional[Dict[str, Any]] = None
@@ -1032,6 +1061,8 @@ class ActorAgent(BaseAgent):
         Directly uses task_type, query, and expected_output from proposer's strategy.
         Includes modality-specific constraints (image size, text length, etc.)
         """
+        # Use first prediction for headline summary; all predictions forwarded to constraint builder
+        prediction = predictions[0] if predictions else {}
         pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
         confidence = prediction.get('confidence', 0.0)
         top_predictions = prediction.get('top_predictions', [])
@@ -1044,7 +1075,7 @@ class ActorAgent(BaseAgent):
                 for p in top_predictions[:5]
             ])
 
-        # Build modality-specific constraints
+        # Build modality-specific constraints (passes all predictions for multi-instance)
         size_constraint = self._build_modality_constraint(modality, question, tool_results)
 
         prompt = f"""You are an expert AI analyst. Perform the following autonomous reasoning task.
@@ -1193,26 +1224,26 @@ JSON Response:"""
                     pred_info = preds_list[i] if isinstance(preds_list, list) and i < len(preds_list) else {}
                     target_lbl = target_info.get('label', target_info.get('value', '?')) if isinstance(target_info, dict) else target_info
                     pred_lbl = pred_info.get('label', pred_info.get('value', '?')) if isinstance(pred_info, dict) else pred_info
-                    feat_str = ", ".join(f"{k}={v}" for k, v in list(feat.items())[:10]) if isinstance(feat, dict) else str(feat)
-                    lines.append(f"- Instance {label} (index {idx}) — true: {target_lbl}, predicted: {pred_lbl}: {feat_str}")
+                    feat_str = ", ".join(f"{k}={v}" for k, v in feat.items()) if isinstance(feat, dict) else str(feat)
+                    lines.append(f"\n### Instance {label} (index {idx}) — true: {target_lbl}, predicted: {pred_lbl}\nFeatures: {feat_str}")
                 instance_section = "\n## INSTANCE DATA\n" + "\n".join(lines)
                 return f"""{instance_section}
 
 ## CRITICAL TABULAR CONSTRAINTS
-- Available features: {feature_names}{'...' if len(feature_names) > 20 else ''}
+- Available feature names: {feature_names}
 - Use exact feature names as they appear above
 - Format as {{"feature_key": "feature_name"}}"""
             else:
                 feature_names = list(features.keys()) if isinstance(features, dict) and features else []
-                feat_preview = (
-                    ", ".join(f"{k}={repr(v)}" for k, v in list(features.items())[:15])
+                feat_str = (
+                    ", ".join(f"{k}={v}" for k, v in features.items())
                     if isinstance(features, dict) else ""
                 )
 
                 return f"""
 ## CRITICAL TABULAR CONSTRAINTS
-- Available features: {feature_names}
-- Current values: {feat_preview}
+- Available feature names: {feature_names}
+- Current feature values: {feat_str}
 - Use exact feature names as they appear above
 - new_value can be numeric (e.g. 40) or a string category (e.g. "Exec-managerial")
 - Format as {{"feature_key": "feature_name", "action": "change", "new_value": <value>}}"""
@@ -1452,7 +1483,7 @@ JSON Response:"""
             context["input_data"] = features
             context["modality"] = modality
             if isinstance(features, dict):
-                feat_str = ", ".join(f"{k}={v}" for k, v in list(features.items())[:10])
+                feat_str = ", ".join(f"{k}={v}" for k, v in features.items())
                 context["data_description"] = f"Features: {feat_str}"
                 context["instance_data_single"] = {"features": features}
             else:
@@ -2142,8 +2173,8 @@ Respond with ONLY valid JSON:"""
         # Step 1.5: Execute autonomous tasks if any
         autonomous_results = self._execute_autonomous_tasks(
             strategy=strategy,
-            input_path=input_path or "",
-            prediction=prediction or {},
+            input_paths=[input_path or ""],
+            predictions=[prediction or {}],
             question=question,
             tool_results=tool_results
         )
@@ -2294,8 +2325,8 @@ Respond with ONLY valid JSON:"""
         print("  Step 1.5: Executing autonomous tasks...")
         autonomous_results = self._execute_autonomous_tasks(
             strategy=strategy,
-            input_path=input_paths[0] if input_paths else "",
-            prediction=predictions[0] if predictions else {},
+            input_paths=input_paths,
+            predictions=predictions or [],
             question=question,
             tool_results=combined_tool_results
         )

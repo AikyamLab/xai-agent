@@ -201,6 +201,11 @@ def predict(
         predicted_class = 1 if prob_positive >= 0.5 else 0
         confidence = prob_positive if predicted_class == 1 else prob_negative
 
+    top5_predictions = sorted([
+        {"class_idx": 0, "class_name": LABEL_MAP[0], "probability": float(prob_negative)},
+        {"class_idx": 1, "class_name": LABEL_MAP[1], "probability": float(prob_positive)},
+    ], key=lambda x: x["probability"], reverse=True)
+
     return {
         "success": True,
         "predicted_class_idx": predicted_class,
@@ -210,6 +215,7 @@ def predict(
             "negative": float(prob_negative),
             "positive": float(prob_positive)
         },
+        "top5_predictions": top5_predictions,
         "raw_logit": float(logits.item()),
         "device": str(DEVICE)
     }
