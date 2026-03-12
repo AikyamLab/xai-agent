@@ -45,8 +45,7 @@ Q1_SCHEMA_VISION = {
     "output": {
         "bounding_box": [0, 0, 100, 100]  # [x_min, y_min, x_max, y_max]
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q1_SCHEMA_TEXT = {
@@ -55,16 +54,14 @@ Q1_SCHEMA_TEXT = {
             {"start_index": 0, "end_index": 10}
         ]
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q1_SCHEMA_TABULAR = {
     "output": {
         "feature_keys": ["feature_name"]
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 # =============================================================================
@@ -92,8 +89,7 @@ Q4_SCHEMA_VISION = {
         "input_A": "concise feature phrase, e.g. 'fur texture and primate facial features'",
         "input_B": "concise feature phrase, e.g. 'wings and fuselage body'"
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q4_SCHEMA_TEXT = {
@@ -105,8 +101,7 @@ Q4_SCHEMA_TEXT = {
             "spans": [{"start_index": 0, "end_index": 10}]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q4_SCHEMA_TABULAR = {
@@ -118,8 +113,7 @@ Q4_SCHEMA_TABULAR = {
             "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 # =============================================================================
@@ -133,16 +127,14 @@ Q5_SCHEMA_VISION = {
             "bounding_box": [0, 0, 100, 100]  # [x_min, y_min, x_max, y_max]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q5_SCHEMA_TEXT = {
     "output": {
         "prediction_changes": 1  # 1 = Yes, 0 = No
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 Q5_SCHEMA_TABULAR = Q5_SCHEMA_TEXT.copy()
 
@@ -158,8 +150,7 @@ Q6_SCHEMA_VISION = {
             "new_value": "optional description"
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q6_SCHEMA_TEXT = {
@@ -173,8 +164,7 @@ Q6_SCHEMA_TEXT = {
             }
         ]
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q6_SCHEMA_TABULAR = {
@@ -187,8 +177,7 @@ Q6_SCHEMA_TABULAR = {
             }
         ]
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 # =============================================================================
@@ -198,22 +187,18 @@ Q6_SCHEMA_TABULAR = {
 Q7_SCHEMA_VISION = {
     "output": {
         "changed_class": "string",  # Predicted class after change
-        "changed_confidence": 0.75,
         "masked_region": {
             "bounding_box": [0, 0, 100, 100]  # [x_min, y_min, x_max, y_max]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q7_SCHEMA_TEXT = {
     "output": {
-        "changed_class": "string",
-        "changed_confidence": 0.75
+        "changed_class": "string"
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 Q7_SCHEMA_TABULAR = Q7_SCHEMA_TEXT.copy()
 
@@ -237,8 +222,7 @@ Q9_SCHEMA_VISION = {
         ]
     },
     "shared_feature_description": "string",
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q9_SCHEMA_TEXT = {
@@ -249,8 +233,7 @@ Q9_SCHEMA_TEXT = {
         ]
     },
     "shared_feature_description": "string",
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q9_SCHEMA_TABULAR = {
@@ -261,8 +244,7 @@ Q9_SCHEMA_TABULAR = {
         ]
     },
     "shared_feature_description": "string",
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 # =============================================================================
@@ -274,8 +256,7 @@ Q10_SCHEMA_VISION = {
         "correct_instance_features": "concise feature phrase, e.g. 'clear object outline and distinct color pattern'",
         "wrong_instance_features": "concise feature phrase, e.g. 'blurred edges and noisy background'"
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q10_SCHEMA_TEXT = {
@@ -287,8 +268,7 @@ Q10_SCHEMA_TEXT = {
             "spans": [{"start_index": 0, "end_index": 10}]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 Q10_SCHEMA_TABULAR = {
@@ -300,8 +280,7 @@ Q10_SCHEMA_TABULAR = {
             "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
         }
     },
-    "explanation": "string",
-    "confidence": 0.85
+    "explanation": "string"
 }
 
 # =============================================================================

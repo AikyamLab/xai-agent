@@ -1418,6 +1418,8 @@ class Q6Evaluator(BaseEvaluator):
         # several feature/span changes; each is applied on top of the previous result.
         modified_input = original_input
         region_ratio = 0.0
+        # Accumulate raw feature→value changes for human-readable masked-input save.
+        changed_features: Dict[str, Any] = {}
         for plan in change_plans:
             region = self._extract_region_from_change_plan(plan)
             if region is None:
@@ -1433,8 +1435,16 @@ class Q6Evaluator(BaseEvaluator):
                 )
             action = plan.get('action', 'change')
             new_value = plan.get('new_value')
+            if self.modality == 'tabular' and new_value is not None:
+                fk = region.get('feature_key')
+                if fk:
+                    try:
+                        changed_features[fk] = float(str(new_value))
+                    except (ValueError, TypeError):
+                        changed_features[fk] = new_value
             modified_input = self._apply_change_plan(
-                modified_input, region, action, new_value, kwargs
+                modified_input, region, action, new_value, kwargs,
+                changed_features=changed_features if self.modality == 'tabular' else None
             )
             region_ratio += self.compute_region_ratio(region, original_input)
         region_ratio = min(1.0, region_ratio)
@@ -1575,7 +1585,7 @@ class Q6Evaluator(BaseEvaluator):
             action = plan.get('action', 'change')
             new_value = plan.get('new_value')
             modified_input = self._apply_change_plan(
-                modified_input, region, action, new_value, kwargs
+                modified_input, region, action, new_value, kwargs, changed_features=None
             )
             region_ratio += self.compute_region_ratio(region, original_input)
         region_ratio = min(1.0, region_ratio)
@@ -1657,7 +1667,7 @@ class Q6Evaluator(BaseEvaluator):
             results.append(entry)
         return results
 
-    def _apply_change_plan(self, original_input, region, action, new_value, kwargs) -> Any:
+    def _apply_change_plan(self, original_input, region, action, new_value, kwargs, changed_features=None) -> Any:
         """Apply the agent's change plan to produce a modified input.
 
         Vision  : SD inpainting with new_value as prompt (falls back to gray fill)
@@ -1671,6 +1681,7 @@ class Q6Evaluator(BaseEvaluator):
             mask_suffix=kwargs.get('mask_suffix', ''),
             feature_names=kwargs.get('feature_names', []),
             original_features=kwargs.get('original_features', {}),
+            changed_features=changed_features or {},
         )
 
         if self.modality == 'vision':

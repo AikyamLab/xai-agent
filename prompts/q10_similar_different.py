@@ -103,7 +103,6 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for comparing correct vs incorrect predictions (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -113,9 +112,6 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for comparing {self.modality} success vs failure"
     }}
 }}
@@ -141,7 +137,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize focus differences
    - SensitivityAnalysis: Compare sensitivity patterns
    - LayerCAM: Compare layer-wise activations''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "apply_to": "both", "comparison_mode": "difference", "priority": 1},\n            "object_detection": {"compare_instances": true, "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -156,7 +151,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Compare attention patterns
    - TokenImportance: Compare token-level attribution
    - SensitivityAnalysis: Compare sensitivity patterns''',
-                'tool_params_example': '"integrated_gradients": {"apply_to": "both", "comparison_mode": "difference", "priority": 1},\n            "attention_analysis": {"compare_instances": true, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -170,7 +164,6 @@ Provide your strategy as a JSON object:
    - SHAP: Compare Shapley values
    - PermutationImportance: Compare feature importance
    - SensitivityAnalysis: Compare sensitivity patterns''',
-                'tool_params_example': '"shap": {"apply_to": "both", "comparison_mode": "difference", "priority": 1},\n            "permutation_importance": {"compare_instances": true, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -258,8 +251,7 @@ The goal is to find DISTINCT features.
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining the key difference between correct and wrong prediction",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining the key difference between correct and wrong prediction"
 }}
 
 **Critical Requirements:**

@@ -11,7 +11,7 @@ from collections import defaultdict
 
 EVAL_ROOT = Path(
     "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-    "/baseline_outputs/test_Qwen30B_eval_outputs2/evaluations"
+    "/baseline_outputs/Qwen30B_nonVL_mask_fixed/evaluations"
 )
 
 # SCORE_KEYS = ["overall_score", "quality_score", "completeness"]

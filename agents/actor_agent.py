@@ -362,6 +362,7 @@ class ActorAgent(BaseAgent):
         if autonomous_results:
             combined_tool_results['autonomous_results'] = autonomous_results
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+            self._save_tool_outputs(combined_tool_results['tool_results'], question)
 
         # Step 2: Generate comparative explanation
         print("  Step 2: Generating comparative explanation...")
@@ -663,6 +664,7 @@ class ActorAgent(BaseAgent):
         if autonomous_results:
             combined_tool_results['autonomous_results'] = autonomous_results
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+            self._save_tool_outputs(combined_tool_results['tool_results'], question)
 
         # ═══════════════════════════════════════════════════════
         # Step 4: Generate Q4 explanation (one VLM call)
@@ -1063,20 +1065,14 @@ class ActorAgent(BaseAgent):
         """
         # Use first prediction for headline summary; all predictions forwarded to constraint builder
         prediction = predictions[0] if predictions else {}
-        pred_class = prediction.get('predicted_class', prediction.get('predicted_class_idx', 'Unknown'))
+        pred_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
         confidence = prediction.get('confidence', 0.0)
-        top_predictions = prediction.get('top_predictions', [])
-
-        # Format top predictions
-        top_pred_str = ""
-        if top_predictions:
-            top_pred_str = "\n".join([
-                f"  - {p.get('class_name', p.get('class_idx', 'Unknown'))}: {p.get('confidence', 0):.2%}"
-                for p in top_predictions[:5]
-            ])
+        top5 = prediction.get('top5_predictions', [])
 
         # Build modality-specific constraints (passes all predictions for multi-instance)
         size_constraint = self._build_modality_constraint(modality, question, tool_results)
+
+        top5_section = f"\n## Top-5 Model Predictions\n{top5}" if top5 else ""
 
         prompt = f"""You are an expert AI analyst. Perform the following autonomous reasoning task.
 
@@ -1086,9 +1082,7 @@ class ActorAgent(BaseAgent):
 - Question: {question.get('question', '')}
 - Model Prediction: {pred_class} (confidence: {confidence:.2%})
 - Modality: {modality}
-
-## Top-5 Model Predictions
-{top_pred_str if top_pred_str else "Not available"}
+{top5_section}
 {size_constraint}
 
 ## Your Task
@@ -1101,7 +1095,6 @@ class ActorAgent(BaseAgent):
 Provide your analysis as a JSON object. Include:
 - Your findings/results matching the expected output format
 - "explanation": Brief explanation of your analysis
-- "confidence": Your confidence score (0.0-1.0)
 
 JSON Response:"""
 
@@ -1418,8 +1411,6 @@ JSON Response:"""
                     for key, value in task_result.items():
                         if key == 'explanation':
                             lines.append(f"- Explanation: {value}")
-                        elif key == 'confidence':
-                            lines.append(f"- Confidence: {value}")
                         else:
                             # Serialize structured data (objects, discriminative_features, etc.)
                             lines.append(f"- {key}: {json.dumps(value)}")
@@ -1884,21 +1875,18 @@ Respond with ONLY valid JSON:"""
                     return validate_and_fix_output({
                         "output": {"change_plan": parsed['change_plan']},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                        "confidence": parsed.get('confidence', 0.5)
                     }, modality)
                 elif modality == "vision" and 'bounding_box' in parsed:
                     clipped_bbox = clip_bounding_box(parsed['bounding_box'], width, height)
                     return {
                         "output": {"bounding_box": clipped_bbox},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                        "confidence": parsed.get('confidence', 0.5)
                     }
                 elif modality == "text" and 'start_index' in parsed and 'end_index' in parsed:
                     start, end = clip_text_indices(parsed['start_index'], parsed['end_index'], text_length)
                     return {
                         "output": {"spans": [{"start_index": start, "end_index": end}]},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                        "confidence": parsed.get('confidence', 0.5)
                     }
                 elif modality == "tabular" and 'feature_key' in parsed:
                     feature_key = parsed['feature_key']
@@ -1907,7 +1895,6 @@ Respond with ONLY valid JSON:"""
                     return {
                         "output": {"feature_keys": [feature_key]},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                        "confidence": parsed.get('confidence', 0.5)
                     }
 
             except json.JSONDecodeError:
@@ -2334,6 +2321,7 @@ Respond with ONLY valid JSON:"""
         if autonomous_results:
             combined_tool_results['autonomous_results'] = autonomous_results
             combined_tool_results['tool_results']['autonomous_tasks'] = autonomous_results
+            self._save_tool_outputs(combined_tool_results['tool_results'], question, suffix="_improved")
 
         # Step 2: Generate improved explanation with reflection
         print("  Step 2: Generating improved comparative explanation with reflection...")

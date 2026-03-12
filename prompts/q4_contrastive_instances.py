@@ -90,7 +90,6 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for comparing {modality_config['element_type']} between instances (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -100,9 +99,6 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for comparing {self.modality} instances"
     }}
 }}
@@ -130,7 +126,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize gradients for each instance
    - SensitivityAnalysis: Measure sensitivity in each instance
    - LayerCAM: Layer-wise activation for each instance''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "apply_to": "both", "priority": 1},\n            "integrated_gradients": {"apply_to": "both", "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -147,7 +142,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Analyze attention patterns in each instance
    - TokenImportance: Compute token-level attribution for each instance
    - SensitivityAnalysis: Measure sensitivity in each instance''',
-                'tool_params_example': '"integrated_gradients": {"apply_to": "both", "priority": 1},\n            "lime": {"apply_to": "both", "priority": 2}'
             }
         else:  # tabular
             return {
@@ -163,7 +157,6 @@ Provide your strategy as a JSON object:
    - SHAP: Compute Shapley values for each instance
    - PermutationImportance: Measure feature importance for each instance
    - SensitivityAnalysis: Measure sensitivity in each instance''',
-                'tool_params_example': '"shap": {"apply_to": "both", "priority": 1},\n            "lime": {"apply_to": "both", "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -245,8 +238,7 @@ Identify the DECISIVE parts in BOTH instances:
     "output": {{
         {output_format_block}
     }},
-    "explanation": "2-3 sentences explaining the key differences",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining the key differences"
 }}
 
 **Critical Requirements:**

@@ -339,6 +339,7 @@ class BaseMasker(ABC):
         self._current_feature_names = kwargs.get('feature_names', [])
         self._current_original_features = kwargs.get('original_features', {})
         self._current_masked_keys = kwargs.get('masked_keys', [])
+        self._current_changed_features = kwargs.get('changed_features', {})
 
         self.save(data, auto_filename)
 
@@ -944,6 +945,11 @@ class TabularMasker(BaseMasker):
                 for key in masked_keys:
                     mean_val = self._get_original_scale_mean(key, feature_names)
                     readable_dict[key] = round(mean_val, 4) if mean_val is not None else None
+                # Apply Q6-style direct changes (raw new values, not mean-fill).
+                changed_features = getattr(self, '_current_changed_features', {})
+                for key, val in changed_features.items():
+                    if key in readable_dict:
+                        readable_dict[key] = round(float(val), 6) if isinstance(val, (int, float)) else val
                 save_path = self._get_target_path("tabular", "json", filename, **path_kwargs)
                 with open(save_path, "w", encoding="utf-8") as f:
                     json.dump(readable_dict, f, indent=4)

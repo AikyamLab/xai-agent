@@ -92,7 +92,6 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding shared spurious {modality_config['element_type']} (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -102,9 +101,6 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for finding shared {self.modality} patterns"
     }}
 }}
@@ -130,7 +126,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize shared focus areas
    - SensitivityAnalysis: Find commonly sensitive regions
    - LayerCAM: Compare layer-wise activations across instances''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "apply_to": "all", "compare_mode": "intersection", "priority": 1},\n            "object_detection": {"find_common": true, "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -145,7 +140,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Compare attention patterns across texts
    - TokenImportance: Find common high-importance tokens
    - SensitivityAnalysis: Find commonly sensitive tokens''',
-                'tool_params_example': '"integrated_gradients": {"apply_to": "all", "compare_mode": "intersection", "priority": 1},\n            "attention_analysis": {"find_common_patterns": true, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -159,7 +153,6 @@ Provide your strategy as a JSON object:
    - SHAP: Identify shared feature patterns across instances
    - PermutationImportance: Find consistently important spurious features
    - SensitivityAnalysis: Find commonly sensitive features''',
-                'tool_params_example': '"shap": {"apply_to": "all", "compare_mode": "intersection", "priority": 1},\n            "permutation_importance": {"find_common": true, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -218,8 +211,7 @@ Identify the SHARED spurious feature and its location in EACH of the {num_instan
         ]
     }},
     "shared_feature_description": "Description of the common feature across all inputs",
-    "explanation": "2-3 sentences explaining how this shared feature confuses the model",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining how this shared feature confuses the model"
 }}
 
 **Critical Requirements:**
