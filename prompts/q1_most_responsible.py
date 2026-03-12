@@ -64,7 +64,7 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
    - Identify and ground important {modality_config['element_type']} in the input
    - Reason about their importance to the predicted class
-   - Provide {modality_config['location_type']} and confidence scores for different {modality_config['element_type']}
+   - Provide {modality_config['location_type']} for different {modality_config['element_type']}
 
 2. **External XAI Tools**: Use established explainability methods:
 {tools_description}
@@ -73,7 +73,6 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding most responsible {modality_config['element_type']} (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -83,9 +82,6 @@ class Q1MostResponsiblePromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for {self.modality} modality"
     }}
 }}
@@ -113,7 +109,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualizes gradients guided by activations
    - SensitivityAnalysis: Measures prediction sensitivity to input changes
    - LayerCAM: Layer-wise class activation mapping''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "priority": 1},\n            "lime": {"num_samples": 1000, "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -130,7 +125,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Analyzes attention weights across tokens
    - TokenImportance: Direct token-level attribution
    - SensitivityAnalysis: Measures prediction sensitivity to token changes''',
-                'tool_params_example': '"integrated_gradients": {"baseline": "zero", "priority": 1},\n            "lime": {"num_samples": 500, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -146,7 +140,6 @@ Provide your strategy as a JSON object:
    - SHAP: Game-theoretic approach to feature importance
    - PermutationImportance: Measures importance by permuting feature values
    - SensitivityAnalysis: Measures prediction sensitivity to feature changes''',
-                'tool_params_example': '"shap": {"background_samples": 100, "priority": 1},\n            "lime": {"num_samples": 1000, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -193,8 +186,7 @@ Identify the MOST RESPONSIBLE part that caused this prediction.
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining why this part is most responsible",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why this part is most responsible"
 }}
 
 **Critical Requirements:**

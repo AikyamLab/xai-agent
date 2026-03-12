@@ -73,7 +73,6 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for assessing masking impact (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -83,9 +82,6 @@ class Q5MaskPredictionPromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for assessing masking impact on {self.modality}"
     }}
 }}
@@ -111,7 +107,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize gradients in the region
    - SensitivityAnalysis: Measure sensitivity to changes in the region
    - LayerCAM: Check layer-wise activation in the region''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "focus_region": "queried", "priority": 1},\n            "integrated_gradients": {"focus_region": "queried", "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -126,7 +121,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Check attention weights on the span
    - TokenImportance: Direct token-level attribution
    - SensitivityAnalysis: Measure sensitivity to token changes''',
-                'tool_params_example': '"integrated_gradients": {"focus_span": "queried", "priority": 1},\n            "attention_analysis": {"focus_span": "queried", "priority": 2}'
             }
         else:  # tabular
             return {
@@ -140,7 +134,6 @@ Provide your strategy as a JSON object:
    - SHAP: Compute Shapley value for the feature
    - PermutationImportance: Measure importance by permuting the feature
    - SensitivityAnalysis: Measure sensitivity to feature changes''',
-                'tool_params_example': '"shap": {"focus_feature": "queried", "priority": 1},\n            "permutation_importance": {"focus_feature": "queried", "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -190,8 +183,7 @@ Confidence: {prediction.get('confidence', 0.0):.4f}
             "bounding_box": [x_min, y_min, x_max, y_max]
         }}
     }},
-    "explanation": "2-3 sentences: which region you chose, why, and whether masking it changes the prediction",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences: which region you chose, why, and whether masking it changes the prediction"
 }}
 
 **Critical Requirements:**
@@ -240,8 +232,7 @@ Based on the XAI analysis, predict whether masking this part would change the pr
     "output": {{
         "prediction_changes": 1
     }},
-    "explanation": "2-3 sentences explaining your reasoning",
-    "confidence": 0.85
+    "explanation": "2-3 sentences explaining your reasoning"
 }}
 
 **Critical Requirements:**

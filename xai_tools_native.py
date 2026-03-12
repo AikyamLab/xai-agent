@@ -1582,10 +1582,12 @@ class LIMETabularTool(BaseTool):
                     converted, "weight", encoded_to_original, raw_features_dict
                 )
             else:
+                names_by_len = sorted(names, key=len, reverse=True)
                 feature_importance = []
                 for feat_desc, weight in explanation_list[:20]:
+                    clean_name = _extract_feature_name_from_lime_condition(feat_desc, names_by_len)
                     feature_importance.append({
-                        "feature": feat_desc,
+                        "feature": clean_name,
                         "weight": round(float(weight), 6),
                         "direction": "positive" if weight > 0 else "negative"
                     })

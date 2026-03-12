@@ -3,8 +3,6 @@ Q7: If we remove/change one important part, how would the prediction change?
 
 Expected Output:
 - changed_class: predicted class after the modification
-- changed_confidence: optional confidence estimate
-
 Evaluation:
 - Apply the modification (remove/change the specified part)
 - Metric: 1 if R1_modified == agent_predicted_class, else 0
@@ -74,7 +72,6 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for predicting outcome (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -84,9 +81,6 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for predicting {self.modality} modification outcome"
     }}
 }}
@@ -112,7 +106,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize what else the model relies on
    - SensitivityAnalysis: Measure sensitivity to predict change magnitude
    - LayerCAM: Understand layer-wise dependence on the region''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "analyze_alternatives": true, "priority": 1},\n            "integrated_gradients": {"compute_distribution": true, "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -127,7 +120,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: See what else the model attends to
    - TokenImportance: Understand token-level importance distribution
    - SensitivityAnalysis: Measure sensitivity to predict change magnitude''',
-                'tool_params_example': '"integrated_gradients": {"compute_distribution": true, "priority": 1},\n            "attention_analysis": {"analyze_alternatives": true, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -141,7 +133,6 @@ Provide your strategy as a JSON object:
    - SHAP: Understand contribution distribution to predict new outcome
    - PermutationImportance: Understand importance of remaining features
    - SensitivityAnalysis: Measure sensitivity to predict change magnitude''',
-                'tool_params_example': '"shap": {"compute_distribution": true, "priority": 1},\n            "sensitivity_analysis": {"analyze_alternatives": true, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -200,19 +191,16 @@ Provide your strategy as a JSON object:
 {{
     "output": {{
         "changed_class": "predicted class name after modification",
-        "changed_confidence": 0.0-1.0,
         "masked_region": {{
             "bounding_box": [x_min, y_min, x_max, y_max]
         }}
     }},
-    "explanation": "2-3 sentences: which region you chose, why, and what the new prediction would be",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences: which region you chose, why, and what the new prediction would be"
 }}
 
 **Critical Requirements:**
 - changed_class: The class the model would predict AFTER masking the region
 - masked_region.bounding_box: [x_min, y_min, x_max, y_max] integers within image bounds
-- changed_confidence: Your estimate of the new prediction's confidence
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
@@ -251,18 +239,15 @@ Predict what the NEW prediction would be after removing/changing the specified p
 ## REQUIRED OUTPUT FORMAT (JSON only)
 {{
     "output": {{
-        "changed_class": "predicted class name after modification",
-        "changed_confidence": 0.0-1.0
+        "changed_class": "predicted class name after modification"
     }},
-    "explanation": "2-3 sentences explaining why the prediction would change to this class",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why the prediction would change to this class"
 }}
 
 **Critical Requirements:**
 - changed_class: The class the model would predict AFTER the modification
 - This is often the second-most-likely class (top-2) but could be different
 - Consider what features remain after the modification
-- changed_confidence: Your estimate of the new prediction's confidence
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""

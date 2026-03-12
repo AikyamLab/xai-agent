@@ -62,7 +62,7 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
    - Identify {modality_config['element_type']} that appear irrelevant to the predicted class
    - Reason about which parts have minimal contribution
-   - Provide {modality_config['location_type']} and confidence scores for unimportant {modality_config['element_type']}
+   - Provide {modality_config['location_type']} for unimportant {modality_config['element_type']}
 
 2. **External XAI Tools**: Use established explainability methods to find LOW attribution regions:
 {tools_description}
@@ -71,7 +71,6 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding least responsible {modality_config['element_type']} (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -81,9 +80,6 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for {self.modality} modality"
     }}
 }}
@@ -111,7 +107,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Low gradient regions are less important
    - SensitivityAnalysis: Low sensitivity indicates minimal impact
    - LayerCAM: Low activation areas are less responsible''',
-                'tool_params_example': '"integrated_gradients": {"baseline": "zero", "priority": 1},\n            "gradcam": {"layer": "layer4", "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -128,7 +123,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Low attention weights suggest less importance
    - TokenImportance: Identifies tokens with minimal attribution
    - SensitivityAnalysis: Low sensitivity indicates minimal impact''',
-                'tool_params_example': '"integrated_gradients": {"baseline": "zero", "priority": 1},\n            "shap": {"background_samples": 100, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -144,7 +138,6 @@ Provide your strategy as a JSON object:
    - SHAP: Near-zero Shapley values indicate irrelevance
    - PermutationImportance: Low importance indicates minimal impact
    - SensitivityAnalysis: Low sensitivity indicates feature is irrelevant''',
-                'tool_params_example': '"shap": {"background_samples": 100, "priority": 1},\n            "permutation_importance": {"n_repeats": 10, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -184,8 +177,7 @@ This should be part that, if masked, would NOT significantly change the predicti
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining why this part is least responsible",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why this part is least responsible"
 }}
 
 **Critical Requirements:**

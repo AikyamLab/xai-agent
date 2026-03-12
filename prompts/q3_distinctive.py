@@ -83,7 +83,6 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding distinctive {modality_config['element_type']} between top-1 and top-2 (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -93,9 +92,6 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for contrastive {self.modality} analysis"
     }}
 }}
@@ -123,7 +119,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize class-specific gradients
    - SensitivityAnalysis: Compare sensitivity for different class targets
    - LayerCAM: Class-wise activation comparison''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "target_class": "top1", "priority": 1},\n            "integrated_gradients": {"target_class": "contrastive", "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -140,7 +135,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Compare attention patterns for different predictions
    - TokenImportance: Class-specific token attribution
    - SensitivityAnalysis: Compare sensitivity for different class targets''',
-                'tool_params_example': '"integrated_gradients": {"target_class": "contrastive", "priority": 1},\n            "lime": {"target_class": "top1", "priority": 2}'
             }
         else:  # tabular
             return {
@@ -156,7 +150,6 @@ Provide your strategy as a JSON object:
    - SHAP: Compare Shapley values across classes
    - PermutationImportance: Class-specific feature importance
    - SensitivityAnalysis: Compare sensitivity for different class targets''',
-                'tool_params_example': '"shap": {"target_class": "contrastive", "priority": 1},\n            "lime": {"target_class": "top1", "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -206,8 +199,7 @@ Identify the part that DISTINGUISHES {top1} from {top2}.
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining why this part distinguishes the two classes",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why this part distinguishes the two classes"
 }}
 
 **Critical Requirements:**

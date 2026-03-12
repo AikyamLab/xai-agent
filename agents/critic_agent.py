@@ -282,9 +282,7 @@ class CriticAgent(BaseAgent):
         # Output completeness
         has_output = bool(output)
         has_explanation = bool(results.get('explanation'))
-        has_confidence = 'confidence' in results
-
-        completeness = sum([has_output, has_explanation, has_confidence]) / 3
+        completeness = sum([has_output, has_explanation]) / 2
 
         # Overall score
         overall_score = (quality_score + completeness) / 2

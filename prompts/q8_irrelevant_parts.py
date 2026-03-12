@@ -76,7 +76,6 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding spurious {modality_config['element_type']} (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -86,9 +85,6 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for finding spurious {self.modality} features"
     }}
 }}
@@ -114,7 +110,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize what the model wrongly focuses on
    - SensitivityAnalysis: Find regions sensitive but irrelevant
    - LayerCAM: Identify spurious activations at different layers''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "target_class": "predicted", "priority": 1},\n            "object_detection": {"compare_with_ground_truth": true, "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -129,7 +124,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: See tokens the model wrongly attends to
    - TokenImportance: Find high-importance but irrelevant tokens
    - SensitivityAnalysis: Find tokens sensitive but semantically irrelevant''',
-                'tool_params_example': '"integrated_gradients": {"target_class": "predicted", "priority": 1},\n            "attention_analysis": {"compare_semantic_relevance": true, "priority": 2}'
             }
         else:  # tabular
             return {
@@ -143,7 +137,6 @@ Provide your strategy as a JSON object:
    - SHAP: Identify features that shouldn't matter for true class
    - PermutationImportance: Find high-importance but irrelevant features
    - SensitivityAnalysis: Find features sensitive but domain-irrelevant''',
-                'tool_params_example': '"shap": {"target_class": "predicted", "priority": 1},\n            "permutation_importance": {"compare_domain_relevance": true, "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -187,8 +180,7 @@ This is a part that:
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining why this part is spurious and causing the error",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why this part is spurious and causing the error"
 }}
 
 **Critical Requirements:**

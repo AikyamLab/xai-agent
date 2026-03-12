@@ -71,7 +71,6 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 {{
     "strategy_type": "autonomous" | "tools" | "hybrid",
     "reasoning": "Explain why you chose this strategy for finding counterfactual changes (2-3 sentences)",
-    "confidence": 0.0-1.0,
     "autonomous_tasks": [
         {{
             "task_type": "grounding" | "reasoning" | "comparison",
@@ -81,9 +80,6 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
     ],
     "tool_selection": {{
         "selected_tools": {tool_list},
-        "tool_params": {{
-            {modality_config['tool_params_example']}
-        }},
         "reasoning": "Why these tools for finding {self.modality} counterfactuals"
     }}
 }}
@@ -110,7 +106,6 @@ Provide your strategy as a JSON object:
    - GuidedBackprop: Visualize what the model focuses on
    - SensitivityAnalysis: Find regions most sensitive to changes
    - LayerCAM: Identify layer-specific activation to target''',
-                'tool_params_example': '"gradcam": {"layer": "layer4", "target_class": "current", "priority": 1},\n            "integrated_gradients": {"target_class": "contrastive", "priority": 2}'
             }
         elif self.modality == "text":
             return {
@@ -126,7 +121,6 @@ Provide your strategy as a JSON object:
    - AttentionAnalysis: Find tokens the model attends to most
    - TokenImportance: Direct token attribution for modification targets
    - SensitivityAnalysis: Find tokens most sensitive to changes''',
-                'tool_params_example': '"integrated_gradients": {"target_class": "contrastive", "priority": 1},\n            "lime": {"target_class": "current", "priority": 2}'
             }
         else:  # tabular
             return {
@@ -141,7 +135,6 @@ Provide your strategy as a JSON object:
    - SHAP: Identify features contributing to current vs target class
    - PermutationImportance: Find features most important for prediction
    - SensitivityAnalysis: Find features most sensitive to changes''',
-                'tool_params_example': '"shap": {"target_class": "contrastive", "priority": 1},\n            "sensitivity_analysis": {"target_class": "target", "priority": 2}'
             }
 
     def build_actor_prompt(
@@ -221,8 +214,7 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
     "output": {{
         {output_format}
     }},
-    "explanation": "2-3 sentences explaining why this change would flip the prediction",
-    "confidence": 0.0-1.0
+    "explanation": "2-3 sentences explaining why this change would flip the prediction"
 }}
 
 **Critical Requirements:**
