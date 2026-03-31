@@ -119,6 +119,7 @@ class Q5Evaluator(BaseEvaluator):
             prob_drop = None
             score = 1.0 if correct else 0.0
 
+        region_ratio = self.compute_region_ratio(queried_region, original_input)
         return EvaluationResult(
             score=score,
             passed=correct,
@@ -128,6 +129,9 @@ class Q5Evaluator(BaseEvaluator):
             modified_class=str(modified_class),
             details={
                 "soft_score": score,
+                "size_score": score * (1.0 - region_ratio),
+                "size_score_l1": self._size_score_l1(score, region_ratio, penalize_large=True),
+                "region_ratio": region_ratio,
                 "queried_region": queried_region,
                 "agent_says_changes": agent_says_changes,
                 "actually_changed": actually_changed,

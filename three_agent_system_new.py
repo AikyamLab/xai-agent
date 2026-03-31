@@ -47,7 +47,8 @@ def create_three_agent_system(
     model: Any = None,
     data_model_loader: Any = None,
     output_dir: Optional[str] = None,
-    models_dir: Optional[str] = None
+    models_dir: Optional[str] = None,
+    output_size_config=None
 ) -> Tuple[ProposerAgent, ActorAgent, CriticAgent]:
     """
     Create the three-agent system with shared VLM.
@@ -71,7 +72,8 @@ def create_three_agent_system(
 
     actor = ActorAgent(
         vlm=vlm,
-        output_dir=output_dir
+        output_dir=output_dir,
+        output_size_config=output_size_config
     )
 
     critic = CriticAgent(

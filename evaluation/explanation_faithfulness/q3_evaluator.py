@@ -152,7 +152,8 @@ class Q3Evaluator(BaseEvaluator):
         # Size penalty: penalize large masked regions
         region_ratio = self.compute_region_ratio(region, original_input)
         size_penalty = 1.0 - region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         # Passed logic unchanged: binary rank flip
         passed = rank_flipped
@@ -185,11 +186,13 @@ class Q3Evaluator(BaseEvaluator):
                 "gap_original": gap_orig,
                 "gap_modified": gap_mod,
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "top1_class_changed": modified_top1_class != top1_class,
                 "top2_class_changed": modified_top2_class != top2_class,
                 "rank_flipped": rank_flipped,
-                "interpretation": "score = gap_reduction_ratio * (1 - region_ratio)"
+                "interpretation": "score = gap_reduction_ratio; size_score = score * (1 - region_ratio)"
             }
         )

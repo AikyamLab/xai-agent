@@ -65,10 +65,13 @@ class BaseAgent(ABC):
             VLM response string
         """
         try:
-            if images and hasattr(self.vlm, 'invoke_with_images'):
-                return self.vlm.invoke_with_images(prompt, images)
-            elif images and hasattr(self.vlm, 'invoke_multimodal'):
-                return self.vlm.invoke_multimodal(prompt, images)
+            if images:
+                if hasattr(self.vlm, 'invoke_with_images'):
+                    return self.vlm.invoke_with_images(prompt, images)
+                elif hasattr(self.vlm, 'invoke_multimodal'):
+                    return self.vlm.invoke_multimodal(prompt, images)
+                else:
+                    raise RuntimeError(f"VLM does not support image input but {len(images)} images were provided")
             else:
                 return self.vlm.invoke(prompt)
         except Exception as e:

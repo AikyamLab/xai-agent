@@ -43,6 +43,11 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
         modality_config = self._get_modality_config()
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's MISCLASSIFICATION on {modality_config['input_type']}.
 
@@ -56,10 +61,7 @@ class Q8IrrelevantPartsPromptBuilder(PromptBuilder):
 - **Ground Truth**: {ground_truth}
 - **Status**: MISCLASSIFIED
 
-**Input Content Description**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a strategy to identify SPURIOUS/IRRELEVANT {modality_config['element_type']} that are causing the model's WRONG prediction. These are {modality_config['element_type']} that:
+{desc_section}**Task**: Design a strategy to identify SPURIOUS/IRRELEVANT {modality_config['element_type']} that are causing the model's WRONG prediction. These are {modality_config['element_type']} that:
 - Have HIGH attribution from the model
 - But are NOT semantically related to the correct class ({ground_truth})
 
@@ -155,6 +157,7 @@ Provide your strategy as a JSON object:
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
         instance_data_section = self._format_single_instance_data_section(context)
+        output_size_constraint = self._build_output_size_constraint(context)
 
         prompt = f"""You are an XAI expert. Identify SPURIOUS/IRRELEVANT parts causing the wrong prediction.
 
@@ -166,7 +169,7 @@ Provide your strategy as a JSON object:
 - Ground Truth: {ground_truth}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify the IRRELEVANT/SPURIOUS part that is causing the model to make the wrong prediction.
@@ -186,7 +189,7 @@ This is a part that:
 **Critical Requirements:**
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
-- For tabular: feature_keys as a list of column names (one or more features)
+- For tabular: feature_keys as a list of column names {output_size_constraint}
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""

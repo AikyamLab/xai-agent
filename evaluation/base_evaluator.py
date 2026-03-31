@@ -76,14 +76,16 @@ class BaseEvaluator(ABC):
         'refuse', "i don't", "i can't", 'unsure', 'unclear'
     })
 
-    def __init__(self, modality: str = "vision"):
+    def __init__(self, modality: str = "vision", size_lambda: float = 0.0):
         """
         Initialize evaluator.
 
         Args:
             modality: Data modality ("vision", "text", "tabular")
+            size_lambda: Weight for L1 size penalty. 0.0 (default) disables it.
         """
         self.modality = modality
+        self.size_lambda = size_lambda
 
     @property
     @abstractmethod
@@ -126,6 +128,18 @@ class BaseEvaluator(ABC):
             EvaluationResult with score, passed status, and details
         """
         pass
+
+    def _size_score_l1(self, soft_score: float, region_ratio: float, penalize_large: bool = True) -> float:
+        """
+        Compute size-penalized score using L1 loss.
+
+        size_score_l1 = max(0, soft_score - size_lambda * region_ratio)      (penalize_large=True)
+        size_score_l1 = max(0, soft_score - size_lambda * (1 - region_ratio)) (penalize_large=False)
+        """
+        if self.size_lambda == 0.0:
+            return soft_score
+        penalty = region_ratio if penalize_large else (1.0 - region_ratio)
+        return max(0.0, soft_score - self.size_lambda * penalty)
 
     def compute_region_ratio(
         self,

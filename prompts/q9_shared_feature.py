@@ -49,6 +49,9 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
         # Build instance info
         instance_info = ""
         if instances:
@@ -58,6 +61,9 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
                 instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class_name', 'Unknown')}, Ground Truth: {gt}\n"
         else:
             instance_info = f"- {num_instances} instances, all MISCLASSIFIED\n"
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Descriptions**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's MULTIPLE MISCLASSIFICATIONS on {modality_config['input_type']}.
 
@@ -71,10 +77,7 @@ class Q9SharedFeaturePromptBuilder(MultiInstancePromptBuilder):
 {instance_info}
 - **Status**: ALL instances are MISCLASSIFIED
 
-**Input Content Descriptions**:
-{context.get(modality_config['description_key'], 'Multiple inputs with shared characteristics')}
-
-**Task**: Design a strategy to identify the SHARED SPURIOUS {modality_config['element_type']} that causes ALL these misclassifications. This is a COMMON {modality_config['element_type']} that:
+{desc_section}**Task**: Design a strategy to identify the SHARED SPURIOUS {modality_config['element_type']} that causes ALL these misclassifications. This is a COMMON {modality_config['element_type']} that:
 - Appears in ALL misclassified instances
 - Has HIGH attribution in the model
 - Is NOT semantically related to the correct classes
@@ -179,6 +182,7 @@ Provide your strategy as a JSON object:
         # Get image size constraint for vision modality
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
+        output_size_constraint = self._build_output_size_constraint(context)
 
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
@@ -198,7 +202,7 @@ Find what COMMON feature they share that confuses the model.
 {size_constraint}{instance_data_section}
 
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify the SHARED spurious feature and its location in EACH of the {num_instances} instances.
@@ -219,7 +223,7 @@ Identify the SHARED spurious feature and its location in EACH of the {num_instan
 - Identify the SAME type of feature in EACH entry
 - This shared feature should be SPURIOUS (not truly relevant to classification)
 - Examples: common background, similar texture, shared artifact
-- For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
+- For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}]){output_size_constraint}
 
 Respond with ONLY JSON:"""
         return prompt

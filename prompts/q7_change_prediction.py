@@ -39,6 +39,11 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
         modality_config = self._get_modality_config()
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -54,10 +59,7 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
 **Part to be Changed/Removed**:
 {part_to_change}
 
-**Input Content Description**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a strategy to PREDICT how the model's prediction would change if we REMOVE or MODIFY the specified {modality_config['element_type']}.
+{desc_section}**Task**: Design a strategy to PREDICT how the model's prediction would change if we REMOVE or MODIFY the specified {modality_config['element_type']}.
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -157,6 +159,7 @@ Provide your strategy as a JSON object:
         top5 = prediction.get('top5_predictions', [])
         tool_results = results.get('tool_results', {})
         size_constraint = self._build_image_size_constraint(tool_results)
+        output_size_constraint = self._build_output_size_constraint(context)
 
         available_classes = context.get('available_classes')
         if available_classes:
@@ -179,7 +182,7 @@ Provide your strategy as a JSON object:
 - Top-5 Predictions: {top5}
 {size_constraint}{classes_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 1. Based on the XAI tool results (e.g. GradCAM heatmaps, attribution maps), identify one specific region in the image as a bounding box [x_min, y_min, x_max, y_max].
@@ -200,7 +203,7 @@ Provide your strategy as a JSON object:
 
 **Critical Requirements:**
 - changed_class: The class the model would predict AFTER masking the region
-- masked_region.bounding_box: [x_min, y_min, x_max, y_max] integers within image bounds
+- masked_region.bounding_box: [x_min, y_min, x_max, y_max] integers within image bounds{output_size_constraint}
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""
@@ -231,7 +234,7 @@ Respond with ONLY JSON:"""
 - Part to Change: {part_to_change}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Predict what the NEW prediction would be after removing/changing the specified part.

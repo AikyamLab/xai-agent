@@ -127,7 +127,8 @@ class Q1Evaluator(BaseEvaluator):
         # Size penalty: penalize large masked regions
         region_ratio = self.compute_region_ratio(region, original_input)
         size_penalty = 1.0 - region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         # Check if class changed after masking
         modified_class = modified_prediction.get('predicted_class_idx')
@@ -151,10 +152,12 @@ class Q1Evaluator(BaseEvaluator):
                 "region": region,
                 "raw_drop": raw_drop,
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "threshold": threshold,
                 "class_changed": class_changed,
-                "interpretation": "score = max(0, P_orig - P_mod) * (1 - region_ratio)"
+                "interpretation": "score = max(0, P_orig - P_mod); size_score = score * (1 - region_ratio)"
             }
         )

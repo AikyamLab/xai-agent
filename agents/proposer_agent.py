@@ -267,7 +267,6 @@ class ProposerAgent(BaseAgent):
 
         if modality == "vision":
             context["image_path"] = input_path
-            context["image_description"] = ""
         elif modality == "text":
             features = question.get("features", {})
             if isinstance(features, dict):

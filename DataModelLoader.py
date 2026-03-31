@@ -1,5 +1,6 @@
 import importlib
 import torch
+import torchvision.transforms as transforms
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -60,8 +61,28 @@ class DataModelLoader:
         """
         print(f"Loading sample {index} from '{split}' split...")
         self.current_sample_data = self.loader_module.load_data(index, split)
+
+        if self.modality == 'vision' and "image" in self.current_sample_data:
+            self.current_sample_data["processed_image"] = self._compute_processed_image(
+                self.current_sample_data["image"]
+            )
+
         print("Sample loaded successfully.")
         return self.current_sample_data
+
+    def _compute_processed_image(self, raw_image: Any) -> Any:
+        """
+        Apply spatial-only transforms (Resize + CenterCrop if any) from the loader's
+        get_transform(), stripping ToTensor and Normalize, to produce a PIL Image
+        at the same spatial resolution the model sees.
+        """
+        full_transform = self.loader_module.get_transform()
+        spatial_steps = [
+            t for t in full_transform.transforms
+            if not isinstance(t, (transforms.ToTensor, transforms.Normalize))
+        ]
+        viz_transform = transforms.Compose(spatial_steps)
+        return viz_transform(raw_image)
 
     def get_model(self) -> Any:
         """Returns the loaded model."""
@@ -97,14 +118,32 @@ class DataModelLoader:
         
     def get_current_image(self) -> Any:
         """
-        Returns the raw image from the currently loaded sample.
+        Returns the processed image (after Resize+CenterCrop, before ToTensor/Normalize)
+        from the currently loaded sample.  This is the image the model spatially sees,
+        so XAI heatmaps and bounding-box coordinates are in this coordinate space.
 
-        Returns:
-            Any: The raw image (e.g., PIL Image), or None if no sample is loaded.
+        Raises KeyError if no sample is loaded or processed_image is missing.
         """
-        if self.current_sample_data and "image" in self.current_sample_data:
-            return self.current_sample_data["image"]
-        return None
+        return self.current_sample_data["processed_image"]
+
+    def get_display_image(self) -> Any:
+        """
+        Returns the best PIL image for XAI heatmap display:
+        - Raw image  when raw_size < processed_size (pure Resize, no CenterCrop).
+          The heatmap is then downsampled from model-input resolution → natural
+          spatial smoothing (e.g. STL-10: 96×96 raw vs 224×224 processed).
+        - Processed image otherwise (e.g. CUB: raw images are larger than 224×224
+          and have been center-cropped, so processed_image is the correct canvas).
+        Gradient computation always uses the pre-computed input_tensor (unaffected).
+        """
+        processed = self.current_sample_data["processed_image"]
+        raw = self.current_sample_data.get("image")
+        if raw is not None and hasattr(raw, "size"):
+            raw_px = raw.size[0] * raw.size[1]
+            proc_px = processed.size[0] * processed.size[1]
+            if raw_px < proc_px:
+                return raw
+        return processed
 
     def get_current_text(self) -> Optional[str]:
         """

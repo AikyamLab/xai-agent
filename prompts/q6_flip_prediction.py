@@ -40,6 +40,11 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
         modality_config = self._get_modality_config()
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -53,10 +58,7 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 - Target Prediction: {target_class}
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
 
-**Input Content Description**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class_name', 'current')}" to "{target_class}".
+{desc_section}**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class_name', 'current')}" to "{target_class}".
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -194,6 +196,28 @@ Provide your strategy as a JSON object:
         // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
         // Include multiple entries if changing several features is needed to flip the prediction'''
 
+        output_size_constraint = self._build_output_size_constraint(context)
+        # Q6 uses change_plan, override the constraint text
+        cfg = self.output_size_config
+        if cfg:
+            pct_str = f"{cfg.fixed_percentage * 100:.0f}%"
+            if self.modality == 'tabular' and cfg.apply_to_tabular:
+                n_target = context.get('n_target_features')
+                total = context.get('total_features')
+                if n_target and total:
+                    output_size_constraint = (
+                        f"\n- **OUTPUT SIZE CONSTRAINT**: change_plan must contain EXACTLY {n_target} entries "
+                        f"(modify top {pct_str} of {total} features)"
+                    )
+            elif self.modality == 'text' and cfg.apply_to_text:
+                target_chars = context.get('target_chars')
+                text_length = context.get('text_length')
+                if target_chars and text_length:
+                    output_size_constraint = (
+                        f"\n- **OUTPUT SIZE CONSTRAINT**: change_plan entries must cover approximately "
+                        f"{target_chars} characters total (top {pct_str} of {text_length} chars)"
+                    )
+
         prompt = f"""You are an XAI expert. Propose a change plan to FLIP the prediction.
 
 ## Question
@@ -204,7 +228,7 @@ Provide your strategy as a JSON object:
 - Target Prediction: {target_class}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Propose a SPECIFIC change plan that would flip the prediction to "{target_class}".
@@ -223,7 +247,7 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
   - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: change_plan is a list; each entry has start_index, end_index, action, new_value
-- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format{output_size_constraint}
 - The change should be MINIMAL but sufficient to flip prediction
 
 Respond with ONLY JSON:"""

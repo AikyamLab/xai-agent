@@ -30,13 +30,14 @@ EVALUATOR_MAP = {
 }
 
 
-def get_evaluator(q_type: int, modality: str = "vision"):
+def get_evaluator(q_type: int, modality: str = "vision", size_lambda: float = 0.0):
     """
     Get the appropriate evaluator for a question type.
 
     Args:
         q_type: Question type (1-10)
         modality: Data modality ("vision", "text", "tabular")
+        size_lambda: Weight for L1 size penalty (0.0 = disabled).
 
     Returns:
         Evaluator instance
@@ -44,7 +45,7 @@ def get_evaluator(q_type: int, modality: str = "vision"):
     evaluator_class = EVALUATOR_MAP.get(q_type)
     if evaluator_class is None:
         raise ValueError(f"No evaluator found for q_type={q_type}")
-    return evaluator_class(modality=modality)
+    return evaluator_class(modality=modality, size_lambda=size_lambda)
 
 
 __all__ = [

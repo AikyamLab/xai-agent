@@ -13,6 +13,8 @@ from .base_prompt import (
     ExtractionField,
 )
 
+from .output_size_config import OutputSizeConfig
+
 from .output_schemas import (
     OutputSchema,
     get_output_schema,
@@ -46,13 +48,14 @@ PROMPT_BUILDER_MAP = {
     10: Q10SimilarDifferentPromptBuilder,
 }
 
-def get_prompt_builder(q_type: int, modality: str = "vision") -> PromptBuilder:
+def get_prompt_builder(q_type: int, modality: str = "vision", output_size_config=None) -> PromptBuilder:
     """
     Get the appropriate PromptBuilder for a question type.
 
     Args:
         q_type: Question type (1-10)
         modality: Data modality ("vision", "text", "tabular")
+        output_size_config: Optional OutputSizeConfig instance.
 
     Returns:
         PromptBuilder instance
@@ -60,7 +63,7 @@ def get_prompt_builder(q_type: int, modality: str = "vision") -> PromptBuilder:
     builder_class = PROMPT_BUILDER_MAP.get(q_type)
     if builder_class is None:
         raise ValueError(f"No PromptBuilder found for q_type={q_type}")
-    return builder_class(modality=modality)
+    return builder_class(modality=modality, output_size_config=output_size_config)
 
 __all__ = [
     # Base classes
@@ -89,4 +92,6 @@ __all__ = [
     # Utilities
     "PROMPT_BUILDER_MAP",
     "get_prompt_builder",
+    # Config
+    "OutputSizeConfig",
 ]

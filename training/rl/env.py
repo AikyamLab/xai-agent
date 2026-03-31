@@ -185,44 +185,71 @@ class XAIRLEnv:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+# L1 tool-count penalty hyperparameter.
+# Reward = soft_score + L1_loss, where L1_loss = -L1_LAMBDA * (n_tools / n_max).
+# Forces GRPO to learn the minimum effective tool set per modality/dataset.
+_L1_LAMBDA = 0.2
+_L1_MAX_TOOLS: Dict[str, int] = {"vision": 8, "text": 6, "tabular": 6}
+
+
+def _compute_l1_tool_penalty(result: Dict[str, Any], modality: str) -> float:
+    """
+    Compute L1 penalty = -L1_LAMBDA * (n_tools / n_max).
+
+    n_tools = len(selected_tools) + len(autonomous_tasks) from the executed
+    strategy.  Uses the improved strategy if the improvement loop ran.
+    Returns 0.0 when strategy info is unavailable.
+    """
+    strategy = (
+        (result.get("improved") or {}).get("strategy")
+        or result.get("strategy")
+        or {}
+    )
+    n_tools = (
+        len(strategy.get("selected_tools") or [])
+        + len(strategy.get("autonomous_tasks") or [])
+    )
+    n_max = _L1_MAX_TOOLS.get(modality, 8)
+    return -_L1_LAMBDA * min(n_tools, n_max) / n_max
+
+
 def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "") -> float:
     """
     Extract the final faithfulness score from pipeline.run() output.
 
+    Reward = soft_score + L1_loss  (clamped to [0, 1])
+
+    soft_score is read from details["soft_score"] for all modalities — this
+    is the pure quality metric without any size penalty.  Falls back to the
+    top-level "score" field when soft_score is absent.
+
+    L1_loss = -L1_LAMBDA * (n_tools / n_max) penalises tool count so that
+    GRPO learns to achieve high soft_score with the fewest tools.
+
     Two-path reward signal:
-      - First-pass passed (or enable_improvement=False):
-            reward = result["evaluation"]["faithfulness"]["score"]
-      - First-pass failed → SF evaluation → reflection → improvement ran:
-            reward = result["improved"]["evaluation"]["faithfulness"]["score"]
-
-    For tabular modality, ``details.soft_score`` (which has no size penalty)
-    is preferred over the penalised ``score``.  Q-types that lack a size
-    penalty (Q4, Q5, Q7, Q10) do not emit ``soft_score`` in ``details``, so
-    the fallback to ``score`` handles them transparently.
-
-    If neither score is available (e.g. evaluation was skipped), returns 0.0.
+      - First-pass passed (or enable_improvement=False): use first-pass values.
+      - Improvement loop ran: use improved-pass values.
     """
-    # First-pass score (present when evaluate_faithfulness=True)
-    evaluation = result.get("evaluation") or {}
-    faith = evaluation.get("faithfulness") or {}
-    if modality == "tabular":
+    def _soft(faith: Dict[str, Any]) -> Optional[float]:
         details = faith.get("details") or {}
         raw = details.get("soft_score")
-        first_pass_score = float(raw if raw is not None else faith.get("score") or 0.0)
-    else:
-        first_pass_score = float(faith.get("score") or 0.0)
+        if raw is not None:
+            return float(raw)
+        score = faith.get("score")
+        return float(score) if score is not None else None
 
-    # If the improvement loop ran, take the post-reflection score as the reward
+    # First-pass soft score
+    evaluation = result.get("evaluation") or {}
+    faith = evaluation.get("faithfulness") or {}
+    first_pass_soft = _soft(faith) or 0.0
+
+    # If the improvement loop ran, prefer improved soft score
     improved = result.get("improved") or {}
     improved_faith = (improved.get("evaluation") or {}).get("faithfulness") or {}
-    if modality == "tabular":
-        imp_details = improved_faith.get("details") or {}
-        imp_raw = imp_details.get("soft_score")
-        improved_score = imp_raw if imp_raw is not None else improved_faith.get("score")
-    else:
-        improved_score = improved_faith.get("score")
+    imp_soft = _soft(improved_faith)
+    soft_score = imp_soft if imp_soft is not None else first_pass_soft
 
-    if improved_score is not None:
-        return float(improved_score)
+    # L1 tool-count penalty
+    l1_loss = _compute_l1_tool_penalty(result, modality)
 
-    return first_pass_score
+    return max(0.0, min(1.0, soft_score + l1_loss))

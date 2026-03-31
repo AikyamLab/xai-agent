@@ -107,10 +107,10 @@ Q4_SCHEMA_TEXT = {
 Q4_SCHEMA_TABULAR = {
     "output": {
         "input_A": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]  # exactly N features (top 25% of total)
         },
         "input_B": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]  # exactly N features (top 25% of total)
         }
     },
     "explanation": "string"
@@ -274,10 +274,10 @@ Q10_SCHEMA_TEXT = {
 Q10_SCHEMA_TABULAR = {
     "output": {
         "correct_instance_features": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]  # exactly N features (top 25% of total)
         },
         "wrong_instance_features": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]  # exactly N features (top 25% of total)
         }
     },
     "explanation": "string"

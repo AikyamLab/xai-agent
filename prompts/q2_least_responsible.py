@@ -41,6 +41,11 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
         modality_config = self._get_modality_config()
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -53,10 +58,7 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
 (Confidence: {prediction.get('confidence', 0.0):.4f})
 - Top-5 Predictions: {prediction.get('top5_predictions', [])}
 
-**Input Content Description**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} of the input were LEAST RESPONSIBLE (had minimal impact) for this prediction.
+{desc_section}**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} of the input were LEAST RESPONSIBLE (had minimal impact) for this prediction.
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -156,6 +158,30 @@ Provide your strategy as a JSON object:
         size_constraint = self._build_image_size_constraint(tool_results)
         instance_data_section = self._format_single_instance_data_section(context)
 
+        # Q2: tool summary should show LEAST important features (ascending sort)
+        context['feature_sort_direction'] = 'ascending'
+        output_size_constraint = self._build_output_size_constraint(context)
+        # Override constraint text for Q2 (bottom %, not top %)
+        cfg = self.output_size_config
+        if cfg:
+            pct_str = f"{cfg.fixed_percentage * 100:.0f}%"
+            if self.modality == 'tabular' and cfg.apply_to_tabular:
+                n_target = context.get('n_target_features')
+                total = context.get('total_features')
+                if n_target and total:
+                    output_size_constraint = (
+                        f"\n- **OUTPUT SIZE CONSTRAINT**: Return EXACTLY {n_target} feature_keys "
+                        f"(bottom {pct_str} least responsible of {total} total features)"
+                    )
+            elif self.modality == 'text' and cfg.apply_to_text:
+                target_chars = context.get('target_chars')
+                text_length = context.get('text_length')
+                if target_chars and text_length:
+                    output_size_constraint = (
+                        f"\n- **OUTPUT SIZE CONSTRAINT**: Spans must cover approximately "
+                        f"{target_chars} characters total (bottom {pct_str} least responsible of {text_length} chars)"
+                    )
+
         prompt = f"""You are an XAI expert. Identify the LEAST RESPONSIBLE part of the input.
 
 ## Question
@@ -166,7 +192,7 @@ Class: {prediction.get('predicted_class_name', 'Unknown')}
 Confidence: {prediction.get('confidence', 0.0):.4f}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify the part that had LEAST impact on the prediction.
@@ -183,7 +209,7 @@ This should be part that, if masked, would NOT significantly change the predicti
 **Critical Requirements:**
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
-- For tabular: feature_keys as a list of column names (one or more features)
+- For tabular: feature_keys as a list of column names {output_size_constraint}
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""

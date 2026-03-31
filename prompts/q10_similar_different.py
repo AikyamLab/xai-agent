@@ -51,6 +51,9 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
         # Build instance info for ALL instances, marking each as CORRECT or WRONG
         instance_info = ""
         if instances:
@@ -75,6 +78,9 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
 
         num_instances = len(instances) if instances else context.get('num_instances', 2)
 
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on SIMILAR {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -85,10 +91,7 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
 
 **Instance Predictions** ({num_instances} instances — some CORRECTLY classified, some MISCLASSIFIED):
 {instance_info}
-**Input Content**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a strategy to identify DISTINCT {modality_config['element_type']} that explain why some instances are classified CORRECTLY while others are MISCLASSIFIED. Find the features that differ between correctly and incorrectly classified instances.
+{desc_section}**Task**: Design a strategy to identify DISTINCT {modality_config['element_type']} that explain why some instances are classified CORRECTLY while others are MISCLASSIFIED. Find the features that differ between correctly and incorrectly classified instances.
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -202,14 +205,15 @@ Provide your strategy as a JSON object:
         }'''
         else:
             output_format = '''"correct_instance_features": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]
         },
         "wrong_instance_features": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]
         }'''
 
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
+        output_size_constraint = self._build_output_size_constraint(context) if self.modality != 'vision' else ""
 
         # Build per-instance prediction summary for context
         context_lines = []
@@ -237,7 +241,7 @@ Provide your strategy as a JSON object:
 {size_constraint}{instance_data_section}
 
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify and CONTRAST the features:
@@ -259,7 +263,7 @@ The goal is to find DISTINCT features.
   - Do NOT write full sentences — only name the concrete visual features/objects/patterns
   - The two feature phrases should use DISTINCT words — minimize overlap
 - For text: spans as a list of {{start_index, end_index}} character positions (one or more spans) for each instance; the two span lists should cover DIFFERENT parts
-- For tabular: feature_keys as a list of column names (one or more features) for each instance, using exact column names; the two lists should be DIFFERENT
+- For tabular: feature_keys as a list of column names for each instance, using exact column names; the two lists should be DIFFERENT{output_size_constraint}
 - Explain what makes one succeed and the other fail
 
 Respond with ONLY JSON:"""

@@ -54,10 +54,7 @@ def load_model(model_path: str):
         tuple: A tuple containing the loaded model and the image transform.
     """
     model = timm.create_model("resnet50", pretrained=False, num_classes=NUM_CLASSES)
-    # map_location='cpu' + assign=True: avoids meta-tensor errors when timm
-    # uses lazy/meta initialization (PyTorch 2.1+).
-    state_dict = torch.load(model_path, map_location='cpu')
-    model.load_state_dict(state_dict, assign=True)
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
     model = model.to(DEVICE)
     model.eval()
 

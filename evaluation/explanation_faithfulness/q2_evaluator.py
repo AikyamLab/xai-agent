@@ -124,7 +124,8 @@ class Q2Evaluator(BaseEvaluator):
         # Size penalty: penalize small regions (reward finding large unimportant areas)
         region_ratio = self.compute_region_ratio(region, original_input)
         size_penalty = region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         # Passed if soft_score >= 0.95 (i.e., |probability_drop| < 0.05)
         passed = soft_score >= threshold
@@ -141,9 +142,11 @@ class Q2Evaluator(BaseEvaluator):
                 "region": region,
                 "probability_drop": probability_drop,
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=False),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "threshold": threshold,
-                "interpretation": "score = (1 - |P_orig - P_mod|) * region_ratio"
+                "interpretation": "score = 1 - |P_orig - P_mod|; size_score = score * region_ratio"
             }
         )

@@ -49,6 +49,9 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
+        if self.modality != 'vision' and not (context.get(modality_config['description_key'] + '_A') or context.get(modality_config['description_key'])):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
         # Extract instance predictions if available
         instance_info = ""
         if instances:
@@ -57,6 +60,16 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
                 instance_info += f"- Instance {chr(65+i)}: Predicted {pred.get('predicted_class_name', 'Unknown')} (Confidence: {pred.get('confidence', 0):.4f})\n"
         else:
             instance_info = "- Instance A: Different prediction from B\n- Instance B: Different prediction from A\n"
+
+        desc_key = modality_config['description_key']
+        has_desc = context.get(desc_key + '_A') or context.get(desc_key)
+        desc_section = (
+            "**Input Content Descriptions**:\n- Instance A: "
+            + str(context.get(desc_key + '_A', context.get(desc_key)))
+            + "\n- Instance B: "
+            + str(context.get(desc_key + '_B', ''))
+            + "\n"
+        ) if has_desc else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on {modality_config['input_type']}.
 
@@ -69,11 +82,7 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
 **Instance Predictions**:
 {instance_info}
 
-**Input Content Descriptions**:
-- Instance A: {context.get(modality_config['description_key'] + '_A', context.get(modality_config['description_key'], 'Not available'))}
-- Instance B: {context.get(modality_config['description_key'] + '_B', 'Not available')}
-
-**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} in EACH instance cause their DIFFERENT predictions. Find:
+{desc_section}**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} in EACH instance cause their DIFFERENT predictions. Find:
 - What {modality_config['element_type']} in Instance A cause prediction A
 - What {modality_config['element_type']} in Instance B cause prediction B
 
@@ -208,17 +217,18 @@ Provide your strategy as a JSON object:
 """
         else:
             output_format_block = '''"input_A": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]
         },
         "input_B": {
-            "feature_keys": ["most_decisive_feature", "2nd_feature", "3rd_feature"]
+            "feature_keys": ["feature_name_1", "feature_name_2"]
         }'''
-            critical_reqs = """- For tabular: feature_keys as a list of column names (one or more features) for each instance
+            critical_reqs = """- For tabular: feature_keys as a list of column names for each instance
 - List the most decisive features, using exact column names
 """
 
         # Include text/tabular instance data if available
         instance_data_section = self._format_instance_data_section(context)
+        output_size_constraint = self._build_output_size_constraint(context) if self.modality != 'vision' else ""
 
         prompt = f"""You are an XAI expert. Explain why instances A and B have DIFFERENT predictions.
 
@@ -226,7 +236,7 @@ Provide your strategy as a JSON object:
 {context.get('user_question', self.question_template)}
 {instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify the DECISIVE parts in BOTH instances:
@@ -242,7 +252,7 @@ Identify the DECISIVE parts in BOTH instances:
 }}
 
 **Critical Requirements:**
-{critical_reqs}
+{critical_reqs}{output_size_constraint}
 
 Respond with ONLY JSON:"""
         return prompt
