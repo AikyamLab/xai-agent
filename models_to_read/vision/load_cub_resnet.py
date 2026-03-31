@@ -104,10 +104,7 @@ def load_model(model_path: str):
     ]))
 
     model.fc = classifier
-    # map_location='cpu' + assign=True: avoids meta-tensor errors when the
-    # model's parameters are on the meta device (PyTorch 2.1+ lazy init).
-    state_dict = torch.load(model_path, map_location='cpu')
-    model.load_state_dict(state_dict, assign=True)
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
     model = model.to(DEVICE)
     model.eval()
 

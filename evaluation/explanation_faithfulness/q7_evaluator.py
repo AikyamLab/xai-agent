@@ -140,6 +140,7 @@ class Q7Evaluator(BaseEvaluator):
             p_agent_predicted = None
             score = 1.0 if correct else 0.0
 
+        region_ratio = self.compute_region_ratio(part_to_change, original_input)
         return EvaluationResult(
             score=score,
             passed=correct,
@@ -151,6 +152,9 @@ class Q7Evaluator(BaseEvaluator):
             p_modified=p_modified,
             details={
                 "soft_score": score,
+                "size_score": score * (1.0 - region_ratio),
+                "size_score_l1": self._size_score_l1(score, region_ratio, penalize_large=True),
+                "region_ratio": region_ratio,
                 "part_to_change": part_to_change,
                 "agent_predicted_class": agent_predicted_class,
                 "agent_predicted_idx": agent_predicted_idx,
@@ -282,6 +286,7 @@ class Q7Evaluator(BaseEvaluator):
             eval_metric_formula = self.metric_formula
             interpretation = "Exact-match mode: soft score = P(agent_predicted_class) in modified output"
 
+        vision_region_ratio = self.compute_region_ratio(part_to_change, original_input)
         return EvaluationResult(
             score=score,
             passed=correct,
@@ -293,6 +298,9 @@ class Q7Evaluator(BaseEvaluator):
             p_modified=p_modified,
             details={
                 "part_to_change": part_to_change,
+                "size_score": score * (1.0 - vision_region_ratio),
+                "size_score_l1": self._size_score_l1(score, vision_region_ratio, penalize_large=True),
+                "region_ratio": vision_region_ratio,
                 "agent_predicted_class": agent_predicted_class,
                 "agent_predicted_idx": agent_predicted_idx,
                 "actual_modified_class": actual_modified_class,

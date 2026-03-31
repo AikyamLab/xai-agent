@@ -5,10 +5,13 @@ This module defines the abstract base classes and common data structures
 used across all question-specific prompt builders.
 """
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+from .output_size_config import OutputSizeConfig
 
 
 class QuestionCategory(Enum):
@@ -143,18 +146,20 @@ class PromptBuilder(ABC):
     that handles all three modalities (vision, text, tabular).
     """
 
-    def __init__(self, modality: str = "vision"):
+    def __init__(self, modality: str = "vision", output_size_config=None):
         """
         Initialize PromptBuilder.
 
         Args:
             modality: Data modality ("vision", "text", "tabular")
+            output_size_config: Optional OutputSizeConfig instance.
         """
         self.modality = modality
         if isinstance(modality, str):
             self.modality_enum = Modality(modality)
         else:
             self.modality_enum = modality
+        self.output_size_config = output_size_config
 
     @property
     @abstractmethod
@@ -326,6 +331,40 @@ class PromptBuilder(ABC):
         else:
             return '"output": {...}'
 
+    def _build_output_size_constraint(self, context: Dict[str, Any]) -> str:
+        """
+        Build an output size constraint string to inject into actor prompts.
+        Returns empty string if no size constraint is configured for this modality.
+        """
+        cfg = self.output_size_config
+        if not cfg:
+            return ""
+
+        pct = cfg.fixed_percentage
+        pct_str = f"{pct * 100:.0f}%"
+        modality = self.modality
+
+        if modality == "tabular" and cfg.apply_to_tabular:
+            n_target = context.get('n_target_features')
+            total = context.get('total_features')
+            if n_target and total:
+                return (
+                    f"\n- **OUTPUT SIZE CONSTRAINT**: Return EXACTLY {n_target} feature_keys "
+                    f"(top {pct_str} of {total} total features)"
+                )
+
+        elif modality == "text" and cfg.apply_to_text:
+            target_chars = context.get('target_chars')
+            text_length = context.get('text_length')
+            if target_chars and text_length:
+                return (
+                    f"\n- **OUTPUT SIZE CONSTRAINT**: Spans must cover approximately "
+                    f"{target_chars} characters total (top {pct_str} of {text_length} chars)"
+                )
+
+        # Vision area constraint is embedded in _build_image_size_constraint
+        return ""
+
     # ============================================================
     # Common helper methods for formatting tool results
     # These methods are shared across all prompt builders
@@ -385,7 +424,7 @@ class PromptBuilder(ABC):
                     lines.append(f"- {tool_name}: {'Success' if success else 'Failed'} - {summary}")
         return "\n".join(lines) if lines else "No tool results available."
 
-    def _format_detailed_statistics(self, tool_results: Dict[str, Any]) -> str:
+    def _format_detailed_statistics(self, tool_results: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """Format detailed statistics from tool results including coordinates"""
         if not tool_results:
             return "No detailed statistics available."
@@ -398,18 +437,14 @@ class PromptBuilder(ABC):
             for inst_key in sorted(k for k in tool_results if k.startswith('instance_')):
                 inst_results = tool_results[inst_key]
                 all_lines.append(f"\n## {inst_key}")
-                inst_text = self._format_detailed_statistics_single(inst_results)
+                inst_text = self._format_detailed_statistics_single(inst_results, context)
                 if inst_text and inst_text != "No detailed statistics available.":
                     all_lines.append(inst_text)
                 else:
                     all_lines.append("No detailed statistics for this instance.")
-            # Also handle autonomous_tasks at the top level
-            autonomous_tasks = tool_results.get('autonomous_tasks', {})
-            if autonomous_tasks:
-                all_lines.append(self._format_autonomous_tasks(autonomous_tasks))
             return "\n".join(all_lines) if all_lines else "No detailed statistics available."
 
-        return self._format_detailed_statistics_single(tool_results)
+        return self._format_detailed_statistics_single(tool_results, context)
 
     def _format_autonomous_tasks(self, autonomous_tasks: Dict[str, Any]) -> str:
         """Format autonomous task results."""
@@ -439,10 +474,22 @@ class PromptBuilder(ABC):
                     lines.append(f"- Result: {task_result['text_response']}")
         return "\n".join(lines)
 
-    def _format_detailed_statistics_single(self, tool_results: Dict[str, Any]) -> str:
+    def _format_detailed_statistics_single(self, tool_results: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """Format detailed statistics from a single set of tool results."""
         if not tool_results:
             return "No detailed statistics available."
+
+        # Compute trimming limits from context
+        cfg = self.output_size_config
+        _n_top_tabular = 5   # default
+        _pct_text = None     # if set, compute per-tool from num_tokens/words
+        _sort_ascending = context.get('feature_sort_direction') == 'ascending' if context else False
+
+        if cfg and context:
+            if self.modality == 'tabular' and cfg.apply_to_tabular:
+                _n_top_tabular = context.get('n_target_features', 5)
+            elif self.modality == 'text' and cfg.apply_to_text:
+                _pct_text = cfg.fixed_percentage
 
         lines = []
         object_detection_bboxes = []  # Collect object detection bboxes for priority
@@ -494,15 +541,16 @@ class PromptBuilder(ABC):
                     else:
                         val_key = 'weight'
                     sorted_fi = sorted(feature_importance,
-                                       key=lambda x: abs(x.get(val_key, 0)), reverse=True)
-                    top_pos = [f for f in sorted_fi if f.get('direction', '') == 'positive'][:5]
-                    top_neg = [f for f in sorted_fi if f.get('direction', '') == 'negative'][:5]
+                                       key=lambda x: abs(x.get(val_key, 0)), reverse=not _sort_ascending)
+                    top_pos = [f for f in sorted_fi if f.get('direction', '') == 'positive'][:_n_top_tabular]
+                    top_neg = [f for f in sorted_fi if f.get('direction', '') == 'negative'][:_n_top_tabular]
+                    feat_rank_label = "Least important" if _sort_ascending else "Top important"
                     if top_pos:
-                        lines.append(f"- Top positive features ({val_key}):")
+                        lines.append(f"- {feat_rank_label} positive features ({val_key}) [sorted by LOWEST attribution]:" if _sort_ascending else f"- {feat_rank_label} positive features ({val_key}):")
                         for fi in top_pos:
                             lines.append(f"  - {fi['feature']}: {fi.get(val_key, 0):+.4f}")
                     if top_neg:
-                        lines.append(f"- Top negative features ({val_key}):")
+                        lines.append(f"- {feat_rank_label} negative features ({val_key}) [sorted by LOWEST attribution]:" if _sort_ascending else f"- {feat_rank_label} negative features ({val_key}):")
                         for fi in top_neg:
                             lines.append(f"  - {fi['feature']}: {fi.get(val_key, 0):+.4f}")
                     pos_val = stats.get('max_positive_weight', stats.get('max_positive',
@@ -516,9 +564,10 @@ class PromptBuilder(ABC):
                 feature_sensitivity = stats.get('feature_sensitivity', [])
                 if feature_sensitivity:
                     sorted_fs = sorted(feature_sensitivity,
-                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=True)
-                    lines.append("- Top sensitive features (prob_drop):")
-                    for fs in sorted_fs[:10]:
+                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=not _sort_ascending)
+                    fs_rank_label = "Least sensitive features (lowest prob_drop) [sorted by LOWEST sensitivity]:" if _sort_ascending else "Most sensitive features (prob_drop):"
+                    lines.append(f"- {fs_rank_label}")
+                    for fs in sorted_fs[:_n_top_tabular]:
                         lines.append(
                             f"  - {fs['feature']}: drop={fs.get('prob_drop', 0):+.4f}"
                             f"  (orig={fs.get('original_prob', 0):.4f} → mod={fs.get('modified_prob', 0):.4f})"
@@ -529,16 +578,19 @@ class PromptBuilder(ABC):
                 # ── Text: token_importance (IG text) ──────────────────────────
                 token_importance = stats.get('token_importance', [])
                 if token_importance:
+                    _n_top_text_ti = max(1, math.ceil(_pct_text * stats.get('num_tokens', len(token_importance)))) if _pct_text else 5
                     sorted_ti = sorted(token_importance,
-                                       key=lambda x: abs(x.get('attribution_score', 0)), reverse=True)
-                    top_pos = [t for t in sorted_ti if t.get('direction', '') == 'positive'][:5]
-                    top_neg = [t for t in sorted_ti if t.get('direction', '') == 'negative'][:5]
+                                       key=lambda x: abs(x.get('attribution_score', 0)), reverse=not _sort_ascending)
+                    top_pos = [t for t in sorted_ti if t.get('direction', '') == 'positive'][:_n_top_text_ti]
+                    top_neg = [t for t in sorted_ti if t.get('direction', '') == 'negative'][:_n_top_text_ti]
+                    tok_rank_label = "Least important" if _sort_ascending else "Top important"
+                    tok_sort_note = " [sorted by LOWEST attribution]" if _sort_ascending else ""
                     if top_pos:
-                        lines.append("- Top positive tokens (attribution):")
+                        lines.append(f"- {tok_rank_label} positive tokens (attribution){tok_sort_note}:")
                         for ti in top_pos:
                             lines.append(f"  - [{ti.get('token_index', '?')}] '{ti['token']}': {ti.get('attribution_score', 0):+.4f}")
                     if top_neg:
-                        lines.append("- Top negative tokens (attribution):")
+                        lines.append(f"- {tok_rank_label} negative tokens (attribution){tok_sort_note}:")
                         for ti in top_neg:
                             lines.append(f"  - [{ti.get('token_index', '?')}] '{ti['token']}': {ti.get('attribution_score', 0):+.4f}")
                     lines.append(f"- Total tokens: {stats.get('num_tokens', len(token_importance))}  "
@@ -550,16 +602,19 @@ class PromptBuilder(ABC):
                 if word_importance:
                     wi0 = word_importance[0]
                     wi_val_key = 'shap_value' if 'shap_value' in wi0 else 'weight'
+                    _n_top_text_wi = max(1, math.ceil(_pct_text * stats.get('num_important_words', stats.get('num_words', len(word_importance))))) if _pct_text else 5
                     sorted_wi = sorted(word_importance,
-                                       key=lambda x: abs(x.get(wi_val_key, 0)), reverse=True)
-                    top_pos = [w for w in sorted_wi if w.get('direction', '') == 'positive'][:5]
-                    top_neg = [w for w in sorted_wi if w.get('direction', '') == 'negative'][:5]
+                                       key=lambda x: abs(x.get(wi_val_key, 0)), reverse=not _sort_ascending)
+                    top_pos = [w for w in sorted_wi if w.get('direction', '') == 'positive'][:_n_top_text_wi]
+                    top_neg = [w for w in sorted_wi if w.get('direction', '') == 'negative'][:_n_top_text_wi]
+                    word_rank_label = "Least important" if _sort_ascending else "Top important"
+                    word_sort_note = " [sorted by LOWEST attribution]" if _sort_ascending else ""
                     if top_pos:
-                        lines.append(f"- Top positive words ({wi_val_key}):")
+                        lines.append(f"- {word_rank_label} positive words ({wi_val_key}){word_sort_note}:")
                         for wi in top_pos:
                             lines.append(f"  - '{wi['word']}': {wi.get(wi_val_key, 0):+.4f}")
                     if top_neg:
-                        lines.append(f"- Top negative words ({wi_val_key}):")
+                        lines.append(f"- {word_rank_label} negative words ({wi_val_key}){word_sort_note}:")
                         for wi in top_neg:
                             lines.append(f"  - '{wi['word']}': {wi.get(wi_val_key, 0):+.4f}")
                     pos_val = stats.get('max_positive_weight', stats.get('top_positive', 'N/A'))
@@ -570,10 +625,12 @@ class PromptBuilder(ABC):
                 # ── Text: word_sensitivity (Sensitivity Analysis text) ─────────
                 word_sensitivity = stats.get('word_sensitivity', [])
                 if word_sensitivity:
+                    _n_top_text_ws = max(1, math.ceil(_pct_text * stats.get('num_important_words', stats.get('num_words', len(word_sensitivity))))) if _pct_text else 10
                     sorted_ws = sorted(word_sensitivity,
-                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=True)
-                    lines.append("- Top sensitive words (prob_drop):")
-                    for ws in sorted_ws[:10]:
+                                       key=lambda x: abs(x.get('prob_drop', 0)), reverse=not _sort_ascending)
+                    ws_rank_label = "Least sensitive words (lowest prob_drop) [sorted by LOWEST sensitivity]:" if _sort_ascending else "Most sensitive words (prob_drop):"
+                    lines.append(f"- {ws_rank_label}")
+                    for ws in sorted_ws[:_n_top_text_ws]:
                         lines.append(
                             f"  - [{ws.get('word_index', '?')}] '{ws['word']}': drop={ws.get('prob_drop', 0):+.4f}"
                             f"  (orig={ws.get('original_prob', 0):.4f} → masked={ws.get('masked_prob', 0):.4f})"
@@ -584,7 +641,10 @@ class PromptBuilder(ABC):
                 # ── Vision: LIME image segments ────────────────────────────────
                 top_positive_segments = stats.get('top_positive_segments', [])
                 if top_positive_segments:
-                    lines.append("- **LIME POSITIVE SEGMENTS:**")
+                    if _sort_ascending:
+                        lines.append("- **LIME POSITIVE SEGMENTS (HIGH attribution — these are the MOST responsible regions; your answer for least responsible should be OUTSIDE these):**")
+                    else:
+                        lines.append("- **LIME POSITIVE SEGMENTS:**")
                     for seg in top_positive_segments[:5]:
                         seg_id = seg.get('segment_id', '?')
                         weight = seg.get('weight', 0)
@@ -607,37 +667,39 @@ class PromptBuilder(ABC):
                         if bbox:
                             lines.append(f"  - Segment {seg_id}: weight={weight:.4f}, bbox={bbox}")
 
-                # ── Vision: attention/importance/gradient/impact coordinates ───
-                top_coords = (
-                    stats.get('top_attention_coords') or
-                    stats.get('top_importance_coords') or
-                    stats.get('top_gradient_coords') or
-                    stats.get('top_impact_coords')
-                )
-                if top_coords and len(top_coords) > 0:
-                    xs = [c.get('x', 0) for c in top_coords]
-                    ys = [c.get('y', 0) for c in top_coords]
-                    if xs and ys:
-                        raw_x_min, raw_x_max = min(xs), max(xs)
-                        raw_y_min, raw_y_max = min(ys), max(ys)
-                        raw_width = raw_x_max - raw_x_min
-                        raw_height = raw_y_max - raw_y_min
-                        min_width = max(int(img_width * 0.15), 15)
-                        min_height = max(int(img_height * 0.15), 15)
-                        center_x = (raw_x_min + raw_x_max) / 2
-                        center_y = (raw_y_min + raw_y_max) / 2
-                        expanded_half_w = max(raw_width / 2, min_width / 2)
-                        expanded_half_h = max(raw_height / 2, min_height / 2)
-                        expanded_x_min = max(0, int(center_x - expanded_half_w))
-                        expanded_x_max = min(img_width, int(center_x + expanded_half_w))
-                        expanded_y_min = max(0, int(center_y - expanded_half_h))
-                        expanded_y_max = min(img_height, int(center_y + expanded_half_h))
-                        was_expanded = (raw_width < min_width or raw_height < min_height)
-                        if was_expanded:
-                            lines.append(f"- Raw attention peaks: x=[{raw_x_min}, {raw_x_max}], y=[{raw_y_min}, {raw_y_max}] (only {raw_width}x{raw_height} pixels - TOO SMALL!)")
-                            lines.append(f"- EXPANDED attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}]**")
-                        else:
-                            lines.append(f"- Attention bbox: [{expanded_x_min}, {expanded_y_min}, {expanded_x_max}, {expanded_y_max}] ({raw_width}x{raw_height} pixels)")
+                # ── Vision: attention bbox ─────────────────────────────────────
+                # Prefer pre-computed heatmap bbox (bbox_from_explanation logic,
+                # top-k% pixels). Fall back to bounding box of top_coords peaks.
+                # NOTE: suggested_bounding_box and top_*_coords always represent
+                # HIGH-attribution (most responsible) regions from the tool.
+                # For Q2 (least responsible), these are the OPPOSITE of the answer.
+                suggested_bbox = result.get('suggested_bounding_box')
+                if suggested_bbox and len(suggested_bbox) == 4:
+                    bw = suggested_bbox[2] - suggested_bbox[0]
+                    bh = suggested_bbox[3] - suggested_bbox[1]
+                    if _sort_ascending:
+                        lines.append(f"- HIGH-attribution bbox (most responsible region): {suggested_bbox} ({bw}x{bh} pixels)")
+                    else:
+                        lines.append(f"- Attention bbox: {suggested_bbox} ({bw}x{bh} pixels)")
+                else:
+                    top_coords = (
+                        stats.get('top_attention_coords') or
+                        stats.get('top_importance_coords') or
+                        stats.get('top_gradient_coords') or
+                        stats.get('top_impact_coords')
+                    )
+                    if top_coords and len(top_coords) > 0:
+                        xs = [c.get('x', 0) for c in top_coords]
+                        ys = [c.get('y', 0) for c in top_coords]
+                        if xs and ys:
+                            raw_x_min, raw_x_max = min(xs), max(xs)
+                            raw_y_min, raw_y_max = min(ys), max(ys)
+                            raw_width = raw_x_max - raw_x_min
+                            raw_height = raw_y_max - raw_y_min
+                            if _sort_ascending:
+                                lines.append(f"- HIGH-attribution bbox (most responsible region): [{raw_x_min}, {raw_y_min}, {raw_x_max}, {raw_y_max}] ({raw_width}x{raw_height} pixels)")
+                            else:
+                                lines.append(f"- Attention bbox: [{raw_x_min}, {raw_y_min}, {raw_x_max}, {raw_y_max}] ({raw_width}x{raw_height} pixels)")
 
                 # ── Vision: sensitivity analysis (perturbation curve) ──────────
                 if 'perturbation_levels' in stats and 'probabilities' in stats:
@@ -664,18 +726,6 @@ class PromptBuilder(ABC):
                 if 'high_impact_ratio' in stats:
                     lines.append(f"- High impact ratio: {stats['high_impact_ratio']:.2%}")
 
-        # Add summary recommendation at the end
-        """
-        if object_detection_bboxes:
-            best_det = max(object_detection_bboxes, key=lambda x: x['confidence'])
-            lines.append(f"\n### ** RECOMMENDATION: Use object detection bbox {best_det['bbox']} for '{best_det['class']}' (highest confidence)**")
-        """
-
-        # Format autonomous task results
-        autonomous_tasks = tool_results.get('autonomous_tasks', {})
-        if autonomous_tasks:
-            lines.append(self._format_autonomous_tasks(autonomous_tasks))
-
         return "\n".join(lines) if lines else "No detailed statistics available."
 
     def _build_image_size_constraint(self, tool_results: Dict[str, Any]) -> str:
@@ -686,16 +736,22 @@ class PromptBuilder(ABC):
         image_width, image_height = self._get_image_size_from_results(tool_results)
         min_width = max(int(image_width * 0.1), 10)
         min_height = max(int(image_height * 0.1), 10)
+
+        area_constraint = ""
+        cfg = self.output_size_config
+        if cfg and cfg.apply_to_vision:
+            pct = cfg.fixed_percentage
+            target_area = int(image_width * image_height * pct)
+            area_constraint = (
+                f"\n- **OUTPUT SIZE CONSTRAINT**: Bounding box area must be ~{target_area} px² "
+                f"({pct * 100:.0f}% of {image_width}×{image_height} image)\n"
+                f"  - Aim for (x_max - x_min) * (y_max - y_min) ≈ {target_area}"
+            )
+
         return f"""
 ## CRITICAL IMAGE SIZE AND BOUNDING BOX CONSTRAINTS
 - Image dimensions: {image_width} x {image_height} pixels
-- ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- **MINIMUM bounding box size: {min_width}x{min_height} pixels (10% of image dimensions)**
-
-**CRITICAL WARNING**:
-- Bounding boxes smaller than {min_width}x{min_height} pixels are INVALID
-- Tiny bboxes (like 4x1 pixels) will cause evaluation to FAIL
-- Always prefer larger, semantically meaningful regions over tiny attention points
+- ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}] {area_constraint}
 """
 
     def _format_autonomous_results(self, autonomous_results: Dict[str, Any]) -> str:
@@ -732,7 +788,7 @@ class PromptBuilder(ABC):
 
         return "\n".join(lines) if lines else ""
 
-    def _format_results_comprehensive(self, results: Dict[str, Any]) -> str:
+    def _format_results_comprehensive(self, results: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """Comprehensive formatting of results including tool summaries, detailed stats, and autonomous results"""
         tool_results = results.get('tool_results', {})
         autonomous_results = results.get('autonomous_results', {})
@@ -745,7 +801,7 @@ class PromptBuilder(ABC):
             sections.append(f"### XAI Tool Results Summary\n{tool_summary}")
 
         # Detailed statistics
-        detailed_stats = self._format_detailed_statistics(tool_results)
+        detailed_stats = self._format_detailed_statistics(tool_results, context)
         if detailed_stats and detailed_stats != "No detailed statistics available.":
             sections.append(f"### Detailed Statistics\n{detailed_stats}")
 

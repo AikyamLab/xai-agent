@@ -9,6 +9,7 @@ Responsible for:
 
 from __future__ import annotations
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -30,7 +31,8 @@ class ActorAgent(BaseAgent):
     def __init__(
         self,
         vlm: Any,
-        output_dir: Optional[str] = None
+        output_dir: Optional[str] = None,
+        output_size_config=None
     ):
         """
         Initialize Actor Agent.
@@ -38,8 +40,10 @@ class ActorAgent(BaseAgent):
         Args:
             vlm: VisionLanguageModel instance
             output_dir: Output directory
+            output_size_config: Optional OutputSizeConfig instance.
         """
         super().__init__(vlm, output_dir, "ActorAgent")
+        self.output_size_config = output_size_config
 
         self.results_dir = self.output_dir / "results"
         self.results_dir.mkdir(parents=True, exist_ok=True)
@@ -487,6 +491,28 @@ class ActorAgent(BaseAgent):
 
             context["instance_data"] = instance_data
 
+        # Inject output size keys for prompt builders
+        cfg = getattr(self, 'output_size_config', None)
+        if cfg:
+            context['fixed_percentage'] = cfg.fixed_percentage
+            if modality == 'tabular' and cfg.apply_to_tabular:
+                features_list = question.get('features', [])
+                if isinstance(features_list, list) and features_list:
+                    first_feat = features_list[0] if isinstance(features_list[0], dict) else {}
+                    total_features = len(first_feat)
+                    context['total_features'] = total_features
+                    context['n_target_features'] = max(1, math.ceil(cfg.fixed_percentage * total_features))
+            elif modality == 'text' and cfg.apply_to_text:
+                # Use longest text among instances
+                features_list = question.get('features', [])
+                max_len = 0
+                for feat in (features_list if isinstance(features_list, list) else []):
+                    if isinstance(feat, dict):
+                        t = feat.get('text', feat.get('premise', ''))
+                        max_len = max(max_len, len(t))
+                context['text_length'] = max_len
+                context['target_chars'] = max(1, math.ceil(cfg.fixed_percentage * max_len))
+
         return context
 
     def _generate_explanation_multi(
@@ -748,6 +774,7 @@ class ActorAgent(BaseAgent):
             y_max = min(height, max(all_ys) + padding)
             return [int(x_min), int(y_min), int(x_max), int(y_max)]
 
+
     def _build_context_q4(
         self,
         question: Dict[str, Any],
@@ -798,6 +825,25 @@ class ActorAgent(BaseAgent):
                 instance_data.append(entry)
             context["instance_data"] = instance_data
 
+        # Inject output size keys for prompt builders
+        cfg = getattr(self, 'output_size_config', None)
+        if cfg and modality in ('text', 'tabular'):
+            context['fixed_percentage'] = cfg.fixed_percentage
+            if modality == 'tabular' and cfg.apply_to_tabular:
+                instance_a = question.get('instance_A', {})
+                features = instance_a.get('features', {})
+                if isinstance(features, dict):
+                    total_features = len(features)
+                    context['total_features'] = total_features
+                    context['n_target_features'] = max(1, math.ceil(cfg.fixed_percentage * total_features))
+            elif modality == 'text' and cfg.apply_to_text:
+                instance_a = question.get('instance_A', {})
+                feat = instance_a.get('features', {})
+                text = feat.get('text', feat.get('premise', '')) if isinstance(feat, dict) else ''
+                text_length = len(text)
+                context['text_length'] = text_length
+                context['target_chars'] = max(1, math.ceil(cfg.fixed_percentage * text_length))
+
         return context
 
     def _generate_explanation_q4(
@@ -835,6 +881,47 @@ class ActorAgent(BaseAgent):
                     print(f"  JSON parse failed (attempt {attempt}/3), retrying in 2s...")
                     time.sleep(2)
         raise last_error
+
+    def _scale_bbox(self, bbox, img_w, img_h, pct):
+        """Scale [x_min,y_min,x_max,y_max] to pct*W*H area, preserving aspect ratio and center."""
+        import math as _math
+        x_min, y_min, x_max, y_max = [float(v) for v in bbox]
+        cx = (x_min + x_max) / 2.0
+        cy = (y_min + y_max) / 2.0
+        aspect = max(float(x_max - x_min), 1.0) / max(float(y_max - y_min), 1.0)
+        target_area = pct * img_w * img_h
+        h_box = _math.sqrt(target_area / aspect)
+        w_box = aspect * h_box
+        half_w, half_h = w_box / 2.0, h_box / 2.0
+        nx_min = cx - half_w;  nx_max = cx + half_w
+        ny_min = cy - half_h;  ny_max = cy + half_h
+        if nx_min < 0:    nx_max -= nx_min; nx_min = 0.0
+        if nx_max > img_w: nx_min = max(0.0, nx_min - (nx_max - img_w)); nx_max = float(img_w)
+        if ny_min < 0:    ny_max -= ny_min; ny_min = 0.0
+        if ny_max > img_h: ny_min = max(0.0, ny_min - (ny_max - img_h)); ny_max = float(img_h)
+        return [int(round(nx_min)), int(round(ny_min)), int(round(nx_max)), int(round(ny_max))]
+
+    def _is_vision_bbox(self, val, img_w, img_h):
+        """Return True if val looks like a [x_min,y_min,x_max,y_max] bbox within image bounds."""
+        if not isinstance(val, list) or len(val) != 4:
+            return False
+        try:
+            x_min, y_min, x_max, y_max = [float(v) for v in val]
+        except (TypeError, ValueError):
+            return False
+        return (0 <= x_min < x_max <= img_w + 1 and
+                0 <= y_min < y_max <= img_h + 1 and
+                (x_max - x_min) >= 2 and (y_max - y_min) >= 2)
+
+    def _scale_bboxes_in_data(self, data, img_w, img_h, pct):
+        """Recursively find and scale all bbox-like [x,y,x,y] lists in a nested data structure."""
+        if isinstance(data, list):
+            if self._is_vision_bbox(data, img_w, img_h):
+                return self._scale_bbox(data, img_w, img_h, pct)
+            return [self._scale_bboxes_in_data(item, img_w, img_h, pct) for item in data]
+        elif isinstance(data, dict):
+            return {k: self._scale_bboxes_in_data(v, img_w, img_h, pct) for k, v in data.items()}
+        return data
 
     def _execute_tools(
         self,
@@ -910,19 +997,24 @@ class ActorAgent(BaseAgent):
             )
             result = json.loads(result_str)
 
-            # Compute suggested_bounding_box from tool statistics (same logic as _format_tool_statistics)
-            if result.get('success'):
+            # suggested_bounding_box uses positive-only top-25% pixels (most responsible region).
+            # For Q2, base_prompt labels it as "HIGH-attribution (most responsible)" so the
+            # agent knows to look outside it — no need to clear it here.
+            if result.get('success') and not result.get('suggested_bounding_box'):
+                # Fallback: compute from top_coords if tool didn't provide one
                 stats = result.get('statistics', {})
                 top_coords = (
                     stats.get('top_attention_coords') or
                     stats.get('top_importance_coords') or
-                    stats.get('top_gradient_coords')
+                    stats.get('top_gradient_coords') or
+                    stats.get('top_impact_coords')
                 )
                 if top_coords and len(top_coords) > 0:
                     xs = [c.get('x', 0) for c in top_coords if isinstance(c, dict)]
                     ys = [c.get('y', 0) for c in top_coords if isinstance(c, dict)]
                     if xs and ys:
                         result['suggested_bounding_box'] = [min(xs), min(ys), max(xs), max(ys)]
+
 
             tool_outputs[tool_name] = result
 
@@ -967,9 +1059,7 @@ class ActorAgent(BaseAgent):
         if tool_name == 'shap' and modality == 'vision':
             return {'num_samples': 200}
         if tool_name == 'integrated_gradients':
-            return {'n_steps': 100}
-        if tool_name == 'object_detection':
-            return {'confidence_threshold': 0.25}
+            return {'n_steps': 200}
         if tool_name == 'sensitivity_analysis' and modality == 'vision':
             return {'perturbation_type': 'blur'}
         return {}
@@ -1109,16 +1199,32 @@ JSON Response:"""
         """Build modality-specific constraints for autonomous task prompts."""
 
         if modality == "vision":
-            # Extract image size from tool results
-            image_width, image_height = 224, 224  # Default
+            # Extract image size from tool results — no silent fallback.
+            image_width = image_height = None
             if tool_results:
                 for tool_name, result in tool_results.get('tool_results', {}).items():
                     if isinstance(result, dict) and result.get('success'):
                         img_size = result.get('original_image_size', {})
                         if img_size:
-                            image_width = img_size.get('width', image_width)
-                            image_height = img_size.get('height', image_height)
+                            image_width = img_size.get('width')
+                            image_height = img_size.get('height')
                             break
+                    elif isinstance(result, dict):
+                        # Multi-instance: value is a dict of tool_name -> tool_result
+                        for inner_result in result.values():
+                            if isinstance(inner_result, dict) and inner_result.get('success'):
+                                img_size = inner_result.get('original_image_size', {})
+                                if img_size:
+                                    image_width = img_size.get('width')
+                                    image_height = img_size.get('height')
+                                    break
+                    if image_width is not None:
+                        break
+            if image_width is None or image_height is None:
+                raise RuntimeError(
+                    "Cannot build vision constraints: no successful tool result contains "
+                    "'original_image_size'. Ensure at least one XAI tool ran successfully."
+                )
 
             min_width = max(int(image_width * 0.1), 10)
             min_height = max(int(image_height * 0.1), 10)
@@ -1422,13 +1528,26 @@ JSON Response:"""
     def _get_prompt_builder(self, question_template: Any, question: Dict) -> Any:
         """Get prompt builder from template or create one"""
         if hasattr(question_template, 'build_actor_prompt'):
+            if self.output_size_config is not None:
+                # QuestionTemplate wraps an inner prompt_builder — set config there
+                if hasattr(question_template, 'prompt_builder') and question_template.prompt_builder:
+                    question_template.prompt_builder.output_size_config = self.output_size_config
+                else:
+                    question_template.output_size_config = self.output_size_config
             return question_template
 
         if hasattr(question_template, 'prompt_builder') and question_template.prompt_builder:
-            return question_template.prompt_builder
+            pb = question_template.prompt_builder
+            if self.output_size_config is not None:
+                pb.output_size_config = self.output_size_config
+            return pb
 
         from prompts import get_prompt_builder
-        return get_prompt_builder(question.get('q_type', 1), question.get('modality', 'vision'))
+        return get_prompt_builder(
+            question.get('q_type', 1),
+            question.get('modality', 'vision'),
+            output_size_config=self.output_size_config
+        )
 
     def _build_context(
         self,
@@ -1503,6 +1622,22 @@ JSON Response:"""
                 if len(all_classes) <= 30:
                     context["available_classes"] = all_classes
 
+        # Inject output size keys for prompt builders
+        cfg = self.output_size_config
+        if cfg:
+            context['fixed_percentage'] = cfg.fixed_percentage
+            if modality == 'tabular' and cfg.apply_to_tabular:
+                features = question.get('features', {})
+                if isinstance(features, dict):
+                    total_features = len(features)
+                    context['total_features'] = total_features
+                    context['n_target_features'] = max(1, math.ceil(cfg.fixed_percentage * total_features))
+            elif modality == 'text' and cfg.apply_to_text:
+                text_input = context.get('text_input', '')
+                text_length = len(text_input) if text_input else 0
+                context['text_length'] = text_length
+                context['target_chars'] = max(1, math.ceil(cfg.fixed_percentage * text_length))
+
         return context
 
     def _generate_explanation_with_prompt_builder(
@@ -1537,7 +1672,7 @@ JSON Response:"""
         prediction: Dict[str, Any],
         modality: str,
         q_type: int,
-        image_size: Tuple[int, int] = (224, 224),
+        image_size: Optional[Tuple[int, int]] = None,
         input_data: Any = None,
         all_input_datas: Optional[List] = None,
         all_predictions: Optional[List[Dict]] = None
@@ -1574,6 +1709,10 @@ JSON Response:"""
 
         # Build modality-specific context sections
         if modality == "vision":
+            if image_size is None:
+                raise RuntimeError(
+                    "_build_no_tools_prompt: image_size is required for vision modality."
+                )
             image_width, image_height = image_size
             size_constraint = f"""
 **CRITICAL IMAGE SIZE CONSTRAINT:**
@@ -1785,12 +1924,17 @@ Respond with ONLY valid JSON:"""
         response: str,
         modality: str,
         q_type: int,
-        image_size: Tuple[int, int] = (224, 224),
+        image_size: Optional[Tuple[int, int]] = None,
         text_length: int = 100,
         available_features: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
         """Parse VLM response for no-tools analysis. Supports all modalities."""
         import re
+
+        if modality == "vision" and image_size is None:
+            raise RuntimeError(
+                "_parse_no_tools_response: image_size is required for vision modality."
+            )
 
         def clip_bounding_box(bbox: List, width: int, height: int) -> List:
             """Clip bounding box coordinates to valid image bounds."""
@@ -1809,7 +1953,7 @@ Respond with ONLY valid JSON:"""
             end = max(start + 1, min(int(end), length))
             return start, end
 
-        width, height = image_size
+        width, height = image_size if image_size is not None else (0, 0)
 
         def clip_region_dict(d: Dict) -> Dict:
             """Clip/validate a single region dict in-place based on modality."""
@@ -1959,8 +2103,13 @@ Respond with ONLY valid JSON:"""
         )
 
         # Get image size from the prepared PIL images (what VLM actually sees)
-        image_size = (224, 224)
-        if modality == "vision" and images:
+        image_size = None
+        if modality == "vision":
+            if not images:
+                raise RuntimeError(
+                    "Cannot determine image size: no images were prepared for vision modality. "
+                    "Ensure valid image paths are provided."
+                )
             image_size = images[0].size  # (width, height) of what VLM receives
 
         # Build prompt (pass placeholder list for multi so is_multi is detected)
@@ -2409,14 +2558,19 @@ Respond with ONLY valid JSON:"""
         # Build size constraint for coordinate validation
         size_constraint = ""
         if modality == "vision":
-            image_width, image_height = 224, 224
+            image_width = image_height = None
             for tool_name, tool_result in tool_results.get('tool_results', {}).items():
                 if isinstance(tool_result, dict) and tool_result.get('success'):
                     img_size = tool_result.get('original_image_size', {})
                     if img_size:
-                        image_width = img_size.get('width', image_width)
-                        image_height = img_size.get('height', image_height)
+                        image_width = img_size.get('width')
+                        image_height = img_size.get('height')
                         break
+            if image_width is None or image_height is None:
+                raise RuntimeError(
+                    "Cannot build vision constraints: no successful tool result contains "
+                    "'original_image_size'. Ensure at least one XAI tool ran successfully."
+                )
             size_constraint = f"""
 **IMAGE BOUNDS:** {image_width} x {image_height} pixels
 All bounding_box coordinates must be within: x in [0, {image_width}], y in [0, {image_height}]"""

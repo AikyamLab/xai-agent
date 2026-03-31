@@ -246,7 +246,7 @@ class CriticAgent(BaseAgent):
 
         if key not in self._evaluators:
             from evaluation import get_evaluator
-            self._evaluators[key] = get_evaluator(q_type, modality)
+            self._evaluators[key] = get_evaluator(q_type, modality, size_lambda=0.3)
 
         return self._evaluators.get(key)
 

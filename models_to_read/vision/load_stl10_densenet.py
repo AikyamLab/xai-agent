@@ -28,7 +28,6 @@ def get_transform():
     """Returns the image transform for STL-10 DenseNet model."""
     return transforms.Compose([
         transforms.Resize(224),
-        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],
@@ -53,11 +52,7 @@ def load_model(model_path: str):
     """
     model = timm.create_model("densenet121", pretrained=False, num_classes=NUM_CLASSES)
 
-    # map_location='cpu' + assign=True: avoids meta-tensor errors when timm
-    # uses lazy/meta initialization (PyTorch 2.1+).  assign=True replaces
-    # parameters rather than copying into them, which works on meta tensors.
-    state_dict = torch.load(model_path, map_location='cpu')
-    model.load_state_dict(state_dict, assign=True)
+    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
     model = model.to(DEVICE)
     model.eval()
 

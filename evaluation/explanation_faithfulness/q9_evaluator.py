@@ -201,7 +201,8 @@ class Q9Evaluator(MultiInstanceEvaluator):
             region_ratios = [d["region_ratio"] for d in details_per_input if "region_ratio" in d]
             region_ratio = sum(region_ratios) / len(region_ratios) if region_ratios else 0.0
             size_penalty = 1.0 - region_ratio
-            score = soft_score * size_penalty
+            size_score = soft_score * size_penalty
+            score = soft_score
 
             return EvaluationResult(
                 score=score,
@@ -213,11 +214,13 @@ class Q9Evaluator(MultiInstanceEvaluator):
                     "num_improved": sum(improvements),
                     "all_improved": all_improved,
                     "soft_score": soft_score,
+                    "size_score": size_score,
+                    "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                     "region_ratio": region_ratio,
                     "size_penalty": size_penalty,
                     "shared_feature_description": agent_output.get('shared_feature_description', ''),
                     "per_input_details": details_per_input,
-                    "interpretation": "score = mean_normalized_improvement * (1 - avg_region_ratio)"
+                    "interpretation": "score = mean_normalized_improvement; size_score = score * (1 - avg_region_ratio)"
                 }
             )
 

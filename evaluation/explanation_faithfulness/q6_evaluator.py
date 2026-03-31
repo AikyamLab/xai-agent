@@ -1502,7 +1502,8 @@ class Q6Evaluator(BaseEvaluator):
 
         # Size penalty: penalize larger modified regions
         size_penalty = 1.0 - region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         return EvaluationResult(
             score=score,
@@ -1518,6 +1519,8 @@ class Q6Evaluator(BaseEvaluator):
                 "expected_class": expected_class,
                 "expected_class_idx": expected_class_idx,
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "flipped_correctly": flipped_correctly,
@@ -1617,7 +1620,8 @@ class Q6Evaluator(BaseEvaluator):
             soft_score = 1.0 if flipped else 0.0
 
         size_penalty = 1.0 - region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         return EvaluationResult(
             score=score,
@@ -1632,10 +1636,12 @@ class Q6Evaluator(BaseEvaluator):
                 "change_plan": change_plan_raw,
                 "expected_class": "any different class",
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
                 "flipped": flipped,
-                "interpretation": "score = P_drop(original_class) * (1 - region_ratio)",
+                "interpretation": "score = soft_score; size_score = soft_score * (1 - region_ratio)",
                 "p_original_class_original": p_original,
                 "p_original_class_modified": p_modified,
                 "top3_predictions_original": top3_original,

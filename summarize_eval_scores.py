@@ -11,7 +11,7 @@ from collections import defaultdict
 
 EVAL_ROOT = Path(
     "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-    "/baseline_outputs/Qwen30B_nonVL_mask_fixed/evaluations"
+    "/baseline_outputs/Qwen30B_VL_top25/evaluations"
 )
 
 # SCORE_KEYS = ["overall_score", "quality_score", "completeness"]
@@ -58,15 +58,16 @@ def summarize(data):
                     "n": n,
                 }
 
-                # soft_score lives at faithfulness.details.soft_score
-                row["soft_score"] = avg(
-                    [
-                        r.get(FAITHFULNESS_KEY, {}).get("details", {}).get("soft_score")
-                        if isinstance(r.get(FAITHFULNESS_KEY), dict)
-                        else None
-                        for r in records
-                    ]
-                )
+                # soft_score / size_score / size_score_l1 live at faithfulness.details.*
+                for detail_key in ("soft_score", "size_score", "size_score_l1"):
+                    row[detail_key] = avg(
+                        [
+                            r.get(FAITHFULNESS_KEY, {}).get("details", {}).get(detail_key)
+                            if isinstance(r.get(FAITHFULNESS_KEY), dict)
+                            else None
+                            for r in records
+                        ]
+                    )
 
                 # faithfulness.score (may be absent)
                 row["faithfulness_score"] = avg(
@@ -102,6 +103,8 @@ def print_table(rows):
         "n": 5,
         "faithfulness_score": 12,
         "soft_score": 12,
+        "size_score": 12,
+        "size_score_l1": 14,
         "faithfulness_pass_rate": 12,
     }
 
@@ -112,6 +115,8 @@ def print_table(rows):
         f"{'n':>{col_widths['n']}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
         f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'size_score':>{col_widths['size_score']}}"
+        f"{'size_score_l1':>{col_widths['size_score_l1']}}"
         f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     sep = "-" * len(header)
@@ -127,16 +132,19 @@ def print_table(rows):
             print()
         prev_key = key
 
-        soft = row.get("soft_score", float("nan"))
-        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
+        def fmt(val, width):
+            return f"{val:>{width}.4f}" if val == val else f"{'nan':>{width}}"
+
         print(
             f"{row['modality']:<{col_widths['modality']}}"
             f"{row['dataset']:<{col_widths['dataset']}}"
             f"{row['q_type']:<{col_widths['q_type']}}"
             f"{row['n']:>{col_widths['n']}}"
-            f"{row['faithfulness_score']:>{col_widths['faithfulness_score']}.4f}"
-            + soft_str +
-            f"{row['faithfulness_pass_rate']*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
+            + fmt(row['faithfulness_score'], col_widths['faithfulness_score'])
+            + fmt(row['soft_score'], col_widths['soft_score'])
+            + fmt(row['size_score'], col_widths['size_score'])
+            + fmt(row['size_score_l1'], col_widths['size_score_l1'])
+            + f"{row['faithfulness_pass_rate']*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
 
     print(sep)
@@ -151,6 +159,8 @@ def print_table(rows):
         f"{'n_total':>{7}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
         f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'size_score':>{col_widths['size_score']}}"
+        f"{'size_score_l1':>{col_widths['size_score_l1']}}"
         f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     print("-" * len(agg_header))
@@ -167,15 +177,15 @@ def print_table(rows):
                 return float("nan")
             return sum(r[key] * r["n"] for r in group if r[key] == r[key]) / total_w
 
-        soft = weighted_avg("soft_score")
-        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
         print(
             f"{modality:<{col_widths['modality']}}"
             f"{dataset:<{col_widths['dataset']}}"
             f"{n_total:>{7}}"
-            f"{weighted_avg('faithfulness_score'):>{col_widths['faithfulness_score']}.4f}"
-            + soft_str +
-            f"{weighted_avg('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
+            + fmt(weighted_avg('faithfulness_score'), col_widths['faithfulness_score'])
+            + fmt(weighted_avg('soft_score'), col_widths['soft_score'])
+            + fmt(weighted_avg('size_score'), col_widths['size_score'])
+            + fmt(weighted_avg('size_score_l1'), col_widths['size_score_l1'])
+            + f"{weighted_avg('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
 
     print("-" * len(agg_header))
@@ -188,6 +198,8 @@ def print_table(rows):
         f"{'n_total':>{7}}"
         f"{'faith_score':>{col_widths['faithfulness_score']}}"
         f"{'soft_score':>{col_widths['soft_score']}}"
+        f"{'size_score':>{col_widths['size_score']}}"
+        f"{'size_score_l1':>{col_widths['size_score_l1']}}"
         f"{'faith_pass':>{col_widths['faithfulness_pass_rate']}}"
     )
     print("-" * len(qtype_header))
@@ -200,21 +212,20 @@ def print_table(rows):
         n_total = sum(r["n"] for r in group)
 
         def weighted_avg_q(key):
-            # check for nan via r[key] == r[key]
             valid_rows = [r for r in group if r[key] == r[key]]
             total_n = sum(r["n"] for r in valid_rows)
             if total_n == 0:
                 return float("nan")
             return sum(r[key] * r["n"] for r in valid_rows) / total_n
 
-        soft = weighted_avg_q("soft_score")
-        soft_str = f"{soft:>{col_widths['soft_score']}.4f}" if soft == soft else f"{'nan':>{col_widths['soft_score']}}"
         print(
             f"{q_type:<{col_widths['q_type']}}"
             f"{n_total:>{7}}"
-            f"{weighted_avg_q('faithfulness_score'):>{col_widths['faithfulness_score']}.4f}"
-            + soft_str +
-            f"{weighted_avg_q('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
+            + fmt(weighted_avg_q('faithfulness_score'), col_widths['faithfulness_score'])
+            + fmt(weighted_avg_q('soft_score'), col_widths['soft_score'])
+            + fmt(weighted_avg_q('size_score'), col_widths['size_score'])
+            + fmt(weighted_avg_q('size_score_l1'), col_widths['size_score_l1'])
+            + f"{weighted_avg_q('faithfulness_pass_rate')*100:>{col_widths['faithfulness_pass_rate']}.1f}%"
         )
     print("-" * len(qtype_header))
 

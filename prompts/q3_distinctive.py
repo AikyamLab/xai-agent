@@ -44,6 +44,9 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
         tools_description = self._get_available_tools_description(context, modality_config['tools_description'])
         tool_list = self._get_available_tools_list(context, modality_config['tool_list'])
 
+        if self.modality != 'vision' and not context.get(modality_config['description_key']):
+            raise ValueError(f"Input content description missing for {self.modality} modality")
+
         top1_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
         if len(top5) > 1:
             top2_class = top5[1]
@@ -53,6 +56,9 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
                 top2_class = sorted(probs, key=probs.get, reverse=True)[1]
             else:
                 top2_class = 'Unknown'
+
+        desc_key = modality_config['description_key']
+        desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
@@ -65,10 +71,7 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
 - Top-2 Prediction (Alternative): {top2_class}
 - Top-5 Predictions: {top5}
 
-**Input Content Description**:
-{context.get(modality_config['description_key'], 'Not available')}
-
-**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} DISTINGUISH the top-1 prediction ({top1_class}) from the top-2 alternative ({top2_class}).
+{desc_section}**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} DISTINGUISH the top-1 prediction ({top1_class}) from the top-2 alternative ({top2_class}).
 
 **Available Methods**:
 1. **Autonomous Analysis**: Use your own reasoning capabilities to:
@@ -178,6 +181,7 @@ Provide your strategy as a JSON object:
         image_width, image_height = self._get_image_size_from_results(tool_results)
         size_constraint = self._build_image_size_constraint(tool_results)
         instance_data_section = self._format_single_instance_data_section(context)
+        output_size_constraint = self._build_output_size_constraint(context)
 
         prompt = f"""You are an XAI expert. Identify the DISTINCTIVE part that separates top-1 from top-2.
 
@@ -189,7 +193,7 @@ Provide your strategy as a JSON object:
 - Top-2: {top2}
 {size_constraint}{instance_data_section}
 ## XAI Analysis
-{self._format_results_comprehensive(results)}
+{self._format_results_comprehensive(results, context)}
 
 ## Your Task
 Identify the part that DISTINGUISHES {top1} from {top2}.
@@ -205,7 +209,7 @@ Identify the part that DISTINGUISHES {top1} from {top2}.
 **Critical Requirements:**
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
-- For tabular: feature_keys as a list of column names (one or more features)
+- For tabular: feature_keys as a list of column names {output_size_constraint}
 - Base your decision on the attribution analysis
 
 Respond with ONLY JSON:"""

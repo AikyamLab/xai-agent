@@ -145,7 +145,8 @@ class Q8Evaluator(BaseEvaluator):
         # Size penalty: penalize large masked regions
         region_ratio = self.compute_region_ratio(region, original_input)
         size_penalty = 1.0 - region_ratio
-        score = soft_score * size_penalty
+        size_score = soft_score * size_penalty
+        score = soft_score
 
         return EvaluationResult(
             score=score,
@@ -164,9 +165,11 @@ class Q8Evaluator(BaseEvaluator):
                 "threshold": threshold,
                 "room_for_improvement": room,
                 "soft_score": soft_score,
+                "size_score": size_score,
+                "size_score_l1": self._size_score_l1(soft_score, region_ratio, penalize_large=True),
                 "region_ratio": region_ratio,
                 "size_penalty": size_penalty,
-                "interpretation": "score = normalized_improvement * (1 - region_ratio)"
+                "interpretation": "score = normalized_improvement; size_score = score * (1 - region_ratio)"
             }
         )
 

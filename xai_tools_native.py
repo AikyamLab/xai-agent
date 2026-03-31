@@ -24,10 +24,12 @@ from xai_tools import (
     execute_integrated_gradients,
     execute_lime,
     execute_shap,
-    execute_object_detection,
     execute_guided_backprop,
-    execute_layer_cam,
-    execute_sensitivity_analysis,
+    execute_guided_backprop_text,
+    execute_guided_backprop_tabular,
+    execute_smoothgrad,
+    execute_smoothgrad_text,
+    execute_smoothgrad_tabular,
     set_output_dir,
     get_output_dir
 )
@@ -113,7 +115,7 @@ class IntegratedGradientsInput(BaseModel):
     """Input schema for Integrated Gradients tool."""
     image_path: str = Field(description="Path to the image file")
     target_class: int = Field(description="Target class index for explanation")
-    n_steps: int = Field(default=50, description="Number of integration steps")
+    n_steps: int = Field(default=200, description="Number of integration steps")
     image_id: str = Field(default="temp", description="Identifier for output files")
 
     @model_validator(mode='before')
@@ -139,25 +141,13 @@ class SHAPInput(BaseModel):
     """Input schema for SHAP tool."""
     image_path: str = Field(description="Path to the image file")
     target_class: int = Field(description="Target class index for explanation")
-    num_samples: int = Field(default=100, description="Number of samples for SHAP")
+    num_samples: int = Field(default=1000, description="Number of samples for SHAP")
     image_id: str = Field(default="temp", description="Identifier for output files")
 
     @model_validator(mode='before')
     @classmethod
     def parse_nested_json(cls, data):
         return _parse_nested_json_input(data, ['image_path', 'target_class', 'num_samples', 'image_id'])
-
-
-class ObjectDetectionInput(BaseModel):
-    """Input schema for Object Detection tool."""
-    image_path: str = Field(description="Path to the image file")
-    confidence_threshold: float = Field(default=0.25, description="Confidence threshold")
-    image_id: str = Field(default="temp", description="Identifier for output files")
-
-    @model_validator(mode='before')
-    @classmethod
-    def parse_nested_json(cls, data):
-        return _parse_nested_json_input(data, ['image_path', 'confidence_threshold', 'image_id'])
 
 
 class GuidedBackpropInput(BaseModel):
@@ -171,31 +161,6 @@ class GuidedBackpropInput(BaseModel):
     def parse_nested_json(cls, data):
         return _parse_nested_json_input(data, ['image_path', 'target_class', 'image_id'])
 
-
-class LayerCAMInput(BaseModel):
-    """Input schema for Layer CAM tool."""
-    image_path: str = Field(description="Path to the image file")
-    target_class: int = Field(description="Target class index for explanation")
-    layer_name: Optional[str] = Field(default=None, description="Specific layer name (optional)")
-    image_id: str = Field(default="temp", description="Identifier for output files")
-
-    @model_validator(mode='before')
-    @classmethod
-    def parse_nested_json(cls, data):
-        return _parse_nested_json_input(data, ['image_path', 'target_class', 'layer_name', 'image_id'])
-
-
-class SensitivityAnalysisInput(BaseModel):
-    """Input schema for Sensitivity Analysis tool."""
-    image_path: str = Field(description="Path to the image file")
-    target_class: int = Field(description="Target class index for explanation")
-    perturbation_type: str = Field(default="noise", description="Type of perturbation: 'noise' or 'blur'")
-    image_id: str = Field(default="temp", description="Identifier for output files")
-
-    @model_validator(mode='before')
-    @classmethod
-    def parse_nested_json(cls, data):
-        return _parse_nested_json_input(data, ['image_path', 'target_class', 'perturbation_type', 'image_id'])
 
 
 # ===================================================================
@@ -248,7 +213,7 @@ class GradCAMTool(BaseTool):
 
         try:
             target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
+            image = self.data_model_loader.get_display_image()
 
             if image is None:
                 return json.dumps({
@@ -330,7 +295,7 @@ class IntegratedGradientsTool(BaseTool):
         self,
         image_path: Optional[str] = None,
         target_class: Optional[int] = None,
-        n_steps: int = 50,
+        n_steps: int = 200,
         image_id: str = "temp",
         **kwargs
     ) -> str:
@@ -354,7 +319,7 @@ class IntegratedGradientsTool(BaseTool):
 
         try:
             target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
+            image = self.data_model_loader.get_display_image()
 
             if image is None:
                 return json.dumps({
@@ -428,7 +393,7 @@ class LIMETool(BaseTool):
 
         try:
             target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
+            image = self.data_model_loader.get_display_image()
 
             if image is None:
                 return json.dumps({
@@ -473,7 +438,7 @@ class SHAPTool(BaseTool):
         self,
         image_path: Optional[str] = None,
         target_class: Optional[int] = None,
-        num_samples: int = 100,
+        num_samples: int = 1000,
         image_id: str = "temp",
         **kwargs
     ) -> str:
@@ -497,7 +462,13 @@ class SHAPTool(BaseTool):
 
         try:
             target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
+            # Use raw image (not preprocessed) so SHAP operates at original resolution.
+            # get_display_image() may return the processed (upscaled) image for small inputs
+            # like STL10 (96×96), causing SHAP to run on 224×224 with too few evaluations.
+            sample_data = self.data_model_loader.current_sample_data
+            image = sample_data.get("image") if sample_data else None
+            if image is None:
+                image = self.data_model_loader.get_display_image()
 
             if image is None:
                 return json.dumps({
@@ -514,124 +485,6 @@ class SHAPTool(BaseTool):
                 device=device,
                 image_id=image_id,
                 num_samples=num_samples
-            )
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return json.dumps({"success": False, "error": str(e)})
-
-
-class ObjectDetectionTool(BaseTool):
-    """Tool for executing object detection."""
-
-    name = "object_detection"
-    description = (
-        "Executes YOLO object detection to find objects in the image. "
-        "Returns detected objects with their bounding boxes and confidence scores. "
-        "Useful for understanding what objects are present in the image."
-    )
-
-    def __init__(self, data_model_loader: Optional[Any] = None):
-        """Initialize Object Detection tool (no model context needed)."""
-        self.data_model_loader = data_model_loader
-
-    def run(
-        self,
-        image_path: Optional[str] = None,
-        confidence_threshold: float = 0.25,
-        image_id: str = "temp",
-        **kwargs
-    ) -> str:
-        """Execute Object Detection."""
-        if not self.data_model_loader:
-            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
-
-        try:
-            image = self.data_model_loader.get_current_image()
-
-            if image is None:
-                return json.dumps({
-                    "success": False,
-                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
-                })
-
-            result = execute_object_detection(
-                image=image,
-                image_id=image_id,
-                confidence_threshold=confidence_threshold
-            )
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return json.dumps({"success": False, "error": str(e)})
-
-
-class SensitivityAnalysisTool(BaseTool):
-    """Tool for executing Sensitivity Analysis."""
-
-    name = "sensitivity_analysis"
-    description = (
-        "Executes Sensitivity Analysis to test model robustness to perturbations. "
-        "Returns probability changes under different perturbation levels. "
-        "Useful for understanding model stability and reliability."
-    )
-
-    def __init__(self, data_model_loader: Optional[Any] = None):
-        """
-        Initialize Sensitivity Analysis tool.
-
-        Args:
-            data_model_loader: DataModelLoader instance for accessing the model and data.
-        """
-        self.data_model_loader = data_model_loader
-
-    def run(
-        self,
-        image_path: Optional[str] = None,
-        target_class: Optional[int] = None,
-        perturbation_type: str = "noise",
-        image_id: str = "temp",
-        **kwargs
-    ) -> str:
-        """Execute Sensitivity Analysis."""
-        if not self.data_model_loader:
-            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
-        
-        model = self.data_model_loader.get_model()
-        processor = self.data_model_loader.get_processor()
-        device = self.data_model_loader.device
-        model_type = self.data_model_loader.model_name
-
-        if model is None:
-            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
-
-        if target_class is None:
-            return json.dumps({
-                "success": False,
-                "error": "target_class is required"
-            })
-
-        try:
-            target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
-
-            if image is None:
-                return json.dumps({
-                    "success": False,
-                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
-                })
-
-            # Get pre-processed tensor if available
-            input_tensor = self.data_model_loader.get_current_tensor()
-
-            result = execute_sensitivity_analysis(
-                image=image,
-                model=model,
-                model_type=model_type,
-                processor=processor,
-                target_class=target_class,
-                device=device,
-                image_id=image_id,
-                perturbation_type=perturbation_type,
-                input_tensor=input_tensor
             )
             return json.dumps(result, indent=2)
         except Exception as e:
@@ -684,7 +537,7 @@ class GuidedBackpropTool(BaseTool):
 
         try:
             target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
+            image = self.data_model_loader.get_display_image()
 
             if image is None:
                 return json.dumps({
@@ -709,79 +562,6 @@ class GuidedBackpropTool(BaseTool):
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)})
 
-
-class LayerCAMTool(BaseTool):
-    """Tool for executing Layer CAM analysis."""
-
-    name = "layer_cam"
-    description = (
-        "Executes Layer CAM to visualize class-specific activation maps at different layers. "
-        "Returns a heatmap showing which regions activate for the target class. "
-        "The Actor Agent will analyze the visualization to identify important regions."
-    )
-
-    def __init__(self, data_model_loader: Optional[Any] = None):
-        """
-        Initialize Layer CAM tool.
-
-        Args:
-            data_model_loader: DataModelLoader instance for accessing the model and data.
-        """
-        self.data_model_loader = data_model_loader
-
-    def run(
-        self,
-        image_path: Optional[str] = None,
-        target_class: Optional[int] = None,
-        layer_name: Optional[str] = None,
-        image_id: str = "temp",
-        **kwargs
-    ) -> str:
-        """Execute Layer CAM analysis."""
-        if not self.data_model_loader:
-            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
-
-        model = self.data_model_loader.get_model()
-        processor = self.data_model_loader.get_processor()
-        device = self.data_model_loader.device
-        model_type = self.data_model_loader.model_name
-
-        if model is None:
-            return json.dumps({"success": False, "error": "Model not loaded in DataModelLoader"})
-
-        if target_class is None:
-            return json.dumps({
-                "success": False,
-                "error": "target_class is required"
-            })
-
-        try:
-            target_class = int(target_class)
-            image = self.data_model_loader.get_current_image()
-
-            if image is None:
-                return json.dumps({
-                    "success": False,
-                    "error": "No image available. Load a sample with data_model_loader.load_sample() first."
-                })
-
-            # Get pre-processed tensor if available
-            input_tensor = self.data_model_loader.get_current_tensor()
-
-            result = execute_layer_cam(
-                image=image,
-                model=model,
-                model_type=model_type,
-                processor=processor,
-                target_class=target_class,
-                device=device,
-                image_id=image_id,
-                layer_name=layer_name,
-                input_tensor=input_tensor
-            )
-            return json.dumps(result, indent=2)
-        except Exception as e:
-            return json.dumps({"success": False, "error": str(e)})
 
 
 # ===================================================================
@@ -1836,6 +1616,292 @@ class SensitivityAnalysisTabularTool(BaseTool):
 
 
 # ===================================================================
+# GuidedBackprop for Text
+# ===================================================================
+
+class GuidedBackpropTextTool(BaseTool):
+    """Tool for executing Guided Backpropagation analysis on text data."""
+
+    name = "guided_backprop"
+    description = (
+        "Executes Guided Backpropagation on text to compute per-token importance using modified "
+        "ReLU gradient rules. Returns attribution scores for each token without path integration. "
+        "Requires the model to have ReLU activations."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        self.data_model_loader = data_model_loader
+
+    def run(self, target_class: Optional[int] = None, image_id: str = "temp", **kwargs) -> str:
+        """Execute Guided Backpropagation for text."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded"})
+
+        sample_data = self.data_model_loader.current_sample_data or {}
+        is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        text = sample_data.get('premise', '') if is_nli else self.data_model_loader.get_current_text()
+
+        if not text:
+            return json.dumps({"success": False, "error": "No text available. Load a sample first."})
+        if target_class is None:
+            return json.dumps({"success": False, "error": "target_class is required"})
+
+        try:
+            result = execute_guided_backprop_text(
+                text=text,
+                model=model,
+                processor=processor,
+                target_class=int(target_class),
+                device=device,
+                instance_id=image_id,
+                sample_data=sample_data
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            import traceback
+            return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
+
+
+# ===================================================================
+# GuidedBackprop for Tabular
+# ===================================================================
+
+class GuidedBackpropTabularTool(BaseTool):
+    """Tool for executing Guided Backpropagation analysis on tabular data."""
+
+    name = "guided_backprop"
+    description = (
+        "Executes Guided Backpropagation on tabular features using modified ReLU gradient rules. "
+        "Returns per-feature attribution scores. Requires the model to have ReLU activations."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        self.data_model_loader = data_model_loader
+
+    def run(self, target_class: Optional[int] = None, image_id: str = "temp", **kwargs) -> str:
+        """Execute Guided Backpropagation for tabular data."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        device = self.data_model_loader.device
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded"})
+
+        features = self.data_model_loader.get_current_features()
+        if features is None:
+            return json.dumps({"success": False, "error": "No tabular data available. Load a sample first."})
+        if target_class is None:
+            return json.dumps({"success": False, "error": "target_class is required"})
+
+        try:
+            result = execute_guided_backprop_tabular(
+                features=features,
+                model=model,
+                feature_names=self.data_model_loader.get_feature_names(),
+                target_class=int(target_class),
+                device=device,
+                encoded_to_original=self.data_model_loader.get_encoded_to_original(),
+                raw_features_dict=self.data_model_loader.get_raw_features_dict()
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            import traceback
+            return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
+
+
+# ===================================================================
+# SmoothGrad Tool — Vision
+# ===================================================================
+
+class SmoothGradTool(BaseTool):
+    """Tool for executing SmoothGrad analysis on images."""
+
+    name = "smoothgrad"
+    description = (
+        "Executes SmoothGrad (NoiseTunnel + Saliency) to produce noise-reduced saliency maps. "
+        "Averages gradients over multiple noisy copies of the input image, yielding smoother "
+        "and more stable importance maps than standard gradient methods. "
+        "The Actor Agent will analyze the visualization to identify important regions."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        self.data_model_loader = data_model_loader
+
+    def run(
+        self,
+        target_class: Optional[int] = None,
+        image_id: str = "temp",
+        n_samples: int = 100,
+        stdevs: float = 0.1,
+        **kwargs
+    ) -> str:
+        """Execute SmoothGrad analysis."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+        model_type = self.data_model_loader.model_name
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded"})
+        if target_class is None:
+            return json.dumps({"success": False, "error": "target_class is required"})
+
+        image = self.data_model_loader.get_display_image()
+        if image is None:
+            return json.dumps({"success": False, "error": "No image available. Load a sample first."})
+
+        try:
+            input_tensor = self.data_model_loader.get_current_tensor()
+            result = execute_smoothgrad(
+                image=image,
+                model=model,
+                model_type=model_type,
+                processor=processor,
+                target_class=int(target_class),
+                device=device,
+                image_id=image_id,
+                n_samples=n_samples,
+                stdevs=stdevs,
+                input_tensor=input_tensor
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})
+
+
+# ===================================================================
+# SmoothGrad for Text
+# ===================================================================
+
+class SmoothGradTextTool(BaseTool):
+    """Tool for executing SmoothGrad analysis on text data."""
+
+    name = "smoothgrad"
+    description = (
+        "Executes SmoothGrad on text by averaging saliency gradients over multiple noisy "
+        "embedding perturbations. Produces stable, noise-reduced per-token importance scores."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        self.data_model_loader = data_model_loader
+
+    def run(
+        self,
+        target_class: Optional[int] = None,
+        image_id: str = "temp",
+        n_samples: int = 100,
+        stdevs: float = 0.1,
+        **kwargs
+    ) -> str:
+        """Execute SmoothGrad for text."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        processor = self.data_model_loader.get_processor()
+        device = self.data_model_loader.device
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded"})
+        if target_class is None:
+            return json.dumps({"success": False, "error": "target_class is required"})
+
+        sample_data = self.data_model_loader.current_sample_data or {}
+        is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        text = sample_data.get('premise', '') if is_nli else self.data_model_loader.get_current_text()
+
+        if not text:
+            return json.dumps({"success": False, "error": "No text available. Load a sample first."})
+
+        try:
+            result = execute_smoothgrad_text(
+                text=text,
+                model=model,
+                processor=processor,
+                target_class=int(target_class),
+                device=device,
+                instance_id=image_id,
+                n_samples=n_samples,
+                stdevs=stdevs,
+                sample_data=sample_data
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            import traceback
+            return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
+
+
+# ===================================================================
+# SmoothGrad for Tabular
+# ===================================================================
+
+class SmoothGradTabularTool(BaseTool):
+    """Tool for executing SmoothGrad analysis on tabular data."""
+
+    name = "smoothgrad"
+    description = (
+        "Executes SmoothGrad on tabular data by averaging saliency gradients over multiple "
+        "noisy feature perturbations. Produces stable, noise-reduced per-feature importance scores."
+    )
+
+    def __init__(self, data_model_loader: Optional[Any] = None):
+        self.data_model_loader = data_model_loader
+
+    def run(
+        self,
+        target_class: Optional[int] = None,
+        image_id: str = "temp",
+        n_samples: int = 100,
+        stdevs: float = 0.1,
+        **kwargs
+    ) -> str:
+        """Execute SmoothGrad for tabular data."""
+        if not self.data_model_loader:
+            return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
+
+        model = self.data_model_loader.get_model()
+        device = self.data_model_loader.device
+
+        if model is None:
+            return json.dumps({"success": False, "error": "Model not loaded"})
+        if target_class is None:
+            return json.dumps({"success": False, "error": "target_class is required"})
+
+        features = self.data_model_loader.get_current_features()
+        if features is None:
+            return json.dumps({"success": False, "error": "No tabular data available. Load a sample first."})
+
+        try:
+            result = execute_smoothgrad_tabular(
+                features=features,
+                model=model,
+                feature_names=self.data_model_loader.get_feature_names(),
+                target_class=int(target_class),
+                device=device,
+                n_samples=n_samples,
+                stdevs=stdevs,
+                encoded_to_original=self.data_model_loader.get_encoded_to_original(),
+                raw_features_dict=self.data_model_loader.get_raw_features_dict()
+            )
+            return json.dumps(result, indent=2)
+        except Exception as e:
+            import traceback
+            return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
+
+
+# ===================================================================
 # Tool Registry (Replaces LangChain Tool Management)
 # ===================================================================
 
@@ -1882,6 +1948,9 @@ class XAIToolRegistry:
             self._tools['integrated_gradients'] = IntegratedGradientsTextTool(**tool_context)
             self._tools['shap'] = SHAPTextTool(**tool_context)
             self._tools['sensitivity_analysis'] = SensitivityAnalysisTextTool(**tool_context)
+            # Modality-agnostic tools
+            self._tools['guided_backprop'] = GuidedBackpropTextTool(**tool_context)
+            self._tools['smoothgrad'] = SmoothGradTextTool(**tool_context)
             return
 
         if self.modality == 'tabular':
@@ -1890,20 +1959,19 @@ class XAIToolRegistry:
             self._tools['lime'] = LIMETabularTool(**tool_context)
             self._tools['integrated_gradients'] = IntegratedGradientsTabularTool(**tool_context)
             self._tools['sensitivity_analysis'] = SensitivityAnalysisTabularTool(**tool_context)
+            # Modality-agnostic tools
+            self._tools['guided_backprop'] = GuidedBackpropTabularTool(**tool_context)
+            self._tools['smoothgrad'] = SmoothGradTabularTool(**tool_context)
             return
 
         # Vision-specific tools
         if self.modality == 'vision' or self.modality is None:
             if 'gradcam' in available_tools:
                 self._tools['gradcam'] = GradCAMTool(**tool_context)
-            if 'object_detection' in available_tools:
-                self._tools['object_detection'] = ObjectDetectionTool(**tool_context)
             if 'guided_backprop' in available_tools:
                 self._tools['guided_backprop'] = GuidedBackpropTool(**tool_context)
-            if 'layer_cam' in available_tools:
-                self._tools['layer_cam'] = LayerCAMTool(**tool_context)
-            if 'sensitivity_analysis' in available_tools:
-                self._tools['sensitivity_analysis'] = SensitivityAnalysisTool(**tool_context)
+            if 'smoothgrad' in available_tools:
+                self._tools['smoothgrad'] = SmoothGradTool(**tool_context)
 
         # Vision multi-modal tools
         if 'integrated_gradients' in available_tools:

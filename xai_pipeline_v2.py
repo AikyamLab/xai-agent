@@ -38,6 +38,7 @@ from evaluation import get_evaluator, EvaluationResult, ToolAttributionEvaluator
 # Existing imports
 from vlm_wrapper import VisionLanguageModel, create_vlm
 from DataModelLoader import DataModelLoader
+from prompts.output_size_config import OutputSizeConfig
 
 
 def load_model_loader_module(model_path: str, models_dir: str):
@@ -104,6 +105,7 @@ class XAIPipelineV2:
         tinker_checkpoint: Optional[str] = None,
         tinker_lora_rank: int = 16,
         vlm: Optional[Any] = None,
+        output_size_config=None,
     ):
         """
         Initialize XAI Pipeline V2.
@@ -125,6 +127,7 @@ class XAIPipelineV2:
                  is a custom RLSamplingVLM that records token trajectories.
         """
         self.mode = mode
+        self.output_size_config = output_size_config
 
         # Set default directories
         if output_dir is None:
@@ -175,7 +178,8 @@ class XAIPipelineV2:
             vlm=self.vlm,
             model=None,  # Will be set after loading target model
             output_dir=str(self.output_dir),
-            models_dir=str(self.models_dir)
+            models_dir=str(self.models_dir),
+            output_size_config=output_size_config
         )
 
         # Load Tinker LoRA/DPO checkpoint for evaluation (test mode only)
@@ -1924,13 +1928,21 @@ class XAIPipelineV2:
                 if image_path and os.path.exists(image_path):
                     print(f"Loading vision data from image_path: {image_path}")
                     from PIL import Image
-                    input_tensor = Image.open(image_path).convert('RGB')
-                    loaded_data_path = image_path
+                    raw_image = Image.open(image_path).convert('RGB')
+                    processed_image = self.data_model_loader._compute_processed_image(raw_image)
+
+                    temp_img_dir = self.output_dir / "temp_images"
+                    temp_img_dir.mkdir(parents=True, exist_ok=True)
+                    temp_img_path = temp_img_dir / f"from_path_{Path(image_path).stem}.png"
+                    processed_image.save(str(temp_img_path))
+                    input_tensor = processed_image
+                    loaded_data_path = str(temp_img_path)
                     print(f"Data loaded: {loaded_data_path}")
 
                     # Store in data_model_loader for consistency
                     self.data_model_loader.current_sample_data = {
-                        'image': input_tensor,
+                        'image': raw_image,
+                        'processed_image': processed_image,
                         'image_path': image_path
                     }
                 else:
@@ -1946,9 +1958,9 @@ class XAIPipelineV2:
 
                     # Use the new DataModelLoader to load the sample
                     data = self.data_model_loader.load_sample(index=sample_index, split=split)
-                    input_tensor = data.get('image') # This is the PIL image
+                    input_tensor = data['processed_image']  # PIL after Resize+CenterCrop
 
-                    # Save PIL image to a real file so actor_agent can pass it to VLM
+                    # Save processed image to a real file so actor_agent can pass it to VLM
                     temp_img_dir = self.output_dir / "temp_images"
                     temp_img_dir.mkdir(parents=True, exist_ok=True)
                     temp_img_path = temp_img_dir / f"sample_{sample_index}_{split}.png"
@@ -2192,18 +2204,14 @@ class XAIPipelineV2:
                 for i, img_idx in enumerate(image_indices):
                     print(f"  Loading Instance {i}: index={img_idx}")
 
-                    # Load sample first to get PIL image
+                    # Load sample and use the processed image (Resize+CenterCrop applied)
                     data = self.data_model_loader.load_sample(index=img_idx, split=split)
-                    image = data.get('image')  # PIL Image
+                    image = data['processed_image']  # PIL after Resize+CenterCrop
                     input_tensors.append(image)
 
-                    # Use real file path if it exists, else save PIL to temp file
-                    candidate_path = self._build_image_path(image_root, dataset_name, img_idx)
-                    if candidate_path and os.path.exists(candidate_path):
-                        img_path = candidate_path
-                    else:
-                        img_path = str(temp_img_dir / f"multi_{img_idx}_{split}.png")
-                        image.save(img_path)
+                    # Always save processed image to temp file
+                    img_path = str(temp_img_dir / f"multi_{img_idx}_{split}.png")
+                    image.save(img_path)
                     data_paths.append(img_path)
                     print(f"    Path: {img_path}")
 
@@ -2688,6 +2696,12 @@ def main():
         mode=args.mode,
         tinker_checkpoint=args.tinker_checkpoint,
         tinker_lora_rank=args.tinker_lora_rank,
+        output_size_config=OutputSizeConfig(
+            fixed_percentage=0.25,
+            apply_to_tabular=True,
+            apply_to_text=True,
+            apply_to_vision=False,
+        ),
     )
 
     # Run pipeline

@@ -128,6 +128,7 @@ class Q10Evaluator(MultiInstanceEvaluator):
             metric_formula=self.metric_formula,
             details={
                 "soft_score": score,
+                "size_score": score,
                 "correct_features": correct_features,
                 "wrong_features": wrong_features,
                 "similarity": similarity,

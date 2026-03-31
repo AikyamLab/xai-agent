@@ -128,6 +128,7 @@ class Q4Evaluator(MultiInstanceEvaluator):
             metric_formula=self.metric_formula,
             details={
                 "soft_score": score,
+                "size_score": score,
                 "features_a": features_a,
                 "features_b": features_b,
                 "similarity": similarity,
