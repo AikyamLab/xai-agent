@@ -208,12 +208,12 @@ Provide your strategy as a JSON object:
 """
         elif self.modality == "text":
             output_format_block = '''"input_A": {
-            "spans": [{"start_index": int, "end_index": int}]
+            "text_spans": ["exact phrase from instance A text"]
         },
         "input_B": {
-            "spans": [{"start_index": int, "end_index": int}]
+            "text_spans": ["exact phrase from instance B text"]
         }'''
-            critical_reqs = """- For text: spans as a list of {start_index, end_index} character positions (one or more spans) for each instance
+            critical_reqs = """- For text: text_spans as a list of exact phrase strings copied verbatim from each instance's text (one or more phrases per instance)
 """
         else:
             output_format_block = '''"input_A": {

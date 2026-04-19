@@ -440,25 +440,33 @@ class Q6Evaluator(BaseEvaluator):
                 )
                 if modified is not None:
                     # Direct feature-set bypasses masker.mask(), so save explicitly
-                    masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
+                    masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
                     masker.save_from_kwargs(modified, **mask_kwargs)
                     return modified
             # Fallback: mean-fill
-            masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'))
+            masker = get_masker(self.modality, MaskingStrategy.GRAY, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
             return masker.mask(original_input, region, **mask_kwargs)
 
     def _replace_text_span(self, original_input, region, new_value: str):
-        """Replace text[start:end] with new_value, handling plain text and NLI dicts."""
-        start = region.get('start_index', 0)
-        end = region.get('end_index', 0)
+        """Replace all occurrences of span_text with new_value (case-insensitive).
+
+        For NLI dict inputs the span may live in either premise or hypothesis;
+        try premise first and fall back to hypothesis if the span isn't found there.
+        """
+        import re as _re
+        span_text = region.get('span_text', '')
+        if not span_text:
+            return original_input
         if isinstance(original_input, dict) and 'premise' in original_input:
-            text = original_input['premise']
-            new_text = text[:start] + new_value + text[end:]
             result = original_input.copy()
-            result['premise'] = new_text
+            pat = _re.compile(_re.escape(span_text), _re.IGNORECASE)
+            if pat.search(original_input['premise']):
+                result['premise'] = pat.sub(new_value, original_input['premise'])
+            elif 'hypothesis' in original_input and pat.search(original_input['hypothesis']):
+                result['hypothesis'] = pat.sub(new_value, original_input['hypothesis'])
             return result
         elif isinstance(original_input, str):
-            return original_input[:start] + new_value + original_input[end:]
+            return _re.sub(_re.escape(span_text), new_value, original_input, flags=_re.IGNORECASE)
         # Unknown text format — return unchanged
         return original_input
 
@@ -565,22 +573,29 @@ class Q6Evaluator(BaseEvaluator):
         return None
 
     def _validate_change_plan_region(self, region: Dict, original_input, **kwargs) -> str:
-        """Validate a Q6 change_plan region (uses legacy single-key/span format).
+        """Validate a Q6 change_plan region.
         Returns error string if bad agent output, empty string if OK.
         """
         if self.modality == "vision":
             # Same format as standard — delegate
             return self.validate_region(region, original_input, **kwargs)
         elif self.modality == "text":
-            s = region.get('start_index')
-            e = region.get('end_index')
-            if s is None or e is None:
-                return "Missing start_index/end_index in change_plan"
-            if s < 0 or s >= e:
-                return f"Invalid text span [{s},{e}) in change_plan"
-            text_len = self._get_text_len(original_input)
-            if text_len > 0 and e > text_len:
-                return f"Span [{s},{e}) exceeds text length {text_len}"
+            span_text = region.get('span_text')
+            if not span_text:
+                return "Missing span_text in change_plan"
+            if not isinstance(span_text, str) or not span_text.strip():
+                return f"span_text is empty or not a string: {span_text!r}"
+            # Validate span exists in original text (premise + hypothesis + text)
+            if isinstance(original_input, str):
+                text = original_input
+            elif isinstance(original_input, dict):
+                text = (original_input.get('text', '')
+                        + ' ' + original_input.get('premise', '')
+                        + ' ' + original_input.get('hypothesis', ''))
+            else:
+                text = ""
+            if text and span_text.lower() not in text.lower():
+                return f"span_text {span_text!r} not found in original text (hallucinated)"
             return ""
         else:  # tabular
             key = region.get('feature_key')
@@ -628,9 +643,8 @@ class Q6Evaluator(BaseEvaluator):
             bbox = change_plan.get('bounding_box')
             return {"bounding_box": bbox} if bbox else None
         elif self.modality == "text":
-            start = change_plan.get('start_index')
-            end = change_plan.get('end_index')
-            return {"start_index": start, "end_index": end} if start is not None else None
+            span_text = change_plan.get('span_text')
+            return {"span_text": span_text} if span_text else None
         else:
             key = change_plan.get('feature_key')
             return {"feature_key": key} if key else None

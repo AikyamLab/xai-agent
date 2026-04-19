@@ -4,6 +4,7 @@ Base Evaluator classes for XAI Agent Framework
 Defines the abstract interface for explanation faithfulness evaluation.
 """
 
+import html as _html_module
 import inspect
 import re
 from abc import ABC, abstractmethod
@@ -75,6 +76,38 @@ class BaseEvaluator(ABC):
         'unknown', 'cannot', "can't", "n/a", 'none', 'not available',
         'refuse', "i don't", "i can't", 'unsure', 'unclear'
     })
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        """Normalize typographic/encoding variants so span matching is robust.
+
+        Applied to both the span and the source text before any comparison so
+        that all existing fallbacks also benefit.  Only converts losslessly
+        equivalent characters; will not introduce false positives.
+
+        Handles:
+          - HTML entities: &amp; &#39; &quot; &nbsp; …
+          - Smart/curly quotes → straight: \u201c\u201d → " , \u2018\u2019 → '
+          - Em/en dash → hyphen: \u2014\u2013 → -
+          - Ellipsis character → three dots: \u2026 → ...
+          - Non-breaking space → regular space: \u00a0 → space
+          - Zero-width chars removed: \u200b \ufeff
+        """
+        # HTML entities first (may produce quote/amp/etc that we then normalise)
+        text = _html_module.unescape(text)
+        # Curly/smart quotes → straight
+        text = text.replace('\u2018', "'").replace('\u2019', "'")
+        text = text.replace('\u201c', '"').replace('\u201d', '"')
+        text = text.replace('\u2032', "'")   # prime ′
+        # Dashes
+        text = text.replace('\u2014', '-').replace('\u2013', '-')
+        # Ellipsis
+        text = text.replace('\u2026', '...')
+        # Non-breaking space
+        text = text.replace('\u00a0', ' ')
+        # Zero-width chars
+        text = text.replace('\u200b', '').replace('\ufeff', '')
+        return text
 
     def __init__(self, modality: str = "vision", size_lambda: float = 0.0):
         """
@@ -177,28 +210,48 @@ class BaseEvaluator(ABC):
                 return region_area / image_area if image_area > 0 else 0.0
 
             elif self.modality == "text":
-                # Determine text length
+                # Determine text
                 if isinstance(original_input, dict) and 'premise' in original_input:
-                    text_len = len(original_input['premise'])
+                    text = original_input['premise']
                 elif isinstance(original_input, str):
-                    text_len = len(original_input)
-                elif isinstance(original_input, (list, tuple)):
-                    text_len = len(original_input)
+                    text = original_input
                 else:
                     return 0.0
-                # Multi-span format
-                spans = region.get("spans")
-                if spans and isinstance(spans, list):
+                text_len = len(text)
+                if text_len == 0:
+                    return 0.0
+                text_lower = text.lower()
+                # Count characters covered by all occurrences of each text_span
+                text_spans = region.get("text_spans")
+                span_text = region.get("span_text")  # Q6 single-span
+                if text_spans or span_text:
+                    spans_list = text_spans if text_spans else ([span_text] if span_text else [])
+                    masked_chars = 0
+                    for span in spans_list:
+                        if not isinstance(span, str) or not span:
+                            continue
+                        span_lower = span.lower()
+                        span_len = len(span)
+                        idx = 0
+                        while True:
+                            pos = text_lower.find(span_lower, idx)
+                            if pos == -1:
+                                break
+                            masked_chars += span_len
+                            idx = pos + span_len
+                    return min(1.0, masked_chars / text_len)
+                # Legacy index-based spans (used by Q5/Q7 internal regions)
+                legacy_spans = region.get("spans")
+                if legacy_spans and isinstance(legacy_spans, list):
                     total_len = sum(
                         max(0, s.get("end_index", 0) - s.get("start_index", 0))
-                        for s in spans
+                        for s in legacy_spans
                     )
-                    return min(1.0, total_len / text_len) if text_len > 0 else 0.0
-                # Legacy single-span
+                    return min(1.0, total_len / text_len)
                 start = region.get("start_index", 0)
                 end = region.get("end_index", 0)
                 span_len = max(0, end - start)
-                return span_len / text_len if text_len > 0 else 0.0
+                return span_len / text_len
 
             elif self.modality == "tabular":
                 if isinstance(original_input, dict):
@@ -237,15 +290,9 @@ class BaseEvaluator(ABC):
             if bbox:
                 return {"bounding_box": bbox}
         elif self.modality == "text":
-            # New multi-span format
-            spans = output_data.get("spans")
-            if spans and isinstance(spans, list):
-                return {"spans": spans}
-            # Legacy single-span format
-            start = output_data.get("start_index")
-            end = output_data.get("end_index")
-            if start is not None and end is not None:
-                return {"spans": [{"start_index": start, "end_index": end}]}
+            text_spans = output_data.get("text_spans")
+            if text_spans and isinstance(text_spans, list):
+                return {"text_spans": text_spans}
         elif self.modality == "tabular":
             # New multi-key format
             keys = output_data.get("feature_keys")
@@ -283,15 +330,21 @@ class BaseEvaluator(ABC):
             if isinstance(input_data, dict) and 'premise' in input_data and 'hypothesis' in input_data:
                 if processor is None:
                     raise ValueError("Processor (tokenizer) required for NLI text input")
-                premise_ids = processor(input_data['premise'])
-                hypothesis_ids = processor(input_data['hypothesis'])
-                premise_tensor = torch.tensor([premise_ids], dtype=torch.long).to(device)
-                hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
                 n_forward_params = len(inspect.signature(model.forward).parameters)
                 if n_forward_params >= 2:
+                    # Dual-input model (e.g. CNN_SNLI): tokenize premise and hypothesis separately
+                    premise_ids = processor(input_data['premise'])
+                    hypothesis_ids = processor(input_data['hypothesis'])
+                    premise_tensor = torch.tensor([premise_ids], dtype=torch.long).to(device)
+                    hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
                     outputs = model(premise_tensor, hypothesis_tensor)
                 else:
-                    outputs = model(torch.cat([premise_tensor, hypothesis_tensor], dim=1))
+                    # Single-input model (e.g. TwoLayerNN_SNLI): tokenize as combined sequence
+                    # trained on raw concatenation without "Premise:"/"Hypothesis:" prefix labels
+                    combined = f"{input_data['premise']} {input_data['hypothesis']}"
+                    combined_ids = processor(combined)
+                    input_tensor = torch.tensor([combined_ids], dtype=torch.long).to(device)
+                    outputs = model(input_tensor)
             else:
                 # If input is already a tensor, use directly (skip processor)
                 # This handles tabular data where features are pre-processed tensors
@@ -414,21 +467,96 @@ class BaseEvaluator(ABC):
             return ""
 
         elif self.modality == "text":
-            spans = region.get("spans")
-            if not spans:
-                return "Empty or missing spans in agent response"
-            if not isinstance(spans, list):
-                return f"'spans' is not a list: {spans}"
-            text_len = self._get_text_len(original_input)
-            for sp in spans:
-                if not isinstance(sp, dict):
-                    return f"Span entry is not a dict: {sp}"
-                s = sp.get('start_index', 0)
-                e = sp.get('end_index', 0)
-                if s < 0 or s >= e:
-                    return f"Invalid span [{s},{e}) — start must be >= 0 and < end"
-                if text_len > 0 and e > text_len:
-                    return f"Span [{s},{e}) exceeds text length {text_len}"
+            text_spans = region.get("text_spans")
+            span_text = region.get("span_text")  # Q6 single-span format
+            if not text_spans and not span_text:
+                return "Empty or missing text_spans in agent response"
+            spans_to_check = text_spans if text_spans else [span_text]
+            if not isinstance(spans_to_check, list):
+                return f"'text_spans' is not a list: {spans_to_check}"
+            # Get actual text for hallucination check
+            if isinstance(original_input, str):
+                actual_text = original_input
+            elif isinstance(original_input, dict):
+                actual_text = (original_input.get('premise', '')
+                               + original_input.get('hypothesis', '')
+                               + original_input.get('text', ''))
+            else:
+                actual_text = ""
+            # Pre-normalize both sides for all comparisons below.
+            # _normalize_text is lossless (encoding variants only), so applying
+            # it upfront cannot introduce false positives and means every
+            # subsequent fallback automatically handles HTML entities, curly
+            # quotes, em-dashes, ellipsis chars, non-breaking spaces, etc.
+            actual_text_low = self._normalize_text(actual_text.lower())
+            for span in spans_to_check:
+                if not isinstance(span, str) or not span.strip():
+                    return f"text_span entry is not a non-empty string: {span!r}"
+                span_low = self._normalize_text(span.lower())
+                if any(m in span_low for m in self._REFUSAL_MARKERS):
+                    return f"Refusal/unknown marker in text_span: {span!r}"
+                if actual_text:
+                    # Exact match first
+                    found = span_low in actual_text_low
+                    if not found:
+                        # Whitespace-flexible fallback: spaces in the span may correspond
+                        # to no whitespace in the source (e.g. HTML artefacts like
+                        # `"Title"word` vs agent output `"Title" word`).
+                        tokens = re.split(r'\s+', span_low.strip())
+                        pattern = r'\s*'.join(re.escape(t) for t in tokens if t)
+                        try:
+                            found = bool(re.search(pattern, actual_text_low))
+                        except re.error:
+                            found = False
+                    if not found:
+                        # Contraction-expansion fallback: agents sometimes expand
+                        # contractions (e.g. "isn't" → "not", because "is not" ⊇ "not").
+                        # Normalise n't / n\u2019t → " not" in both strings before retrying.
+                        _nt = re.compile(r"n['\u2019]t\b", re.IGNORECASE)
+                        exp_text = _nt.sub(" not", actual_text_low)
+                        exp_span = _nt.sub(" not", span_low)
+                        found = exp_span in exp_text
+                        if not found:
+                            # Also try whitespace-flexible on expanded strings
+                            tokens2 = re.split(r'\s+', exp_span.strip())
+                            pattern2 = r'\s*'.join(re.escape(t) for t in tokens2 if t)
+                            try:
+                                found = bool(re.search(pattern2, exp_text))
+                            except re.error:
+                                found = False
+                    if not found:
+                        # Trailing-punctuation fallback: agents sometimes truncate a
+                        # sentence and append a terminal period (e.g. the original has
+                        # "memory, as anyone…" but the span ends with "memory.").
+                        span_stripped = re.sub(r'[.!?]+$', '', span_low).strip()
+                        if span_stripped and span_stripped in actual_text_low:
+                            found = True
+                        if not found and span_stripped:
+                            # whitespace-flexible on stripped span
+                            tokens3 = re.split(r'\s+', span_stripped)
+                            pattern3 = r'\s*'.join(re.escape(t) for t in tokens3 if t)
+                            try:
+                                found = bool(re.search(pattern3, actual_text_low))
+                            except re.error:
+                                found = False
+                    if not found:
+                        # Leading/trailing punctuation fallback: strip all
+                        # non-alphanumeric characters from both ends of the span
+                        # (agents may add wrapping quotes, parentheses, leading
+                        # commas, trailing colons, etc.).  Internal punctuation
+                        # and spaces are preserved so the core phrase still matches.
+                        span_depunct = re.sub(r'^[^a-z0-9]+|[^a-z0-9]+$', '', span_low)
+                        if span_depunct and span_depunct != span_low:
+                            found = span_depunct in actual_text_low
+                            if not found:
+                                tokens4 = re.split(r'\s+', span_depunct.strip())
+                                pattern4 = r'\s*'.join(re.escape(t) for t in tokens4 if t)
+                                try:
+                                    found = bool(re.search(pattern4, actual_text_low))
+                                except re.error:
+                                    found = False
+                    if not found:
+                        return f"text_span {span!r} not found in original text (hallucinated)"
             return ""
 
         else:  # tabular

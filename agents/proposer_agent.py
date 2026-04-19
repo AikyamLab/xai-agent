@@ -566,8 +566,10 @@ class ProposerAgent(BaseAgent):
             dataset_name = dataset_base_name
             q_type_str = f"q{question.get('q_type', 1)}"
 
-        # Format: /strategies/{modality}/{dataset_name}/{q_type}/{question_id}/strategy.json
-        filename = f"strategy{suffix}" if suffix else "strategy"
+        # Format: /strategies/{modality}/{dataset_name}/{q_type}/{question_id}/strategy_r{rollout_id}.json
+        rollout_id = question.get('rollout_id')
+        rollout_pfx = f"_r{rollout_id}" if rollout_id is not None else ""
+        filename = f"strategy{rollout_pfx}{suffix}" if (rollout_pfx or suffix) else "strategy"
         subdir = f"strategies/{modality}/{dataset_name}/{q_type_str}/{row_no}"
         filepath = self.save_json(strategy, filename, subdir)
         print(f"Strategy saved to: {filepath}")
@@ -788,9 +790,16 @@ Generate a new strategy in the same JSON format as before.
         context["instance_A"] = instance_a
         context["instance_B"] = instance_b
 
-        # Add image descriptions
-        context["image_description_A"] = f"Image at index {instance_a.get('features', {}).get('image_index', 'unknown')}"
-        context["image_description_B"] = f"Image at index {instance_b.get('features', {}).get('image_index', 'unknown')}"
+        # Add modality-appropriate descriptions
+        if modality == 'vision':
+            context["image_description_A"] = f"Image at index {instance_a.get('features', {}).get('image_index', 'unknown')}"
+            context["image_description_B"] = f"Image at index {instance_b.get('features', {}).get('image_index', 'unknown')}"
+        elif modality == 'text':
+            context["text_description_A"] = str(instance_a.get('features', instance_a))
+            context["text_description_B"] = str(instance_b.get('features', instance_b))
+        else:  # tabular
+            context["data_description_A"] = str(instance_a.get('features', instance_a))
+            context["data_description_B"] = str(instance_b.get('features', instance_b))
 
         return context
 

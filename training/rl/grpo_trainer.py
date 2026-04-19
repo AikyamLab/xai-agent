@@ -670,23 +670,30 @@ class GRPOTrainer:
         name = f"checkpoint_{tag}"
         try:
             if hasattr(self.training_client, "save_state_async"):
-                result = await self.training_client.save_state_async(name)
+                future = await self.training_client.save_state_async(name)
+                # save_state_async returns an AwaitableConcurrentFuture — resolve it
+                if hasattr(future, "result_async"):
+                    result = await future.result_async()
+                elif hasattr(future, "result") and callable(future.result):
+                    result = future.result()
+                else:
+                    result = future
             else:
                 result = self.training_client.save_state(name).result()
 
-            tinker_path = (getattr(result, "tinker_path", None)
-                           or getattr(result, "path", None)
-                           or name)
+            # SaveWeightsResponse.path holds the full URI:
+            # e.g. tinker://UUID:train:0/weights/checkpoint_name
+            tinker_path = getattr(result, "path", None) or name
             ckpt_type   = getattr(result, "type", None)
             print(f"  Checkpoint saved: {name}  →  {tinker_path}")
 
             self._write_log({
-                "type":         "checkpoint",
-                "step":         self._step,
-                "tag":          tag,
-                "name":         name,
-                "tinker_path":  tinker_path,
-                "ckpt_type":    str(ckpt_type) if ckpt_type else None,
+                "type":        "checkpoint",
+                "step":        self._step,
+                "tag":         tag,
+                "name":        name,
+                "tinker_path": tinker_path,
+                "ckpt_type":   str(ckpt_type) if ckpt_type else None,
             })
 
         except Exception as e:

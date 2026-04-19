@@ -165,8 +165,7 @@ Provide your strategy as a JSON object:
         elif self.modality == "text":
             output_format = '''"change_plan": [
             {
-                "start_index": int,
-                "end_index": int,
+                "span_text": "exact phrase to change copied verbatim from input text",
                 "action": "change",
                 "new_value": "replacement text"
             }
@@ -246,7 +245,7 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
 - For vision: identify region to modify and provide new_value as a Stable Diffusion inpainting prompt
   - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
-- For text: change_plan is a list; each entry has start_index, end_index, action, new_value
+- For text: change_plan is a list; each entry has span_text (exact phrase from input), action, new_value
 - For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format{output_size_constraint}
 - The change should be MINIMAL but sufficient to flip prediction
 

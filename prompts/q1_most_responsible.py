@@ -199,7 +199,7 @@ Identify the MOST RESPONSIBLE part that caused this prediction.
 
 **Critical Requirements:**
 - For vision: bounding_box as [x_min, y_min, x_max, y_max] in pixels{vision_bbox_instruction}
-- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For text: text_spans as a list of exact phrase strings copied verbatim from the input text (one or more phrases)
 - For tabular: feature_keys as a list of column names{output_size_constraint}
 - Base your decision on the attribution analysis
 

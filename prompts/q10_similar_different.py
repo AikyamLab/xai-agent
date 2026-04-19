@@ -198,10 +198,10 @@ Provide your strategy as a JSON object:
         "wrong_instance_features": "concise feature phrase for wrong prediction (e.g. 'blurred edges and noisy background')"'''
         elif self.modality == "text":
             output_format = '''"correct_instance_features": {
-            "spans": [{"start_index": int, "end_index": int}]
+            "text_spans": ["exact phrase from correct instance text"]
         },
         "wrong_instance_features": {
-            "spans": [{"start_index": int, "end_index": int}]
+            "text_spans": ["exact phrase from wrong instance text"]
         }'''
         else:
             output_format = '''"correct_instance_features": {
@@ -262,7 +262,7 @@ The goal is to find DISTINCT features.
 - For vision: Output a SHORT feature phrase (e.g. "dog's fur and face", "blurred edges and noisy background")
   - Do NOT write full sentences — only name the concrete visual features/objects/patterns
   - The two feature phrases should use DISTINCT words — minimize overlap
-- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans) for each instance; the two span lists should cover DIFFERENT parts
+- For text: text_spans as a list of exact phrase strings copied verbatim from each instance's text; the two phrase lists should cover DIFFERENT content
 - For tabular: feature_keys as a list of column names for each instance, using exact column names; the two lists should be DIFFERENT{output_size_constraint}
 - Explain what makes one succeed and the other fail
 

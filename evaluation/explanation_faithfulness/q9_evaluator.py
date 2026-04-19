@@ -140,7 +140,7 @@ class Q9Evaluator(MultiInstanceEvaluator):
                 # Mask and get new prediction (use GRAY for neutral masking)
                 # Use instance suffix for multi-instance saving (e.g., _A, _B, _C...)
                 instance_suffix = f"_{chr(ord('A') + i)}"
-                masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
+                masker = get_masker(self.modality, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
                 # For multi-instance Q9, original_features may be a list; pick per-instance
                 raw_orig = kwargs.get('original_features', {})
                 per_inst_orig = raw_orig[i] if isinstance(raw_orig, list) and i < len(raw_orig) else raw_orig
@@ -239,15 +239,9 @@ class Q9Evaluator(MultiInstanceEvaluator):
             bbox = instance_data.get('bounding_box')
             return {"bounding_box": bbox} if bbox else None
         elif self.modality == "text":
-            # New multi-span format
-            spans = instance_data.get('spans')
-            if spans and isinstance(spans, list):
-                return {"spans": spans}
-            # Legacy single-span
-            start = instance_data.get('start_index')
-            end = instance_data.get('end_index')
-            if start is not None and end is not None:
-                return {"spans": [{"start_index": start, "end_index": end}]}
+            text_spans = instance_data.get('text_spans')
+            if text_spans and isinstance(text_spans, list):
+                return {"text_spans": text_spans}
             return None
         else:
             # New multi-key format

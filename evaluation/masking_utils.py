@@ -72,7 +72,7 @@ def get_masking_output_dir() -> Path:
 
 class FeatureMeanCache:
     """
-    Cache for storing computed feature means from datasets.
+    Cache for storing computed feature means/modes from datasets.
     Persists to disk to avoid recomputation across sessions.
     """
 
@@ -82,7 +82,9 @@ class FeatureMeanCache:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.cache_dir / "feature_means.json"
+        self._mode_cache_file = self.cache_dir / "feature_modes.json"
         self._cache: Dict[str, Dict[str, float]] = {}
+        self._mode_cache: Dict[str, Dict[str, Any]] = {}
         self._load_cache()
 
     def _load_cache(self):
@@ -95,6 +97,13 @@ class FeatureMeanCache:
             except Exception as e:
                 print(f"[FeatureMeanCache] Warning: Could not load cache: {e}")
                 self._cache = {}
+        if self._mode_cache_file.exists():
+            try:
+                with open(self._mode_cache_file, 'r') as f:
+                    self._mode_cache = json.load(f)
+            except Exception as e:
+                print(f"[FeatureMeanCache] Warning: Could not load mode cache: {e}")
+                self._mode_cache = {}
 
     def _save_cache(self):
         """Save cache to disk"""
@@ -103,6 +112,14 @@ class FeatureMeanCache:
                 json.dump(self._cache, f, indent=2)
         except Exception as e:
             print(f"[FeatureMeanCache] Warning: Could not save cache: {e}")
+
+    def _save_mode_cache(self):
+        """Save mode cache to disk"""
+        try:
+            with open(self._mode_cache_file, 'w') as f:
+                json.dump(self._mode_cache, f, indent=2)
+        except Exception as e:
+            print(f"[FeatureMeanCache] Warning: Could not save mode cache: {e}")
 
     def get_mean(self, dataset_path: str, feature_key: str) -> Optional[float]:
         """Get cached mean value for a feature in a dataset"""
@@ -165,6 +182,63 @@ class FeatureMeanCache:
         except Exception as e:
             print(f"[FeatureMeanCache] Error computing mean: {e}, using 0.0")
             return 0.0
+
+    def compute_and_cache_mode(self, dataset_path: str, feature_key: str) -> Any:
+        """
+        Compute mode (most frequent value) for a feature from dataset file and cache it.
+        Returns the raw value (string for categorical, float for numeric).
+        Supports CSV and JSON formats.
+        """
+        dataset_key = str(Path(dataset_path).resolve())
+        if dataset_key in self._mode_cache and feature_key in self._mode_cache[dataset_key]:
+            mode_val = self._mode_cache[dataset_key][feature_key]
+            print(f"[FeatureMeanCache] Using cached mode for {feature_key}: {mode_val!r}")
+            return mode_val
+
+        dataset_path_obj = Path(dataset_path)
+        if not dataset_path_obj.exists():
+            print(f"[FeatureMeanCache] Warning: Dataset not found: {dataset_path_obj}, using None for mode")
+            return None
+
+        try:
+            if dataset_path_obj.suffix.lower() == '.csv':
+                import pandas as pd
+                df = pd.read_csv(dataset_path_obj)
+                if feature_key in df.columns:
+                    mode_series = df[feature_key].mode()
+                    mode_val = mode_series.iloc[0] if len(mode_series) > 0 else None
+                    # Convert numpy types to native Python for JSON serialisation
+                    if hasattr(mode_val, 'item'):
+                        mode_val = mode_val.item()
+                else:
+                    print(f"[FeatureMeanCache] Warning: Feature {feature_key} not in dataset, mode=None")
+                    mode_val = None
+            elif dataset_path_obj.suffix.lower() == '.json':
+                with open(dataset_path_obj, 'r') as f:
+                    data = json.load(f)
+                if isinstance(data, list):
+                    values = [item[feature_key] for item in data if feature_key in item]
+                    if values:
+                        from collections import Counter
+                        mode_val = Counter(values).most_common(1)[0][0]
+                    else:
+                        mode_val = None
+                else:
+                    mode_val = None
+            else:
+                print(f"[FeatureMeanCache] Warning: Unsupported format {dataset_path_obj.suffix}, mode=None")
+                mode_val = None
+
+            if dataset_key not in self._mode_cache:
+                self._mode_cache[dataset_key] = {}
+            self._mode_cache[dataset_key][feature_key] = mode_val
+            self._save_mode_cache()
+            print(f"[FeatureMeanCache] Cached mode for {feature_key}: {mode_val!r}")
+            return mode_val
+
+        except Exception as e:
+            print(f"[FeatureMeanCache] Error computing mode: {e}, using None")
+            return None
 
 
 # Global cache instance
@@ -575,7 +649,35 @@ class TextMasker(BaseMasker):
         self.mask_token = mask_token
 
     def _apply_mask(self, input_data: Any, region: Dict[str, Any], **kwargs) -> Any:
-        # Handle multi-span format: {"spans": [{start_index, end_index}, ...]}
+        # Handle new text_spans format: {"text_spans": ["phrase1", "phrase2"]}
+        if "text_spans" in region:
+            spans = region["text_spans"]
+            if isinstance(input_data, dict) and 'premise' in input_data:
+                text = input_data['premise']
+                text = self._mask_text_spans(text, spans, **kwargs)
+                result = input_data.copy()
+                result['premise'] = text
+                return result
+            return self._mask_text_spans(input_data, spans, **kwargs)
+
+        # Handle Q6 single-span format: {"span_text": "phrase"}
+        if "span_text" in region:
+            span_text = region["span_text"]
+            spans = [span_text] if span_text else []
+            if isinstance(input_data, dict) and 'premise' in input_data:
+                result = input_data.copy()
+                # Try premise first; if the span isn't there, fall back to hypothesis.
+                if span_text and span_text.lower() in input_data['premise'].lower():
+                    result['premise'] = self._mask_text_spans(input_data['premise'], spans, **kwargs)
+                elif span_text and 'hypothesis' in input_data and span_text.lower() in input_data['hypothesis'].lower():
+                    result['hypothesis'] = self._mask_text_spans(input_data['hypothesis'], spans, **kwargs)
+                else:
+                    # Span not found exactly; apply to premise (case-insensitive regex will be a no-op)
+                    result['premise'] = self._mask_text_spans(input_data['premise'], spans, **kwargs)
+                return result
+            return self._mask_text_spans(input_data, spans, **kwargs)
+
+        # Handle legacy spans format: {"spans": [{start_index, end_index}, ...]}
         if "spans" in region:
             spans = region["spans"]
             # Sort descending by start_index so deletions don't shift subsequent indices
@@ -606,8 +708,30 @@ class TextMasker(BaseMasker):
 
         return self._mask_text(input_data, region, **kwargs)
 
+    def _mask_text_spans(self, text: str, spans: List[str], **kwargs) -> str:
+        """Mask all occurrences of each span phrase (case-insensitive)."""
+        if self.strategy == MaskingStrategy.DELETE:
+            replacement = ""
+        elif self.strategy == MaskingStrategy.MASK_TOKEN:
+            replacement = self.mask_token
+        elif self.strategy == MaskingStrategy.ZERO:
+            replacement = None  # computed per span below
+        else:
+            replacement = kwargs.get("replacement", "")
+
+        result = text
+        for span in spans:
+            if not isinstance(span, str) or not span:
+                continue
+            if replacement is None:
+                repl = " " * len(span)
+            else:
+                repl = replacement
+            result = re.sub(re.escape(span), repl, result, flags=re.IGNORECASE)
+        return result
+
     def _mask_text(self, text: str, region: Dict[str, Any], **kwargs) -> str:
-        """Apply masking strategy to a text string."""
+        """Apply masking strategy to a text string using index-based span."""
         start, end = region["start_index"], region["end_index"]
         start = max(0, min(start, len(text)))
         end = max(0, min(end, len(text)))
@@ -653,7 +777,14 @@ class TextMasker(BaseMasker):
         print(f"[Auto-Save] Text output: {save_path}")
 
     def validate_region(self, region: Dict[str, Any]) -> bool:
-        # Accept multi-span format
+        # Accept new text_spans format
+        if "text_spans" in region:
+            spans = region["text_spans"]
+            return isinstance(spans, list) and len(spans) > 0 and any(isinstance(s, str) and s for s in spans)
+        # Accept Q6 single-span format
+        if "span_text" in region:
+            return isinstance(region["span_text"], str) and bool(region["span_text"])
+        # Accept legacy spans format
         if "spans" in region:
             spans = region["spans"]
             return isinstance(spans, list) and len(spans) > 0
@@ -683,9 +814,11 @@ class TabularMasker(BaseMasker):
         feature_means: Optional[Dict[str, float]] = None,
         dataset_path: Optional[str] = None,
         preprocessor: Optional[Any] = None,
+        feature_modes: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(strategy)
         self.feature_means = feature_means or {}
+        self.feature_modes = feature_modes or {}
         self.dataset_path = dataset_path
         self.preprocessor = preprocessor
         self._mean_cache = get_feature_mean_cache()
@@ -738,9 +871,13 @@ class TabularMasker(BaseMasker):
                 data[feature_key] = 0
 
             elif effective_strategy == MaskingStrategy.MEAN:
-                # Try to get mean from cache or compute from dataset
-                mean_value = self._get_feature_mean(feature_key, dataset_path, kwargs)
-                data[feature_key] = mean_value
+                # For categorical (string) features use mode; for numeric use mean
+                if isinstance(data[feature_key], str):
+                    mode_value = self._get_feature_mode(feature_key, dataset_path, kwargs)
+                    data[feature_key] = mode_value if mode_value is not None else data[feature_key]
+                else:
+                    mean_value = self._get_feature_mean(feature_key, dataset_path, kwargs)
+                    data[feature_key] = mean_value
 
             elif effective_strategy == MaskingStrategy.DELETE:
                 del data[feature_key]
@@ -807,6 +944,7 @@ class TabularMasker(BaseMasker):
                                 base_matches = [
                                     (i, n) for i, n in enumerate(feature_names)
                                     if fk_try.startswith(n + '_') or fk_try.startswith(n + '-')
+                                    or fk_try.startswith(n + ' ')
                                 ]
                                 if base_matches:
                                     break
@@ -833,11 +971,21 @@ class TabularMasker(BaseMasker):
                     )
 
             if effective_strategy == MaskingStrategy.ZERO:
+                # For a single numeric column: set to the standardized equivalent of
+                # original-scale 0, i.e. (0 - mean) / scale = -mean / scale.
+                # For one-hot siblings (categorical): 0 in encoded space is already correct.
+                if len(col_indices) == 1:
+                    zero_val = self._get_standardized_zero(feature_key)
+                else:
+                    zero_val = 0.0
                 for ci in col_indices:
                     if data.ndim == 2:
-                        data[:, ci] = 0
+                        data[:, ci] = zero_val
                     else:
-                        data[ci] = 0
+                        if is_tensor:
+                            data[ci] = torch.tensor(zero_val, dtype=data.dtype)
+                        else:
+                            data[ci] = zero_val
 
             elif effective_strategy == MaskingStrategy.MEAN:
                 dataset_path = kwargs.get("dataset_path", self.dataset_path)
@@ -890,9 +1038,52 @@ class TabularMasker(BaseMasker):
         if dataset_path:
             return self._mean_cache.compute_and_cache_mean(dataset_path, feature_key)
 
-        # Fallback: 0
+        # Priority 4: If preprocessor is a plain StandardScaler, the scaled mean is
+        # exactly 0.0 by construction — no warning needed.
+        try:
+            from sklearn.preprocessing import StandardScaler
+            if isinstance(self.preprocessor, StandardScaler):
+                return 0.0
+        except ImportError:
+            pass
+
+        # Fallback: 0 (warn only when we truly have no information)
         print(f"[TabularMasker] Warning: No mean available for {feature_key}, using 0.0")
         return 0.0
+
+    def _get_standardized_zero(self, feature_key: str) -> float:
+        """Return the standardized value corresponding to original-scale 0 for a numeric feature.
+        For StandardScaler: standardized_zero = (0 - mean) / scale = -mean / scale.
+        Returns 0.0 if preprocessor is unavailable (falls back to encoded-space zero)."""
+        preprocessor = self.preprocessor
+        if preprocessor is None:
+            return 0.0
+        try:
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.compose import ColumnTransformer
+            if isinstance(preprocessor, ColumnTransformer):
+                for _, transformer, cols in preprocessor.transformers_:
+                    cols_list = list(cols)
+                    if isinstance(transformer, StandardScaler) and feature_key in cols_list:
+                        idx = cols_list.index(feature_key)
+                        mean = transformer.mean_[idx]
+                        scale = transformer.scale_[idx]
+                        return float(-mean / scale)
+            elif isinstance(preprocessor, StandardScaler):
+                if feature_key in getattr(preprocessor, 'feature_names_in_', []):
+                    idx = list(preprocessor.feature_names_in_).index(feature_key)
+                    return float(-preprocessor.mean_[idx] / preprocessor.scale_[idx])
+        except Exception:
+            pass
+        return 0.0
+
+    def _get_feature_mode(self, feature_key: str, dataset_path: Optional[str], kwargs: Dict) -> Any:
+        """Get feature mode (most frequent value) from pre-computed dict, cache, or dataset file"""
+        if feature_key in self.feature_modes:
+            return self.feature_modes[feature_key]
+        if dataset_path:
+            return self._mean_cache.compute_and_cache_mode(dataset_path, feature_key)
+        return None
 
     def _get_original_scale_mean(self, feature_key: str, feature_names: list) -> Optional[float]:
         """Get the training mean for a feature in original (pre-standardization) scale."""
@@ -940,11 +1131,29 @@ class TabularMasker(BaseMasker):
 
             if original_features:
                 # Build human-readable dict from original-scale features, replacing
-                # masked features with their training mean in original scale.
+                # masked features with their training mean (numeric) or mode (categorical).
                 readable_dict = dict(original_features)
                 for key in masked_keys:
-                    mean_val = self._get_original_scale_mean(key, feature_names)
-                    readable_dict[key] = round(mean_val, 4) if mean_val is not None else None
+                    orig_val = original_features.get(key)
+                    if isinstance(orig_val, str):
+                        # Categorical feature: use pre-computed mode dict
+                        if key not in self.feature_modes:
+                            raise RuntimeError(
+                                f"[TabularMasker] Cannot compute mode for categorical feature '{key}': "
+                                f"feature_modes dict not set on masker. Pass feature_modes to get_masker()."
+                            )
+                        readable_dict[key] = self.feature_modes[key]
+                    else:
+                        if self.strategy == MaskingStrategy.ZERO:
+                            readable_dict[key] = 0
+                        else:
+                            mean_val = self._get_original_scale_mean(key, feature_names)
+                            if mean_val is None:
+                                raise RuntimeError(
+                                    f"[TabularMasker] Cannot get original-scale mean for numeric feature '{key}'. "
+                                    f"Ensure preprocessor is set on the masker."
+                                )
+                            readable_dict[key] = round(mean_val, 4)
                 # Apply Q6-style direct changes (raw new values, not mean-fill).
                 changed_features = getattr(self, '_current_changed_features', {})
                 for key, val in changed_features.items():
@@ -1024,7 +1233,8 @@ def get_masker(
         feature_means = kwargs.get("feature_means")
         dataset_path = kwargs.get("dataset_path")
         preprocessor = kwargs.get("preprocessor")
-        return TabularMasker(strategy, feature_means, dataset_path, preprocessor)
+        feature_modes = kwargs.get("feature_modes")
+        return TabularMasker(strategy, feature_means, dataset_path, preprocessor, feature_modes)
 
     else:
         raise ValueError(f"Unsupported modality: {modality}")

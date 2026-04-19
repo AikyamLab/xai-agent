@@ -1,3 +1,4 @@
+import threading
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +9,9 @@ from collections import Counter
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+_vocab_lock = threading.Lock()
+_vocab_built = False
 VOCAB_SIZE = 20002
 EMBED_DIM = 300
 NUM_FILTERS = 100
@@ -130,27 +134,32 @@ def load_model(model_path: str, embed_dim: int = EMBED_DIM,
     Returns:
         tuple: A tuple containing the loaded model and a processor (tokenizer function).
     """
-    global global_vocab
+    global global_vocab, _vocab_built
 
-    print("Building vocabulary from SNLI training data...")
-    dataset_snli = load_dataset("snli")
-    dataset_snli = dataset_snli.filter(lambda x: x["label"] != -1)
+    # Read vocab_size from checkpoint to avoid thread-race size mismatch
+    state_dict = torch.load(model_path, map_location="cpu", weights_only=False)
+    actual_vocab_size = state_dict["embedding.weight"].shape[0]
 
-    counter = Counter()
-    for ex in dataset_snli["train"]:
-        counter.update(tokenize(ex["premise"]))
-        counter.update(tokenize(ex["hypothesis"]))
+    # Build vocabulary once (thread-safe); other threads wait and reuse it
+    with _vocab_lock:
+        if not _vocab_built:
+            print("Building vocabulary from SNLI training data...")
+            dataset_snli = load_dataset("snli")
+            dataset_snli = dataset_snli.filter(lambda x: x["label"] != -1)
 
-    global_vocab = {"<pad>": 0, "<unk>": 1}
-    for word, _ in counter.most_common(VOCAB_SIZE - 2):
-        global_vocab[word] = len(global_vocab)
+            counter = Counter()
+            for ex in dataset_snli["train"]:
+                counter.update(tokenize(ex["premise"]))
+                counter.update(tokenize(ex["hypothesis"]))
 
-    actual_vocab_size = len(global_vocab)
-    print(f"Vocabulary built with size: {actual_vocab_size}")
+            global_vocab = {"<pad>": 0, "<unk>": 1}
+            for word, _ in counter.most_common(actual_vocab_size - 2):
+                global_vocab[word] = len(global_vocab)
+
+            _vocab_built = True
+            print(f"Vocabulary built with size: {len(global_vocab)}")
 
     model = CNN_SNLI(actual_vocab_size, embed_dim, num_classes, num_filters, kernel_sizes)
-
-    state_dict = torch.load(model_path, map_location=DEVICE, weights_only=False)
     model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
@@ -266,7 +275,8 @@ def predict(
         "predicted_class_idx": predicted_class,
         "predicted_class_name": LABEL_MAP[predicted_class],
         "confidence": float(confidence),
-        "probabilities": {
+        "probabilities": probabilities.cpu().numpy(),  # array indexed by class_idx (0=entailment, 1=neutral, 2=contradiction)
+        "class_probabilities": {
             "entailment": float(probabilities[0].item()),
             "neutral": float(probabilities[1].item()),
             "contradiction": float(probabilities[2].item())

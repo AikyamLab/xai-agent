@@ -17,19 +17,14 @@ import numpy as np
 # ── Config ────────────────────────────────────────────────────────────────────
 
 RUNS = {
-    "run2 (steps 0-43, OOM)": Path(
+    "run_full_reward": Path(
         "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-        "/checkpoints/grpo_tabular_qwen4b_2/grpo_log.jsonl"
-    ),
-    "run3 (resumed from ckpt-40)": Path(
-        "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-        "/checkpoints/grpo_tabular_qwen4b_3/grpo_log.jsonl"
+        "/checkpoints/grpo_text_qwen30b_full_reward_fromTab_1/grpo_log.jsonl"
     ),
 }
 
 COLORS = {
-    "run2 (steps 0-43, OOM)":        "#E07B39",   # orange
-    "run3 (resumed from ckpt-40)":    "#4C9BE8",   # blue
+    "run_full_reward":        "#E07B39",   # orange
 }
 
 SMOOTH_W = 5   # rolling average window
@@ -37,8 +32,23 @@ SMOOTH_W = 5   # rolling average window
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 
+def _parse_line(line: str):
+    """Parse one or more concatenated JSON objects from a single line."""
+    decoder = json.JSONDecoder()
+    line = line.strip()
+    pos = 0
+    objects = []
+    while pos < len(line):
+        obj, idx = decoder.raw_decode(line, pos)
+        objects.append(obj)
+        pos = idx
+        while pos < len(line) and line[pos] in " \t":
+            pos += 1
+    return objects
+
+
 def load(path: Path):
-    rows = [json.loads(l) for l in path.open() if l.strip()]
+    rows = [obj for l in path.open() if l.strip() for obj in _parse_line(l)]
     train = [r for r in rows if r["type"] == "train"]
     evals = [r for r in rows if r["type"] == "eval"]
     ckpts = [r for r in rows if r["type"] == "checkpoint"]
@@ -128,7 +138,7 @@ a.grid(alpha=0.3)
 a = ax[2]
 a.set_title("Eval Reward by Q-type (run3)", fontweight="bold")
 name3 = "run3 (resumed from ckpt-40)"
-_, evals3, _ = all_data[name3]
+evals3 = all_data[name3][1] if name3 in all_data else []
 if evals3:
     qtypes = sorted(set(
         int(k.split("_")[1])
@@ -249,6 +259,6 @@ fig.text(0.5, 0.01,
          "Dashed vertical lines = epoch boundaries  |  Shaded area = raw values, solid line = rolling avg (w=5)",
          ha="center", fontsize=8, color="#555555")
 
-out = Path(__file__).parent / "grpo_training_curves.png"
+out = Path(__file__).parent / "grpo_text_training_curves_full_reward_fromTab_1.png"
 fig.savefig(out, dpi=150, bbox_inches="tight")
 print(f"Saved → {out}")

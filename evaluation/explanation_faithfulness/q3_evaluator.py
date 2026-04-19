@@ -95,7 +95,7 @@ class Q3Evaluator(BaseEvaluator):
         p_top2_original = float(original_probs[top2_class])
 
         # Mask using modality-appropriate default strategy
-        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
+        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
         masked_input = masker.mask(
             original_input, region,
             dataset_base_name=kwargs.get('dataset_base_name'),

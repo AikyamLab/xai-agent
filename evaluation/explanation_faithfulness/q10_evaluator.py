@@ -85,17 +85,39 @@ class Q10Evaluator(MultiInstanceEvaluator):
                                             metric_formula=self.metric_formula,
                                             errors=[f"Refusal marker in {label} vision phrase"])
         else:
-            # text/tabular: features are dicts in standard region format
-            inp_a = inputs[0] if inputs else None
-            inp_b = inputs[1] if len(inputs) > 1 else None
-            for label, feat, inp in [("correct_instance", correct_features, inp_a),
-                                      ("wrong_instance", wrong_features, inp_b)]:
-                err = self.validate_region(feat, inp, **kwargs)
-                if err:
-                    return EvaluationResult(score=0.0, passed=False,
-                                            metric_name=self.metric_name,
-                                            metric_formula=self.metric_formula,
-                                            errors=[f"{label}: {err}"])
+            # text/tabular: features are dicts in standard region format.
+            # For multi-instance Q10, the agent may pick spans from ANY of the N
+            # inputs (not just inputs[0]/inputs[1]), so validate against the full
+            # combined text of all inputs.
+            if self.modality == "text":
+                def _to_text(inp) -> str:
+                    if isinstance(inp, str):
+                        return inp
+                    if isinstance(inp, dict):
+                        return (inp.get('text', '')
+                                + ' ' + inp.get('premise', '')
+                                + ' ' + inp.get('hypothesis', ''))
+                    return str(inp) if inp is not None else ''
+                combined_input = " ".join(_to_text(inp) for inp in inputs)
+                for label, feat in [("correct_instance", correct_features),
+                                     ("wrong_instance", wrong_features)]:
+                    err = self.validate_region(feat, combined_input, **kwargs)
+                    if err:
+                        return EvaluationResult(score=0.0, passed=False,
+                                                metric_name=self.metric_name,
+                                                metric_formula=self.metric_formula,
+                                                errors=[f"{label}: {err}"])
+            else:
+                inp_a = inputs[0] if inputs else None
+                inp_b = inputs[1] if len(inputs) > 1 else None
+                for label, feat, inp in [("correct_instance", correct_features, inp_a),
+                                          ("wrong_instance", wrong_features, inp_b)]:
+                    err = self.validate_region(feat, inp, **kwargs)
+                    if err:
+                        return EvaluationResult(score=0.0, passed=False,
+                                                metric_name=self.metric_name,
+                                                metric_formula=self.metric_formula,
+                                                errors=[f"{label}: {err}"])
 
         # Calculate similarity based on modality
         if self.modality == "vision":
@@ -194,26 +216,17 @@ class Q10Evaluator(MultiInstanceEvaluator):
         """
         Compute overlap between text features from correct/wrong instances.
 
-        Expects new multi-span format: {"spans": [{"start_index": ..., "end_index": ...}]}.
-        Extracts actual text from inputs and computes word similarity.
+        Expects text_spans format: {"text_spans": ["phrase1", ...]}.
+        Joins phrase strings and computes word similarity directly.
         """
-        spans1 = feat1.get('spans')
-        spans2 = feat2.get('spans')
-        if not spans1 or not spans2:
+        text_spans1 = feat1.get('text_spans')
+        text_spans2 = feat2.get('text_spans')
+        if not text_spans1 or not text_spans2:
             return 1.0  # max similarity → score 0.0
 
-        if len(inputs) < 2:
-            return 1.0  # max similarity → score 0.0
-
-        full_text1 = self._extract_text(inputs[0])
-        full_text2 = self._extract_text(inputs[1])
-
-        def extract_span_text(text, spans):
-            return " ".join(text[s['start_index']:s['end_index']] for s in spans)
-
-        span_text1 = extract_span_text(full_text1, spans1)
-        span_text2 = extract_span_text(full_text2, spans2)
-        return self._compute_text_similarity(span_text1, span_text2)
+        text1 = " ".join(s for s in text_spans1 if isinstance(s, str))
+        text2 = " ".join(s for s in text_spans2 if isinstance(s, str))
+        return self._compute_text_similarity(text1, text2)
 
     @staticmethod
     def _strip_value_annotation(feat: str) -> str:

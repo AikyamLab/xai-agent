@@ -54,7 +54,18 @@ def load_model(model_path: str):
         tuple: A tuple containing the loaded model and the image transform.
     """
     model = timm.create_model("resnet50", pretrained=False, num_classes=NUM_CLASSES)
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    # Load to CPU first; use assign=True so meta-device parameters (newer timm) are
+    # replaced rather than copied-into, avoiding "Cannot copy out of meta tensor".
+    state_dict = torch.load(model_path, map_location="cpu")
+    try:
+        model.load_state_dict(state_dict, assign=True)
+    except TypeError:
+        # PyTorch < 2.1: assign kwarg not available; materialize meta tensors first
+        try:
+            model = model.to_empty(device="cpu")
+        except Exception:
+            pass
+        model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
 
@@ -135,12 +146,12 @@ def predict(
     if isinstance(image, Image.Image):
         if transform is None:
             transform = get_transform()
-        input_tensor = transform(image).unsqueeze(0).to(DEVICE)
+        input_tensor = transform(image).unsqueeze(0).to(DEVICE).float()
     elif isinstance(image, torch.Tensor):
         if image.dim() == 3:
-            input_tensor = image.unsqueeze(0).to(DEVICE)
+            input_tensor = image.unsqueeze(0).to(DEVICE).float()
         else:
-            input_tensor = image.to(DEVICE)
+            input_tensor = image.to(DEVICE).float()
     else:
         raise TypeError(f"Unsupported image type: {type(image)}")
 

@@ -70,10 +70,36 @@ def load_model_loader_module(model_path: str, models_dir: str):
     if not loader_path.exists():
         raise FileNotFoundError(f"Loader module not found: {loader_path}")
 
-    # Dynamically import the loader module
-    spec = importlib.util.spec_from_file_location(loader_path.stem, loader_path)
+    # Dynamically import the loader module.
+    # Register under the canonical package name so that DataModelLoader's
+    # importlib.import_module("models_to_read.{modality}.load_{name}") returns
+    # the SAME object and therefore the SAME _cache.  Without this, the two
+    # import paths produce separate module objects with independent _cache dicts,
+    # causing get_feature_modes() to see an empty cache after load_model() has
+    # already populated it via the spec-loaded copy.
+    canonical_name = f"models_to_read.{model_path.parent.name}.{loader_path.stem}"
+    import sys
+
+    # Return cached module only if exec completed successfully (indicated by
+    # presence of `load_model`).  Without this check we would return the
+    # incomplete shell left in sys.modules by a previously failed exec_module.
+    if canonical_name in sys.modules:
+        cached = sys.modules[canonical_name]
+        if hasattr(cached, 'load_model'):
+            return cached
+        # Stale incomplete entry — remove so we retry cleanly below.
+        del sys.modules[canonical_name]
+
+    spec = importlib.util.spec_from_file_location(canonical_name, loader_path)
     loader_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(loader_module)
+    sys.modules[canonical_name] = loader_module   # register BEFORE exec (circular import safety)
+    try:
+        spec.loader.exec_module(loader_module)
+    except Exception:
+        # Clean up so the next call retries from scratch instead of returning
+        # the incomplete module object.
+        sys.modules.pop(canonical_name, None)
+        raise
 
     # Verify required functions exist
     required_funcs = ['load_model', 'load_data', 'predict']
@@ -259,14 +285,21 @@ class XAIPipelineV2:
                 f"but current VLM is {type(self.vlm).__name__}."
             )
 
-        # Parse 'tinker/run_id--step_name'  ->  'tinker://run_id/step_name'
-        checkpoint_name = checkpoint.removeprefix("tinker/")
-        if "--" in checkpoint_name:
+        # Accept two formats:
+        #   1. Native tinker path:  tinker://run_id/step  (from training logs)
+        #   2. Legacy dash format:  tinker/run_id--step   (old convention)
+        if checkpoint.startswith("tinker://"):
+            # Already a valid tinker URL — use as-is
+            tinker_path = checkpoint
+        elif "--" in checkpoint:
+            checkpoint_name = checkpoint.removeprefix("tinker/")
             run_id, step = checkpoint_name.split("--", 1)
             tinker_path = f"tinker://{run_id}/{step}"
         else:
-            # Fallback: treat the whole name as the path component
-            tinker_path = f"tinker://{checkpoint_name}"
+            raise ValueError(
+                f"Cannot parse tinker_checkpoint format: {repr(checkpoint)}\n"
+                f"Expected either 'tinker://<run_id>/<step>' or 'tinker/<run_id>--<step>'."
+            )
 
         base_model = self.vlm.model_id  # e.g. "Qwen/Qwen3-VL-30B-A3B-Instruct"
 
@@ -518,8 +551,21 @@ class XAIPipelineV2:
                         model_url = str(local_model_path)
 
                 print(f"Loading model: {model_url}")
-                loader_module = load_model_loader_module(model_url, str(self.models_dir))
-                model, processor = loader_module.load_model(model_url)
+
+                # Release old model from CUDA before creating new DataModelLoader
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
+
+                # Single model load via DataModelLoader
+                self.data_model_loader = DataModelLoader(
+                    model_name=Path(model_url).stem,
+                    modality=modality
+                )
+                model = self.data_model_loader.get_model()
+                processor = self.data_model_loader.get_processor()
+                loader_module = self.data_model_loader.loader_module
 
                 if hasattr(loader_module, 'get_model_info'):
                     extra_info = loader_module.get_model_info(model)
@@ -547,20 +593,10 @@ class XAIPipelineV2:
                     if inst_a_feats:
                         model_info['feature_names'] = list(inst_a_feats.keys())
 
-                # Initialize DataModelLoader (release old model from CUDA cache first)
-                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
-                    del self.data_model_loader
-                    self.data_model_loader = None
-                    torch.cuda.empty_cache()
-                self.data_model_loader = DataModelLoader(
-                    model_name=Path(model_url).stem,
-                    modality=modality
-                )
-
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
                 self.proposer.set_tool_registry(self.actor.tool_registry)
-                self.critic.set_model(self.data_model_loader.get_model())
+                self.critic.set_model(model)
 
             # Load both instances based on modality
             if modality == 'vision':
@@ -597,12 +633,13 @@ class XAIPipelineV2:
 
                 temp_img_dir = self.output_dir / "temp_images"
                 temp_img_dir.mkdir(parents=True, exist_ok=True)
+                _q4_rid = question.get('rollout_id', 0)
 
                 def _resolve_img_path(pil_img, path, idx, label):
                     """Return path; save to temp file if path doesn't exist on disk."""
                     if path and os.path.exists(path):
                         return path
-                    temp_path = str(temp_img_dir / f"q4_{label}_{idx}_{split}.png")
+                    temp_path = str(temp_img_dir / f"q4_{label}_{idx}_{split}_r{_q4_rid}.png")
                     pil_img.save(temp_path)
                     return temp_path
 
@@ -741,7 +778,8 @@ class XAIPipelineV2:
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None
+        sf_max_samples: Optional[int] = None,
+        rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Run XAI pipeline for Q4 (contrastive instances).
@@ -768,6 +806,8 @@ class XAIPipelineV2:
         # Step 1: Load Q4 question
         question, template = self._load_question_q4(question_dataset_path, question_id)
         question['dataset_base_name'] = dataset_base_name
+        if rollout_id is not None:
+            question['rollout_id'] = rollout_id
 
         # Step 2: Load model and data for both instances
         model_info, predictions, data_paths, input_tensors = self._load_model_and_data_q4(
@@ -844,7 +884,8 @@ class XAIPipelineV2:
                 predictions={'A': predictions['A'], 'B': predictions['B']},
                 processor=model_info.get('processor'),
                 device=model_info.get('device', 'cuda'),
-                original_features=question.get('features', {})
+                original_features=question.get('features', {}),
+                feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -910,7 +951,8 @@ class XAIPipelineV2:
                         max_samples=sf_max_samples,
                         input_paths=input_paths_list,
                         predictions=predictions_list,
-                        input_tensors=input_tensors_list
+                        input_tensors=input_tensors_list,
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
                     self.tool_attribution_evaluator.save_result(sf_result, question)
                 else:
@@ -962,7 +1004,8 @@ class XAIPipelineV2:
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
                         suffix="_improved",
-                        original_features=question.get('features', {})
+                        original_features=question.get('features', {}),
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -1037,7 +1080,8 @@ class XAIPipelineV2:
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None
+        sf_max_samples: Optional[int] = None,
+        rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Run XAI pipeline for Q9/Q10 multi-instance questions.
@@ -1050,6 +1094,9 @@ class XAIPipelineV2:
         print("\n" + "=" * 70)
         print(f"RUNNING XAI PIPELINE V2 FOR Q{q_type} (MULTI-INSTANCE)")
         print("=" * 70)
+
+        if rollout_id is not None:
+            question['rollout_id'] = rollout_id
 
         # Step 2: Load model and data for all instances
         model_info, predictions_list, data_paths, input_tensors = self._load_model_and_data_multi(
@@ -1135,7 +1182,8 @@ class XAIPipelineV2:
                 inputs=input_tensors,
                 predictions=predictions_list,
                 ground_truths=ground_truths,
-                original_features=question.get('features', {})
+                original_features=question.get('features', {}),
+                feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
             )
         else:
             print("  Skipping faithfulness evaluation")
@@ -1219,7 +1267,8 @@ class XAIPipelineV2:
                         input_paths=data_paths,
                         predictions=predictions_list,
                         input_tensors=input_tensors,
-                        ground_truths=ground_truths
+                        ground_truths=ground_truths,
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
 
                     self.tool_attribution_evaluator.save_result(sf_result, question)
@@ -1288,7 +1337,8 @@ class XAIPipelineV2:
                         predictions=predictions_list,
                         ground_truths=ground_truths,
                         suffix="_improved",
-                        original_features=question.get('features', {})
+                        original_features=question.get('features', {}),
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
 
                     improved_faithfulness = improved_evaluation.get('faithfulness', {}).get('score', 0.0)
@@ -1354,7 +1404,8 @@ class XAIPipelineV2:
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None
+        sf_max_samples: Optional[int] = None,
+        rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Run complete XAI pipeline for a single question.
@@ -1387,6 +1438,8 @@ class XAIPipelineV2:
 
         # Add dataset_base_name to question for consistent naming across all outputs
         question['dataset_base_name'] = dataset_base_name
+        if rollout_id is not None:
+            question['rollout_id'] = rollout_id
 
         # Auto-detect Q4 format and route to run_q4
         if question.get('is_q4_format') or question.get('q_type') == 4:
@@ -1399,7 +1452,8 @@ class XAIPipelineV2:
                 faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
                 enable_sf=enable_sf,
-                sf_max_samples=sf_max_samples
+                sf_max_samples=sf_max_samples,
+                rollout_id=rollout_id,
             )
 
         # Auto-detect Q9/Q10 multi-instance format and route to run_multi_instance
@@ -1413,7 +1467,8 @@ class XAIPipelineV2:
                 faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
                 enable_sf=enable_sf,
-                sf_max_samples=sf_max_samples
+                sf_max_samples=sf_max_samples,
+                rollout_id=rollout_id,
             )
 
         # Step 2: Load target model and data
@@ -1473,7 +1528,8 @@ class XAIPipelineV2:
                 device=model_info.get('device', 'cuda'),
                 class_names=model_info.get('label_map', {}),
                 feature_names=model_info.get('feature_names', []),
-                original_features=question.get('features', {})
+                original_features=question.get('features', {}),
+                feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
             )
         else:
             print("  Skipping faithfulness evaluation (no model or disabled)")
@@ -1567,7 +1623,8 @@ class XAIPipelineV2:
                         faithfulness_threshold=faithfulness_threshold,
                         processor=model_info.get('processor'),
                         device=model_info.get('device', 'cuda'),
-                        max_samples=sf_max_samples
+                        max_samples=sf_max_samples,
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
 
                     # Save strategy faithfulness result
@@ -1632,7 +1689,8 @@ class XAIPipelineV2:
                         class_names=model_info.get('label_map', {}),
                         feature_names=model_info.get('feature_names', []),
                         suffix="_improved",
-                        original_features=question.get('features', {})
+                        original_features=question.get('features', {}),
+                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
                     )
 
                     # Calculate improvement metrics
@@ -1865,14 +1923,22 @@ class XAIPipelineV2:
 
                 print(f"Loading model: {model_url}")
 
-                # Load the appropriate loader module
-                loader_module = load_model_loader_module(model_url, str(self.models_dir))
-                print(f"Using loader module: {loader_module.__name__}")
+                # Release old model from CUDA before creating new DataModelLoader
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
 
-                # Load model using the loader
-                model, processor = loader_module.load_model(model_url)
+                # Single model load via DataModelLoader; reuse its loader_module for load_data/predict
+                self.data_model_loader = DataModelLoader(
+                    model_name=Path(model_url).stem,
+                    modality=modality
+                )
+                model = self.data_model_loader.get_model()
+                processor = self.data_model_loader.get_processor()
+                loader_module = self.data_model_loader.loader_module
 
-                # Get model info
+                # Get model info from loader module
                 if hasattr(loader_module, 'get_model_info'):
                     extra_info = loader_module.get_model_info(model)
                 else:
@@ -1903,24 +1969,11 @@ class XAIPipelineV2:
 
                 print(f"Model loaded: {model_info['architecture']}")
 
-                # Instantiate the new DataModelLoader (release old model from CUDA first)
-                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
-                    del self.data_model_loader
-                    self.data_model_loader = None
-                    torch.cuda.empty_cache()
-                self.data_model_loader = DataModelLoader(
-                    model_name=Path(model_url).stem,
-                    modality=modality
-                )
-                # Sync processor from DataModelLoader (registered in sys.modules, always correct)
-                # so model_info['processor'] is consistent with what tools/maskers use
-                model_info['processor'] = self.data_model_loader.get_processor()
-
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
                 self.proposer.set_tool_registry(self.actor.tool_registry)
                 # Set model for critic
-                self.critic.set_model(self.data_model_loader.get_model())
+                self.critic.set_model(model)
 
             # Load data based on modality using loader module
             if modality == 'vision' and loader_module:
@@ -1933,7 +1986,8 @@ class XAIPipelineV2:
 
                     temp_img_dir = self.output_dir / "temp_images"
                     temp_img_dir.mkdir(parents=True, exist_ok=True)
-                    temp_img_path = temp_img_dir / f"from_path_{Path(image_path).stem}.png"
+                    _rid = question.get('rollout_id', 0)
+                    temp_img_path = temp_img_dir / f"from_path_{Path(image_path).stem}_r{_rid}.png"
                     processed_image.save(str(temp_img_path))
                     input_tensor = processed_image
                     loaded_data_path = str(temp_img_path)
@@ -1960,10 +2014,13 @@ class XAIPipelineV2:
                     data = self.data_model_loader.load_sample(index=sample_index, split=split)
                     input_tensor = data['processed_image']  # PIL after Resize+CenterCrop
 
-                    # Save processed image to a real file so actor_agent can pass it to VLM
+                    # Save processed image to a real file so actor_agent can pass it to VLM.
+                    # Include rollout_id in the filename to avoid races when K parallel rollouts
+                    # process the same sample concurrently (same sample_index + split).
                     temp_img_dir = self.output_dir / "temp_images"
                     temp_img_dir.mkdir(parents=True, exist_ok=True)
-                    temp_img_path = temp_img_dir / f"sample_{sample_index}_{split}.png"
+                    _rid = question.get('rollout_id', 0)
+                    temp_img_path = temp_img_dir / f"sample_{sample_index}_{split}_r{_rid}.png"
                     input_tensor.save(str(temp_img_path))
                     loaded_data_path = str(temp_img_path)
                     print(f"Data loaded: index={sample_index} -> {loaded_data_path}")
@@ -2020,12 +2077,12 @@ class XAIPipelineV2:
                 print("Text data loaded")
 
                 # Make prediction
-                if model_info and model_info.get('model'):
+                if self.data_model_loader:
                     print("Making prediction...")
                     prediction = loader_module.predict(
-                        model=model_info['model'],
+                        model=self.data_model_loader.get_model(),
                         text_input=data,
-                        tokenizer=model_info.get('processor')
+                        tokenizer=self.data_model_loader.get_processor()
                     )
                     if prediction and prediction.get('success'):
                         print(f"Prediction: {prediction.get('predicted_class_name')} "
@@ -2054,12 +2111,12 @@ class XAIPipelineV2:
                 print(f"  Ground truth: {data.get('label_name')} (class {data.get('label')})")
 
                 # Make prediction
-                if model_info and model_info.get('model'):
+                if self.data_model_loader:
                     print("Making prediction...")
                     prediction = loader_module.predict(
-                        model=model_info['model'],
+                        model=self.data_model_loader.get_model(),
                         input_data=input_tensor,
-                        preprocessor=model_info.get('processor')
+                        preprocessor=self.data_model_loader.get_processor()
                     )
                     if prediction and prediction.get('success'):
                         print(f"Prediction: {prediction.get('predicted_class_name')} "
@@ -2121,8 +2178,21 @@ class XAIPipelineV2:
                         model_url = str(local_model_path)
 
                 print(f"Loading model: {model_url}")
-                loader_module = load_model_loader_module(model_url, str(self.models_dir))
-                model, processor = loader_module.load_model(model_url)
+
+                # Release old model from CUDA before creating new DataModelLoader
+                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
+                    del self.data_model_loader
+                    self.data_model_loader = None
+                    torch.cuda.empty_cache()
+
+                # Single model load via DataModelLoader; reuse its loader_module for predict
+                self.data_model_loader = DataModelLoader(
+                    model_name=Path(model_url).stem,
+                    modality=modality
+                )
+                model = self.data_model_loader.get_model()
+                processor = self.data_model_loader.get_processor()
+                loader_module = self.data_model_loader.loader_module
 
                 if hasattr(loader_module, 'get_model_info'):
                     extra_info = loader_module.get_model_info(model)
@@ -2154,22 +2224,10 @@ class XAIPipelineV2:
 
                 print(f"Model loaded: {model_info['architecture']}")
 
-                # Initialize DataModelLoader (release old model from CUDA first)
-                if hasattr(self, 'data_model_loader') and self.data_model_loader is not None:
-                    del self.data_model_loader
-                    self.data_model_loader = None
-                    torch.cuda.empty_cache()
-                self.data_model_loader = DataModelLoader(
-                    model_name=Path(model_url).stem,
-                    modality=modality
-                )
-                # Sync processor from DataModelLoader (registered in sys.modules, always correct)
-                model_info['processor'] = self.data_model_loader.get_processor()
-
                 print("\n=== Initializing XAI Tools ===")
                 self.actor.initialize_tools(data_model_loader=self.data_model_loader)
                 self.proposer.set_tool_registry(self.actor.tool_registry)
-                self.critic.set_model(self.data_model_loader.get_model())
+                self.critic.set_model(model)
 
             except Exception as e:
                 print(f"ERROR: Failed to load model and initialize tools: {e}")
@@ -2209,8 +2267,10 @@ class XAIPipelineV2:
                     image = data['processed_image']  # PIL after Resize+CenterCrop
                     input_tensors.append(image)
 
-                    # Always save processed image to temp file
-                    img_path = str(temp_img_dir / f"multi_{img_idx}_{split}.png")
+                    # Always save processed image to temp file.
+                    # Include rollout_id to avoid races with parallel rollouts.
+                    _rid = question.get('rollout_id', 0)
+                    img_path = str(temp_img_dir / f"multi_{img_idx}_{split}_r{_rid}.png")
                     image.save(img_path)
                     data_paths.append(img_path)
                     print(f"    Path: {img_path}")

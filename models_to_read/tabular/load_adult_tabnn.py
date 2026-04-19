@@ -104,7 +104,6 @@ def _load_and_preprocess_data():
         for cat in categories:
             encoded_to_original[f"{col}_{cat}"] = col
 
-    _cache["preprocessor"] = preprocessor
     _cache["df"] = df
     _cache["y_series"] = y
     _cache["X_all"] = torch.tensor(X_all_arr, dtype=torch.float32)
@@ -114,6 +113,7 @@ def _load_and_preprocess_data():
     _cache["encoded_to_original"] = encoded_to_original
     # Map from original DataFrame index to positional index in X_all
     _cache["orig_to_pos"] = {orig_idx: pos for pos, orig_idx in enumerate(df.index.tolist())}
+    _cache["preprocessor"] = preprocessor  # set last — acts as "all ready" marker
 
 
 def load_model(model_path: str):

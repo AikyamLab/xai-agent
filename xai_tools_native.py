@@ -36,6 +36,26 @@ from xai_tools import (
 
 
 # ===================================================================
+# Utility: detect whether a model applies sigmoid/softmax internally
+# ===================================================================
+
+def _model_has_final_sigmoid(model) -> bool:
+    """Return True if the model's last activation is Sigmoid or Softmax.
+
+    Mirrors the logic in evaluation/base_evaluator.py so that tools and
+    evaluator treat single-output binary models consistently.  When a model
+    already applies sigmoid in forward(), tools must NOT apply it again.
+    """
+    modules = list(model.modules())
+    for m in reversed(modules):
+        if isinstance(m, (torch.nn.Sigmoid, torch.nn.Softmax)):
+            return True
+        if isinstance(m, (torch.nn.Linear, torch.nn.Conv1d, torch.nn.Conv2d)):
+            return False
+    return False
+
+
+# ===================================================================
 # Base Tool Class (Replaces LangChain BaseTool)
 # ===================================================================
 
@@ -956,8 +976,10 @@ class SHAPTextTool(BaseTool):
                             results.append(probs)
                 return np.array(results)
 
-            # Background: all words present
-            background = np.ones((1, n_words))
+            # Background: no words present (empty text baseline).
+            # Sample: all words present.
+            # SHAP values measure each word's contribution relative to the empty baseline.
+            background = np.zeros((1, n_words))
             explainer = shap.KernelExplainer(predict_fn, background)
 
             # Explain: all words present
@@ -1224,7 +1246,9 @@ class SHAPTabularTool(BaseTool):
             explainer = shap.KernelExplainer(predict_fn, background)
 
             sample = features.unsqueeze(0).cpu().numpy() if features.dim() == 1 else features.cpu().numpy()
-            shap_values = explainer.shap_values(sample, nsamples=200, silent=True)
+            n_encoded = sample.shape[-1]
+            nsamples = max(2048, 2 * n_encoded + 2048)
+            shap_values = explainer.shap_values(sample, nsamples=nsamples, silent=True)
 
             # Get SHAP values for target class
             if isinstance(shap_values, list):
@@ -1430,10 +1454,12 @@ class IntegratedGradientsTabularTool(BaseTool):
             import numpy as np
             target_class = int(target_class) if target_class is not None else 0
 
+            has_sigmoid = _model_has_final_sigmoid(model)
+
             def forward_func(input_tensor):
                 logits = model(input_tensor)
                 if logits.shape[-1] == 1:
-                    prob_pos = torch.sigmoid(logits)
+                    prob_pos = logits if has_sigmoid else torch.sigmoid(logits)
                     return torch.cat([1.0 - prob_pos, prob_pos], dim=-1)
                 return logits
 
@@ -1528,6 +1554,8 @@ class SensitivityAnalysisTabularTool(BaseTool):
             import numpy as np
             target_class = int(target_class) if target_class is not None else 0
 
+            has_sigmoid = _model_has_final_sigmoid(model)
+
             def get_prob(input_tensor):
                 """Get target class probability."""
                 model.eval()
@@ -1536,7 +1564,7 @@ class SensitivityAnalysisTabularTool(BaseTool):
                         input_tensor = input_tensor.unsqueeze(0)
                     logits = model(input_tensor.float().to(device))
                     if logits.shape[-1] == 1:
-                        prob_pos = torch.sigmoid(logits).item()
+                        prob_pos = logits.item() if has_sigmoid else torch.sigmoid(logits).item()
                         probs = [1.0 - prob_pos, prob_pos]
                     else:
                         probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy().tolist()
@@ -1805,7 +1833,7 @@ class SmoothGradTextTool(BaseTool):
         stdevs: float = 0.1,
         **kwargs
     ) -> str:
-        """Execute SmoothGrad for text."""
+        """Execute SmoothGrad for text (CNN-compatible, supports single-input and NLI dual-input)."""
         if not self.data_model_loader:
             return json.dumps({"success": False, "error": "DataModelLoader not initialized"})
 
@@ -1820,24 +1848,135 @@ class SmoothGradTextTool(BaseTool):
 
         sample_data = self.data_model_loader.current_sample_data or {}
         is_nli = 'hypothesis_tensor' in sample_data and 'hypothesis' in sample_data
+        is_dual_input = is_nli and len(inspect.signature(model.forward).parameters) >= 2
         text = sample_data.get('premise', '') if is_nli else self.data_model_loader.get_current_text()
 
         if not text:
             return json.dumps({"success": False, "error": "No text available. Load a sample first."})
 
         try:
-            result = execute_smoothgrad_text(
-                text=text,
-                model=model,
-                processor=processor,
-                target_class=int(target_class),
-                device=device,
-                instance_id=image_id,
-                n_samples=n_samples,
-                stdevs=stdevs,
-                sample_data=sample_data
-            )
-            return json.dumps(result, indent=2)
+            import numpy as np
+            import re
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            from xai_tools import get_output_dir
+
+            target_class = int(target_class)
+
+            # --- tokenize ---
+            if is_nli:
+                token_ids = sample_data.get('premise_ids') or processor(text)
+            else:
+                token_ids = self.data_model_loader.get_current_token_ids() or processor(text)
+
+            input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+
+            if is_nli:
+                hypothesis_ids = sample_data.get('hypothesis_ids')
+                if hypothesis_ids is None and processor is not None:
+                    hypothesis_ids = processor(sample_data.get('hypothesis', ''))
+                hyp_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+
+            # --- find embedding layer ---
+            embedding_layer = None
+            for _, module in model.named_modules():
+                if isinstance(module, torch.nn.Embedding):
+                    embedding_layer = module
+                    break
+
+            if embedding_layer is None:
+                return json.dumps({"success": False, "error": "No embedding layer found in model"})
+
+            # --- SmoothGrad: average |grad| over n_samples noisy copies ---
+            model.eval()
+            base_embeddings = embedding_layer(input_tensor).detach()  # (1, seq_len, embed_dim)
+
+            all_grads = []
+            for _ in range(n_samples):
+                noise = torch.randn_like(base_embeddings) * stdevs
+                noisy_embeddings = (base_embeddings + noise).requires_grad_(True)
+
+                # Hook replaces embedding output with noisy_embeddings
+                if is_dual_input:
+                    call_count = [0]
+                    def _hook(module, inp, out, _ne=noisy_embeddings, _cc=call_count):
+                        _cc[0] += 1
+                        return _ne if _cc[0] == 1 else out
+                    handle = embedding_layer.register_forward_hook(_hook)
+                    logits = model(input_tensor, hyp_tensor)
+                    handle.remove()
+                else:
+                    def _hook(module, inp, out, _ne=noisy_embeddings):
+                        return _ne
+                    handle = embedding_layer.register_forward_hook(_hook)
+                    logits = model(input_tensor)
+                    handle.remove()
+
+                if logits.shape[-1] == 1:
+                    score = torch.sigmoid(logits)[0, 0]
+                else:
+                    score = logits[0, target_class]
+
+                score.backward()
+                all_grads.append(
+                    noisy_embeddings.grad.squeeze(0).abs().mean(dim=-1).cpu().detach().numpy()
+                )
+
+            importance = np.mean(all_grads, axis=0)  # (seq_len,)
+
+            if importance.max() == importance.min():
+                raise RuntimeError(
+                    f"SmoothGrad (Text) attribution is uniform (all={importance.max():.6f}) "
+                    f"for class {target_class}. Gradients may be zero."
+                )
+            importance = (importance - importance.min()) / (importance.max() - importance.min())
+
+            # --- map scores to words ---
+            words = re.sub(r'<br\s*/?>', ' ', text.lower())
+            words = re.sub(r'[^a-z0-9\s]', ' ', words)
+            word_list = words.split()
+
+            token_importance = []
+            for i, word in enumerate(word_list[:len(importance)]):
+                score = float(importance[i]) if i < len(importance) else 0.0
+                token_importance.append({"token": word, "importance": round(score, 4)})
+            token_importance_sorted = sorted(token_importance, key=lambda x: x["importance"], reverse=True)
+
+            # --- visualization ---
+            output_dir = get_output_dir()
+            viz_path = str(output_dir / f"smoothgrad_text_{image_id}.png")
+            display_tokens = [t["token"] for t in token_importance]
+            display_scores = [t["importance"] for t in token_importance]
+            fig, ax = plt.subplots(figsize=(max(8, len(display_tokens) * 0.4), 3))
+            ax.bar(range(len(display_tokens)), display_scores)
+            ax.set_xticks(range(len(display_tokens)))
+            ax.set_xticklabels(display_tokens, rotation=90, fontsize=8)
+            ax.set_title(f"SmoothGrad (Text) - Class {target_class} ({n_samples} samples)")
+            ax.set_ylabel("Importance")
+            plt.tight_layout()
+            plt.savefig(viz_path, dpi=150, bbox_inches='tight')
+            plt.close()
+
+            return json.dumps({
+                "success": True,
+                "method": "SmoothGrad (Text)",
+                "target_class": target_class,
+                "n_samples": n_samples,
+                "stdevs": stdevs,
+                "visualization_path": viz_path,
+                "statistics": {
+                    "num_tokens": len(token_importance),
+                    "top_tokens": token_importance_sorted[:10],
+                    "mean_importance": round(float(np.mean(display_scores)), 4),
+                    "max_importance": round(float(max(display_scores)) if display_scores else 0.0, 4),
+                },
+                "description": (
+                    f"SmoothGrad text analysis ({n_samples} samples) for class {target_class}: "
+                    f"Analyzed {len(token_importance)} tokens. "
+                    f"Most important: {token_importance_sorted[0]['token'] if token_importance_sorted else 'N/A'}."
+                ),
+            }, indent=2)
         except Exception as e:
             import traceback
             return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})

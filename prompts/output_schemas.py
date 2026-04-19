@@ -50,9 +50,7 @@ Q1_SCHEMA_VISION = {
 
 Q1_SCHEMA_TEXT = {
     "output": {
-        "spans": [
-            {"start_index": 0, "end_index": 10}
-        ]
+        "text_spans": ["exact phrase from input text"]
     },
     "explanation": "string"
 }
@@ -95,10 +93,10 @@ Q4_SCHEMA_VISION = {
 Q4_SCHEMA_TEXT = {
     "output": {
         "input_A": {
-            "spans": [{"start_index": 0, "end_index": 10}]
+            "text_spans": ["exact phrase from instance A text"]
         },
         "input_B": {
-            "spans": [{"start_index": 0, "end_index": 10}]
+            "text_spans": ["exact phrase from instance B text"]
         }
     },
     "explanation": "string"
@@ -157,8 +155,7 @@ Q6_SCHEMA_TEXT = {
     "output": {
         "change_plan": [
             {
-                "start_index": 0,
-                "end_index": 10,
+                "span_text": "exact phrase to change from input text",
                 "action": "change",  # "change" | "delete" | "swap" | "add"
                 "new_value": "replacement text"
             }
@@ -228,8 +225,8 @@ Q9_SCHEMA_VISION = {
 Q9_SCHEMA_TEXT = {
     "output": {
         "instances": [
-            {"spans": [{"start_index": 0, "end_index": 10}]},
-            {"spans": [{"start_index": 0, "end_index": 10}]}
+            {"text_spans": ["exact phrase from instance text"]},
+            {"text_spans": ["exact phrase from instance text"]}
         ]
     },
     "shared_feature_description": "string",
@@ -262,10 +259,10 @@ Q10_SCHEMA_VISION = {
 Q10_SCHEMA_TEXT = {
     "output": {
         "correct_instance_features": {
-            "spans": [{"start_index": 0, "end_index": 10}]
+            "text_spans": ["exact phrase from correct instance text"]
         },
         "wrong_instance_features": {
-            "spans": [{"start_index": 0, "end_index": 10}]
+            "text_spans": ["exact phrase from wrong instance text"]
         }
     },
     "explanation": "string"
@@ -368,9 +365,8 @@ def validate_output(output: Dict[str, Any], q_type: int, modality: str) -> Tuple
             elif not isinstance(output_data["bounding_box"], list) or len(output_data["bounding_box"]) != 4:
                 errors.append("'bounding_box' must be a list of 4 integers [x_min, y_min, x_max, y_max]")
         elif modality == "text":
-            # Accept new multi-span format or legacy single-span
-            if "spans" not in output_data and "start_index" not in output_data:
-                errors.append("Missing required field: 'output.spans' (list of {start_index, end_index})")
+            if "text_spans" not in output_data:
+                errors.append("Missing required field: 'output.text_spans' (list of phrase strings)")
         elif modality == "tabular":
             # Accept new multi-key format or legacy single-key
             if "feature_keys" not in output_data and "feature_key" not in output_data:
@@ -453,23 +449,20 @@ def extract_region_from_output(output: Dict[str, Any], q_type: int, modality: st
             return {"bounding_box": output_data["change_plan"].get("bounding_box")}
 
     elif modality == "text":
-        # New multi-span format
-        spans = output_data.get("spans")
-        if spans and isinstance(spans, list):
-            return {"spans": spans}
-        # Legacy single-span format
-        start = output_data.get("start_index")
-        end = output_data.get("end_index")
-        if start is not None and end is not None:
-            return {"spans": [{"start_index": start, "end_index": end}]}
-        # change_plan (Q6): may be a list or single dict
+        text_spans = output_data.get("text_spans")
+        if text_spans and isinstance(text_spans, list):
+            return {"text_spans": text_spans}
+        # change_plan (Q6)
         if "change_plan" in output_data:
             cp = output_data["change_plan"]
             if isinstance(cp, list) and cp:
-                first = cp[0]
-                return {"spans": [{"start_index": first.get("start_index"), "end_index": first.get("end_index")}]}
+                span_text = cp[0].get("span_text")
+                if span_text:
+                    return {"span_text": span_text}
             elif isinstance(cp, dict):
-                return {"spans": [{"start_index": cp.get("start_index"), "end_index": cp.get("end_index")}]}
+                span_text = cp.get("span_text")
+                if span_text:
+                    return {"span_text": span_text}
 
     elif modality == "tabular":
         # New multi-key format
@@ -515,12 +508,9 @@ def extract_multi_instance_regions(
         if modality == "vision":
             return {"bounding_box": value.get("bounding_box")}
         elif modality == "text":
-            spans = value.get("spans")
-            if spans and isinstance(spans, list):
-                return {"spans": spans}
-            elif value.get("start_index") is not None:
-                return {"spans": [{"start_index": value.get("start_index"),
-                                    "end_index": value.get("end_index")}]}
+            text_spans = value.get("text_spans")
+            if text_spans and isinstance(text_spans, list):
+                return {"text_spans": text_spans}
         elif modality == "tabular":
             keys = value.get("feature_keys")
             if keys and isinstance(keys, list):
