@@ -138,7 +138,8 @@ def load_data(data_input: Union[str, Dict[str, Any]], index: Optional[int] = Non
         hypothesis = ''
 
     # Combined text for the single-input model
-    combined_text = f"Premise: {premise} Hypothesis: {hypothesis}"
+    # NOTE: trained without "Premise:"/"Hypothesis:" prefix labels — use raw concatenation
+    combined_text = f"{premise} {hypothesis}"
     combined_ids = simple_tokenize(combined_text)
     combined_tensor = torch.tensor([combined_ids], dtype=torch.long)
 
@@ -229,7 +230,8 @@ def predict(
         "predicted_class_idx": predicted_class,
         "predicted_class_name": LABEL_MAP[predicted_class],
         "confidence": float(confidence),
-        "probabilities": {
+        "probabilities": probabilities.cpu().numpy(),  # array indexed by class_idx (0=entailment, 1=neutral, 2=contradiction)
+        "class_probabilities": {
             "entailment": float(probabilities[0].item()),
             "neutral": float(probabilities[1].item()),
             "contradiction": float(probabilities[2].item())

@@ -176,24 +176,16 @@ class Q4Evaluator(MultiInstanceEvaluator):
         """
         Compute overlap between text spans from different instances.
 
-        Expects new multi-span format: {"spans": [{"start_index": ..., "end_index": ...}]}.
-        Extracts the actual text from each instance and computes word similarity.
+        Expects text_spans format: {"text_spans": ["phrase1", ...]}.
+        Joins phrase strings and computes word similarity directly.
         """
-        spans1 = span1.get('spans')
-        spans2 = span2.get('spans')
-        if not spans1 or not spans2:
+        text_spans1 = span1.get('text_spans')
+        text_spans2 = span2.get('text_spans')
+        if not text_spans1 or not text_spans2:
             return 1.0  # max similarity → score 0.0
 
-        if len(inputs) < 2:
-            return 1.0  # max similarity → score 0.0
-
-        def extract_span_text(text, spans):
-            if not isinstance(text, str):
-                raise TypeError(f"Expected str input, got {type(text)}")
-            return " ".join(text[s['start_index']:s['end_index']] for s in spans)
-
-        text1 = extract_span_text(inputs[0], spans1)
-        text2 = extract_span_text(inputs[1], spans2)
+        text1 = " ".join(s for s in text_spans1 if isinstance(s, str))
+        text2 = " ".join(s for s in text_spans2 if isinstance(s, str))
         return self._compute_text_similarity(text1, text2)
 
     @staticmethod

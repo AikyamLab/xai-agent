@@ -131,7 +131,8 @@ class ToolAttributionEvaluator:
         input_paths: Optional[List[str]] = None,
         predictions: Optional[List[Dict[str, Any]]] = None,
         input_tensors: Optional[List[Any]] = None,
-        ground_truths: Optional[List[Any]] = None
+        ground_truths: Optional[List[Any]] = None,
+        feature_modes: Optional[Dict[str, Any]] = None
     ) -> StrategyFaithfulnessResult:
         """
         Compute importance scores for each tool in the strategy.
@@ -659,6 +660,7 @@ class ToolAttributionEvaluator:
             'feature_names': model_info.get('feature_names', []) if model_info else [],
             'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
             'original_features': question.get('features', {}),
+            'feature_modes': feature_modes,
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors
@@ -850,6 +852,7 @@ class ToolAttributionEvaluator:
             'feature_names': model_info.get('feature_names', []) if model_info else [],
             'class_names': model_info.get('label_map', model_info.get('class_names', {})) if model_info else {},
             'original_features': question.get('features', {}),
+            'feature_modes': feature_modes,
         }
         if is_multi:
             critic_kwargs['inputs'] = input_tensors

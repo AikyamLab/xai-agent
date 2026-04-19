@@ -147,6 +147,8 @@ class CriticAgent(BaseAgent):
             for k, v in q_specific.items():
                 kwargs.setdefault(k, v)
 
+            rollout_id = question.get('rollout_id')
+            rollout_pfx = f"_r{rollout_id}" if rollout_id is not None else ""
             faithfulness_result = self.evaluate_faithfulness(
                 q_type=q_type,
                 agent_output=results,
@@ -157,19 +159,22 @@ class CriticAgent(BaseAgent):
                 dataset_base_name=dataset_base_name,
                 row_no=row_no,
                 tool_name=tool_name,
-                mask_suffix=suffix,
+                mask_suffix=f"{rollout_pfx}{suffix}",
                 **kwargs
             )
             evaluation["faithfulness"] = faithfulness_result
         else:
+            rollout_pfx = ""
             evaluation["faithfulness"] = {
                 "score": None,
                 "error": "Model or input not provided for faithfulness evaluation"
             }
 
         # Save evaluation with nested directory structure
-        # Format: /evaluations/{modality}/{dataset_name}/{q_type}/{question_id}/evaluation.json
+        # Format: /evaluations/{modality}/{dataset_name}/{q_type}/{question_id}/evaluation_r{rollout_id}.json
         import re
+        rollout_id = question.get('rollout_id')
+        rollout_pfx = f"_r{rollout_id}" if rollout_id is not None else ""
         dataset_base_name = question.get('dataset_base_name', 'unknown')
         row_no = question.get('row_no', results.get('question_id', 0))
 
@@ -182,9 +187,9 @@ class CriticAgent(BaseAgent):
             dataset_name = dataset_base_name
             q_type_str = f"q{question.get('q_type', 1)}"
 
-        filename = f"evaluation{suffix}"
+        filename = f"evaluation{rollout_pfx}{suffix}"
         if tool_name:
-            filename = f"evaluation_{tool_name}{suffix}"
+            filename = f"evaluation_{tool_name}{rollout_pfx}{suffix}"
 
         subdir = f"evaluations/{modality}/{dataset_name}/{q_type_str}/{row_no}"
         filepath = self.save_json(evaluation, filename, subdir)
@@ -409,6 +414,8 @@ class CriticAgent(BaseAgent):
         # Save evaluation (suffix e.g. "_improved" for second-pass evaluations)
         suffix = kwargs.get('suffix', '')
         import re
+        rollout_id = question.get('rollout_id')
+        rollout_pfx = f"_r{rollout_id}" if rollout_id is not None else ""
         dataset_base_name = question.get('dataset_base_name', 'unknown')
         row_no = question.get('pair_id', question.get('row_no', question.get('question_id', 0)))
 
@@ -421,7 +428,7 @@ class CriticAgent(BaseAgent):
             q_type_str = "q4"
 
         subdir = f"evaluations/{modality}/{dataset_name}/{q_type_str}/{row_no}"
-        filepath = self.save_json(evaluation, f"evaluation{suffix}", subdir)
+        filepath = self.save_json(evaluation, f"evaluation{rollout_pfx}{suffix}", subdir)
         print(f"Q4 Evaluation saved to: {filepath}")
 
         return evaluation

@@ -8,7 +8,8 @@ All XAI logic (prompt building, tool execution, Q-type routing for
 Q4/Q9/Q10, improvement loop, SF evaluation, faithfulness critic) lives
 inside XAIPipelineV2 — this class only:
   1. Calls pipeline.run() with the right flags from train.py args.
-  2. Extracts the faithfulness score as the GRPO reward.
+  2. Extracts the GRPO reward: for vision = size_score_l1 + tool_penalty;
+     for other modalities = soft_score + tool_penalty.
   3. Converts rl_vlm.get_transitions() into a Trajectory.
 
 The pipeline's VLM (rl_vlm, an RLSamplingVLM instance) records every
@@ -56,6 +57,7 @@ class XAIRLEnv:
         enable_sf: bool = False,
         sf_max_samples: Optional[int] = None,
         faithfulness_threshold: float = 0.1,
+        use_tool_penalty: bool = True,
     ):
         self.pipeline               = pipeline
         self.rl_vlm                 = rl_vlm
@@ -63,6 +65,7 @@ class XAIRLEnv:
         self.enable_sf              = enable_sf
         self.sf_max_samples         = sf_max_samples
         self.faithfulness_threshold = faithfulness_threshold
+        self.use_tool_penalty       = use_tool_penalty
 
     def run_episode(
         self,
@@ -123,8 +126,11 @@ class XAIRLEnv:
                 enable_improvement=self.enable_improvement,
                 enable_sf=self.enable_sf,
                 sf_max_samples=self.sf_max_samples,
+                rollout_id=rollout_id,
             )
-            faithfulness_score = _extract_faithfulness_score(result, modality=modality)
+            faithfulness_score = _extract_faithfulness_score(
+                result, modality=modality, use_tool_penalty=self.use_tool_penalty
+            )
         except Exception as exc:
             recorded = self.rl_vlm.get_transitions()
             if not recorded:
@@ -186,10 +192,16 @@ class XAIRLEnv:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # L1 tool-count penalty hyperparameter.
-# Reward = soft_score + L1_loss, where L1_loss = -L1_LAMBDA * (n_tools / n_max).
-# Forces GRPO to learn the minimum effective tool set per modality/dataset.
+# Vision reward = size_score_l1 + L1_loss
+#               = (soft_score - size_lambda*region_ratio) - L1_LAMBDA*(n_tools/n_max)
+# Other modalities: reward = soft_score + L1_loss
+# Forces GRPO to achieve high quality with compact explanations and few tools.
+#
+# Current tools: lime, shap, guided backprop, ig, smoothgrad,
+#                sensitivity analysis (text/tabular only) / gradcam (vision only)
+# n_max = 9 for all modalities (covers selected_tools + autonomous_tasks budget)
 _L1_LAMBDA = 0.2
-_L1_MAX_TOOLS: Dict[str, int] = {"vision": 8, "text": 6, "tabular": 6}
+_L1_MAX_TOOLS: Dict[str, int] = {"vision": 9, "text": 9, "tabular": 9}
 
 
 def _compute_l1_tool_penalty(result: Dict[str, Any], modality: str) -> float:
@@ -197,14 +209,9 @@ def _compute_l1_tool_penalty(result: Dict[str, Any], modality: str) -> float:
     Compute L1 penalty = -L1_LAMBDA * (n_tools / n_max).
 
     n_tools = len(selected_tools) + len(autonomous_tasks) from the executed
-    strategy.  Uses the improved strategy if the improvement loop ran.
-    Returns 0.0 when strategy info is unavailable.
+    strategy.  Returns 0.0 when strategy info is unavailable.
     """
-    strategy = (
-        (result.get("improved") or {}).get("strategy")
-        or result.get("strategy")
-        or {}
-    )
+    strategy = result.get("strategy") or {}
     n_tools = (
         len(strategy.get("selected_tools") or [])
         + len(strategy.get("autonomous_tasks") or [])
@@ -213,43 +220,47 @@ def _compute_l1_tool_penalty(result: Dict[str, Any], modality: str) -> float:
     return -_L1_LAMBDA * min(n_tools, n_max) / n_max
 
 
-def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "") -> float:
+def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "", use_tool_penalty: bool = True) -> float:
     """
     Extract the final faithfulness score from pipeline.run() output.
 
-    Reward = soft_score + L1_loss  (clamped to [0, 1])
+    For vision:
+        Reward = soft_score + size_l1_penalty + tool_number_loss  (clamped to [0, 1])
+               = size_score_l1 + tool_number_loss
 
-    soft_score is read from details["soft_score"] for all modalities — this
-    is the pure quality metric without any size penalty.  Falls back to the
-    top-level "score" field when soft_score is absent.
+        size_score_l1 = soft_score - size_lambda * region_ratio  (computed by the
+        evaluator with size_lambda=0.3).  Read from details["size_score_l1"];
+        falls back to soft_score if absent (e.g. non-vision evaluator).
 
-    L1_loss = -L1_LAMBDA * (n_tools / n_max) penalises tool count so that
-    GRPO learns to achieve high soft_score with the fewest tools.
+    For non-vision:
+        Reward = soft_score + tool_number_loss  (unchanged)
 
-    Two-path reward signal:
-      - First-pass passed (or enable_improvement=False): use first-pass values.
-      - Improvement loop ran: use improved-pass values.
+    soft_score / size_score_l1 are read from details for all modalities.
+    Falls back to the top-level "score" field when both are absent.
+
+    tool_number_loss = -L1_LAMBDA * (n_tools / n_max) penalises tool count so
+    that GRPO learns to achieve high quality with the fewest tools.
     """
-    def _soft(faith: Dict[str, Any]) -> Optional[float]:
+    def _quality(faith: Dict[str, Any]) -> Optional[float]:
+        """Return size_score_l1 for vision, soft_score otherwise; fall back to score."""
         details = faith.get("details") or {}
+        if modality == "vision":
+            raw = details.get("size_score_l1")
+            if raw is not None:
+                return float(raw)
         raw = details.get("soft_score")
         if raw is not None:
             return float(raw)
         score = faith.get("score")
         return float(score) if score is not None else None
 
-    # First-pass soft score
     evaluation = result.get("evaluation") or {}
     faith = evaluation.get("faithfulness") or {}
-    first_pass_soft = _soft(faith) or 0.0
+    quality_score = _quality(faith) or 0.0
 
-    # If the improvement loop ran, prefer improved soft score
-    improved = result.get("improved") or {}
-    improved_faith = (improved.get("evaluation") or {}).get("faithfulness") or {}
-    imp_soft = _soft(improved_faith)
-    soft_score = imp_soft if imp_soft is not None else first_pass_soft
+    if not use_tool_penalty:
+        return max(0.0, min(1.0, quality_score))
 
     # L1 tool-count penalty
     l1_loss = _compute_l1_tool_penalty(result, modality)
-
-    return max(0.0, min(1.0, soft_score + l1_loss))
+    return max(0.0, min(1.0, quality_score + l1_loss))

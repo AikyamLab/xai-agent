@@ -21,7 +21,7 @@ class DataModelLoader:
         self.model_name = model_name
         self.modality = modality
         self.loader_module = self._import_loader_module()
-        
+
         # Determine model path
         model_path_str = f"models_to_read/{self.modality}/{self.model_name}.pth"
         model_path = Path(model_path_str)
@@ -128,22 +128,16 @@ class DataModelLoader:
 
     def get_display_image(self) -> Any:
         """
-        Returns the best PIL image for XAI heatmap display:
-        - Raw image  when raw_size < processed_size (pure Resize, no CenterCrop).
-          The heatmap is then downsampled from model-input resolution → natural
-          spatial smoothing (e.g. STL-10: 96×96 raw vs 224×224 processed).
-        - Processed image otherwise (e.g. CUB: raw images are larger than 224×224
-          and have been center-cropped, so processed_image is the correct canvas).
-        Gradient computation always uses the pre-computed input_tensor (unaffected).
+        Returns processed_image (after spatial transforms: Resize + CenterCrop if any)
+        as the canvas for XAI heatmaps and bounding box coordinates.
+
+        Always using processed_image ensures that tool-generated bbox coordinates,
+        masking, and model prediction all operate in the same 224×224 pixel space.
+        Using raw image for display (e.g. STL-10 96×96) caused bbox coordinates to
+        be in 96×96 space while masking was applied to 224×224, producing wrong mask
+        locations.
         """
-        processed = self.current_sample_data["processed_image"]
-        raw = self.current_sample_data.get("image")
-        if raw is not None and hasattr(raw, "size"):
-            raw_px = raw.size[0] * raw.size[1]
-            proc_px = processed.size[0] * processed.size[1]
-            if raw_px < proc_px:
-                return raw
-        return processed
+        return self.current_sample_data["processed_image"]
 
     def get_current_text(self) -> Optional[str]:
         """
@@ -217,6 +211,24 @@ class DataModelLoader:
         if self.current_sample_data and "raw_features_dict" in self.current_sample_data:
             return self.current_sample_data["raw_features_dict"]
         return None
+
+    def get_feature_modes(self) -> Optional[Dict[str, Any]]:
+        """Returns mode (most frequent value) for each original feature column (tabular only).
+        Computed from the full dataset DataFrame cached by the loader module."""
+        if not hasattr(self.loader_module, '_cache'):
+            return None
+        df = self.loader_module._cache.get("df")
+        if df is None:
+            return None
+        modes = {}
+        for col in df.columns:
+            mode_series = df[col].mode()
+            if len(mode_series) > 0:
+                val = mode_series.iloc[0]
+                if hasattr(val, 'item'):
+                    val = val.item()
+                modes[col] = val
+        return modes
 
     def get_training_data(self) -> Optional[torch.Tensor]:
         """Returns training data tensor (for SHAP/LIME background data)."""

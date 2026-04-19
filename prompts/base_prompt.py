@@ -106,8 +106,7 @@ class ChangePlan:
     bounding_box: Optional[List[int]] = None
 
     # For text
-    start_index: Optional[int] = None
-    end_index: Optional[int] = None
+    span_text: Optional[str] = None
 
     # For tabular
     feature_key: Optional[str] = None
@@ -119,10 +118,8 @@ class ChangePlan:
             result["new_value"] = self.new_value
         if self.bounding_box is not None:
             result["bounding_box"] = self.bounding_box
-        if self.start_index is not None:
-            result["start_index"] = self.start_index
-        if self.end_index is not None:
-            result["end_index"] = self.end_index
+        if self.span_text is not None:
+            result["span_text"] = self.span_text
         if self.feature_key is not None:
             result["feature_key"] = self.feature_key
         return result
@@ -325,7 +322,7 @@ class PromptBuilder(ABC):
         if self.modality == "vision":
             return '"bounding_box": [x_min, y_min, x_max, y_max]  // pixel coordinates, integers'
         elif self.modality == "text":
-            return '"spans": [{"start_index": int, "end_index": int}]  // character positions; list one or more spans'
+            return '"text_spans": ["exact phrase from input text"]  // exact substrings from the input; list one or more phrase strings'
         elif self.modality == "tabular":
             return '"feature_keys": ["feature_name"]  // column/feature names; list one or more features'
         else:
@@ -840,9 +837,6 @@ class PromptBuilder(ABC):
             if modality == 'text':
                 if 'text' in inst:
                     text = inst['text']
-                    # Truncate very long texts for prompt
-                    if len(text) > 800:
-                        text = text[:800] + "..."
                     lines.append(f"```\n{text}\n```")
                 elif 'premise' in inst:
                     lines.append(f"Premise: {inst['premise']}")
@@ -876,8 +870,6 @@ class PromptBuilder(ABC):
                 lines.append(f"Premise: {premise}")
                 lines.append(f"Hypothesis: {inst.get('hypothesis', '')}")
             elif text:
-                if len(text) > 800:
-                    text = text[:800] + "..."
                 lines.append(f"```\n{text}\n```")
         elif modality == 'tabular':
             feat = inst.get('features', {})

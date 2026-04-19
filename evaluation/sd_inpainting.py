@@ -139,7 +139,7 @@ def generate_counterfactual_image(
     bounding_box: list,
     prompt: str,
     num_inference_steps: int = 20,
-    guidance_scale: float = 7.5,
+    guidance_scale: float = 15.0,
 ) -> Union[Image.Image, torch.Tensor]:
     """Generate a counterfactual image using SD inpainting.
 

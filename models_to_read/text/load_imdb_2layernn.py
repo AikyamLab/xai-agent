@@ -1,3 +1,4 @@
+import threading
 import torch
 import torch.nn as nn
 from typing import Dict, Any, Optional, Union, List
@@ -8,6 +9,9 @@ from collections import Counter # Added
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # VOCAB_SIZE will be determined dynamically
+
+_vocab_lock = threading.Lock()
+_vocab_built = False
 EMBED_DIM = 300
 HIDDEN_DIM = 256
 MAX_LENGTH = 256
@@ -86,35 +90,38 @@ def load_model(model_path: str, embed_dim: int = EMBED_DIM, hidden_dim: int = HI
     Returns:
         tuple: A tuple containing the loaded model and a processor (tokenizer function).
     """
-    global global_vocab # Access the global vocabulary
+    global global_vocab, _vocab_built
 
-    # Build Vocabulary — must use re.findall(r"\b\w+\b") to match training tokenizer
-    print("Building vocabulary...")
-    dataset_imdb = load_dataset("imdb")
+    # Read vocab_size from checkpoint to avoid thread-race size mismatch
+    state_dict = torch.load(model_path, map_location="cpu", weights_only=False)
+    actual_vocab_size = state_dict["embedding.weight"].shape[0]
 
-    def _tokenize(text):
-        return re.findall(r"\b\w+\b", text.lower())
+    # Build vocabulary once (thread-safe); other threads wait and reuse it
+    with _vocab_lock:
+        if not _vocab_built:
+            print("Building vocabulary...")
+            dataset_imdb = load_dataset("imdb")
 
-    counter = Counter()
-    for ex in dataset_imdb["train"]:
-        counter.update(_tokenize(ex["text"]))
+            def _tokenize(text):
+                return re.findall(r"\b\w+\b", text.lower())
 
-    global_vocab = {"<pad>": 0, "<unk>": 1}
-    for word, _ in counter.most_common(20000): # 20000 most common words + 2 special tokens
-        global_vocab[word] = len(global_vocab)
-    
-    actual_vocab_size = len(global_vocab)
-    print(f"Vocabulary built with size: {actual_vocab_size}")
+            counter = Counter()
+            for ex in dataset_imdb["train"]:
+                counter.update(_tokenize(ex["text"]))
+
+            global_vocab = {"<pad>": 0, "<unk>": 1}
+            for word, _ in counter.most_common(actual_vocab_size - 2):
+                global_vocab[word] = len(global_vocab)
+
+            _vocab_built = True
+            print(f"Vocabulary built with size: {len(global_vocab)}")
 
     model = TwoLayerNN_IMDB(actual_vocab_size, embed_dim, hidden_dim)
-
-    # Load Weights with weights_only=False
-    state_dict = torch.load(model_path, map_location=DEVICE, weights_only=False)
     model.load_state_dict(state_dict)
     model = model.to(DEVICE)
     model.eval()
 
-    return model, simple_tokenize # Return the now-adapted simple_tokenize
+    return model, simple_tokenize
 
 
 def load_data(text_input: Union[str, Dict[str, Any]], index: Optional[int] = None) -> Dict[str, Any]:

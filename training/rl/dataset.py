@@ -221,11 +221,10 @@ class XAIRLDataset:
             modality = infer_modality(dataset_name)
 
         if base_dir is None:
-            base_dir = Path(__file__).parents[2]
+            dataset_root = Path(__file__).parents[2] / "dataset" / mode / modality
         else:
-            base_dir = Path(base_dir)
-
-        dataset_root = base_dir / "dataset" / mode / modality
+            # base_dir is the dataset directory itself (e.g. dataset_unused/)
+            dataset_root = Path(base_dir) / mode / modality
 
         if q_types is None:
             q_types = list(range(1, 11))

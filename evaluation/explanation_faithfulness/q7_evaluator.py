@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from ..base_evaluator import BaseEvaluator, EvaluationResult
-from ..masking_utils import get_masker
+from ..masking_utils import get_masker, MaskingStrategy
 
 
 class Q7Evaluator(BaseEvaluator):
@@ -104,8 +104,9 @@ class Q7Evaluator(BaseEvaluator):
                 errors=["Part to change not specified"]
             )
 
-        # Mask using modality-appropriate default strategy
-        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
+        # Q7 uses zero-masking for tabular; other modalities use their defaults
+        strategy = MaskingStrategy.ZERO if self.modality == 'tabular' else None
+        masker = get_masker(self.modality, strategy=strategy, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
         modified_input = masker.mask(
             original_input, part_to_change,
             dataset_base_name=kwargs.get('dataset_base_name'),
@@ -229,7 +230,7 @@ class Q7Evaluator(BaseEvaluator):
             )
 
         # Mask the region and run the model.
-        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'))
+        masker = get_masker(self.modality, preprocessor=kwargs.get('processor'), feature_modes=kwargs.get('feature_modes'))
         modified_input = masker.mask(
             original_input, part_to_change,
             dataset_base_name=kwargs.get('dataset_base_name'),

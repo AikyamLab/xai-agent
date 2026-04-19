@@ -16,6 +16,79 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 
 
+def _fix_bare_array_objects(text: str) -> str:
+    """
+    Fix arrays whose elements are bare key-value pairs (VLM forgot opening/closing {}).
+
+    VLMs occasionally emit:
+        "findings": [
+            "bounding_box": [1, 0, 224, 224],
+            "description": "..."
+        ]
+    instead of:
+        "findings": [
+            {"bounding_box": [1, 0, 224, 224],
+             "description": "..."}
+        ]
+
+    Detects `[ <whitespace> "word":` (bare KV after array open) and inserts the
+    missing `{` at the start and `}` right before the matching `]`.
+    """
+    # Match [ <whitespace> "any-key": — the key can be any non-empty quoted string,
+    # including bbox-style keys like "[30, 110, 190, 220]".
+    # In valid JSON arrays elements are never followed by ":", so this pattern is safe.
+    pattern = re.compile(r'\[(\s*)("[^"\n]+")\s*:')
+    insertions: list[tuple[int, str]] = []
+
+    for m in pattern.finditer(text):
+        open_bracket = m.start()
+        # Position to insert `{`: right after `[` and any leading whitespace
+        insert_open = open_bracket + 1 + len(m.group(1))
+
+        # Walk forward to find the `]` that closes this `[`
+        depth = 1
+        i = open_bracket + 1
+        in_str = False
+        esc = False
+        while i < len(text) and depth > 0:
+            c = text[i]
+            if esc:
+                esc = False
+                i += 1
+                continue
+            if in_str:
+                if c == '\\':
+                    esc = True
+                elif c == '"':
+                    in_str = False
+                i += 1
+                continue
+            if c == '"':
+                in_str = True
+                i += 1
+                continue
+            if c in '[{':
+                depth += 1
+            elif c in ']}':
+                depth -= 1
+            i += 1
+
+        if depth == 0:
+            close_bracket = i - 1  # position of matching `]`
+            insertions.append((close_bracket, '}'))
+            insertions.append((insert_open, '{'))
+
+    if not insertions:
+        return text
+
+    # Apply right-to-left so earlier positions stay valid
+    insertions.sort(key=lambda x: x[0], reverse=True)
+    result = list(text)
+    for pos, char in insertions:
+        result.insert(pos, char)
+    return ''.join(result)
+
+
 class BaseAgent(ABC):
     """
     Abstract base class for all agents in the XAI framework.
@@ -99,9 +172,139 @@ class BaseAgent(ABC):
         Returns:
             Parsed dictionary, or empty dict on failure
         """
+        # Pre-processing: strip <think>...</think> blocks (Qwen3 reasoning chains).
+        # Must be done FIRST — thinking blocks often contain { } chars that cause
+        # Strategy 1's greedy \{.*\} to capture thinking content + JSON as one blob.
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+        # Handle truncated thinking (max_new_tokens hit inside <think>, no </think> emitted).
+        if '<think>' in response and '</think>' not in response:
+            response = re.sub(r'<think>.*', '', response, flags=re.DOTALL).strip()
+
         # Pre-processing: remove invalid JSON number prefixes (+0.12 → 0.12).
         # JSON spec forbids a leading '+' on numbers; some VLMs emit it anyway.
         response = re.sub(r'(?<!["\w])\+(\d)', r'\1', response)
+
+        # Pre-processing: quote bare percentage values (100% → "100%", 0% → "0%").
+        # VLMs sometimes emit: "frequency_of_opposition": 100%
+        response = re.sub(r'(?<=:\s)(\d+(?:\.\d+)?)%', r'"\1%"', response)
+
+        # Pre-processing: strip markdown code fences (```json ... ``` or ``` ... ```).
+        # Handles both closed fences and VLM responses truncated before the closing fence.
+        code_fence = re.search(r'```(?:json)?\s*\n?(.*?)(?:\n?```|$)', response, re.DOTALL)
+        if code_fence:
+            inner = code_fence.group(1).strip()
+            if inner and '{' in inner:
+                response = inner
+
+        # Pre-processing: strip inline // comments (VLMs add them after array elements).
+        # Matches: <value-end char> <optional spaces> // <rest of line>
+        # where value-end chars are }, ], ", comma, or a digit.
+        # This pattern cannot match // inside string values because those are preceded
+        # by string content (e.g. "https://…" — the char before // is :, not in the set).
+        response = re.sub(r'([}\]",\d])[ \t]*//[^\n]*', r'\1', response)
+
+        # Fast path: try to parse immediately after code fence extraction, before running
+        # the aggressive heuristic fixes below.  When the VLM returns well-formed JSON the
+        # preprocessing regexes can corrupt it (e.g. values with leading spaces, CUB species
+        # names, emoji-containing strings).  Parsing here avoids that entirely.
+        _start = response.find('{')
+        if _start != -1:
+            _json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if _json_match:
+                try:
+                    return json.loads(_json_match.group())
+                except json.JSONDecodeError:
+                    pass
+            try:
+                _obj, _ = json.JSONDecoder().raw_decode(response, _start)
+                return _obj
+            except json.JSONDecodeError:
+                pass
+
+        # Pre-processing: replace <placeholder> values with null.
+        # Some VLMs emit template tokens like "new_value": <value> instead of a real value.
+        response = re.sub(r'(?<=:)\s*<\w+>', ' null', response)
+
+        # Pre-processing: fix unclosed strings that end at a newline.
+        # VLMs sometimes forget the closing " before the newline, e.g.:
+        #   "Both have a similar overall dark grayish coloration.   ← no closing "
+        #   "Both are seabirds with medium-sized bodies."
+        # In JSON, strings cannot contain literal newlines, so a line that starts
+        # with " and ends without one is always an unclosed string.
+        # Strategy: match lines starting with " whose last char is not ", \, :, or ,
+        # (those indicate a properly closed/key/trailing-comma line) and append ",
+        # to close the string and separate it from the next array element.
+        response = re.sub(
+            r'^(\s*"(?:[^"\\\n]|\\.)*[^"\\\n:,])$',
+            lambda m: m.group(1) + '",',
+            response,
+            flags=re.MULTILINE,
+        )
+
+        # Pre-processing: fix "X" vs "Y" comparison expressions inside JSON arrays/strings.
+        # VLMs (especially on NLI tasks) write: "differing_tokens": ["The" vs "Girls", ...]
+        # Merge into a single string: "The vs Girls"
+        response = re.sub(
+            r'"([^"\n]+)"\s+vs\s+"([^"\n]+)"',
+            lambda m: '"' + m.group(1) + ' vs ' + m.group(2) + '"',
+            response,
+        )
+
+        # Pre-processing: fix embedded unescaped double quotes inside JSON string values.
+        # VLMs (especially on CUB/vision tasks) write things like:
+        #   "has a "grooved" beak"  or  ["item with "quoted term" in it"]
+        #   "giving a rounded, "bulging" facial appearance"
+        #   "dismissal ("not good", "poorly edited")"  ← preceded by (
+        # Patterns handled:
+        #   (a) letter/digit + space before the embedded phrase — most common case.
+        #   (b) comma + space before the embedded phrase followed by prose.
+        #   (c) open-paren before the embedded phrase (e.g. ("term", "term")).
+        # Max phrase length 60 chars limits false positives.
+        response = re.sub(
+            r'([a-zA-Z0-9]) "([^"\n:{}\[\]]{1,60})"(?=[ ,\.!?;])',
+            lambda m: m.group(1) + " '" + m.group(2) + "'",
+            response,
+        )
+        response = re.sub(
+            r'(,\s)"([^"\n:{}\[\]]{1,60})"(?=\s[a-zA-Z])',
+            lambda m: m.group(1) + "'" + m.group(2) + "'",
+            response,
+        )
+        response = re.sub(
+            r'(\()"([^"\n:{}\[\]]{1,60})"(?=[,\)])',
+            lambda m: m.group(1) + "'" + m.group(2) + "'",
+            response,
+        )
+
+        # Pre-processing: fix array elements where a quoted string is followed by unquoted prose.
+        # VLMs sometimes emit:  "age" favors >50K (explanation),
+        # instead of:           "age favors >50K (explanation)",
+        # The fix merges them into a single properly-quoted string.
+        # Guard: first char after whitespace must not be :, ", comma, or bracket (would be valid JSON).
+        response = re.sub(
+            r'"([^"\\]*)"\s+([^",:\[\]{},\n\s][^",:\[\]{},\n]*)',
+            lambda m: '"' + m.group(1) + ' ' + m.group(2).rstrip() + '"',
+            response
+        )
+
+        # Pre-processing: fix unquoted string values after JSON keys.
+        # VLMs sometimes emit: "key": Some prose text here
+        # instead of:          "key": "Some prose text here"
+        # Heuristic: after `"key": ` (no opening quote), if the value starts with a letter
+        # (not a JSON-valid token starter: ", {, [, digit, -, t/f/n for true/false/null),
+        # wrap the entire rest-of-line in quotes (converting embedded " to ').
+        # Only matches single-line values; multi-line truncation is handled by Strategy 3.
+        response = re.sub(
+            r'("[\w]+"\s*:\s+)([^"\d{\[\-tfn\r\n][^\r\n]*)',
+            lambda m: m.group(1) + '"' + re.sub(r'(?<!\\)"', "'", m.group(2).rstrip()) + '"',
+            response
+        )
+
+        # Pre-processing: fix arrays whose elements are bare key-value pairs.
+        # VLMs sometimes emit:  "findings": ["bounding_box": [...], "description": "..."]
+        # instead of:           "findings": [{"bounding_box": [...], "description": "..."}]
+        # _fix_bare_array_objects inserts the missing { and } around the object.
+        response = _fix_bare_array_objects(response)
 
         # Strategy 1: existing regex approach (fast path, works for most responses)
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
@@ -124,17 +327,76 @@ class BaseAgent(ABC):
         # Handles VLM output that was cut off mid-stream (e.g. a long "findings" array).
         if start != -1:
             partial = response[start:].rstrip()
-            partial = re.sub(r',\s*$', '', partial)       # trailing comma
-            partial = re.sub(r'"[^"]*$', '', partial)     # dangling open string
-            open_braces = partial.count('{') - partial.count('}')
-            open_brackets = partial.count('[') - partial.count(']')
-            suffix = ']' * max(0, open_brackets) + '}' * max(0, open_braces)
-            if suffix:
+
+            def _try_close(p: str) -> dict | None:
+                """Try to close p by balancing braces/brackets; return parsed obj or None."""
+                p2 = re.sub(r',\s*$', '', p)  # strip trailing comma before closing
+                # Use a stack to determine correct closing order (respects nesting).
+                # e.g. {[{ needs }]} not ]}} which _count_unbalanced + reversed-flat would produce.
+                stack = []
+                in_str = False
+                esc = False
+                for ch in p2:
+                    if esc:
+                        esc = False
+                        continue
+                    if ch == '\\' and in_str:
+                        esc = True
+                        continue
+                    if ch == '"':
+                        in_str = not in_str
+                        continue
+                    if in_str:
+                        continue
+                    if ch == '{':
+                        stack.append('}')
+                    elif ch == '[':
+                        stack.append(']')
+                    elif ch in ']}' and stack and stack[-1] == ch:
+                        stack.pop()
+                if not stack:
+                    try:
+                        return json.loads(p2)
+                    except json.JSONDecodeError:
+                        return None
+                suffix2 = ''.join(reversed(stack))
                 try:
-                    obj = json.loads(partial + suffix)
-                    return obj
+                    return json.loads(p2 + suffix2)
                 except json.JSONDecodeError:
-                    pass
+                    return None
+
+            # 3a: trailing comma
+            partial = re.sub(r',\s*$', '', partial)
+            # 3b: dangling open string (e.g. "key": "truncated mid-word)
+            # Guard: only apply when strings are unbalanced (odd " count).  When the
+            # JSON is structurally complete but merely missing close-braces, the last "
+            # is a proper closing quote; blindly stripping it (and the trailing }) would
+            # destroy valid content and prevent _try_close from recovering the JSON.
+            _quote_count = 0
+            _esc = False
+            for _ch in partial:
+                if _esc:
+                    _esc = False
+                    continue
+                if _ch == '\\':
+                    _esc = True
+                    continue
+                if _ch == '"':
+                    _quote_count += 1
+            if _quote_count % 2 == 1:  # unclosed string → safe to strip
+                partial = re.sub(r'"[^"]*$', '', partial)
+            # 3c: dangling "key": with no value — replace with null so the key is preserved
+            #     (removing it entirely can cascade and wipe the whole parent object)
+            partial = re.sub(r'(,?\s*"[^"]+"\s*:)\s*$', r'\1 null', partial)
+            # Try to close here — covers {"explanation": null} → {"explanation": null}
+            obj = _try_close(partial)
+            if obj is not None:
+                return obj
+            # 3d: dangling incomplete object start (no nested braces inside)
+            partial = re.sub(r',?\s*\{[^{}]*$', '', partial)
+            obj = _try_close(partial)
+            if obj is not None:
+                return obj
 
         raise RuntimeError(f"JSON parse error in VLM response. Response preview: {response[:300]}")
 
@@ -169,6 +431,7 @@ class BaseAgent(ABC):
                 last_error = e
                 if attempt < max_retries:
                     print(f"  JSON parse failed (attempt {attempt}/{max_retries}), retrying in {retry_delay}s... Error: {e}")
+                    print(f"  Full response ({len(response)} chars): {response[:2000]}")
                     time.sleep(retry_delay)
         raise last_error
 

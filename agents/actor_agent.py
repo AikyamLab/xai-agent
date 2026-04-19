@@ -972,7 +972,9 @@ class ActorAgent(BaseAgent):
             xai_output_dir.mkdir(parents=True, exist_ok=True)
             set_output_dir(str(xai_output_dir))
 
-            image_id_prefix = f"{dataset_name}_{q_type_str}_{row_no}{instance_suffix}"
+            rollout_id = question.get('rollout_id')
+            rollout_sfx = f"_r{rollout_id}" if rollout_id is not None else ""
+            image_id_prefix = f"{dataset_name}_{q_type_str}_{row_no}{instance_suffix}{rollout_sfx}"
         else:
             image_id_prefix = "direct"
 
@@ -989,6 +991,16 @@ class ActorAgent(BaseAgent):
 
             print(f"  Executing {tool_name}...")
             fixed_params = self._get_fixed_tool_params(tool_name, modality)
+            # Release PyTorch's "reserved but unallocated" cache before each GPU tool
+            # run so that the allocator can reuse it for XAI intermediate tensors.
+            # Without this, ~480 MiB of cached-but-idle memory can block allocations
+            # even though sufficient logical capacity exists.
+            try:
+                import torch as _torch
+                if _torch.cuda.is_available():
+                    _torch.cuda.empty_cache()
+            except Exception:
+                pass
             result_str = tool.run(
                 image_path=input_path,
                 target_class=target_class,
@@ -1110,7 +1122,8 @@ class ActorAgent(BaseAgent):
                 predictions=predictions,
                 question=question,
                 modality=modality,
-                tool_results=tool_results
+                tool_results=tool_results,
+                input_paths=input_paths,
             )
 
             # Save prompt for inspection (same path convention as proposer/actor prompts)
@@ -1145,7 +1158,8 @@ class ActorAgent(BaseAgent):
         predictions: List[Dict[str, Any]],
         question: Dict[str, Any],
         modality: str,
-        tool_results: Optional[Dict[str, Any]] = None
+        tool_results: Optional[Dict[str, Any]] = None,
+        input_paths: Optional[List[str]] = None,
     ) -> str:
         """
         Build prompt for autonomous task execution.
@@ -1153,16 +1167,42 @@ class ActorAgent(BaseAgent):
         Directly uses task_type, query, and expected_output from proposer's strategy.
         Includes modality-specific constraints (image size, text length, etc.)
         """
-        # Use first prediction for headline summary; all predictions forwarded to constraint builder
-        prediction = predictions[0] if predictions else {}
-        pred_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
-        confidence = prediction.get('confidence', 0.0)
-        top5 = prediction.get('top5_predictions', [])
+        # For autonomous reasoning tasks, include input context but NOT output-format
+        # constraints (text_spans / bbox) — findings are free-form, not span outputs.
+        size_constraint = self._build_modality_constraint(
+            modality, question, tool_results,
+            include_format_constraint=False,
+            input_paths=input_paths,
+        )
 
-        # Build modality-specific constraints (passes all predictions for multi-instance)
-        size_constraint = self._build_modality_constraint(modality, question, tool_results)
-
-        top5_section = f"\n## Top-5 Model Predictions\n{top5}" if top5 else ""
+        # Build prediction context: single line for one instance, labeled list for multiple
+        if len(predictions) <= 1:
+            prediction = predictions[0] if predictions else {}
+            pred_class = prediction.get('predicted_class_name', prediction.get('predicted_class_idx', 'Unknown'))
+            confidence = prediction.get('confidence', 0.0)
+            top5 = prediction.get('top5_predictions', [])
+            predictions_section = f"- Model Prediction: {pred_class} (confidence: {confidence:.2%})"
+            top5_section = f"\n## Top-5 Model Predictions\n{top5}" if top5 else ""
+        else:
+            # Multi-instance: label each prediction; use instance labels from question if available
+            instances_meta = question.get('instance_A') or question.get('instances')
+            is_q4 = question.get('is_q4_format') or (
+                'instance_A' in question and 'instance_B' in question
+            )
+            lines = []
+            for i, pred in enumerate(predictions):
+                if pred is None:
+                    pred = {}
+                pred_class = pred.get('predicted_class_name', pred.get('predicted_class_idx', 'Unknown'))
+                confidence = pred.get('confidence', 0.0)
+                label = chr(ord('A') + i) if is_q4 else str(i)
+                gt_name = pred.get('ground_truth_name', '')
+                correct = (pred.get('predicted_class_idx') == pred.get('ground_truth_idx')) if pred.get('ground_truth_idx') is not None else None
+                correct_str = '' if correct is None else (' [correct]' if correct else ' [misclassified]')
+                gt_str = f', ground truth: {gt_name}' if gt_name else ''
+                lines.append(f"  - Instance {label}: predicted={pred_class} (confidence: {confidence:.2%}{gt_str}){correct_str}")
+            predictions_section = "- Model Predictions:\n" + "\n".join(lines)
+            top5_section = ""
 
         prompt = f"""You are an expert AI analyst. Perform the following autonomous reasoning task.
 
@@ -1170,7 +1210,7 @@ class ActorAgent(BaseAgent):
 
 ## Context
 - Question: {question.get('question', '')}
-- Model Prediction: {pred_class} (confidence: {confidence:.2%})
+{predictions_section}
 - Modality: {modality}
 {top5_section}
 {size_constraint}
@@ -1194,12 +1234,23 @@ JSON Response:"""
         self,
         modality: str,
         question: Dict[str, Any],
-        tool_results: Optional[Dict[str, Any]] = None
+        tool_results: Optional[Dict[str, Any]] = None,
+        include_format_constraint: bool = True,
+        input_paths: Optional[List[str]] = None,
     ) -> str:
-        """Build modality-specific constraints for autonomous task prompts."""
+        """Build modality-specific constraints for autonomous task prompts.
+
+        Args:
+            include_format_constraint: When False, only the input-data context section
+                is returned (no output-format constraints).  Set to False for autonomous
+                reasoning tasks whose findings are free-form, not text_spans/bbox.
+            input_paths: Fallback image paths used to read image dimensions when no
+                successful tool result contains 'original_image_size' (e.g. strategy
+                has only autonomous tasks and no selected_tools ran first).
+        """
 
         if modality == "vision":
-            # Extract image size from tool results — no silent fallback.
+            # 1. Try to extract image size from tool results.
             image_width = image_height = None
             if tool_results:
                 for tool_name, result in tool_results.get('tool_results', {}).items():
@@ -1220,25 +1271,67 @@ JSON Response:"""
                                     break
                     if image_width is not None:
                         break
+
+            # 2. Fall back to reading size directly from input image files.
+            #    This covers strategies that have only autonomous_tasks (no selected_tools).
+            if (image_width is None or image_height is None) and input_paths:
+                for p in input_paths:
+                    if p and os.path.exists(p):
+                        try:
+                            from PIL import Image as _PILImg
+                            with _PILImg.open(p) as _img:
+                                image_width, image_height = _img.size
+                            break
+                        except Exception:
+                            continue
+
             if image_width is None or image_height is None:
                 raise RuntimeError(
                     "Cannot build vision constraints: no successful tool result contains "
-                    "'original_image_size'. Ensure at least one XAI tool ran successfully."
+                    "'original_image_size' and no valid input_paths were provided. "
+                    "Ensure at least one XAI tool ran successfully or pass input_paths."
                 )
-
-            min_width = max(int(image_width * 0.1), 10)
-            min_height = max(int(image_height * 0.1), 10)
 
             return f"""
 ## CRITICAL IMAGE CONSTRAINTS
 - Image dimensions: {image_width} x {image_height} pixels
 - ALL bounding box coordinates MUST be within: x in [0, {image_width}], y in [0, {image_height}]
-- MINIMUM bounding box size: {min_width}x{min_height} pixels
 - Format bounding boxes as [x_min, y_min, x_max, y_max]
 - Ensure x_max > x_min and y_max > y_min"""
 
         elif modality == "text":
             features = question.get('features', {})
+            # Handle Q4: features stored as instance_A / instance_B, not a list
+            if not isinstance(features, list) and question.get('instance_A') and question.get('instance_B'):
+                inst_a = question['instance_A']
+                inst_b = question['instance_B']
+                lines = []
+                all_texts = []
+                for label, inst in [('A', inst_a), ('B', inst_b)]:
+                    feat = inst.get('features', {})
+                    pred_info = inst.get('prediction', {})
+                    pred_lbl = pred_info.get('predicted_class_name', pred_info.get('predicted_class_idx', '?')) if isinstance(pred_info, dict) else pred_info
+                    lines.append(f"\n### Instance {label} (predicted: {pred_lbl})")
+                    if isinstance(feat, dict):
+                        text = feat.get('text', feat.get('premise', ''))
+                        if 'premise' in feat:
+                            lines.append(f"Premise: {feat['premise']}")
+                            lines.append(f"Hypothesis: {feat.get('hypothesis', '')}")
+                            all_texts.append(feat['premise'])
+                        elif text:
+                            lines.append(f"```\n{text}\n```")
+                            all_texts.append(text)
+                    elif isinstance(feat, str):
+                        lines.append(f"```\n{feat}\n```")
+                        all_texts.append(feat)
+                text_content_section = "\n## INPUT TEXTS (ALL INSTANCES)\n" + "\n".join(lines)
+                fmt = ("""
+
+## CRITICAL TEXT SPAN CONSTRAINTS
+- text_spans must contain exact phrases copied verbatim from each instance's text
+- Each phrase must appear literally in the corresponding instance's text""" if include_format_constraint else "")
+                return f"{text_content_section}{fmt}"
+
             # Handle multi-instance (Q9/Q10): features is a list of dicts
             if isinstance(features, list):
                 labels = "ABCDEFGHIJ"
@@ -1268,12 +1361,12 @@ JSON Response:"""
                         all_texts.append(feat)
                 text_content_section = "\n## INPUT TEXTS (ALL INSTANCES)\n" + "\n".join(lines)
                 max_text_length = max((len(t) for t in all_texts), default=100)
-                return f"""{text_content_section}
+                fmt = ("""
 
-## CRITICAL TEXT CONSTRAINTS
-- ALL indices MUST be within the bounds of each instance's text
-- Format text spans as {{"start_index": int, "end_index": int}}
-- Ensure end_index > start_index"""
+## CRITICAL TEXT SPAN CONSTRAINTS
+- text_spans must contain exact phrases copied verbatim from each instance's text
+- Each phrase must appear literally in the corresponding instance's text""" if include_format_constraint else "")
+                return f"{text_content_section}{fmt}"
 
             # Extract actual text content for NLI (premise+hypothesis) or single-text tasks
             if isinstance(features, dict) and 'premise' in features and 'hypothesis' in features:
@@ -1296,16 +1389,40 @@ JSON Response:"""
 
             text_length = len(text_input) if text_input else 100
 
-            return f"""{text_content_section}
+            fmt = ("""
 
-## CRITICAL TEXT CONSTRAINTS
-- Text length: {text_length} characters
-- ALL indices MUST be within: [0, {text_length}]
-- Format text spans as {{"start_index": int, "end_index": int}}
-- Ensure end_index > start_index"""
+## CRITICAL TEXT SPAN CONSTRAINTS
+- text_spans must contain exact phrases copied verbatim from the input text
+- Each phrase must appear literally in the input text (case-insensitive match will be used)""" if include_format_constraint else "")
+            return f"{text_content_section}{fmt}"
 
         elif modality == "tabular":
             features = question.get('features', {})
+            # Handle Q4: features stored as instance_A / instance_B, not a list
+            if not isinstance(features, list) and question.get('instance_A') and question.get('instance_B'):
+                inst_a = question['instance_A']
+                inst_b = question['instance_B']
+                lines = []
+                feature_names = []
+                for label, inst in [('A', inst_a), ('B', inst_b)]:
+                    feat = inst.get('features', {})
+                    pred_info = inst.get('prediction', {})
+                    pred_lbl = pred_info.get('predicted_class_name', pred_info.get('predicted_class_idx', '?')) if isinstance(pred_info, dict) else pred_info
+                    if isinstance(feat, dict):
+                        if not feature_names:
+                            feature_names = list(feat.keys())
+                        feat_str = ", ".join(f"{k}={v}" for k, v in feat.items())
+                    else:
+                        feat_str = str(feat)
+                    lines.append(f"\n### Instance {label} (predicted: {pred_lbl})\nFeatures: {feat_str}")
+                instance_section = "\n## INSTANCE DATA\n" + "\n".join(lines)
+                return f"""{instance_section}
+
+## CRITICAL TABULAR CONSTRAINTS
+- Available feature names: {feature_names}
+- Use exact feature names as they appear above
+- Format as {{"feature_key": "feature_name"}}"""
+
             # Handle multi-instance (Q9/Q10): features is a list of dicts
             if isinstance(features, list) and features:
                 # Use first instance's keys as representative feature names
@@ -1755,12 +1872,12 @@ JSON Response:"""
                     txt = _extract_text(data)
                     max_len = max(max_len, len(txt))
                     cls = pred.get('predicted_class_name', pred.get('predicted_class_idx', '?'))
-                    display = txt[:500] + "..." if len(txt) > 500 else txt
-                    parts.append(f"### Instance {lbl} (prediction: {cls})\n```\n{display}\n```")
+                    parts.append(f"### Instance {lbl} (prediction: {cls})\n```\n{txt}\n```")
                 text_length = max_len if max_len > 0 else 100
                 size_constraint = f"""
-**CRITICAL TEXT LENGTH CONSTRAINT (longest instance: {text_length} chars):**
-- start_index MUST be >= 0, end_index MUST be <= length of that instance's text, end_index > start_index"""
+**CRITICAL TEXT SPAN CONSTRAINT:**
+- text_spans must contain exact phrases copied verbatim from the corresponding instance's text
+- Each phrase must appear literally in the instance text (case-insensitive match will be used)"""
                 input_section = "\n## Input Instances\n" + "\n\n".join(parts) + "\n"
             else:
                 text_input = question.get('text_input', '')
@@ -1768,15 +1885,14 @@ JSON Response:"""
                     text_input = _extract_text(input_data)
                 text_length = len(text_input) if text_input else 100
                 size_constraint = f"""
-**CRITICAL TEXT LENGTH CONSTRAINT:**
-- Text length: {text_length} characters
-- start_index MUST be >= 0, end_index MUST be <= {text_length}, end_index > start_index"""
-                display_text = text_input[:1000] + "..." if len(text_input) > 1000 else text_input
-                input_section = f"\n## Input Text\n```\n{display_text}\n```\n"
+**CRITICAL TEXT SPAN CONSTRAINT:**
+- text_spans must contain exact phrases copied verbatim from the input text
+- Each phrase must appear literally in the input text (case-insensitive match will be used)"""
+                input_section = f"\n## Input Text\n```\n{text_input}\n```\n"
 
             guidelines = (
                 "- Replace every placeholder value with your actual analysis result\n"
-                "- spans must be a list of {start_index, end_index} character positions (one or more spans)"
+                "- text_spans must be a list of exact phrase strings copied verbatim from the input text"
             )
 
         else:  # tabular
@@ -1939,7 +2055,10 @@ Respond with ONLY valid JSON:"""
         def clip_bounding_box(bbox: List, width: int, height: int) -> List:
             """Clip bounding box coordinates to valid image bounds."""
             if not bbox or len(bbox) != 4:
-                return [0, 0, width, height]
+                raise RuntimeError(
+                    f"VLM produced invalid bounding_box: {bbox!r}. "
+                    "Expected a list of 4 numbers [x_min, y_min, x_max, y_max]."
+                )
             x_min, y_min, x_max, y_max = bbox
             x_min = max(0, min(int(x_min), width - 1))
             y_min = max(0, min(int(y_min), height - 1))
@@ -1962,23 +2081,22 @@ Respond with ONLY valid JSON:"""
             if modality == "vision" and 'bounding_box' in d:
                 d['bounding_box'] = clip_bounding_box(d['bounding_box'], width, height)
             elif modality == "text":
-                if 'spans' in d and isinstance(d['spans'], list):
-                    for span in d['spans']:
-                        if isinstance(span, dict) and 'start_index' in span and 'end_index' in span:
-                            s, e = clip_text_indices(span['start_index'], span['end_index'], text_length)
-                            span['start_index'], span['end_index'] = s, e
-                elif 'start_index' in d and 'end_index' in d:
-                    # legacy single-span (e.g. Q6 change_plan items)
-                    s, e = clip_text_indices(d['start_index'], d['end_index'], text_length)
-                    d['start_index'], d['end_index'] = s, e
+                # text_spans are exact phrase strings — no index clipping needed
+                pass
             elif modality == "tabular" and available_features:
                 if 'feature_keys' in d and isinstance(d['feature_keys'], list):
-                    d['feature_keys'] = [
-                        k for k in d['feature_keys'] if k in available_features
-                    ] or [available_features[0]]
+                    valid_keys = [k for k in d['feature_keys'] if k in available_features]
+                    if not valid_keys:
+                        raise RuntimeError(
+                            f"VLM produced feature_keys {d['feature_keys']!r} but none match "
+                            f"available features: {available_features!r}"
+                        )
+                    d['feature_keys'] = valid_keys
                 elif 'feature_key' in d and d['feature_key'] not in available_features:
-                    # legacy single-key (e.g. Q6 change_plan items)
-                    d['feature_key'] = available_features[0]
+                    raise RuntimeError(
+                        f"VLM produced feature_key {d['feature_key']!r} which is not in "
+                        f"available features: {available_features!r}"
+                    )
             return d
 
         def validate_and_fix_output(parsed: Dict, modality: str) -> Dict:
@@ -2026,10 +2144,9 @@ Respond with ONLY valid JSON:"""
                         "output": {"bounding_box": clipped_bbox},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
                     }
-                elif modality == "text" and 'start_index' in parsed and 'end_index' in parsed:
-                    start, end = clip_text_indices(parsed['start_index'], parsed['end_index'], text_length)
+                elif modality == "text" and 'text_spans' in parsed:
                     return {
-                        "output": {"spans": [{"start_index": start, "end_index": end}]},
+                        "output": {"text_spans": parsed['text_spans']},
                         "explanation": parsed.get('explanation', 'VLM direct analysis'),
                     }
                 elif modality == "tabular" and 'feature_key' in parsed:
@@ -2112,8 +2229,27 @@ Respond with ONLY valid JSON:"""
                 )
             image_size = images[0].size  # (width, height) of what VLM receives
 
-        # Build prompt (pass placeholder list for multi so is_multi is detected)
-        all_input_datas = [None] * len(_paths) if is_multi else None
+        # Build input data list for multi-instance mode.
+        # Vision: None placeholders (images are passed separately to VLM).
+        # Text/tabular: populate from question['features'] so the prompt contains
+        # actual content — without this the model sees empty instances and returns
+        # empty spans / "no textual content".
+        if is_multi:
+            if modality in ("text", "tabular"):
+                features_list = question.get('features', [])
+                all_input_datas = []
+                for i in range(len(_paths)):
+                    feat = features_list[i] if isinstance(features_list, list) and i < len(features_list) else None
+                    if modality == "text" and isinstance(feat, dict):
+                        # Prefer 'text' / 'review_text' keys; fall back to the whole dict
+                        data = feat.get('text', feat.get('review_text', feat))
+                    else:
+                        data = feat
+                    all_input_datas.append(data)
+            else:
+                all_input_datas = [None] * len(_paths)
+        else:
+            all_input_datas = None
         all_predictions = _preds if is_multi else None
 
         prompt = self._build_no_tools_prompt(
@@ -2220,8 +2356,10 @@ Respond with ONLY valid JSON:"""
             dataset_name = dataset_base_name
             q_type_str = f"q{question.get('q_type', 1)}"
 
-        # Format: /results/{modality}/{dataset_name}/{q_type}/{question_id}/result.json
-        filename = f"result{suffix}" if suffix else "result"
+        # Format: /results/{modality}/{dataset_name}/{q_type}/{question_id}/result_r{rollout_id}.json
+        rollout_id = question.get('rollout_id')
+        rollout_pfx = f"_r{rollout_id}" if rollout_id is not None else ""
+        filename = f"result{rollout_pfx}{suffix}" if (rollout_pfx or suffix) else "result"
         subdir = f"results/{modality}/{dataset_name}/{q_type_str}/{row_no}"
         filepath = self.save_json(results, filename, subdir)
         print(f"Results saved to: {filepath}")

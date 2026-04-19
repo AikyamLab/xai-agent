@@ -208,7 +208,7 @@ Identify the part that DISTINGUISHES {top1} from {top2}.
 
 **Critical Requirements:**
 - For vision: bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
-- For text: spans as a list of {{start_index, end_index}} character positions (one or more spans)
+- For text: text_spans as a list of exact phrase strings copied verbatim from the input text (one or more phrases)
 - For tabular: feature_keys as a list of column names {output_size_constraint}
 - Base your decision on the attribution analysis
 

@@ -224,9 +224,9 @@ class RLSamplingVLM:
             buf = io.BytesIO()
             if hasattr(img, "save"):          # PIL Image
                 img.save(buf, format="PNG")
-            else:                             # file path
-                with open(img, "rb") as f:
-                    buf.write(f.read())
+            else:                             # file path — always convert to PNG
+                from PIL import Image as _PILImage
+                _PILImage.open(img).convert("RGB").save(buf, format="PNG")
             return buf.getvalue()
 
         _add_text(f"<|im_start|>system\n{_SYSTEM_MESSAGE}<|im_end|>\n")

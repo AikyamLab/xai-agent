@@ -72,12 +72,12 @@ def _load_and_preprocess_data():
         stratify=y
     )
 
-    _cache["scaler"] = scaler
     _cache["X_full"] = torch.tensor(X_scaled, dtype=torch.float32)
     _cache["y_full"] = torch.tensor(y, dtype=torch.long)
     _cache["X_test"] = torch.tensor(X_test, dtype=torch.float32)
     _cache["y_test"] = torch.tensor(y_test, dtype=torch.long)
     _cache["feature_names"] = feature_names
+    _cache["scaler"] = scaler  # set last — acts as "all ready" marker
 
 
 def load_model(model_path: str):

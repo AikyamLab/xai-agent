@@ -14,6 +14,7 @@ All tools:
 - Let the Agent extract structured features through reasoning
 """
 
+import threading
 import torch
 import numpy as np
 from typing import Any, Dict, Optional, List
@@ -22,7 +23,11 @@ from PIL import Image
 import json
 import os
 import cv2
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from scipy.ndimage import gaussian_filter
 
 # XAI Libraries
@@ -41,25 +46,36 @@ from skimage.segmentation import mark_boundaries
 from ultralytics import YOLO
 
 
-# Global output directory for visualizations
-_OUTPUT_DIR = None
+# Thread-local output directory for XAI visualizations.
+# Using threading.local() instead of a module-level global so that parallel
+# rollout workers (ThreadPoolExecutor) each maintain their own output path
+# without overwriting each other.
+_tls = threading.local()
+
+# GPU concurrency is controlled by limiting max_rollout_workers (=40) at the
+# trainer level instead of a per-tool semaphore.  40 concurrent workers × 1.5 GB
+# (LIME peak) + 3.7 GB model weights + 3 GB overhead ≈ 67 GB, safely within
+# the 79 GB GPU budget.  A semaphore caused severe queuing latency (164 workers
+# × 32 sequential semaphore acquisitions per LIME call → step time 66-93 min).
+_LIME_SHAP_GPU_SEM = threading.Semaphore(1000)  # effectively disabled
 
 
 def set_output_dir(output_dir: str):
-    """Set the global output directory for XAI visualizations."""
-    global _OUTPUT_DIR
-    _OUTPUT_DIR = Path(output_dir)
-    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"XAI output directory set to: {_OUTPUT_DIR}")
+    """Set the per-thread output directory for XAI visualizations."""
+    p = Path(output_dir)
+    p.mkdir(parents=True, exist_ok=True)
+    _tls.output_dir = p
+    print(f"XAI output directory set to: {p}")
 
 
 def get_output_dir() -> Path:
-    """Get the output directory, creating default if not set."""
-    global _OUTPUT_DIR
-    if _OUTPUT_DIR is None:
-        _OUTPUT_DIR = Path(os.getcwd()) / "outputs" / "xai_visualizations"
-        _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    return _OUTPUT_DIR
+    """Get the per-thread output directory, creating a default if not set."""
+    d = getattr(_tls, 'output_dir', None)
+    if d is None:
+        d = Path(os.getcwd()) / "outputs" / "xai_visualizations"
+        d.mkdir(parents=True, exist_ok=True)
+        _tls.output_dir = d
+    return d
 
 
 def _save_heatmap_visualization(
@@ -71,6 +87,9 @@ def _save_heatmap_visualization(
     """
     Save a heatmap visualization overlaid on the original image.
 
+    Uses matplotlib OO API (Figure/FigureCanvasAgg) instead of pyplot globals
+    so this function is safe to call from multiple threads simultaneously.
+
     Args:
         original_image: Original image as numpy array (H, W, 3)
         heatmap: 2D numpy array with activation values (normalized 0-1)
@@ -80,7 +99,9 @@ def _save_heatmap_visualization(
     Returns:
         Path to saved visualization
     """
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig = Figure(figsize=(15, 5))
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(1, 3)
 
     # Original image
     axes[0].imshow(original_image)
@@ -91,7 +112,7 @@ def _save_heatmap_visualization(
     im = axes[1].imshow(heatmap, cmap='jet')
     axes[1].set_title(title)
     axes[1].axis('off')
-    plt.colorbar(im, ax=axes[1])
+    fig.colorbar(im, ax=axes[1])
 
     # Overlay
     axes[2].imshow(original_image)
@@ -99,9 +120,8 @@ def _save_heatmap_visualization(
     axes[2].set_title('Overlay')
     axes[2].axis('off')
 
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150, bbox_inches='tight')
 
     return output_path
 
@@ -146,17 +166,36 @@ def _get_target_layer(model: torch.nn.Module) -> torch.nn.Module:
     """
     Get the target layer for gradient-based methods.
 
-    Returns:
-        Target layer (usually the last convolutional layer)
-    """
-    target_layer = None
+    For ResNet/similar architectures, targets the full last residual block
+    (e.g. model.layer4[-1]) so GradCAM sees activations after the residual
+    add + ReLU.  Targeting a raw Conv2d inside a bottleneck (before the
+    residual path) causes all-negative pre-ReLU attributions that become
+    all-zero after the GradCAM ReLU step.
 
+    Returns:
+        Target layer — last residual/dense block, or last Conv2d as fallback
+    """
+    # ResNet / wide-resnet style: layer4 contains the last residual blocks
+    for attr_name in ('layer4', 'layer3'):
+        if hasattr(model, attr_name):
+            block = getattr(model, attr_name)
+            if isinstance(block, torch.nn.Sequential) and len(block) > 0:
+                return block[-1]
+
+    # DenseNet style: features is a Sequential ending with denseblock + norm
+    if hasattr(model, 'features') and isinstance(model.features, torch.nn.Sequential):
+        # Return the last sub-module that contains Conv2d layers
+        for child in reversed(list(model.features.children())):
+            if any(isinstance(m, torch.nn.Conv2d) for m in child.modules()):
+                return child
+
+    # Generic fallback: last Conv2d in the model
+    target_layer = None
     for name, module in model.named_modules():
         if isinstance(module, torch.nn.Conv2d):
             target_layer = module
 
     if target_layer is None:
-        # Fallback: use the last layer before classifier
         modules = list(model.children())
         target_layer = modules[-2] if len(modules) > 1 else modules[-1]
 
@@ -262,6 +301,8 @@ def execute_gradcam(
     # Store original image size
     original_size = image.size  # (width, height)
     img_np = np.array(image)
+
+    model.eval()
 
     # Use provided tensor or preprocess
     if input_tensor is None:
@@ -394,7 +435,7 @@ def execute_integrated_gradients(
 
         try:
             ig = IntegratedGradients(model)
-            attribution = ig.attribute(input_tensor, baselines=baseline, target=target_class, n_steps=n_steps, internal_batch_size=16)
+            attribution = ig.attribute(input_tensor, baselines=baseline, target=target_class, n_steps=n_steps, internal_batch_size=4)
         finally:
             for name, module in model.named_modules():
                 if name in inplace_states:
@@ -474,17 +515,23 @@ def execute_lime(
     img_np = np.array(image)
 
     # Define prediction function for LIME
+    # Batched: stack _LIME_BATCH images into one GPU call instead of 1000 individual
+    # calls, reducing Python GIL holding time ~32× and GPU launch overhead.
+    _LIME_BATCH = 32
     def predict_fn(images):
-        # images shape: (batch, H, W, C)
-        predictions = []
-        for img in images:
-            pil_img = Image.fromarray(img.astype('uint8'))
-            input_tensor = _preprocess_image(pil_img, model_type, processor, device)
+        # images shape: (N, H, W, C) uint8
+        results = []
+        for i in range(0, len(images), _LIME_BATCH):
+            batch_imgs = images[i:i + _LIME_BATCH]
+            tensors = torch.cat([
+                _preprocess_image(Image.fromarray(img.astype('uint8')), model_type, processor, device)
+                for img in batch_imgs
+            ], dim=0)  # [B, C, H, W]
             with torch.no_grad():
-                output = model(input_tensor)
+                output = model(tensors)
                 probs = torch.nn.functional.softmax(output, dim=1)
-            predictions.append(probs.cpu().numpy()[0])
-        return np.array(predictions)
+            results.append(probs.cpu().numpy())
+        return np.concatenate(results, axis=0)
 
     # Initialize LIME explainer
     explainer = lime_image.LimeImageExplainer()
@@ -651,17 +698,24 @@ def execute_shap(
     img_np = np.array(image).astype(np.float32) / 255.0
 
     # Define prediction function
+    # Batched: same GIL-reduction strategy as LIME's predict_fn.
+    # SHAP already passes batch_size=10 to the explainer, but model_predict was still
+    # processing one image at a time; now we batch the GPU forward pass.
+    _SHAP_BATCH = 32
     def model_predict(imgs):
-        predictions = []
-        for img in imgs:
-            img_uint8 = (img * 255).astype(np.uint8)
-            pil_img = Image.fromarray(img_uint8)
-            input_tensor = _preprocess_image(pil_img, model_type, processor, device)
+        # imgs shape: (N, H, W, C) float32 in [0, 1]
+        results = []
+        for i in range(0, len(imgs), _SHAP_BATCH):
+            batch_imgs = imgs[i:i + _SHAP_BATCH]
+            tensors = torch.cat([
+                _preprocess_image(Image.fromarray((img * 255).astype(np.uint8)), model_type, processor, device)
+                for img in batch_imgs
+            ], dim=0)  # [B, C, H, W]
             with torch.no_grad():
-                output = model(input_tensor)
+                output = model(tensors)
                 probs = torch.nn.functional.softmax(output, dim=1)
-            predictions.append(probs.cpu().numpy()[0])
-        return np.array(predictions)
+            results.append(probs.cpu().numpy())
+        return np.concatenate(results, axis=0)
 
     # Create SHAP explainer with masker
     # Detect actual number of model outputs to avoid dimension mismatch
@@ -1348,6 +1402,7 @@ def execute_smoothgrad(
         target=target_class,
         nt_type='smoothgrad',
         nt_samples=n_samples,
+        nt_samples_batch_size=4,  # process 4 noise samples at a time to avoid OOM
         stdevs=stdevs
     )
 
@@ -1677,7 +1732,8 @@ def execute_smoothgrad_tabular(
     device: torch.device,
     n_samples: int = 100,
     stdevs: float = 0.1,
-    encoded_to_original: Optional[Dict] = None
+    encoded_to_original: Optional[Dict] = None,
+    raw_features_dict: Optional[Dict] = None
 ) -> Dict[str, Any]:
     """
     Execute SmoothGrad for tabular data (noise-averaged gradients w.r.t. input features).

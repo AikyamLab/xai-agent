@@ -154,6 +154,9 @@ def parse_args():
                    help="Max samples for strategy faithfulness evaluation")
     p.add_argument("--faithfulness_threshold", type=float, default=0.1,
                    help="Faithfulness threshold passed to pipeline.run()")
+    p.add_argument("--no-tool-penalty", dest="use_tool_penalty",
+                   action="store_false", default=True,
+                   help="Disable L1 tool-count penalty from the reward signal")
 
     # ── GRPO training ─────────────────────────────────────────────────────────
     p.add_argument("--lr",             type=float, default=1e-5)
@@ -222,6 +225,7 @@ async def main():
             dataset_name=args.dataset_name[0],
             mode=args.mode,
             q_types=args.q_types,
+            base_dir=args.dataset_dir,
             max_questions=args.max_questions,
             data_range=data_range,
             shuffle=True,
@@ -233,6 +237,7 @@ async def main():
             mode=args.mode,
             q_types=args.q_types,
             per_dataset_q_types=per_dataset_q_types,
+            base_dir=args.dataset_dir,
             max_questions=args.max_questions,
             data_range=data_range,
             shuffle=True,
@@ -281,6 +286,7 @@ async def main():
         enable_sf=args.enable_sf,
         sf_max_samples=args.sf_max_samples,
         faithfulness_threshold=args.faithfulness_threshold,
+        use_tool_penalty=args.use_tool_penalty,
     )
 
     # ── 6b. Env factory for parallel rollout worker pool ──────────────────────
@@ -311,6 +317,7 @@ async def main():
             enable_sf=args.enable_sf,
             sf_max_samples=args.sf_max_samples,
             faithfulness_threshold=args.faithfulness_threshold,
+            use_tool_penalty=args.use_tool_penalty,
         )
 
     # ── 7. Build GRPO config + trainer ────────────────────────────────────────
@@ -350,46 +357,102 @@ async def main():
         """
         Near-greedy eval using the current policy snapshot.
 
+        Runs in parallel when trainer._rollout_pool is available (i.e. when
+        --parallel-rollouts is set), using the same env pool as training.
+        Falls back to sequential eval using the primary env otherwise.
+
+        Questions are randomly sampled each eval so the metric is unbiased
+        across Q-types even when eval_max_questions < len(eval_ds).
+
         Returns a metrics dict that grpo_trainer writes to grpo_log.jsonl
         with type="eval".  Per-question rewards and q_type breakdown are
         included so convergence can be analysed per question type.
         """
         import math as _math
-        from training.rl.rollout import do_group_rollout as _rollout
+        import concurrent.futures as _cf
 
         eval_questions = list(eval_ds.questions)
+        random.shuffle(eval_questions)
         if args.eval_max_questions is not None:
             eval_questions = eval_questions[:args.eval_max_questions]
+
         rewards   = []
         per_q     = []   # list of {q_type, row_no, reward, n_transitions}
         n_errors  = 0
 
-        original_temp = env.rl_vlm.temperature
-        env.rl_vlm.temperature = 0.1   # near-greedy for eval
+        if trainer._rollout_pool is not None:
+            # ── Parallel eval: reuse rollout env pool ─────────────────────────
+            # Each worker checks out an env, sets temperature=0.1, runs the
+            # episode, restores temperature, and returns the env to the pool.
+            def _run_eval(question):
+                w_env = trainer._rollout_pool.get()
+                old_temp = w_env.rl_vlm.temperature
+                try:
+                    w_env.rl_vlm.temperature = 0.1
+                    w_env.rl_vlm.update_sampling_client(sampling_client)
+                    traj = w_env.run_episode(question, rollout_id=0)
+                    return traj, None
+                except Exception as exc:
+                    return None, exc
+                finally:
+                    w_env.rl_vlm.temperature = old_temp
+                    trainer._rollout_pool.put(w_env)
 
-        for question in eval_questions:
-            try:
-                group = _rollout(
-                    env=env,
-                    question=question,
-                    sampling_client=sampling_client,
-                    num_rollouts=1,
-                )
-                traj   = group.trajectories[0]
-                reward = traj.total_reward
-                rewards.append(reward)
-                per_q.append({
-                    "q_type":       question.get("q_type"),
-                    "row_no":       question.get("row_no"),
-                    "dataset":      question.get("dataset_name"),
-                    "reward":       round(reward, 6),
-                    "n_transitions": len(traj.transitions),
-                })
-            except Exception as e:
-                print(f"  Eval error: {e}")
-                n_errors += 1
+            n_workers = min(len(eval_questions), trainer._rollout_max_workers or 32)
+            print(f"  [Eval step={step}] Running {len(eval_questions)} questions "
+                  f"with {n_workers} parallel workers...")
+            with _cf.ThreadPoolExecutor(max_workers=n_workers) as ex:
+                future_to_q = {ex.submit(_run_eval, q): q for q in eval_questions}
+                for fut in _cf.as_completed(future_to_q):
+                    question = future_to_q[fut]
+                    try:
+                        traj, err = fut.result()
+                        if err:
+                            print(f"  Eval error: {err}")
+                            n_errors += 1
+                        elif traj is not None:
+                            reward = traj.total_reward
+                            rewards.append(reward)
+                            per_q.append({
+                                "q_type":        question.get("q_type"),
+                                "row_no":        question.get("row_no"),
+                                "dataset":       question.get("dataset_name"),
+                                "reward":        round(reward, 6),
+                                "n_transitions": len(traj.transitions),
+                            })
+                    except Exception as e:
+                        print(f"  Eval error: {e}")
+                        n_errors += 1
 
-        env.rl_vlm.temperature = original_temp
+        else:
+            # ── Sequential eval: use primary env ──────────────────────────────
+            from training.rl.rollout import do_group_rollout as _rollout
+            original_temp = env.rl_vlm.temperature
+            env.rl_vlm.temperature = 0.1   # near-greedy for eval
+
+            for question in eval_questions:
+                try:
+                    group = _rollout(
+                        env=env,
+                        question=question,
+                        sampling_client=sampling_client,
+                        num_rollouts=1,
+                    )
+                    traj   = group.trajectories[0]
+                    reward = traj.total_reward
+                    rewards.append(reward)
+                    per_q.append({
+                        "q_type":        question.get("q_type"),
+                        "row_no":        question.get("row_no"),
+                        "dataset":       question.get("dataset_name"),
+                        "reward":        round(reward, 6),
+                        "n_transitions": len(traj.transitions),
+                    })
+                except Exception as e:
+                    print(f"  Eval error: {e}")
+                    n_errors += 1
+
+            env.rl_vlm.temperature = original_temp
 
         if not rewards:
             return None
