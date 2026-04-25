@@ -104,17 +104,9 @@ def load_model(model_path: str):
     ]))
 
     model.fc = classifier
-    state_dict = torch.load(model_path, map_location="cpu")
-    try:
-        model.load_state_dict(state_dict, assign=True)
-    except TypeError:
-        # PyTorch < 2.1: assign kwarg not available; materialize meta tensors first
-        try:
-            model = model.to_empty(device="cpu")
-        except Exception:
-            pass
-        model.load_state_dict(state_dict)
-    model = model.to(DEVICE)
+    model = model.to_empty(device=DEVICE)
+    state_dict = torch.load(model_path, map_location=DEVICE)
+    model.load_state_dict(state_dict)
     model.eval()
 
     transform = get_transform()

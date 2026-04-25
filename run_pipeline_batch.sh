@@ -133,6 +133,7 @@ Options:
                              Requires --vlm to be a tinker/* base model.
     --tinker_lora_rank N     LoRA rank used during training (default: 16)
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
+    --dataset_dir DIR        Dataset base directory (default: ${BASE_DIR}/dataset)
     --parallel               Run jobs in parallel
     --max_jobs N             Maximum parallel jobs (default: 4)
     -h, --help               Show this help message
@@ -355,6 +356,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --output_dir)
             OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --dataset_dir)
+            DATASET_DIR="$2"
             shift 2
             ;;
         --parallel)

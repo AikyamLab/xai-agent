@@ -52,9 +52,8 @@ def split_dataset_files(
                     print(f"    Skipping {filepath.name}: not a JSON list.")
                     continue
 
-                # Sample without replacement (take all if fewer than n_samples)
-                k = min(n_samples, len(data))
-                sampled = random.sample(data, k)
+                sampled = data[:]
+                random.shuffle(sampled)
 
                 # 80/20 train/test split
                 split_index = int(len(sampled) * TRAIN_RATIO)

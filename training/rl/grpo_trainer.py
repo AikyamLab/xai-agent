@@ -627,7 +627,15 @@ class GRPOTrainer:
                         )
 
                 # ── 2. Async training step ────────────────────────────────────
+                # Keepalive: the TRAIN connection can go idle during rollouts
+                # (rollouts only use the SAMPLE connection).  Nginx closes idle
+                # connections and returns 400 Bad Request on the next use.
+                # get_info_async() is lightweight and does not consume a seq_id.
                 print(f"\n  Training step...")
+                try:
+                    await self.training_client.get_info_async()
+                except Exception:
+                    pass  # non-fatal; forward_backward will surface any real errors
                 metrics = await self.train_step(trajectory_groups)
                 metrics["epoch"] = epoch + 1
                 metrics["elapsed_s"] = round(time.time() - t0, 1)

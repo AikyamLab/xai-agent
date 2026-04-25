@@ -1484,19 +1484,63 @@ def execute_guided_backprop_text(
     Returns raw results - feature extraction is done by Actor Agent.
     """
     model.eval()
-    inputs = processor(text, return_tensors="pt", padding=True, truncation=True).to(device)
 
-    embedding_layer = model.get_input_embeddings()
-    input_ids = inputs['input_ids']
-    embeddings = embedding_layer(input_ids).detach().requires_grad_(True)
+    # HuggingFace tokenizers expose convert_ids_to_tokens; simple callables don't
+    is_hf_tokenizer = hasattr(processor, 'convert_ids_to_tokens')
 
-    outputs = model(inputs_embeds=embeddings, attention_mask=inputs.get('attention_mask'))
-    score = outputs.logits[0, target_class]
-    score.backward()
+    if is_hf_tokenizer:
+        inputs = processor(text, return_tensors="pt", padding=True, truncation=True).to(device)
+        embedding_layer = model.get_input_embeddings()
+        input_ids = inputs['input_ids']
+        embeddings = embedding_layer(input_ids).detach().requires_grad_(True)
+        outputs = model(inputs_embeds=embeddings, attention_mask=inputs.get('attention_mask'))
+        score = outputs.logits[0, target_class]
+        score.backward()
+        grad = embeddings.grad.squeeze(0)  # (seq_len, hidden_dim)
+        importance = grad.abs().mean(dim=-1).cpu().detach().numpy()
+        tokens = processor.convert_ids_to_tokens(input_ids[0].cpu().tolist())
+    else:
+        # Custom PyTorch model with model.embedding and simple tokenizer callable.
+        # Use a forward hook to capture embedding gradients without model-specific forwarding.
+        is_nli = bool(sample_data and 'hypothesis' in sample_data)
+        token_ids = processor(text)  # List[int]
+        token_ids_tensor = torch.tensor([token_ids], device=device)
 
-    # Gradient of score w.r.t. embeddings: shape (seq_len, hidden_dim)
-    grad = embeddings.grad.squeeze(0)  # (seq_len, hidden_dim)
-    importance = grad.abs().mean(dim=-1).cpu().detach().numpy()  # (seq_len,)
+        captured_embs = []
+
+        def _hook(module, inp, out):
+            out.retain_grad()
+            captured_embs.append(out)
+
+        handle = model.embedding.register_forward_hook(_hook)
+
+        if is_nli:
+            hyp_ids = processor(sample_data['hypothesis'])
+            hyp_ids_tensor = torch.tensor([hyp_ids], device=device)
+            output = model(token_ids_tensor, hyp_ids_tensor)
+        else:
+            output = model(token_ids_tensor)
+
+        logits = output.logits if hasattr(output, 'logits') else output
+        # Binary models output shape (B, 1); use sign flip for class 0
+        if logits.shape[-1] == 1:
+            score = logits[0, 0] if target_class == 1 else -logits[0, 0]
+        else:
+            score = logits[0, target_class]
+        score.backward()
+        handle.remove()
+
+        # captured_embs[0] = premise (or single-input) embeddings; shape (1, seq_len, embed_dim)
+        prem_emb = captured_embs[0].squeeze(0).detach()   # (seq_len, embed_dim)
+        prem_grad = captured_embs[0].grad.squeeze(0)      # (seq_len, embed_dim)
+        # grad×input: position-specific even for mean-pool models where plain |grad| is uniform
+        importance = (prem_grad * prem_emb).abs().mean(dim=-1).cpu().detach().numpy()
+
+        # Trim to actual words (padding positions carry negligible info)
+        words = text.lower().split()
+        n_words = min(len(words), len(importance))
+        tokens = words[:n_words]
+        importance = importance[:n_words]
 
     if importance.max() == importance.min():
         raise RuntimeError(
@@ -1504,8 +1548,6 @@ def execute_guided_backprop_text(
             f"Gradients may be zero. Check target_class and model compatibility."
         )
     importance = (importance - importance.min()) / (importance.max() - importance.min())
-
-    tokens = processor.convert_ids_to_tokens(input_ids[0].cpu().tolist())
 
     token_importance = [
         {"token": tok, "importance": round(float(imp), 4)}

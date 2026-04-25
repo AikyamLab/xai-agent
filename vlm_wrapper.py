@@ -1738,6 +1738,212 @@ class TinkerVisionLanguageModel:
 
 
 # ============================================================================
+# OpenAI API VLM
+# ============================================================================
+
+class OpenAIVLM:
+    """
+    OpenAI API wrapper implementing the same interface as VisionLanguageModel.
+
+    Supports models like:
+    - gpt-5.4
+    - gpt-5.4-nano
+    - gpt-4o
+    - gpt-4o-mini
+    """
+
+    def __init__(
+        self,
+        model_id: str = "gpt-5.4",
+        temperature: float = 0.0,
+        max_new_tokens: int = 8192,
+        **kwargs
+    ):
+        self.model_id = model_id
+        self.temperature = temperature
+        self.max_new_tokens = max_new_tokens
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "OPENAI_API_KEY environment variable not set. "
+                "Set it with: export OPENAI_API_KEY='your-api-key'"
+            )
+
+        try:
+            from openai import OpenAI, RateLimitError, APIError
+            self._RateLimitError = RateLimitError
+            self._APIError = APIError
+            self.client = OpenAI(api_key=api_key)
+        except ImportError:
+            raise ImportError(
+                "openai package not installed. "
+                "Install with: pip install openai"
+            )
+
+        self._system_instruction = (
+            "You are an AI assistant that follows instructions precisely. "
+            "When given a task with a specific format to follow, "
+            "you MUST follow that exact format. Never respond with greetings or small talk. "
+            "Always focus on the task at hand and provide structured responses as requested."
+        )
+
+        self._max_retries = 5
+        self._base_retry_delay = 10  # seconds
+
+        print(f"OpenAIVLM initialized: {self.model_id}")
+        print(f"  Temperature: {self.temperature}")
+        print(f"  Max output tokens: {self.max_new_tokens}")
+
+    def _call_with_retry(self, messages: List[dict]) -> str:
+        """Call OpenAI API with automatic retry on rate limit errors."""
+        import time
+
+        # o-series models don't accept temperature; all recent OpenAI models use max_completion_tokens
+        _is_o_series = (self.model_id.startswith("o1") or self.model_id.startswith("o3")
+                        or self.model_id.startswith("o4"))
+        for attempt in range(self._max_retries):
+            try:
+                call_kwargs = dict(model=self.model_id, messages=messages,
+                                   max_completion_tokens=self.max_new_tokens)
+                if not _is_o_series:
+                    call_kwargs["temperature"] = self.temperature
+                response = self.client.chat.completions.create(**call_kwargs)
+                return response.choices[0].message.content
+            except self._RateLimitError as e:
+                delay = self._base_retry_delay * (2 ** attempt)
+                if attempt < self._max_retries - 1:
+                    print(f"  Rate limited (attempt {attempt + 1}/{self._max_retries}). "
+                          f"Retrying in {delay:.0f}s...")
+                    time.sleep(delay)
+                else:
+                    print(f"  Rate limited: max retries ({self._max_retries}) exceeded.")
+                    raise
+            except self._APIError as e:
+                if hasattr(e, 'status_code') and e.status_code in (500, 503):
+                    delay = self._base_retry_delay * (2 ** attempt)
+                    if attempt < self._max_retries - 1:
+                        print(f"  API error {e.status_code} (attempt {attempt + 1}/{self._max_retries}). "
+                              f"Retrying in {delay:.0f}s...")
+                        time.sleep(delay)
+                    else:
+                        raise
+                else:
+                    raise
+
+    def _encode_image(self, image: Union[str, "Image.Image"]) -> dict:
+        """Encode image as an OpenAI image_url content block (base64)."""
+        import base64
+        import io as _io
+
+        if isinstance(image, Image.Image):
+            buf = _io.BytesIO()
+            image.save(buf, format='PNG')
+            data = base64.standard_b64encode(buf.getvalue()).decode("utf-8")
+            media_type = "image/png"
+        else:
+            ext = os.path.splitext(image)[1].lower()
+            media_type_map = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+            }
+            media_type = media_type_map.get(ext, 'image/png')
+            with open(image, 'rb') as f:
+                data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        return {
+            "type": "image_url",
+            "image_url": {"url": f"data:{media_type};base64,{data}"},
+        }
+
+    def _generate_text(self, prompt: str, **kwargs) -> str:
+        """Generate text-only response via OpenAI API."""
+        messages = [
+            {"role": "system", "content": self._system_instruction},
+            {"role": "user", "content": prompt},
+        ]
+        return self._call_with_retry(messages)
+
+    def invoke(
+        self,
+        prompt: str,
+        images: Optional[Union["Image.Image", List["Image.Image"], str, List[str]]] = None,
+        **kwargs
+    ) -> str:
+        if images:
+            if isinstance(images, list):
+                return self.invoke_with_images(prompt, images, **kwargs)
+            else:
+                return self.invoke_with_images(prompt, [images], **kwargs)
+        return self._generate_text(prompt, **kwargs)
+
+    def invoke_with_images(
+        self,
+        prompt: str,
+        image_paths: List[Union[str, "Image.Image"]],
+        **kwargs
+    ) -> str:
+        content = [self._encode_image(p) for p in image_paths]
+        content.append({"type": "text", "text": prompt})
+        messages = [
+            {"role": "system", "content": self._system_instruction},
+            {"role": "user", "content": content},
+        ]
+        return self._call_with_retry(messages)
+
+    def invoke_multimodal(
+        self,
+        prompt: str,
+        image_paths: List[str],
+        **kwargs
+    ) -> str:
+        """Alias for invoke_with_images."""
+        return self.invoke_with_images(prompt, image_paths, **kwargs)
+
+    def generate_with_image(
+        self,
+        prompt: str,
+        image: Union[str, "Image.Image"],
+        **kwargs
+    ) -> str:
+        return self.invoke_with_images(prompt, [image], **kwargs)
+
+    def generate_with_images(
+        self,
+        prompt: str,
+        images: List[Union[str, "Image.Image"]],
+        image_labels: Optional[List[str]] = None,
+        **kwargs
+    ) -> str:
+        if not images:
+            return self._generate_text(prompt, **kwargs)
+
+        content = []
+        for i, img in enumerate(images):
+            if image_labels and i < len(image_labels):
+                content.append({"type": "text", "text": f"[{image_labels[i]}]:"})
+            content.append(self._encode_image(img))
+        content.append({"type": "text", "text": prompt})
+
+        messages = [
+            {"role": "system", "content": self._system_instruction},
+            {"role": "user", "content": content},
+        ]
+        return self._call_with_retry(messages)
+
+    def get_info(self) -> Dict[str, Any]:
+        return {
+            "model_id": self.model_id,
+            "type": "openai_api",
+            "temperature": self.temperature,
+            "max_new_tokens": self.max_new_tokens,
+        }
+
+
+# ============================================================================
 # Factory Function
 # ============================================================================
 
@@ -1750,11 +1956,12 @@ def create_vlm(model_id: str, **kwargs):
                   Use 'tinker/*' for Tinker API models (e.g. 'tinker/Qwen3-VL-30B-A3B-Instruct'),
                   use 'gemini-*' for Gemini API models,
                   use 'claude-*' for Claude API models,
+                  use 'gpt-*' for OpenAI API models (e.g. 'gpt-5.4', 'gpt-5.4-nano'),
                   or HuggingFace model IDs for local models.
         **kwargs: Additional arguments passed to the VLM constructor.
 
     Returns:
-        TinkerVisionLanguageModel, ClaudeVLM, GeminiVLM, or VisionLanguageModel instance.
+        TinkerVisionLanguageModel, OpenAIVLM, ClaudeVLM, GeminiVLM, or VisionLanguageModel instance.
     """
     if model_id.startswith("tinker/"):
         # Convert "tinker/Qwen3-VL-30B-A3B-Instruct" -> "Qwen/Qwen3-VL-30B-A3B-Instruct"
@@ -1769,6 +1976,8 @@ def create_vlm(model_id: str, **kwargs):
         return GeminiVLM(model_id=model_id, **kwargs)
     elif model_id.startswith("claude-"):
         return ClaudeVLM(model_id=model_id, **kwargs)
+    elif model_id.startswith("gpt-"):
+        return OpenAIVLM(model_id=model_id, **kwargs)
     else:
         return VisionLanguageModel(model_id=model_id, **kwargs)
 
