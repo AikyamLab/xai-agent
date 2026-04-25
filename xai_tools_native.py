@@ -1914,13 +1914,14 @@ class SmoothGradTextTool(BaseTool):
                     handle.remove()
 
                 if logits.shape[-1] == 1:
-                    score = torch.sigmoid(logits)[0, 0]
+                    score = logits[0, 0] if target_class == 1 else -logits[0, 0]
                 else:
                     score = logits[0, target_class]
 
                 score.backward()
+                # grad×input: position-specific even for mean-pool models where plain |grad| is uniform
                 all_grads.append(
-                    noisy_embeddings.grad.squeeze(0).abs().mean(dim=-1).cpu().detach().numpy()
+                    (noisy_embeddings.grad * noisy_embeddings.detach()).squeeze(0).abs().mean(dim=-1).cpu().detach().numpy()
                 )
 
             importance = np.mean(all_grads, axis=0)  # (seq_len,)

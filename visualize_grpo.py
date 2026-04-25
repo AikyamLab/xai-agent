@@ -19,7 +19,7 @@ import numpy as np
 RUNS = {
     "run_full_reward": Path(
         "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
-        "/checkpoints/grpo_text_qwen30b_full_reward_fromTab_1/grpo_log.jsonl"
+        "/checkpoints/grpo_text_qwen30b_full_reward_fromTab_2/grpo_log.jsonl"
     ),
 }
 
@@ -259,6 +259,6 @@ fig.text(0.5, 0.01,
          "Dashed vertical lines = epoch boundaries  |  Shaded area = raw values, solid line = rolling avg (w=5)",
          ha="center", fontsize=8, color="#555555")
 
-out = Path(__file__).parent / "grpo_text_training_curves_full_reward_fromTab_1.png"
+out = Path(__file__).parent / "grpo_text_training_curves_full_reward_fromTab_2.png"
 fig.savefig(out, dpi=150, bbox_inches="tight")
 print(f"Saved → {out}")
