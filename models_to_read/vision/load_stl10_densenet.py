@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Union
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset_full/image/stl-10"
 NUM_CLASSES = 10
 
 LABEL_MAP = {
@@ -56,6 +56,7 @@ def load_model(model_path: str):
     model = model.to_empty(device=DEVICE)
     state_dict = torch.load(model_path, map_location=DEVICE)
     model.load_state_dict(state_dict)
+    model.float()
     model.eval()
 
     transform = get_transform()

@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/CUB_200_2011"
+DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset_full/image/CUB_200_2011"
 NUM_CLASSES = 200
 
 def get_label_map(root_path):
@@ -103,6 +103,7 @@ def load_model(model_path: str):
     model = model.to_empty(device=DEVICE)
     state_dict = torch.load(model_path, map_location=DEVICE)
     model.load_state_dict(state_dict)
+    model.float()
     model.eval()
 
     transform = get_transform()

@@ -1038,12 +1038,18 @@ class TabularMasker(BaseMasker):
         if dataset_path:
             return self._mean_cache.compute_and_cache_mean(dataset_path, feature_key)
 
-        # Priority 4: If preprocessor is a plain StandardScaler, the scaled mean is
-        # exactly 0.0 by construction — no warning needed.
+        # Priority 4: If the feature is scaled by StandardScaler (plain or inside a
+        # ColumnTransformer), the scaled mean is exactly 0.0 — no warning needed.
         try:
             from sklearn.preprocessing import StandardScaler
-            if isinstance(self.preprocessor, StandardScaler):
+            from sklearn.compose import ColumnTransformer
+            preprocessor = self.preprocessor
+            if isinstance(preprocessor, StandardScaler):
                 return 0.0
+            if isinstance(preprocessor, ColumnTransformer):
+                for _, transformer, cols in preprocessor.transformers_:
+                    if isinstance(transformer, StandardScaler) and feature_key in list(cols):
+                        return 0.0
         except ImportError:
             pass
 

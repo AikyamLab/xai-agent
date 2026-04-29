@@ -365,6 +365,8 @@ class BaseEvaluator(ABC):
                     input_tensor = input_tensor.unsqueeze(0)
 
                 input_tensor = input_tensor.to(device)
+                if input_tensor.dtype not in (torch.long, torch.int):
+                    input_tensor = input_tensor.float()
                 outputs = model(input_tensor)
 
             # Handle binary classification (single logit output)

@@ -128,29 +128,37 @@ class XAIRLDataset:
 
     def get_stratified_batches(self, batch_size: int) -> List[List[Dict[str, Any]]]:
         """
-        Split questions into batches with stratified Q-type sampling.
+        Split questions into batches with stratified (modality, Q-type) sampling.
 
-        Each batch contains as even a mix of Q-types as possible by interleaving
-        Q-type groups in round-robin order before slicing into fixed-size batches.
-        Each Q-type group is independently shuffled so question order within a
-        type is still random across epochs.
+        Each batch contains as even a mix of modality×Q-type combinations as
+        possible by interleaving groups in round-robin order before slicing into
+        fixed-size batches.  Each group is independently shuffled so question
+        order within a group is still random across epochs.
+
+        For single-modality training the modality prefix is constant, so this
+        degenerates to the previous Q-type-only stratification with no behaviour
+        change.  For mixed-modality training it guarantees every batch sees all
+        three modalities.
         """
         from collections import defaultdict
 
-        # Group by q_type
-        groups: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        # Group by (modality, q_type) so mixed-modality batches are balanced
+        # across both dimensions.  Single-modality runs have a single modality
+        # value, so behaviour is identical to the previous q_type-only grouping.
+        groups: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
         for q in self.questions:
-            groups[q.get("q_type", 0)].append(q)
+            key = (q.get("modality", ""), q.get("q_type", 0))
+            groups[key].append(q)
 
         # Shuffle each group independently
-        shuffled: Dict[int, List[Dict[str, Any]]] = {}
-        for qt, qs in groups.items():
+        shuffled: Dict[tuple, List[Dict[str, Any]]] = {}
+        for key, qs in groups.items():
             qs_copy = list(qs)
             if self.shuffle:
                 self._rng.shuffle(qs_copy)
-            shuffled[qt] = qs_copy
+            shuffled[key] = qs_copy
 
-        # Round-robin interleave across Q-types
+        # Round-robin interleave across (modality, q_type) groups
         sorted_types = sorted(shuffled.keys())
         iters = {qt: iter(shuffled[qt]) for qt in sorted_types}
         interleaved: List[Dict[str, Any]] = []

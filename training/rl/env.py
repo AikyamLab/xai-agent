@@ -58,6 +58,7 @@ class XAIRLEnv:
         sf_max_samples: Optional[int] = None,
         faithfulness_threshold: float = 0.1,
         use_tool_penalty: bool = True,
+        diversity_lambda: float = 0.0,
     ):
         self.pipeline               = pipeline
         self.rl_vlm                 = rl_vlm
@@ -66,6 +67,7 @@ class XAIRLEnv:
         self.sf_max_samples         = sf_max_samples
         self.faithfulness_threshold = faithfulness_threshold
         self.use_tool_penalty       = use_tool_penalty
+        self.diversity_lambda       = diversity_lambda
 
     def run_episode(
         self,
@@ -129,7 +131,8 @@ class XAIRLEnv:
                 rollout_id=rollout_id,
             )
             faithfulness_score = _extract_faithfulness_score(
-                result, modality=modality, use_tool_penalty=self.use_tool_penalty
+                result, modality=modality, use_tool_penalty=self.use_tool_penalty,
+                diversity_lambda=self.diversity_lambda,
             )
         except Exception as exc:
             recorded = self.rl_vlm.get_transitions()
@@ -220,7 +223,37 @@ def _compute_l1_tool_penalty(result: Dict[str, Any], modality: str) -> float:
     return -_L1_LAMBDA * min(n_tools, n_max) / n_max
 
 
-def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "", use_tool_penalty: bool = True) -> float:
+def _compute_diversity_bonus(result: Dict[str, Any], modality: str, diversity_lambda: float) -> float:
+    """
+    Compute tool-diversity bonus = diversity_lambda * (n_unique_tool_types / n_max).
+
+    Rewards the agent for using a wider variety of distinct tools rather than
+    repeating the same tool or calling only one.  Complements the L1 tool-count
+    penalty: penalty discourages over-calling, bonus encourages breadth.
+
+    n_unique counts distinct tool_name values across selected_tools (each item
+    is a dict with a "tool_name" key) and autonomous_tasks (string identifiers).
+    Returns 0.0 when diversity_lambda == 0 or strategy info is unavailable.
+    """
+    if diversity_lambda == 0.0:
+        return 0.0
+    strategy = result.get("strategy") or {}
+    names: set = set()
+    for t in (strategy.get("selected_tools") or []):
+        name = t.get("tool_name") or t.get("name") if isinstance(t, dict) else str(t)
+        if name:
+            names.add(name)
+    for t in (strategy.get("autonomous_tasks") or []):
+        name = t.get("tool_name") or t.get("name") if isinstance(t, dict) else str(t)
+        if name:
+            names.add(name)
+    if not names:
+        return 0.0
+    n_max = _L1_MAX_TOOLS.get(modality, 9)
+    return diversity_lambda * len(names) / n_max
+
+
+def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "", use_tool_penalty: bool = True, diversity_lambda: float = 0.0) -> float:
     """
     Extract the final faithfulness score from pipeline.run() output.
 
@@ -258,9 +291,11 @@ def _extract_faithfulness_score(result: Dict[str, Any], modality: str = "", use_
     faith = evaluation.get("faithfulness") or {}
     quality_score = _quality(faith) or 0.0
 
+    diversity = _compute_diversity_bonus(result, modality, diversity_lambda)
+
     if not use_tool_penalty:
-        return max(0.0, min(1.0, quality_score))
+        return max(0.0, min(1.0, quality_score + diversity))
 
     # L1 tool-count penalty
     l1_loss = _compute_l1_tool_penalty(result, modality)
-    return max(0.0, min(1.0, quality_score + l1_loss))
+    return max(0.0, min(1.0, quality_score + l1_loss + diversity))

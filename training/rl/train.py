@@ -157,6 +157,13 @@ def parse_args():
     p.add_argument("--no-tool-penalty", dest="use_tool_penalty",
                    action="store_false", default=True,
                    help="Disable L1 tool-count penalty from the reward signal")
+    p.add_argument("--tool-diversity-lambda", dest="diversity_lambda",
+                   type=float, default=0.0,
+                   help="Coefficient for the tool-diversity bonus "
+                        "(+lambda * n_unique_tools / n_max). "
+                        "0.0 = disabled (default). "
+                        "Positive counterpart of the L1 tool-count penalty: "
+                        "rewards using a wider variety of distinct tools.")
 
     # ── GRPO training ─────────────────────────────────────────────────────────
     p.add_argument("--lr",             type=float, default=1e-5)
@@ -287,6 +294,7 @@ async def main():
         sf_max_samples=args.sf_max_samples,
         faithfulness_threshold=args.faithfulness_threshold,
         use_tool_penalty=args.use_tool_penalty,
+        diversity_lambda=args.diversity_lambda,
     )
 
     # ── 6b. Env factory for parallel rollout worker pool ──────────────────────
@@ -318,6 +326,7 @@ async def main():
             sf_max_samples=args.sf_max_samples,
             faithfulness_threshold=args.faithfulness_threshold,
             use_tool_penalty=args.use_tool_penalty,
+            diversity_lambda=args.diversity_lambda,
         )
 
     # ── 7. Build GRPO config + trainer ────────────────────────────────────────
