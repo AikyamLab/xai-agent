@@ -4,10 +4,12 @@ import torchvision.transforms as transforms
 from torchvision.datasets import STL10
 from PIL import Image
 from typing import Dict, Any, Optional, Union
+from pathlib import Path
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DEFAULT_DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DATASET_ROOT = DEFAULT_DATASET_ROOT
 NUM_CLASSES = 10
 
 LABEL_MAP = {
@@ -38,6 +40,26 @@ def get_transform():
 
 # Module-level dataset cache: same fix as load_stl10_resnet.py.
 _dataset_cache: dict = {}
+
+
+def _resolve_dataset_root(dataset_dir: str) -> str:
+    base = Path(dataset_dir).expanduser()
+    candidates = [
+        base / "image" / "stl-10",
+        base / "stl-10",
+        base,
+    ]
+    for candidate in candidates:
+        if (candidate / "stl10_binary").exists():
+            return str(candidate)
+    return str(candidates[0])
+
+
+def set_dataset_root(dataset_dir: str) -> None:
+    """Configure STL-10 root dynamically (supports dataset and dataset_ood layouts)."""
+    global DATASET_ROOT
+    DATASET_ROOT = _resolve_dataset_root(dataset_dir)
+    _dataset_cache.clear()
 
 
 def load_model(model_path: str):
