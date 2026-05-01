@@ -8,7 +8,7 @@ import os
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DATASET_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "image", "stl-10")
 NUM_CLASSES = 10
 
 LABEL_MAP = {
@@ -88,9 +88,9 @@ def load_data(index: int, split: str = "test") -> Dict[str, Any]:
     key_t = f"{split}_with_transform"
     key_r = f"{split}_raw"
     if key_t not in _dataset_cache:
-        _dataset_cache[key_t] = STL10(root=DATASET_ROOT, split=split, download=False, transform=transform)
+        _dataset_cache[key_t] = STL10(root=DATASET_ROOT, split=split, download=True, transform=transform)
     if key_r not in _dataset_cache:
-        _dataset_cache[key_r] = STL10(root=DATASET_ROOT, split=split, download=False, transform=None)
+        _dataset_cache[key_r] = STL10(root=DATASET_ROOT, split=split, download=True, transform=None)
 
     dataset_with_transform = _dataset_cache[key_t]
     dataset_raw             = _dataset_cache[key_r]

@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/CUB_200_2011"
+DATASET_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "image", "CUB_200_2011")
 NUM_CLASSES = 200
 
 def get_label_map(root_path):
