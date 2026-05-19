@@ -774,6 +774,11 @@ def execute_shap(
 
     heatmap_path = _save_raw_heatmap(normalized_shap, viz_path)
 
+    # Compute suggested bounding box from top 1% of heatmap pixels
+    shap_threshold = np.percentile(normalized_shap, 99)
+    ys, xs = np.where(normalized_shap >= shap_threshold)
+    shap_suggested_bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())] if len(ys) > 0 else None
+
     result = {
         "success": True,
         "method": "SHAP",
@@ -784,6 +789,7 @@ def execute_shap(
         "image_id": image_id,
         "visualization_path": viz_path,
         "heatmap_path": heatmap_path,
+        "suggested_bounding_box": shap_suggested_bbox,
         "statistics": {
             "high_impact_ratio": round(high_impact, 4),
             "mean_impact": round(mean_impact, 4),

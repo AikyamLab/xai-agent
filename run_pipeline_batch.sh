@@ -46,6 +46,7 @@ FAITHFULNESS_THRESHOLD=0.1
 VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
 TINKER_CHECKPOINT=""   # e.g. "tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500"
 TINKER_LORA_RANK=16
+TEMPERATURE=0.0
 PARALLEL=false
 MAX_PARALLEL_JOBS=4
 
@@ -132,6 +133,7 @@ Options:
                              E.g. tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500
                              Requires --vlm to be a tinker/* base model.
     --tinker_lora_rank N     LoRA rank used during training (default: 16)
+    --temperature TEMP       Sampling temperature for the VLM (default: 0.0)
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
     --dataset_dir DIR        Dataset base directory (default: ${BASE_DIR}/dataset)
     --parallel               Run jobs in parallel
@@ -354,6 +356,10 @@ while [[ $# -gt 0 ]]; do
             TINKER_LORA_RANK="$2"
             shift 2
             ;;
+        --temperature)
+            TEMPERATURE="$2"
+            shift 2
+            ;;
         --output_dir)
             OUTPUT_DIR="$2"
             shift 2
@@ -509,6 +515,10 @@ for dataset in $DATASETS_TO_RUN; do
                 CMD="$CMD --tinker_lora_rank $TINKER_LORA_RANK"
             fi
 
+            if [[ "$TEMPERATURE" != "0.0" && "$TEMPERATURE" != "0" ]]; then
+                CMD="$CMD --temperature $TEMPERATURE"
+            fi
+
             JOBS+=("$CMD")
             TOTAL_JOBS=$((TOTAL_JOBS + 1))
 
@@ -561,6 +571,8 @@ if [[ "$PARALLEL" == "true" ]]; then
     # Run jobs in parallel
     log_info "Running jobs in parallel (max $MAX_PARALLEL_JOBS concurrent)"
 
+    RESULT_DIR=$(mktemp -d)
+    declare -a PIDS=()
     job_num=0
     for job in "${JOBS[@]}"; do
         ((++job_num)) || true
@@ -570,11 +582,27 @@ if [[ "$PARALLEL" == "true" ]]; then
             sleep 1
         done
 
-        run_job "$job_num" "$job" &
+        (
+            run_job "$job_num" "$job"
+            echo $? > "${RESULT_DIR}/job_${job_num}.rc"
+        ) &
+        PIDS+=($!)
     done
 
-    # Wait for all jobs to complete
-    wait
+    # Wait for all jobs to complete and collect results
+    for pid in "${PIDS[@]}"; do
+        wait "$pid" 2>/dev/null || true
+    done
+
+    for rc_file in "${RESULT_DIR}"/job_*.rc; do
+        rc=$(cat "$rc_file")
+        if [[ "$rc" == "0" ]]; then
+            ((++SUCCESS_JOBS)) || true
+        else
+            ((++FAILED_JOBS)) || true
+        fi
+    done
+    rm -rf "$RESULT_DIR"
 else
     # Run jobs sequentially
     job_num=0

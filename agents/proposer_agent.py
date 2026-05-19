@@ -81,6 +81,35 @@ class ProposerAgent(BaseAgent):
             return self.tool_registry.get_tool_descriptions()
         return {}
 
+    def _collect_input_images(self, context: Dict[str, Any], modality: str) -> List[str]:
+        """Return existing processed image paths from context for vision modality.
+
+        Priority order avoids duplicates when both numeric and letter keys exist:
+          1. image_path_0, image_path_1, ... (numeric, from _build_context_multi)
+          2. image_path_A, image_path_B, ...  (letter, from _build_context_q4)
+          3. image_path                       (single-instance fallback)
+
+        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing (ablation baseline).
+        """
+        if modality != 'vision' or os.environ.get('XAI_NO_VLM_IMAGE'):
+            return []
+
+        numeric_keys = sorted(
+            [k for k in context if k.startswith('image_path_') and k[len('image_path_'):].isdigit()],
+            key=lambda k: int(k[len('image_path_'):])
+        )
+        if numeric_keys:
+            candidates = [context[k] for k in numeric_keys]
+        else:
+            letter_keys = sorted(k for k in context
+                                 if k.startswith('image_path_') and not k[len('image_path_'):].isdigit())
+            if letter_keys:
+                candidates = [context[k] for k in letter_keys]
+            else:
+                candidates = [context.get('image_path', '')]
+
+        return [p for p in candidates if p and os.path.exists(p)]
+
     def run(
         self,
         question: Dict[str, Any],
@@ -403,7 +432,9 @@ class ProposerAgent(BaseAgent):
         if question:
             self._save_prompt(prompt, question, "proposer_prompt")
 
-        strategy = self.invoke_vlm_for_json(prompt)
+        modality = question.get('modality', 'vision') if question else 'vision'
+        images = self._collect_input_images(context, modality) or None
+        strategy = self.invoke_vlm_for_json(prompt, images)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -434,7 +465,9 @@ class ProposerAgent(BaseAgent):
         if question:
             self._save_prompt(prompt, question, "proposer_prompt")
 
-        strategy = self.invoke_vlm_for_json(prompt)
+        modality = question.get('modality', 'vision') if question else 'vision'
+        images = self._collect_input_images(context, modality) or None
+        strategy = self.invoke_vlm_for_json(prompt, images)
 
         # Convert tool_selection format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -735,7 +768,8 @@ Generate a new strategy in the same JSON format as before.
         print(f"\n  Generated Q4 proposer prompt ({len(prompt)} chars)")
         self._save_prompt(prompt, question, "proposer_prompt")
 
-        strategy = self.invoke_vlm_for_json(prompt)
+        images = self._collect_input_images(context, modality) or None
+        strategy = self.invoke_vlm_for_json(prompt, images)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
@@ -864,7 +898,9 @@ Generate a new strategy in the same JSON format as before.
         if question:
             self._save_prompt(full_prompt, question, "proposer_prompt_improved")
 
-        strategy = self.invoke_vlm_for_json(full_prompt)
+        modality = question.get('modality', 'vision') if question else 'vision'
+        images = self._collect_input_images(context, modality) or None
+        strategy = self.invoke_vlm_for_json(full_prompt, images)
 
         # Convert format if needed
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):

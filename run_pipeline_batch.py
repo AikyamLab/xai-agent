@@ -312,6 +312,7 @@ def run_single_job(
     mode: str = "test",
     tinker_checkpoint: Optional[str] = None,
     tinker_lora_rank: int = 16,
+    temperature: float = 0.0,
 ) -> JobResult:
     """Execute a single pipeline job."""
     start_time = datetime.now()
@@ -342,6 +343,8 @@ def run_single_job(
     if tinker_checkpoint is not None:
         cmd.extend(["--tinker_checkpoint", tinker_checkpoint])
         cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
+    if temperature != 0.0:
+        cmd.extend(["--temperature", str(temperature)])
 
     # Create log file
     log_file = log_dir / f"{job.job_id}.log"
@@ -431,6 +434,7 @@ def run_jobs_sequential(
             mode=config.get("mode", "test"),
             tinker_checkpoint=config.get("tinker_checkpoint"),
             tinker_lora_rank=config.get("tinker_lora_rank", 16),
+            temperature=config.get("temperature", 0.0),
         )
 
         results.append(result)
@@ -469,6 +473,7 @@ def run_jobs_parallel(
                 mode=config.get("mode", "test"),
                 tinker_checkpoint=config.get("tinker_checkpoint"),
                 tinker_lora_rank=config.get("tinker_lora_rank", 16),
+                temperature=config.get("temperature", 0.0),
             ): job
             for job in jobs
         }
@@ -609,6 +614,8 @@ Available Datasets:
                              "Requires --vlm to be a tinker/* base model.")
     parser.add_argument("--tinker_lora_rank", type=int, default=16,
                         help="LoRA rank used during DPO/LoRA training (must match training job, default: 16)")
+    parser.add_argument("--temperature", type=float, default=0.0,
+                        help="Sampling temperature for the VLM (default: 0.0)")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose logging")
 
@@ -632,6 +639,7 @@ Available Datasets:
     config["mode"] = args.mode
     config["tinker_checkpoint"] = args.tinker_checkpoint
     config["tinker_lora_rank"] = args.tinker_lora_rank
+    config["temperature"] = args.temperature
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

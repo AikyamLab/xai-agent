@@ -355,6 +355,19 @@ def eval_step(
     }
 
 
+# ── Checkpoint helpers ─────────────────────────────────────────────────────────
+
+def _save_dpo_checkpoint(tc, ckpt_name: str, step: int, tag: str, run_dir: Path):
+    """Save a checkpoint and record its tinker_path to dpo_log.jsonl."""
+    result = tc.save_state(ckpt_name).result()
+    tinker_path = getattr(result, "path", None) or ckpt_name
+    log.info(f"Checkpoint saved: {ckpt_name}  →  {tinker_path}")
+    entry = {"type": "checkpoint", "step": step, "tag": tag,
+             "name": ckpt_name, "tinker_path": tinker_path}
+    with open(run_dir / "dpo_log.jsonl", "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def train(args):
@@ -446,14 +459,14 @@ def train(args):
                     f"{args.early_stop_patience} consecutive steps. Saving and exiting."
                 )
                 ckpt_name = f"{run_name}--step-{step:04d}-early-stop"
-                tc.save_state(ckpt_name).result()
+                _save_dpo_checkpoint(tc, ckpt_name, step, f"step_{step:04d}_early_stop", run_dir)
                 break
 
             # ── Checkpoint ───────────────────────────────────────────────────
             if step % args.save_every == 0:
                 ckpt_name = f"{run_name}--step-{step:04d}"
                 log.info(f"Saving checkpoint: {ckpt_name}")
-                tc.save_state(ckpt_name).result()
+                _save_dpo_checkpoint(tc, ckpt_name, step, f"step_{step:04d}", run_dir)
                 log.info("Checkpoint saved.")
 
             # ── Eval ─────────────────────────────────────────────────────────
@@ -481,7 +494,7 @@ def train(args):
 
     # ── Final save ────────────────────────────────────────────────────────────
     log.info("Saving final checkpoint ...")
-    tc.save_state(f"{run_name}--final").result()
+    _save_dpo_checkpoint(tc, f"{run_name}--final", step, "final", run_dir)
 
     metrics_path = run_dir / "metrics.jsonl"
     with open(metrics_path, "w") as f:

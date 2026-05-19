@@ -200,6 +200,10 @@ def parse_args():
                    help="Rollout env pool size when --parallel-rollouts is set. "
                         "0 = auto (batch_size × max_K). Caps total concurrent Tinker "
                         "API calls from rollouts. E.g. 64 = at most 64 simultaneous rollouts.")
+    p.add_argument("--no-think", dest="enable_thinking",
+                   action="store_false", default=True,
+                   help="Pre-fill empty <think></think> block so the model skips "
+                        "chain-of-thought reasoning and outputs the answer directly.")
 
     return p.parse_args()
 
@@ -271,18 +275,27 @@ async def main():
         tokenizer=tokenizer,
         max_new_tokens=args.max_new_tokens,
         temperature=args.temperature,
+        enable_thinking=args.enable_thinking,
     )
 
     # ── 5. Create XAIPipelineV2 with rl_vlm injected ─────────────────────────
     # The pipeline handles all XAI logic: prompt building, tool execution,
     # Q4/Q9/Q10 routing, improvement loop, SF evaluation, critic evaluation.
     from xai_pipeline_v2 import XAIPipelineV2
+    from prompts.output_size_config import OutputSizeConfig
+    _output_size_cfg = OutputSizeConfig(
+        fixed_percentage=0.25,
+        apply_to_tabular=True,
+        apply_to_text=True,
+        apply_to_vision=False,
+    )
     pipeline = XAIPipelineV2(
         vlm=rl_vlm,
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
         models_dir=args.models_dir,
         mode=args.mode,
+        output_size_config=_output_size_cfg,
     )
 
     # ── 6. Create RL environment ──────────────────────────────────────────────
@@ -310,6 +323,7 @@ async def main():
             tokenizer=tokenizer,
             max_new_tokens=args.max_new_tokens,
             temperature=args.temperature,
+            enable_thinking=args.enable_thinking,
         )
         w_pipeline = XAIPipelineV2(
             vlm=w_rl_vlm,
@@ -317,6 +331,7 @@ async def main():
             dataset_dir=args.dataset_dir,
             models_dir=args.models_dir,
             mode=args.mode,
+            output_size_config=_output_size_cfg,
         )
         return XAIRLEnv(
             pipeline=w_pipeline,

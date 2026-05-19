@@ -90,11 +90,13 @@ class RLSamplingVLM:
         tokenizer,
         max_new_tokens: int = 512,
         temperature: float = 1.0,
+        enable_thinking: bool = True,
     ):
-        self.sampling_client = sampling_client
-        self.tokenizer       = tokenizer
-        self.max_new_tokens  = max_new_tokens
-        self.temperature     = temperature
+        self.sampling_client  = sampling_client
+        self.tokenizer        = tokenizer
+        self.max_new_tokens   = max_new_tokens
+        self.temperature      = temperature
+        self.enable_thinking  = enable_thinking
         self._transitions: List[RLTransition] = []
 
     # ── Episode bookkeeping ───────────────────────────────────────────────────
@@ -185,10 +187,15 @@ class RLSamplingVLM:
         """
         import tinker
 
+        assistant_prefix = (
+            "<|im_start|>assistant\n"
+            if self.enable_thinking
+            else "<|im_start|>assistant\n<think>\n\n</think>\n"
+        )
         full_text = (
             f"<|im_start|>system\n{_SYSTEM_MESSAGE}<|im_end|>\n"
             f"<|im_start|>user\n{prompt}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
+            f"{assistant_prefix}"
         )
         token_ids   = self._encode_text(full_text)
         model_input = tinker.ModelInput.from_ints(token_ids)
@@ -239,7 +246,10 @@ class RLSamplingVLM:
 
         _add_text(prompt)
         _add_text("<|im_end|>\n")
-        _add_text("<|im_start|>assistant\n")
+        if self.enable_thinking:
+            _add_text("<|im_start|>assistant\n")
+        else:
+            _add_text("<|im_start|>assistant\n<think>\n\n</think>\n")
 
         model_input = tinker.ModelInput(chunks=chunks)
         return model_input, approx_ids

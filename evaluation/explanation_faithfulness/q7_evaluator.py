@@ -298,6 +298,7 @@ class Q7Evaluator(BaseEvaluator):
             p_original=p_original,
             p_modified=p_modified,
             details={
+                "soft_score": score,
                 "part_to_change": part_to_change,
                 "size_score": score * (1.0 - vision_region_ratio),
                 "size_score_l1": self._size_score_l1(score, vision_region_ratio, penalize_large=True),

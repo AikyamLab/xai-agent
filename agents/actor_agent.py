@@ -409,6 +409,39 @@ class ActorAgent(BaseAgent):
         print(f"\nMulti-instance explanation generated for {num_instances} instances")
         return parsed_result
 
+    def _collect_input_images(self, context: Dict[str, Any], modality: str) -> List[str]:
+        """Return existing original image paths from context for vision modality.
+
+        Context can have overlapping keys (image_path_0/image_path_A both pointing
+        to the same file in multi-instance questions). Priority order avoids duplicates:
+          1. image_path_0, image_path_1, ... (numeric, from _execute_multi_instance)
+          2. image_path_A, image_path_B, ... (letter, from _build_context_q4)
+          3. image_path                      (single-instance fallback)
+
+        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing (ablation baseline).
+        """
+        if modality != 'vision' or os.environ.get('XAI_NO_VLM_IMAGE'):
+            return []
+
+        # 1. Numeric keys — present for Q9/Q10 multi-instance
+        numeric_keys = sorted(
+            [k for k in context if k.startswith('image_path_') and k[len('image_path_'):].isdigit()],
+            key=lambda k: int(k[len('image_path_'):])
+        )
+        if numeric_keys:
+            candidates = [context[k] for k in numeric_keys]
+        else:
+            # 2. Letter keys — present for Q4 (image_path_A, image_path_B)
+            letter_keys = sorted(k for k in context
+                                 if k.startswith('image_path_') and not k[len('image_path_'):].isdigit())
+            if letter_keys:
+                candidates = [context[k] for k in letter_keys]
+            else:
+                # 3. Single-instance plain key
+                candidates = [context.get('image_path', '')]
+
+        return [p for p in candidates if p and os.path.exists(p)]
+
     def _format_tool_summary(self, tool_results: Dict[str, Any]) -> str:
         """Format tool results as brief summary."""
         summaries = []
@@ -531,7 +564,9 @@ class ActorAgent(BaseAgent):
         if question is not None:
             self._save_prompt(prompt, question, "actor_prompt")
 
-        return self.invoke_vlm_for_json(prompt)
+        modality = (question or {}).get('modality', 'vision')
+        images = self._collect_input_images(context, modality) or None
+        return self.invoke_vlm_for_json(prompt, images)
 
     # =========================================================================
     # Q4 Specific Methods (instance_A / instance_B format)
@@ -867,9 +902,12 @@ class ActorAgent(BaseAgent):
         print(f"\n DEBUG Q4 EXPLANATION PROMPT:\n{prompt}")
         print("=" * 70)
 
+        modality = (question or {}).get('modality', 'vision')
+        images = self._collect_input_images(context, modality) or None
+
         last_error = None
         for attempt in range(1, 4):
-            response = self.invoke_vlm(prompt)
+            response = self.invoke_vlm(prompt, images)
             print("=" * 70)
             print(f"\n DEBUG Q4 EXPLANATION RESPONSE (attempt {attempt}/3):\n{response}")
             print("=" * 70)
@@ -1772,7 +1810,9 @@ JSON Response:"""
         if question:
             self._save_prompt(prompt, question, "actor_prompt")
 
-        parsed = self.invoke_vlm_for_json(prompt)
+        modality = (question or {}).get('modality', 'vision')
+        images = self._collect_input_images(context, modality) or None
+        parsed = self.invoke_vlm_for_json(prompt, images)
 
         # Merge with tool results
         parsed['tool_results'] = tool_results.get('tool_results', {})
@@ -2763,7 +2803,8 @@ JSON Response:"""
         if question:
             self._save_prompt(prompt, question, "actor_prompt_improved")
 
-        parsed = self.invoke_vlm_for_json(prompt)
+        images = self._collect_input_images(context, modality) or None
+        parsed = self.invoke_vlm_for_json(prompt, images)
 
         parsed['tool_results'] = tool_results.get('tool_results', {})
         parsed['visualization_paths'] = tool_results.get('visualization_paths', [])

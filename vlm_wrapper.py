@@ -1165,6 +1165,10 @@ class ClaudeVLM:
                     print(f"  Rate limited: max retries ({self._max_retries}) exceeded.")
                     raise
             except self._anthropic.APIError as e:
+                if e.status_code == 400 and "temperature" in str(e) and "deprecated" in str(e):
+                    # Some newer Claude models don't accept temperature; drop it and retry.
+                    kwargs.pop("temperature", None)
+                    continue
                 if e.status_code in (500, 529):  # Internal server error or overloaded
                     delay = self._base_retry_delay * (2 ** attempt)
                     if attempt < self._max_retries - 1:
@@ -1343,8 +1347,9 @@ class TinkerVisionLanguageModel:
         self,
         model_id: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
         temperature: float = 0.0,
-        max_new_tokens: int = 2048,
+        max_new_tokens: int = 4096,
         top_p: float = 0.9,
+        enable_thinking: bool = False,
         tinker_api_key: Optional[str] = None,
         **kwargs,
     ):
@@ -1357,6 +1362,7 @@ class TinkerVisionLanguageModel:
         self.temperature = temperature
         self.max_tokens = max_new_tokens
         self.top_p = top_p
+        self.enable_thinking = enable_thinking
 
         # API configuration
         if tinker_api_key:
@@ -1440,10 +1446,15 @@ class TinkerVisionLanguageModel:
         )
 
         if "qwen" in self.model_id.lower():
+            assistant_prefix = (
+                "<|im_start|>assistant\n"
+                if self.enable_thinking
+                else "<|im_start|>assistant\n<think>\n\n</think>\n"
+            )
             full_text = (
                 f"<|im_start|>system\n{system_message}<|im_end|>\n"
                 f"<|im_start|>user\n{prompt}<|im_end|>\n"
-                f"<|im_start|>assistant\n"
+                f"{assistant_prefix}"
             )
         else:
             full_text = f"{system_message}\n\nUser: {prompt}\n\nAssistant:"
@@ -1504,7 +1515,12 @@ class TinkerVisionLanguageModel:
                 if vision_end_tokens:
                     chunks.append(tinker_types.EncodedTextChunk(tokens=vision_end_tokens))
 
-            footer = f"{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            assistant_prefix = (
+                "<|im_start|>assistant\n"
+                if self.enable_thinking
+                else "<|im_start|>assistant\n<think>\n\n</think>\n"
+            )
+            footer = f"{prompt}<|im_end|>\n{assistant_prefix}"
             footer_tokens = self._encode_text(footer)
             if footer_tokens:
                 chunks.append(tinker_types.EncodedTextChunk(tokens=footer_tokens))

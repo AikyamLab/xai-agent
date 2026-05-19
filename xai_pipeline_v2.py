@@ -132,6 +132,7 @@ class XAIPipelineV2:
         tinker_lora_rank: int = 16,
         vlm: Optional[Any] = None,
         output_size_config=None,
+        temperature: float = 0.0,
     ):
         """
         Initialize XAI Pipeline V2.
@@ -196,7 +197,7 @@ class XAIPipelineV2:
 
             # Initialize VLM
             print("\nInitializing VLM...")
-            self.vlm = create_vlm(model_id=vlm_model_id)
+            self.vlm = create_vlm(model_id=vlm_model_id, temperature=temperature)
 
         # Initialize three agents using new modular system
         print("\nInitializing Agents (New Architecture)...")
@@ -2727,6 +2728,12 @@ def main():
         default=32,
         help="LoRA rank used during DPO/LoRA training (must match the training job, default: 16)"
     )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.0,
+        help="Sampling temperature for the VLM (default: 0.0)"
+    )
 
     args = parser.parse_args()
 
@@ -2756,6 +2763,7 @@ def main():
         mode=args.mode,
         tinker_checkpoint=args.tinker_checkpoint,
         tinker_lora_rank=args.tinker_lora_rank,
+        temperature=args.temperature,
         output_size_config=OutputSizeConfig(
             fixed_percentage=0.25,
             apply_to_tabular=True,

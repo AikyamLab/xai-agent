@@ -203,7 +203,14 @@ class XAIRLEnv:
 # Current tools: lime, shap, guided backprop, ig, smoothgrad,
 #                sensitivity analysis (text/tabular only) / gradcam (vision only)
 # n_max = 9 for all modalities (covers selected_tools + autonomous_tasks budget)
-_L1_LAMBDA = 0.2
+#
+# lambda=0.05 rationale (down from 0.2):
+#   tabular Q1/Q8/Q9 have inherently low soft_scores (mean 0.01–0.04).
+#   With lambda=0.2 and 6 tools the breakeven is 0.133, wiping out >98% of Q1
+#   rewards → near-zero GRPO advantage variance → no gradient signal.
+#   lambda=0.05 lowers the 6-tool breakeven to 0.033, giving ~25-47% non-zero
+#   rewards for Q1/Q8 so GRPO can learn to reduce tool count from the start.
+_L1_LAMBDA = 0.05
 _L1_MAX_TOOLS: Dict[str, int] = {"vision": 9, "text": 9, "tabular": 9}
 
 
@@ -244,7 +251,10 @@ def _compute_diversity_bonus(result: Dict[str, Any], modality: str, diversity_la
         if name:
             names.add(name)
     for t in (strategy.get("autonomous_tasks") or []):
-        name = t.get("tool_name") or t.get("name") if isinstance(t, dict) else str(t)
+        # autonomous_tasks use "task_type" key (e.g. "grounding", "reasoning"),
+        # not "tool_name" or "name" like selected_tools do.
+        name = (t.get("tool_name") or t.get("name") or t.get("task_type")
+                if isinstance(t, dict) else str(t))
         if name:
             names.add(name)
     if not names:
