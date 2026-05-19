@@ -562,7 +562,9 @@ class XAIPipelineV2:
                 # Single model load via DataModelLoader
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
-                    modality=modality
+                    modality=modality,
+                    data_path=str(self.dataset_dir),
+                    model_path=model_url,
                 )
                 model = self.data_model_loader.get_model()
                 processor = self.data_model_loader.get_processor()
@@ -1933,7 +1935,9 @@ class XAIPipelineV2:
                 # Single model load via DataModelLoader; reuse its loader_module for load_data/predict
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
-                    modality=modality
+                    modality=modality,
+                    data_path=str(self.dataset_dir),
+                    model_path=model_url,
                 )
                 model = self.data_model_loader.get_model()
                 processor = self.data_model_loader.get_processor()
@@ -2189,7 +2193,9 @@ class XAIPipelineV2:
                 # Single model load via DataModelLoader; reuse its loader_module for predict
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
-                    modality=modality
+                    modality=modality,
+                    data_path=str(self.dataset_dir),
+                    model_path=model_url,
                 )
                 model = self.data_model_loader.get_model()
                 processor = self.data_model_loader.get_processor()

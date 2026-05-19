@@ -85,6 +85,8 @@ Key flags:
 | `--no-sf` | off | Skip strategy faithfulness evaluation |
 | `--sf_max_samples` | None | Cap tool-config samples for strategy faithfulness (2^N full by default) |
 | `--faithfulness_threshold` | `0.1` | Score below which improvement is triggered |
+| `--dataset_variant` | `default` | Path preset for dataset/model roots (`default` or `ood`) |
+| `--dataset_dir` / `--models_dir` | variant-dependent | Explicit root overrides for benchmark JSONs and model checkpoints |
 
 ---
 
@@ -120,6 +122,8 @@ python run_pipeline_batch.py \
 ```
 
 Both accept `--modality {vision,text,tabular,all}` instead of `--datasets` to run all datasets for a modality. Use `--dry_run` to preview commands without executing.
+
+For OOD runs, use `--dataset_variant ood` (or pass explicit `--dataset_dir` / `--models_dir`).
 
 ### Config file
 
