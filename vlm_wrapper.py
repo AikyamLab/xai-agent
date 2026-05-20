@@ -1362,7 +1362,8 @@ class TinkerVisionLanguageModel:
         self.temperature = temperature
         self.max_tokens = max_new_tokens
         self.top_p = top_p
-        self.enable_thinking = enable_thinking
+        # self.enable_thinking = enable_thinking
+        self.enable_thinking = False 
 
         # API configuration
         if tinker_api_key:
