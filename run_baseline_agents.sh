@@ -9,11 +9,11 @@
 # Usage:
 #   bash run_baseline_agents.sh --baselines "naive cot react tot" \
 #       --modality tabular --q_types "1 2 3" --question_ids "0 1 2 3 4" \
-#       --vlm "tinker/Qwen3-VL-30B-A3B-Instruct"
+#       --vlm "Qwen3.6-35B-A3B"
 #
 #   bash run_baseline_agents.sh --baselines "cot" \
 #       --datasets "adult_tabnn cancer_tabnn" --q_types "1" \
-#       --question_ids "0-9" --vlm "tinker/Qwen3-VL-30B-A3B-Instruct"
+#       --question_ids "0-9" --vlm "Qwen3.6-35B-A3B"
 # =============================================================================
 # =============================================================================
 
@@ -36,7 +36,7 @@ MODALITY=""
 DATASETS=""
 Q_TYPES="1"
 QUESTION_IDS="0"
-VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
+VLM_MODEL="Qwen3.6-35B-A3B"
 OUTPUT_DIR="${SCRIPT_DIR}/outputs_baseline_agents"
 DATASET_DIR="${SCRIPT_DIR}/dataset"
 MODELS_DIR="${SCRIPT_DIR}/models_to_read"
@@ -59,7 +59,7 @@ Options:
     --datasets "d1 d2 ..."   Specific datasets
     --q_types "1 2 3 ..."    Question types (default: 1)
     --question_ids "0-4"     Question IDs (default: 0)
-    --vlm MODEL              VLM model ID (default: Qwen/Qwen3-VL-8B-Instruct)
+    --vlm MODEL              VLM model ID (default: Qwen3.6-35B-A3B)
     --output_dir DIR         Output directory (default: outputs_baseline_agents)
     --dataset_dir DIR        Dataset directory (default: dataset)
     --models_dir DIR         Models directory (default: models_to_read)
@@ -79,7 +79,7 @@ Examples:
     # Run all 4 baselines on tabular Q1-Q5, 10 questions each
     bash $(basename "$0") --baselines "naive cot react tot" \\
         --modality tabular --q_types "1 2 3 4 5" --question_ids "0-9" \\
-        --vlm "tinker/Qwen3-VL-30B-A3B-Instruct"
+        --vlm "Qwen3.6-35B-A3B"
 
     # Dry run for CoT on adult_tabnn Q1
     bash $(basename "$0") --baselines "cot" --datasets "adult_tabnn" \\

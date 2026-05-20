@@ -1,267 +1,174 @@
 #!/usr/bin/env bash
 #
-# run_baselines.sh — Run baseline agents across datasets, question types, and question IDs.
+# run_baselines.sh — Canonical baseline entrypoint.
 #
-# Usage:
-#   # All baselines on all vision datasets, Q1-Q3, first 3 questions:
-#   bash run_baselines.sh
+# This script now routes baseline runs through run_baseline_agent_batch.py so all
+# baseline types share the standard pipeline backbone with:
+#   --no-improvement --no-sf
 #
-#   # Specific baselines / datasets / questions:
-#   BASELINES="cot react" DATASETS="stl10_resnet" Q_TYPES="1 2" Q_IDS="0 1" bash run_baselines.sh
-#
-#   # Run all baselines on a single dataset-question:
-#   BASELINES="all" DATASETS="imdb_cnn" Q_TYPES="1" Q_IDS="0" bash run_baselines.sh
+# Legacy custom-agent path:
+#   run_baseline.py remains available for historical/explicit experiments.
 #
 # Environment variables (override defaults):
 #   BASELINES        Space-separated list: naive cot react tot all    (default: "naive cot react tot")
 #   DATASETS         Space-separated list of dataset keys             (default: stl10_resnet stl10_densenet)
+#   MODALITY         Optional: vision text tabular all                (default: unset; DATASETS is used)
 #   Q_TYPES          Space-separated list of question type IDs        (default: "1 2 3")
-#   Q_IDS            Space-separated list of question IDs             (default: "0 1 2")
-#   VLM              VLM model ID                                     (default: Qwen/Qwen3-VL-8B-Instruct)
+#   Q_IDS            Question IDs/ranges string                       (default: "0 1 2")
+#   VLM              VLM model ID                                     (default: Qwen3.6-35B-A3B)
 #   MODE             train or test                                    (default: test)
 #   OUTPUT_ROOT      Root output directory                            (default: ./outputs_baselines)
 #   DATASET_DIR      Dataset directory                                (default: ./dataset)
 #   MODELS_DIR       Models directory                                 (default: ./models_to_read)
 #   NO_EVAL          Set to 1 to skip evaluation                      (default: 0)
-#   TOT_BRANCHES     Number of ToT branches                           (default: 3)
-#   REACT_MAX_ITER   Max ReAct iterations                             (default: 6)
-#   MAX_PARALLEL     Max parallel jobs (0 = sequential)               (default: 0)
+#   USE_TEST_VARIANT Set to 1 to prefer *_test JSON files             (default: 0)
+#   TINKER_CHECKPOINT Optional checkpoint path                        (default: empty)
+#   TINKER_LORA_RANK LoRA rank for checkpoint loading                 (default: 16)
 #   DRY_RUN          Set to 1 to print commands without running       (default: 0)
+#   VERBOSE          Set to 1 for verbose batch logging               (default: 0)
+#
+# Backward-compatibility note:
+#   TOT_BRANCHES / REACT_MAX_ITER / MAX_PARALLEL are legacy knobs from the
+#   old custom-agent route and are ignored in this canonical path.
 #
 set -euo pipefail
 
-# ========================================================================
-# Defaults
-# ========================================================================
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Source .env for API keys (if present)
+if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+    source "${SCRIPT_DIR}/.env"
+fi
+
+export TINKER_TELEMETRY=0
+
 BASELINES="${BASELINES:-naive cot react tot}"
 DATASETS="${DATASETS:-stl10_resnet stl10_densenet}"
+MODALITY="${MODALITY:-}"
 Q_TYPES="${Q_TYPES:-1 2 3}"
 Q_IDS="${Q_IDS:-0 1 2}"
-VLM="${VLM:-Qwen/Qwen3-VL-8B-Instruct}"
+VLM="${VLM:-Qwen3.6-35B-A3B}"
 MODE="${MODE:-test}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-./outputs_baselines}"
 DATASET_DIR="${DATASET_DIR:-./dataset}"
 MODELS_DIR="${MODELS_DIR:-./models_to_read}"
 NO_EVAL="${NO_EVAL:-0}"
+USE_TEST_VARIANT="${USE_TEST_VARIANT:-0}"
+TINKER_CHECKPOINT="${TINKER_CHECKPOINT:-}"
+TINKER_LORA_RANK="${TINKER_LORA_RANK:-16}"
+DRY_RUN="${DRY_RUN:-0}"
+VERBOSE="${VERBOSE:-0}"
+
 TOT_BRANCHES="${TOT_BRANCHES:-3}"
 REACT_MAX_ITER="${REACT_MAX_ITER:-6}"
 MAX_PARALLEL="${MAX_PARALLEL:-0}"
-DRY_RUN="${DRY_RUN:-0}"
-
-# ========================================================================
-# Dataset → model mapping (same as run_pipeline_batch.py)
-# ========================================================================
-declare -A DATASET_MODEL_MAP=(
-    # Vision
-    [stl10_resnet]="vision/stl10_resnet.pth"
-    [stl10_densenet]="vision/stl10_densenet.pth"
-    [cub_resnet]="vision/cub_resnet.pth"
-    [cub_densenet]="vision/cub_densenet.pth"
-    # Text
-    [imdb_cnn]="text/imdb_cnn.pth"
-    [imdb_2layernn]="text/imdb_2layernn.pth"
-    [snli_cnn]="text/snli_cnn.pth"
-    [snli_2layernn]="text/snli_2layernn.pth"
-    # Tabular
-    [adult_census]="tabular/adult_census.pth"
-    [adult_tabnn]="tabular/adult_tabnn.pth"
-    [adult_2layernn]="tabular/adult_2layernn.pth"
-    [cancer_2nn]="tabular/cancer_2nn.pth"
-    [cancer_tabnn]="tabular/cancer_tabnn.pth"
-    [cancer_2layernn]="tabular/cancer_2layernn.pth"
-)
-
-declare -A DATASET_MODALITY_MAP=(
-    [stl10_resnet]="vision"
-    [stl10_densenet]="vision"
-    [cub_resnet]="vision"
-    [cub_densenet]="vision"
-    [imdb_cnn]="text"
-    [imdb_2layernn]="text"
-    [snli_cnn]="text"
-    [snli_2layernn]="text"
-    [adult_census]="tabular"
-    [adult_tabnn]="tabular"
-    [adult_2layernn]="tabular"
-    [cancer_2nn]="tabular"
-    [cancer_tabnn]="tabular"
-    [cancer_2layernn]="tabular"
-)
-
-# ========================================================================
-# Helpers
-# ========================================================================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
-LOG_DIR="${OUTPUT_ROOT}/logs/${TIMESTAMP}"
-mkdir -p "${LOG_DIR}"
-
-total_jobs=0
-completed_jobs=0
-failed_jobs=0
-skipped_jobs=0
-FAILED_LIST=()
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
-log_error() { echo "[$(date '+%H:%M:%S')] ERROR: $*" >&2; }
+warn() { echo "[$(date '+%H:%M:%S')] WARNING: $*" >&2; }
+die() { echo "[$(date '+%H:%M:%S')] ERROR: $*" >&2; exit 1; }
 
-# ========================================================================
-# Build and execute jobs
-# ========================================================================
-run_job() {
-    local baseline="$1"
-    local dataset="$2"
-    local q_type="$3"
-    local q_id="$4"
-    local modality="$5"
-    local model_url="$6"
-    local dataset_json="$7"
+if [[ "$TOT_BRANCHES" != "3" ]]; then
+    warn "TOT_BRANCHES is ignored in canonical baseline path (value: ${TOT_BRANCHES})."
+fi
+if [[ "$REACT_MAX_ITER" != "6" ]]; then
+    warn "REACT_MAX_ITER is ignored in canonical baseline path (value: ${REACT_MAX_ITER})."
+fi
+if [[ "$MAX_PARALLEL" != "0" ]]; then
+    warn "MAX_PARALLEL is ignored in canonical baseline path (value: ${MAX_PARALLEL})."
+fi
 
-    local job_id="${baseline}_${dataset}_q${q_type}_${q_id}"
-    local job_output_dir="${OUTPUT_ROOT}/${baseline}/${modality}/${dataset}/q${q_type}/${q_id}"
-    local log_file="${LOG_DIR}/${job_id}.log"
+read -r -a baseline_tokens <<< "$BASELINES"
+read -r -a dataset_tokens <<< "$DATASETS"
+read -r -a modality_tokens <<< "$MODALITY"
+read -r -a qtype_tokens <<< "$Q_TYPES"
 
-    mkdir -p "${job_output_dir}"
+[[ ${#baseline_tokens[@]} -gt 0 ]] || die "BASELINES must not be empty."
+[[ ${#qtype_tokens[@]} -gt 0 ]] || die "Q_TYPES must not be empty."
+if [[ ${#dataset_tokens[@]} -eq 0 && ${#modality_tokens[@]} -eq 0 ]]; then
+    die "Provide DATASETS or MODALITY."
+fi
 
-    # Build command
-    local cmd=(
-        python "${SCRIPT_DIR}/run_baseline.py"
-        --baseline "${baseline}"
-        --dataset "${dataset_json}"
-        --question_id "${q_id}"
-        --model_url "${model_url}"
-        --vlm "${VLM}"
-        --output_dir "${job_output_dir}"
-        --dataset_dir "${DATASET_DIR}"
-        --models_dir "${MODELS_DIR}"
-        --mode "${MODE}"
-        --tot_branches "${TOT_BRANCHES}"
-        --react_max_iter "${REACT_MAX_ITER}"
-    )
-
-    if [[ "${NO_EVAL}" == "1" ]]; then
-        cmd+=(--no-eval)
-    fi
-
-    if [[ "${DRY_RUN}" == "1" ]]; then
-        log "[DRY-RUN] ${cmd[*]}"
-        return 0
-    fi
-
-    log "▶ ${job_id}"
-    if "${cmd[@]}" > "${log_file}" 2>&1; then
-        log "  ✓ ${job_id}"
-        return 0
-    else
-        local rc=$?
-        log_error "  ✗ ${job_id}  (exit code ${rc}, log: ${log_file})"
-        return 1
-    fi
+expanded_baselines=()
+add_unique_baseline() {
+    local candidate="$1"
+    local existing
+    for existing in "${expanded_baselines[@]}"; do
+        [[ "$existing" == "$candidate" ]] && return 0
+    done
+    expanded_baselines+=("$candidate")
 }
 
-# ========================================================================
-# Main loop
-# ========================================================================
+for b in "${baseline_tokens[@]}"; do
+    case "$b" in
+        all)
+            add_unique_baseline "naive"
+            add_unique_baseline "cot"
+            add_unique_baseline "react"
+            add_unique_baseline "tot"
+            ;;
+        naive|cot|react|tot)
+            add_unique_baseline "$b"
+            ;;
+        *)
+            die "Invalid baseline '${b}'. Allowed: naive cot react tot all"
+            ;;
+    esac
+done
+
+CMD=(python3 run_baseline_agent_batch.py)
+CMD+=(--baseline "${expanded_baselines[@]}")
+
+if [[ ${#dataset_tokens[@]} -gt 0 ]]; then
+    CMD+=(--datasets "${dataset_tokens[@]}")
+else
+    CMD+=(--modality "${modality_tokens[@]}")
+fi
+
+CMD+=(--q_types "${qtype_tokens[@]}")
+CMD+=(--question_ids "$Q_IDS")
+CMD+=(--vlm "$VLM")
+CMD+=(--output_dir "$OUTPUT_ROOT")
+CMD+=(--dataset_dir "$DATASET_DIR")
+CMD+=(--models_dir "$MODELS_DIR")
+CMD+=(--mode "$MODE")
+
+if [[ "$NO_EVAL" == "1" ]]; then
+    CMD+=(--no-eval)
+fi
+if [[ "$USE_TEST_VARIANT" == "1" ]]; then
+    CMD+=(--use_test_variant)
+fi
+if [[ -n "$TINKER_CHECKPOINT" ]]; then
+    CMD+=(--tinker_checkpoint "$TINKER_CHECKPOINT")
+    CMD+=(--tinker_lora_rank "$TINKER_LORA_RANK")
+fi
+if [[ "$DRY_RUN" == "1" ]]; then
+    CMD+=(--dry_run)
+fi
+if [[ "$VERBOSE" == "1" ]]; then
+    CMD+=(--verbose)
+fi
+
 log "============================================"
-log "BASELINE BATCH RUNNER"
+log "CANONICAL BASELINE BATCH RUNNER"
 log "============================================"
-log "Baselines:  ${BASELINES}"
-log "Datasets:   ${DATASETS}"
+log "Baselines:  ${expanded_baselines[*]}"
+if [[ ${#dataset_tokens[@]} -gt 0 ]]; then
+    log "Datasets:   ${dataset_tokens[*]}"
+else
+    log "Modalities: ${modality_tokens[*]}"
+fi
 log "Q types:    ${Q_TYPES}"
 log "Q IDs:      ${Q_IDS}"
 log "VLM:        ${VLM}"
 log "Mode:       ${MODE}"
 log "Output:     ${OUTPUT_ROOT}"
-log "Log dir:    ${LOG_DIR}"
+log "No eval:    ${NO_EVAL}"
 log "Dry run:    ${DRY_RUN}"
+printf '[%s] Command:    ' "$(date '+%H:%M:%S')"
+printf '%q ' "${CMD[@]}"
+echo
 log "============================================"
 
-for baseline in ${BASELINES}; do
-    for dataset in ${DATASETS}; do
-        model_url="${DATASET_MODEL_MAP[${dataset}]:-}"
-        modality="${DATASET_MODALITY_MAP[${dataset}]:-}"
-
-        if [[ -z "${model_url}" ]]; then
-            log_error "Unknown dataset: ${dataset}. Skipping."
-            continue
-        fi
-
-        for q_type in ${Q_TYPES}; do
-            # Find dataset JSON
-            dataset_json="${DATASET_DIR}/${MODE}/${modality}/${dataset}_q${q_type}.json"
-
-            # Try _test variant
-            if [[ ! -f "${dataset_json}" ]]; then
-                dataset_json="${DATASET_DIR}/${MODE}/${modality}/${dataset}_q${q_type}_test.json"
-            fi
-
-            # Try q{q_type}_{dataset} variant
-            if [[ ! -f "${dataset_json}" ]]; then
-                dataset_json="${DATASET_DIR}/${MODE}/${modality}/q${q_type}_${dataset}.json"
-            fi
-
-            # Try any available question type for this dataset
-            if [[ ! -f "${dataset_json}" ]]; then
-                dataset_json=$(find "${DATASET_DIR}/${MODE}/${modality}" -name "${dataset}_q*.json" -type f | head -1)
-            fi
-
-            if [[ ! -f "${dataset_json}" ]]; then
-                log "  ⊘ Skipping ${dataset}_q${q_type}: JSON not found"
-                ((skipped_jobs++)) || true
-                continue
-            fi
-
-            for q_id in ${Q_IDS}; do
-                ((total_jobs++)) || true
-
-                if run_job "${baseline}" "${dataset}" "${q_type}" "${q_id}" \
-                    "${modality}" "${model_url}" "${dataset_json}"; then
-                    ((completed_jobs++)) || true
-                else
-                    ((failed_jobs++)) || true
-                    FAILED_LIST+=("${baseline}_${dataset}_q${q_type}_${q_id}")
-                fi
-            done
-        done
-    done
-done
-
-# ========================================================================
-# Summary
-# ========================================================================
-echo ""
-log "============================================"
-log "BATCH RUN COMPLETE"
-log "============================================"
-log "Total jobs:     ${total_jobs}"
-log "Completed:      ${completed_jobs}"
-log "Failed:         ${failed_jobs}"
-log "Skipped:        ${skipped_jobs}"
-
-if [[ ${#FAILED_LIST[@]} -gt 0 ]]; then
-    log ""
-    log "FAILED JOBS:"
-    for f in "${FAILED_LIST[@]}"; do
-        log "  - ${f}"
-    done
-fi
-
-log "Logs saved to: ${LOG_DIR}"
-log "Outputs saved to: ${OUTPUT_ROOT}"
-
-# Write summary JSON
-cat > "${LOG_DIR}/summary.json" <<EOF
-{
-    "timestamp": "${TIMESTAMP}",
-    "baselines": "${BASELINES}",
-    "datasets": "${DATASETS}",
-    "q_types": "${Q_TYPES}",
-    "q_ids": "${Q_IDS}",
-    "total_jobs": ${total_jobs},
-    "completed": ${completed_jobs},
-    "failed": ${failed_jobs},
-    "skipped": ${skipped_jobs}
-}
-EOF
-
-exit ${failed_jobs}
+exec "${CMD[@]}"

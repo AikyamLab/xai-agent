@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-Baseline Pipeline Runner
+Baseline Pipeline Runner (Legacy Custom-Agent Path)
 
 Runs baseline agents (naive, cot, react, tot) on the same benchmark data
 as xai_pipeline_v2.py so results are directly comparable.
+
+Note:
+    This file is retained for legacy/explicit experiments that require the
+    custom Naive/CoT/ReAct/ToT agent implementations.
+    The canonical baseline route is:
+      run_baselines.sh -> run_baseline_agent_batch.py -> run_baseline_agent.py
+    which uses the standard pipeline backbone with --no-improvement --no-sf.
 
 Usage:
     python run_baseline.py --baseline cot --dataset dataset/test/vision/stl10_resnet_q1.json \\
@@ -92,7 +99,7 @@ class BaselinePipeline:
 
     def __init__(
         self,
-        vlm_model_id: str = "Qwen/Qwen3-VL-8B-Instruct",
+        vlm_model_id: str = "Qwen3.6-35B-A3B",
         output_dir: Optional[str] = None,
         dataset_dir: Optional[str] = None,
         models_dir: Optional[str] = None,
@@ -280,6 +287,8 @@ class BaselinePipeline:
                 self.data_model_loader = DataModelLoader(
                     model_name=Path(model_url).stem,
                     modality=modality,
+                    model_path=model_url,
+                    models_dir=str(self.models_dir),
                 )
 
                 # Initialize ToolExecutor for baselines that use tools
@@ -626,7 +635,7 @@ class BaselinePipeline:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run XAI Baseline Agents (Naive / CoT / ReAct / ToT)",
+        description="Run legacy custom baseline agents (Naive / CoT / ReAct / ToT)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -658,7 +667,7 @@ Available baselines: naive, cot, react, tot, all
     parser.add_argument("--question_id", type=str, required=True, help="Question index")
     parser.add_argument("--model_url", type=str, default=None, help="Model path")
     parser.add_argument(
-        "--vlm", type=str, default="Qwen/Qwen3-VL-8B-Instruct",
+        "--vlm", type=str, default="Qwen3.6-35B-A3B",
         help="VLM model ID",
     )
     parser.add_argument("--output_dir", type=str, default=None, help="Output directory")

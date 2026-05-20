@@ -24,7 +24,7 @@ Usage:
     BASELINE_TYPE=tot python run_baseline_agent.py \\
         --dataset dataset/test/tabular/adult_tabnn_q1.json \\
         --question_id 0 --model_url tabular/adult_tabnn.pth \\
-        --vlm tinker/Qwen3-VL-30B-A3B-Instruct --no-improvement --no-sf
+        --vlm Qwen3.6-35B-A3B --no-improvement --no-sf
 """
 
 import os

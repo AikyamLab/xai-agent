@@ -9,7 +9,14 @@ class DataModelLoader:
     A generic loader that wraps model-specific loading scripts
     from the `models_to_read` directory.
     """
-    def __init__(self, model_name: str, modality: str, data_path: Optional[str] = None):
+    def __init__(
+        self,
+        model_name: str,
+        modality: str,
+        data_path: Optional[str] = None,
+        model_path: Optional[str] = None,
+        models_dir: Optional[str] = None,
+    ):
         """
         Initializes the loader by dynamically importing the specified model's loader module.
 
@@ -22,16 +29,8 @@ class DataModelLoader:
         self.modality = modality
         self.loader_module = self._import_loader_module()
 
-        # Determine model path
-        model_path_str = f"models_to_read/{self.modality}/{self.model_name}.pth"
-        model_path = Path(model_path_str)
-        if not model_path.exists():
-             model_path_str = f"models_to_read/{self.modality}/{self.model_name}.h5"
-             model_path = Path(model_path_str)
-             if not model_path.exists():
-                raise FileNotFoundError(f"Model weights not found at {model_path_str} or with .h5 extension")
-
-        self.model, self.processor = self.loader_module.load_model(str(model_path))
+        resolved_model_path = self._resolve_model_path(model_path, models_dir)
+        self.model, self.processor = self.loader_module.load_model(str(resolved_model_path))
 
         self.current_sample_data: Optional[Dict[str, Any]] = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -46,6 +45,39 @@ class DataModelLoader:
         except ImportError as e:
             print(f"Error importing module {module_name}: {e}")
             raise
+
+    def _resolve_model_path(self, model_path: Optional[str], models_dir: Optional[str]) -> Path:
+        """Resolve model checkpoint path, preferring explicit model_path when provided."""
+        candidates = []
+
+        if model_path:
+            candidate = Path(model_path)
+            if candidate.suffix:
+                candidates.append(candidate)
+            else:
+                candidates.append(candidate.with_suffix(".pth"))
+                candidates.append(candidate.with_suffix(".h5"))
+
+        base_dir = Path(models_dir) if models_dir else Path("models_to_read")
+        candidates.extend([
+            base_dir / self.modality / f"{self.model_name}.pth",
+            base_dir / self.modality / f"{self.model_name}.h5",
+        ])
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+
+        if model_path:
+            raise FileNotFoundError(
+                f"Model weights not found. Checked explicit path '{model_path}' and default "
+                f"locations under '{base_dir / self.modality}' for .pth/.h5."
+            )
+
+        raise FileNotFoundError(
+            f"Model weights not found under '{base_dir / self.modality}' for "
+            f"{self.model_name}.pth/.h5."
+        )
 
     def load_sample(self, index: int, split: str = "test") -> Dict[str, Any]:
         """

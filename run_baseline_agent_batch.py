@@ -16,11 +16,11 @@ How it works:
 Usage:
     python run_baseline_agent_batch.py --baseline cot --datasets adult_tabnn \\
         --q_types 1 2 3 --question_ids 0-4 \\
-        --vlm tinker/Qwen3-VL-30B-A3B-Instruct
+        --vlm Qwen3.6-35B-A3B
 
     python run_baseline_agent_batch.py --baseline tot --modality tabular \\
         --q_types 1 2 3 4 5 --question_ids all \\
-        --vlm tinker/Qwen3-VL-30B-A3B-Instruct --dry_run
+        --vlm Qwen3.6-35B-A3B --dry_run
 """
 
 import argparse
@@ -65,6 +65,7 @@ def run_single_baseline_agent_job(
     faithfulness_threshold: float,
     log_dir: Path,
     mode: str = "test",
+    no_eval: bool = False,
     tinker_checkpoint: Optional[str] = None,
     tinker_lora_rank: int = 16,
 ) -> JobResult:
@@ -93,6 +94,8 @@ def run_single_baseline_agent_job(
     if tinker_checkpoint is not None:
         cmd.extend(["--tinker_checkpoint", tinker_checkpoint])
         cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
+    if no_eval:
+        cmd.append("--no-eval")
 
     # Set BASELINE_TYPE env var for the subprocess
     env = os.environ.copy()
@@ -223,12 +226,14 @@ Available Datasets:
                         help="Dataset directory")
     parser.add_argument("--models_dir", type=str, default=DEFAULT_MODELS_DIR,
                         help="Models directory")
-    parser.add_argument("--vlm", type=str, default="Qwen/Qwen3-VL-8B-Instruct",
+    parser.add_argument("--vlm", type=str, default="Qwen3.6-35B-A3B",
                         help="VLM model ID")
     parser.add_argument("--tinker_checkpoint", type=str, default=None,
                         help="Tinker LoRA/DPO checkpoint (mode=test only)")
     parser.add_argument("--tinker_lora_rank", type=int, default=16,
                         help="LoRA rank (default: 16)")
+    parser.add_argument("--no-eval", "--no_eval", dest="no_eval", action="store_true",
+                        help="Skip evaluation in xai_pipeline_v2")
 
     # Execution
     parser.add_argument("--dry_run", action="store_true",
@@ -271,6 +276,7 @@ Available Datasets:
     logger.info(f"  Mode:         {args.mode}")
     logger.info(f"  VLM:          {args.vlm}")
     logger.info(f"  Output dir:   {args.output_dir}")
+    logger.info(f"  Eval:         {'off' if args.no_eval else 'on'}")
     if args.tinker_checkpoint:
         logger.info(f"  Checkpoint:   {args.tinker_checkpoint} (rank={args.tinker_lora_rank})")
 
@@ -312,6 +318,8 @@ Available Datasets:
                 ]
                 if args.tinker_checkpoint:
                     parts.append(f"--tinker_checkpoint {args.tinker_checkpoint}")
+                if args.no_eval:
+                    parts.append("--no-eval")
                 logger.info(f"    {job.job_id}: {' '.join(parts)}")
         sys.exit(0)
 
@@ -339,6 +347,7 @@ Available Datasets:
                 faithfulness_threshold=args.faithfulness_threshold,
                 log_dir=log_dir,
                 mode=args.mode,
+                no_eval=args.no_eval,
                 tinker_checkpoint=args.tinker_checkpoint,
                 tinker_lora_rank=args.tinker_lora_rank,
             )
