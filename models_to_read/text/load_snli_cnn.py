@@ -145,12 +145,15 @@ def load_model(model_path: str, embed_dim: int = EMBED_DIM,
         if not _vocab_built:
             print("Building vocabulary from SNLI training data...")
             dataset_snli = load_dataset("snli")
-            dataset_snli = dataset_snli.filter(lambda x: x["label"] != -1)
-
+            # Filter using manual loop to avoid TensorFlow tensor validation issue
+            # (datasets library tries to use tf.Tensor which may not be available)
+            
             counter = Counter()
             for ex in dataset_snli["train"]:
-                counter.update(tokenize(ex["premise"]))
-                counter.update(tokenize(ex["hypothesis"]))
+                # Skip invalid labels manually instead of using .filter()
+                if ex.get("label") != -1:
+                    counter.update(tokenize(ex["premise"]))
+                    counter.update(tokenize(ex["hypothesis"]))
 
             global_vocab = {"<pad>": 0, "<unk>": 1}
             for word, _ in counter.most_common(actual_vocab_size - 2):
