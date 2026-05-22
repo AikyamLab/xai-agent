@@ -26,13 +26,25 @@ from typing import Dict, List, Optional, Union
 # ============================================================================
 # Configuration
 # ============================================================================
-BASE_DIR = Path("/standard/AikyamLab/yuyang/xai_agent/framework/trial_2")
+BASE_DIR = Path(__file__).parent.resolve()
 DEFAULT_CONFIG = {
-    "dataset_dir": str(BASE_DIR / "dataset"),
-    "models_dir": str(BASE_DIR / "models_to_read"),
+    "dataset_variant": "default",
+    "dataset_dir": None,
+    "models_dir": None,
     "output_dir": str(BASE_DIR / "outputs"),
     "vlm_model": "Qwen/Qwen3-VL-8B-Instruct",
     "faithfulness_threshold": 0.1,
+}
+
+DEFAULT_DATASET_VARIANT_DIRS = {
+    "default": {
+        "dataset_dir": BASE_DIR / "dataset",
+        "models_dir": BASE_DIR / "models_to_read",
+    },
+    "ood": {
+        "dataset_dir": BASE_DIR / "dataset_ood",
+        "models_dir": BASE_DIR / "models_ood",
+    },
 }
 
 # Dataset to model mappings
@@ -52,6 +64,15 @@ DATASET_MODEL_MAP = {
     "adult_tabnn": "tabular/adult_tabnn.pth",
     "cancer_2layernn": "tabular/cancer_2layernn.pth",
     "cancer_tabnn": "tabular/cancer_tabnn.pth",
+    # OOD
+    "cifar_resnet": "vision/cifar_resnet.pth",
+    "yelp_bert": "text/yelp_bert.pth",
+    "german_credit_3layernn": "tabular/german_credit_3layernn.pth",
+}
+
+OPTIONAL_LOCAL_CHECKPOINT_DATASETS = {
+    "cifar_resnet",
+    "yelp_bert",
 }
 
 # Dataset to modality mapping
@@ -68,12 +89,22 @@ DATASET_MODALITY_MAP = {
     "adult_tabnn": "tabular",
     "cancer_2layernn": "tabular",
     "cancer_tabnn": "tabular",
+    # OOD
+    "cifar_resnet": "vision",
+    "yelp_bert": "text",
+    "german_credit_3layernn": "tabular",
 }
 
-MODALITY_DATASETS = {
+STANDARD_MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
     "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn"],
+}
+
+OOD_MODALITY_DATASETS = {
+    "vision": ["cifar_resnet"],
+    "text": ["yelp_bert"],
+    "tabular": ["german_credit_3layernn"],
 }
 
 
@@ -179,6 +210,37 @@ def get_question_count(dataset_path: str) -> int:
     return 1  # single-question dict
 
 
+def resolve_variant_dirs(
+    dataset_variant: str,
+    configured_dataset_dir: Optional[str] = None,
+    configured_models_dir: Optional[str] = None,
+) -> Dict[str, str]:
+    """Resolve dataset/models directories from variant + optional overrides."""
+    defaults = DEFAULT_DATASET_VARIANT_DIRS.get(
+        dataset_variant,
+        DEFAULT_DATASET_VARIANT_DIRS["default"],
+    )
+
+    dataset_dir = Path(configured_dataset_dir).expanduser() if configured_dataset_dir else defaults["dataset_dir"]
+    models_dir = Path(configured_models_dir).expanduser() if configured_models_dir else defaults["models_dir"]
+
+    # For ood variant, allow falling back to models_to_read if models_ood is absent.
+    if dataset_variant == "ood" and not models_dir.exists():
+        fallback = DEFAULT_DATASET_VARIANT_DIRS["default"]["models_dir"]
+        models_dir = fallback
+
+    return {
+        "dataset_dir": str(dataset_dir.resolve()),
+        "models_dir": str(models_dir.resolve()),
+    }
+
+
+def get_default_datasets_for_modality(dataset_variant: str, modality: str) -> List[str]:
+    if dataset_variant == "ood":
+        return OOD_MODALITY_DATASETS.get(modality, [])
+    return STANDARD_MODALITY_DATASETS.get(modality, [])
+
+
 def get_dataset_path(
     dataset: str,
     q_type: int,
@@ -192,37 +254,50 @@ def get_dataset_path(
     Benchmark JSONs live under ``dataset_dir/{mode}/{modality}/``.
     """
     base_name = f"{dataset}_q{q_type}"
-    mode_dir = Path(dataset_dir) / mode / modality
+    dataset_root = Path(dataset_dir)
+    candidate_dirs = [
+        dataset_root / mode / modality,  # canonical layout
+        dataset_root / modality,         # flat modality layout (used by some OOD drops)
+    ]
 
-    # Try _test variant first if requested
-    if use_test_variant:
-        test_path = mode_dir / f"{base_name}_test.json"
-        if test_path.exists():
-            return str(test_path)
+    for mode_dir in candidate_dirs:
+        # Try _test variant first if requested
+        if use_test_variant:
+            test_path = mode_dir / f"{base_name}_test.json"
+            if test_path.exists():
+                return str(test_path)
 
-    # Try standard path
-    standard_path = mode_dir / f"{base_name}.json"
-    if standard_path.exists():
-        return str(standard_path)
+        # Try standard path
+        standard_path = mode_dir / f"{base_name}.json"
+        if standard_path.exists():
+            return str(standard_path)
 
-    # Try special cases (e.g., adult_census_q4_pairs.json)
-    pairs_path = mode_dir / f"{base_name}_pairs.json"
-    if pairs_path.exists():
-        return str(pairs_path)
+        # Try special cases (e.g., *_pairs.json)
+        pairs_path = mode_dir / f"{base_name}_pairs.json"
+        if pairs_path.exists():
+            return str(pairs_path)
 
     return None
 
 
 def get_model_path(dataset: str, models_dir: str) -> Optional[str]:
     """Get the path to a model file."""
-    if dataset not in DATASET_MODEL_MAP:
-        return None
+    models_base = Path(models_dir)
 
-    model_rel_path = DATASET_MODEL_MAP[dataset]
-    model_path = Path(models_dir) / model_rel_path
+    if dataset in DATASET_MODEL_MAP:
+        model_rel_path = DATASET_MODEL_MAP[dataset]
+        model_path = models_base / model_rel_path
+        if model_path.exists():
+            return str(model_path)
+        if dataset in OPTIONAL_LOCAL_CHECKPOINT_DATASETS:
+            return str(model_path)
 
-    if model_path.exists():
-        return str(model_path)
+    modality = DATASET_MODALITY_MAP.get(dataset)
+    if modality:
+        for ext in ("pth", "h5"):
+            fallback = models_base / modality / f"{dataset}.{ext}"
+            if fallback.exists():
+                return str(fallback)
 
     return None
 
@@ -554,6 +629,11 @@ Available Datasets:
     Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet
     Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
     Tabular: adult_2layernn, adult_tabnn, cancer_2layernn, cancer_tabnn
+
+OOD Datasets (use --dataset_variant ood):
+    Vision:  cifar_resnet
+    Text:    yelp_bert
+    Tabular: german_credit_3layernn
         """,
     )
 
@@ -572,6 +652,12 @@ Available Datasets:
                         help="Path to JSON config file")
     parser.add_argument("--mode", type=str, choices=["train", "test"], default="test",
                         help="Dataset split to use: 'train' loads from dataset/train/, 'test' from dataset/test/ (default: test)")
+    parser.add_argument("--dataset_variant", type=str, choices=["default", "ood"], default=None,
+                        help="Dataset/model variant to use when dataset_dir/models_dir are not explicitly set (default: default)")
+    parser.add_argument("--dataset_dir", type=str, default=None,
+                        help="Dataset base directory override (defaults to variant path)")
+    parser.add_argument("--models_dir", type=str, default=None,
+                        help="Models base directory override (defaults to variant path)")
     parser.add_argument("--use_test_variant", action="store_true",
                         help="Use _test variant dataset files if available")
 
@@ -622,6 +708,8 @@ Available Datasets:
             config.update(file_config)
 
     # Override with command line args
+    if args.dataset_variant is not None:
+        config["dataset_variant"] = args.dataset_variant
     config["output_dir"] = args.output_dir
     config["vlm_model"] = args.vlm
     config["faithfulness_threshold"] = args.faithfulness_threshold
@@ -632,6 +720,14 @@ Available Datasets:
     config["mode"] = args.mode
     config["tinker_checkpoint"] = args.tinker_checkpoint
     config["tinker_lora_rank"] = args.tinker_lora_rank
+
+    variant_dirs = resolve_variant_dirs(
+        dataset_variant=config["dataset_variant"],
+        configured_dataset_dir=args.dataset_dir if args.dataset_dir is not None else config.get("dataset_dir"),
+        configured_models_dir=args.models_dir if args.models_dir is not None else config.get("models_dir"),
+    )
+    config["dataset_dir"] = variant_dirs["dataset_dir"]
+    config["models_dir"] = variant_dirs["models_dir"]
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -649,10 +745,11 @@ Available Datasets:
     elif args.modality:
         for mod in args.modality:
             if mod == "all":
-                for mod_datasets in MODALITY_DATASETS.values():
+                source_map = OOD_MODALITY_DATASETS if config["dataset_variant"] == "ood" else STANDARD_MODALITY_DATASETS
+                for mod_datasets in source_map.values():
                     datasets.extend(mod_datasets)
             else:
-                datasets.extend(MODALITY_DATASETS.get(mod, []))
+                datasets.extend(get_default_datasets_for_modality(config["dataset_variant"], mod))
     else:
         logger.error("Must specify --datasets or --modality")
         sys.exit(1)
@@ -662,6 +759,9 @@ Available Datasets:
 
     logger.info(f"Configuration:")
     logger.info(f"  Datasets: {datasets}")
+    logger.info(f"  Dataset variant: {config['dataset_variant']}")
+    logger.info(f"  Dataset dir: {config['dataset_dir']}")
+    logger.info(f"  Models dir: {config['models_dir']}")
     logger.info(f"  Mode: {config['mode']}")
     logger.info(f"  Q Types: {args.q_types}")
     if isinstance(question_ids, AutoRange):

@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "This is, a..." (predicted negative) and "This movie..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9848)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': 'This is, arguably, the worst of the major Ava Gardner films. Yes, she is gorgeous. But that can wear thin over time, especially after the corny and predictable movie ending.<br /><br />In this turkey, Robert Walker has to pretend that he\'s Eddie Bracken (which surely embarrassed him). Olga San Juan plays the Jane Powell (golly, gee) part. Dick Haymes plays a sort of dim sidekick (!), and Eve Arden plays Helen Broderick (and a host of other wise-cracking female semi-comedians). Yes, the film contains a major popular song, "Speak Low." But check out the other, entirely forgettable, pieces. Dick Haymes sings very well, of course, and so does the uncredited vocalist dubbing for Ava.<br /><br />The sets are cheap, the script is filled with clichés and failed humor, and Tom Conway looks as though he has been battling with liquor (as indeed he was). In short, if you want to see Ava in her prime, buy a photo and stay well clear of this movie.'}
+- Instance B: {'text': 'This movie fully deserves to be one of the top Hindi comedies ever made . Rajkumar Santoshi is mostly known for his gritty hard-hitting social dramas , but this is easily the most effortless movie he has made .<br /><br />The plot revolves around two small-town buffoons Amar (Aamir Khan) and Prem (Salman Khan) . They want to get rich quick and so move to the big city . They hatch the same plan separately - to woo a rich heiress Raveena (Raveena Tandon) who is the daughter of a rich businessman Ramgopal Bajaj (Paresh Rawal) . Thus the one who marries Raveena gets his hands on all her wealth . but when they get to know each other\'s plan , there is an intense tussle of one-oneupmanship over who marries Raveena . Hilarious gags and situations ensue as the battle rages on .<br /><br />At the same time Ramgopal Bajaj\'s identical twin brother Shyamgopal Bajaj wants to eliminate his brother and niece and usurp the family fortune . Add to this an assortment of funny characters including a Raveena\'s maid Karishma (Karishma Kapoor) , a mistake-prone butler named Robert (Vijoo Khote) , a manager named Bhalla (Shehzad Khan) who mimics yesteryear\'s villain Ajeet and a funny gangster Gogo (Shakti Kapoor) who looks more like a pirate and a rollicking comedy awaits you .<br /><br />Do not waste your time looking for LOGIC in the movie . Leave the company of your brains and just ENJOY . The actors are so much in sync with the script that no room is left for mistakes . Dialogues (Rajkumar Santoshi , Dilip Shukla) are witty . Music (Tushar Bhatia) and lyrics (Majrooh Sultanpuri) are memorable . The picturization and choreography (Saroj Khan) of "Yeh Raat Aur Yeh Doori" , "Ae Lo Ji Sanam" and "Dil Karta Hai Tere Paas Aaoon" is fitting and will remain etched in my mind forever .<br /><br />The film starred two superstars-in-the-making , Aamir Khan and Salman Khan (they eventually became superstars) . Aamir Khan is impeccable in his first all-out comedy role . I salute his sense of comic timing . Salman pales in comparison with Aamir but is still likable . Among the supporting characters , Paresh Rawal stands out in his dual role of Ramgopal and Shyamgopal .<br /><br />The movie surprisingly failed at the box office . I fail to understand why . I recommend it to all nevertheless .'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

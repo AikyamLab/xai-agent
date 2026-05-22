@@ -6,15 +6,19 @@ from typing import Dict, Any, Optional, Union
 import os
 import pandas as pd
 from collections import OrderedDict
+from pathlib import Path
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DATASET_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "image", "CUB_200_2011")
+DEFAULT_DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/CUB_200_2011"
+DATASET_ROOT = DEFAULT_DATASET_ROOT
 NUM_CLASSES = 200
 
 def get_label_map(root_path):
     """Parses classes.txt to create a label map."""
     classes_path = os.path.join(root_path, 'classes.txt')
+    if not os.path.exists(classes_path):
+        return {}
     label_map = {}
     with open(classes_path, 'r') as f:
         for line in f:
@@ -27,6 +31,27 @@ LABEL_MAP = get_label_map(DATASET_ROOT)
 
 # Module-level dataset cache: same fix as load_cub_resnet.py.
 _dataset_cache: dict = {}
+
+
+def _resolve_dataset_root(dataset_dir: str) -> str:
+    base = Path(dataset_dir).expanduser()
+    candidates = [
+        base / "image" / "CUB_200_2011",
+        base / "CUB_200_2011",
+        base,
+    ]
+    for candidate in candidates:
+        if (candidate / "classes.txt").exists():
+            return str(candidate)
+    return str(candidates[0])
+
+
+def set_dataset_root(dataset_dir: str) -> None:
+    """Configure CUB root dynamically (supports dataset and dataset_ood layouts)."""
+    global DATASET_ROOT, LABEL_MAP
+    DATASET_ROOT = _resolve_dataset_root(dataset_dir)
+    LABEL_MAP = get_label_map(DATASET_ROOT)
+    _dataset_cache.clear()
 
 
 class CUB_Dataset(torch.utils.data.Dataset):

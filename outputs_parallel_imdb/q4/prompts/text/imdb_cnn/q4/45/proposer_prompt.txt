@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "This pictu..." (predicted negative) and "To underst..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9848)
+- Instance B: Predicted negative (Confidence: 0.9848)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "This picture is a bad and blown up rip off of the Michael Pohl short film EXTINCT from 1995. While Michael Pohl's idea was original and perfect for a short film setting, A SOUND OF THUNDER's plot was poorly adapted from Pohl's story and not fit for a full length feature film one would expect from a major Hollywod studio. The tragic flooding situation that ruined the sets in Prague was just one bad link in a long rusty film production chain in this case. For a studio to release such a product... it is a shame. Especially for Warner Brothers, a studio which broke new effects grounds with shows like BABYLON 5 in 1993. On TELEVISION. Visual effects for television shows pioneering CGI in episodic television in the mid nineties were way more sophisticated than what is brought to the screen in this picture. In cases like this, sad as it may be: Can the film."}
+- Instance B: {'text': 'To understand "Crash Course" in the right context, you must understand the 80\'s in TV. Most TV shows didn\'t have any point. The sitcom outpopulated the drama at least 3 to 1. They were still figuring out where the lines were so that they could cross them. (TV Shows like "Hail to the Chief" was quite the bold step!) This made-for-TV movie "Crash Course" featured an All-Star cast, bringing together members from all the 80\'s classics: "227", "Family Ties", "Who\'s the Boss?", et al. Directors must\'ve had a certain penchant for those all-star movies then. Still, this movie offered very light fare and a simplistic view of heroism and maturity. And that\'s not bad sometimes. Viva Soleil Moon Frye.'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

@@ -15,7 +15,6 @@ class DataModelLoader:
         modality: str,
         data_path: Optional[str] = None,
         model_path: Optional[str] = None,
-        models_dir: Optional[str] = None,
     ):
         """
         Initializes the loader by dynamically importing the specified model's loader module.
@@ -23,19 +22,44 @@ class DataModelLoader:
         Args:
             model_name (str): The name of the model to load (e.g., 'stl10_resnet').
             modality (str): The data modality (e.g., 'vision', 'text', 'tabular').
-            data_path (str, optional): Path to the dataset if different from default.
+            data_path (str, optional): Path to the dataset root if different from default.
+            model_path (str, optional): Explicit model checkpoint path. If omitted,
+                falls back to models_to_read/{modality}/{model_name}.(pth|h5).
         """
         self.model_name = model_name
         self.modality = modality
         self.loader_module = self._import_loader_module()
 
-        resolved_model_path = self._resolve_model_path(model_path, models_dir)
+        self._configure_dataset_root(data_path)
+
+        # Determine model path
+        if model_path is not None:
+            resolved_model_path = Path(model_path).expanduser()
+        else:
+            model_path_str = f"models_to_read/{self.modality}/{self.model_name}.pth"
+            resolved_model_path = Path(model_path_str)
+            if not resolved_model_path.exists():
+                model_path_str = f"models_to_read/{self.modality}/{self.model_name}.h5"
+                resolved_model_path = Path(model_path_str)
+                if not resolved_model_path.exists():
+                    raise FileNotFoundError(
+                        f"Model weights not found at {model_path_str} or with .h5 extension"
+                    )
+
         self.model, self.processor = self.loader_module.load_model(str(resolved_model_path))
 
         self.current_sample_data: Optional[Dict[str, Any]] = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"DataModelLoader initialized for '{self.model_name}' on device '{self.device}'.")
         print(f"Model and processor loaded successfully.")
+
+    def _configure_dataset_root(self, data_path: Optional[str]) -> None:
+        """Configure loader-level dataset root for modules that support it."""
+        if not data_path:
+            return
+
+        if hasattr(self.loader_module, "set_dataset_root"):
+            self.loader_module.set_dataset_root(str(Path(data_path).expanduser()))
 
     def _import_loader_module(self):
         """Dynamically imports the loader module for the given model."""
@@ -45,39 +69,6 @@ class DataModelLoader:
         except ImportError as e:
             print(f"Error importing module {module_name}: {e}")
             raise
-
-    def _resolve_model_path(self, model_path: Optional[str], models_dir: Optional[str]) -> Path:
-        """Resolve model checkpoint path, preferring explicit model_path when provided."""
-        candidates = []
-
-        if model_path:
-            candidate = Path(model_path)
-            if candidate.suffix:
-                candidates.append(candidate)
-            else:
-                candidates.append(candidate.with_suffix(".pth"))
-                candidates.append(candidate.with_suffix(".h5"))
-
-        base_dir = Path(models_dir) if models_dir else Path("models_to_read")
-        candidates.extend([
-            base_dir / self.modality / f"{self.model_name}.pth",
-            base_dir / self.modality / f"{self.model_name}.h5",
-        ])
-
-        for candidate in candidates:
-            if candidate.exists():
-                return candidate
-
-        if model_path:
-            raise FileNotFoundError(
-                f"Model weights not found. Checked explicit path '{model_path}' and default "
-                f"locations under '{base_dir / self.modality}' for .pth/.h5."
-            )
-
-        raise FileNotFoundError(
-            f"Model weights not found under '{base_dir / self.modality}' for "
-            f"{self.model_name}.pth/.h5."
-        )
 
     def load_sample(self, index: int, split: str = "test") -> Dict[str, Any]:
         """

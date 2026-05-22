@@ -789,6 +789,24 @@ class VisionLanguageModel:
         Returns:
             Cleaned assistant response
         """
+        import re
+        output_text = output_text.strip()
+
+        # Strip <think>...</think> blocks (thinking with closing tag)
+        output_text = re.sub(r'<think>.*?</think>', '', output_text, flags=re.DOTALL)
+        output_text = output_text.strip()
+        
+        # Only strip orphaned <think> if there's actual content after it
+        # (to avoid removing response that is ONLY thinking blocks)
+        if '<think>' in output_text:
+            # Check if there's substantial content after the think tag
+            parts = output_text.split('<think>', 1)
+            if len(parts) == 2:
+                after_think = parts[1].strip()
+                # Only remove if we have actual JSON/content after the thinking
+                if after_think and ('{' in after_think or '[' in after_think or after_think[0] not in '<>'):
+                    output_text = parts[0].strip()
+        
         output_text = output_text.strip()
 
         # Try to extract assistant response from conversation format
@@ -1430,7 +1448,22 @@ class TinkerVisionLanguageModel:
         """Encode text to token IDs using the tokenizer."""
         return self.tokenizer.encode(text, add_special_tokens=False)
 
-    def _build_text_only_input(self, prompt: str):
+    def _prepare_prompt(self, prompt: str, force_json: bool = False) -> str:
+        """Prepare prompt with control tokens for Qwen models.
+        
+        Note: /no_think should be prepended during encoding, not text level.
+        
+        Args:
+            prompt: Original prompt
+            force_json: If True, prepare for JSON response (currently unused at text level)
+            
+        Returns:
+            Modified prompt string
+        """
+        # Note: /no_think control should be in model_input encoding, not here
+        return prompt
+
+    def _build_text_only_input(self, prompt: str, force_json: bool = False):
         """Build ModelInput for text-only prompts."""
         system_message = (
             "You are an AI assistant that follows instructions precisely. "
@@ -1440,13 +1473,26 @@ class TinkerVisionLanguageModel:
         )
 
         if "qwen" in self.model_id.lower():
-            full_text = (
+            # For Qwen models, prepend /no_think control token if force_json
+            text_parts = []
+            if force_json:
+                text_parts.append("/no_think\n")
+            
+            text_parts.extend([
                 f"<|im_start|>system\n{system_message}<|im_end|>\n"
                 f"<|im_start|>user\n{prompt}<|im_end|>\n"
                 f"<|im_start|>assistant\n"
-            )
+            ])
+            
+            # If force_json, prepend '{' to nudge toward JSON
+            if force_json:
+                text_parts.append("{")
+            
+            full_text = "".join(text_parts)
         else:
             full_text = f"{system_message}\n\nUser: {prompt}\n\nAssistant:"
+            if force_json:
+                full_text += "{"
 
         tokens = self._encode_text(full_text)
 
@@ -1465,10 +1511,11 @@ class TinkerVisionLanguageModel:
         prompt: str,
         images: Optional[List[Union[str, Image.Image]]] = None,
         image_labels: Optional[List[str]] = None,
+        force_json: bool = False,
     ):
         """Build Tinker ModelInput for multimodal input with images."""
         if not images:
-            return self._build_text_only_input(prompt)
+            return self._build_text_only_input(prompt, force_json=force_json)
 
         # For multimodal, we need to build chunks with ImageChunk
         chunks = []
@@ -1505,13 +1552,23 @@ class TinkerVisionLanguageModel:
                     chunks.append(tinker_types.EncodedTextChunk(tokens=vision_end_tokens))
 
             footer = f"{prompt}<|im_end|>\n<|im_start|>assistant\n"
+            if force_json:
+                footer += "{"
             footer_tokens = self._encode_text(footer)
             if footer_tokens:
                 chunks.append(tinker_types.EncodedTextChunk(tokens=footer_tokens))
         else:
             text = f"{system_message}\n\nUser: {prompt}\n\nAssistant:"
+            if force_json:
+                text += "{"
             tokens = self._encode_text(text)
             chunks.append(tinker_types.EncodedTextChunk(tokens=tokens))
+        
+        # For Qwen models with force_json, prepend /no_think control at model_input level
+        if force_json and self.is_qwen_vl:
+            no_think_tokens = self._encode_text("/no_think\n")
+            if no_think_tokens:
+                chunks.insert(0, tinker_types.EncodedTextChunk(tokens=no_think_tokens))
 
         return tinker.ModelInput(chunks=chunks)
 
@@ -1527,6 +1584,7 @@ class TinkerVisionLanguageModel:
             temperature=self.temperature,
             top_p=self.top_p,
             stop=["<|im_end|>", "<|endoftext|>"],
+            enable_thinking=False,
         )
 
         result_future = self.sampling_client.sample(
@@ -1647,7 +1705,25 @@ class TinkerVisionLanguageModel:
         return ""
 
     def _extract_assistant_response(self, output_text: str) -> str:
-        """Extract assistant's response from full output."""
+        """Extract assistant's response from full output, stripping thinking blocks."""
+        import re
+        output_text = output_text.strip()
+
+        # Strip <think>...</think> blocks (thinking with closing tag)
+        output_text = re.sub(r'<think>.*?</think>', '', output_text, flags=re.DOTALL)
+        output_text = output_text.strip()
+        
+        # Only strip orphaned <think> if there's actual content after it
+        # (to avoid removing response that is ONLY thinking blocks)
+        if '<think>' in output_text:
+            # Check if there's substantial content after the think tag
+            parts = output_text.split('<think>', 1)
+            if len(parts) == 2:
+                after_think = parts[1].strip()
+                # Only remove if we have actual JSON/content after the thinking
+                if after_think and ('{' in after_think or '[' in after_think or after_think[0] not in '<>'):
+                    output_text = parts[0].strip()
+        
         output_text = output_text.strip()
 
         if "assistant\n" in output_text:
@@ -1670,15 +1746,26 @@ class TinkerVisionLanguageModel:
         self,
         prompt: str,
         images: Optional[Union[Image.Image, List[Image.Image], str, List[str]]] = None,
+        force_json: bool = False,
         **kwargs
     ) -> str:
-        """Invoke the VLM with text and optional images."""
+        """Invoke the VLM with text and optional images.
+        
+        Args:
+            prompt: Text prompt
+            images: Optional image(s)
+            force_json: If True, prepend /no_think and prepare for JSON response
+            **kwargs: Additional arguments
+        """
+        # Prepare prompt with control tokens if force_json
+        prompt = self._prepare_prompt(prompt, force_json=force_json)
+        
         if images:
             if not isinstance(images, list):
                 images = [images]
-            model_input = self._build_model_input(prompt, images)
+            model_input = self._build_model_input(prompt, images, force_json=force_json)
         else:
-            model_input = self._build_text_only_input(prompt)
+            model_input = self._build_text_only_input(prompt, force_json=force_json)
 
         return self._sample(model_input)
 

@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "The violen..." (predicted positive) and "This movie..." (predicted negative) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9515)
+- Instance B: Predicted negative (Confidence: 0.9848)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "The violent death of Fernando Ramos Da Silva only eight years after the completion of this film, only adds to the poignancy of dierector BAbenco's powerful message. The film is split into two halves - the first in a reformatory where a group of youngsters are abused and violated by the violent law enforcers and guardians. The second backdrop is the city where they are confined instead by their own actions and morality, which includes mugging, pimping and killing different characters who enter their lives.<br /><br />The differing gender and sexual roles in the film allow for constant changes in the characters as they interact with other people. Particularly interesting is teh character of Lalica, a transvestite who is mother and lover to some of the children. Her reaction to the arrival of Sueli, a prostitute is both poignant and tragic. <br /><br />There is no happy ending to this story and i reccomend to watch it with caution as there are some very uncomfortable scenes to watch especially in teh opening twenty minutes. But whilst watching it, it is important to remember that this is not just a fictional tale. The actors are not trained professionals but instead boys selected from the streetsof Sao Paulo. They actually lived this life that is portrayed so vividly on screen and in da Silva's case, died at the hands of the police who are depicted so brutally. A documentary? A piece of fiction. It borders on both but it certainly makes for heart wrenching material and is a film that actually leaves you breathless and thinking long after having watched it.<br /><br />10/10"}
+- Instance B: {'text': 'This movie is not very bad tjough. But one cannot find anything new about the personality of Marquis de Sade from this movie. The movie tries to stay on the borderline between erotic and insightful and it cannot succeed at either. The cinematography is really bad (straigh-to video quality)<br /><br />'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

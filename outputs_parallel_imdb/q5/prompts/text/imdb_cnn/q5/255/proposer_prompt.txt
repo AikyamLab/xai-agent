@@ -1,0 +1,50 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on TEXT.
+
+**User Question**: The model predicted the review to be negative. If we mask the word 'spending' from this input, would the prediction change?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+- Prediction: Class 0
+(Confidence: 0.9515)
+- Top-5 Predictions: [{'class_idx': 0, 'class_name': 'negative', 'probability': 0.9515351094305515}, {'class_idx': 1, 'class_name': 'positive', 'probability': 0.04846489056944847}]
+
+**Part to be Masked**:
+spending
+
+**Input Content Description**:
+The opening of "The Jungle" promises us a safari adventure with a science fiction element, but mostly what we get is a travelogue with lots of stock footage and padding (and the odd leopard attack). The movie is leisurely when you want it to be gripping, and tries to inject interest into the proceedings with badly staged matches between various wild animals (I had no idea that lions and wild boars...
+**Task**: Design a strategy to determine whether MASKING the specified token/phrase would CHANGE the model's prediction.
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Assess the importance of the queried token/phrase to the prediction
+   - Reason about whether masking would significantly impact the output
+   - Estimate the likelihood of prediction change
+
+2. **External XAI Tools**: Use established explainability methods to assess importance:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for assessing masking impact (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous importance analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for assessing masking impact on text"
+    }
+}
+
+Provide your strategy as a JSON object:

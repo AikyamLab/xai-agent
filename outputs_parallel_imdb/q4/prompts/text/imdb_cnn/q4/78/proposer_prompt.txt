@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "<br /><br ..." (predicted negative) and "There have..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9848)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "<br /><br />I still can't belive Louis Gossett Jr. agreed to appear in this film. Everything about this move feels artificial, forced, and contrived. The air sequences are flat. The enemy characters seem like puppets. This is just a poor excuse of a movie. At least Top Gun had air sequences that looked good (the external shots anyway). The songs by Queen are cool, though. Rent Midway instead."}
+- Instance B: {'text': "There have been some harsh criticisms of Comanche Moon on IMDb. I think this is for three reasons. First, purists are disappointed that the mini-series is not exactly like the book. Second, it's not as good as the original Lonesome Dove. Finally, people like to complain on IMDb and the greatest films in the world will have bad comments.<br /><br />I would like to say that no movie is going to be as good as the book. That's just the way it is. Lonesome Dove wasn't as good as the novel it was based on. Additionally, the movie of Lonesome Dove had some things left out ans switched around. That's just they way its going to be with a film adaptation of anything. So its a futile argument when looking at Comanche Moon.<br /><br />I do agree it's not as good as the original Dove. But hey, nothing is. I know people that guide their lives by the lessons they learned from the Dove. If I was going to compare every book I read, movie I watched, and TV I viewed by Lonesome Dove; I would be perpetually unhappy.<br /><br />This is a made for TV miniseries based on a prequel to Lonesome Dave (the novel) and sequel to Dead man's Walk, and that's what you get. It's the best TV I've seen in years. It's a fun set up for Lonesome Dove. We get to learn about the history of the Rangers we came to know and love in Dove. Zahn does an amazing job in recreating Gus McCrae. Elizabeth Banks and Linda Forenelli (sp?) also do great jobs as creating characters that help fill in the past of the rangers and Newt.<br /><br />If/when it comes on again, I promise you'll enjoy it more than some crumby reality show."}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

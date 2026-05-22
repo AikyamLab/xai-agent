@@ -1,0 +1,73 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "^^contains..." (predicted negative) and "Many years..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9848)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "^^contains spoilers^^<br /><br />This movie is utter crap. Do not watch.<br /><br />There is no one in this movie to root for, or even like, except for the wife, and she wins by default. Everyone is selfish, and many things happen that make no sense.<br /><br />The acting is mediocre at best and everyone breathes too heavily about everything. No one can even cry believably.<br /><br />If you leave the room for even a second, then something totally out of left field will happen, and it will make NO SENSE WHATSOEVER.<br /><br />For example, I left the room for a second, while Jennie Garth's character was sleeping with her manager. I come back, seriously about 4 minutes later, (also I'm pretty sure there was a commercial somewhere in there) and she's sleeping with that Berko guy. <br /><br />I gave up on this movie around the time that Berko was being an ass to his fiancé in the car, because she didn't want to call off the wedding.<br /><br />I wasted 2 hours of my life. You shouldn't."}
+- Instance B: {'text': 'Many years ago I saw this movie (on television maybe?) and loved it. So I decided to rent it on DVD the other day to see whether it still held up in my estimation. It did. <br /><br />Set in Sydney\'s notorious King\'s Cross district (where prostitution, drug abuse and sex stores thrive), it tells the story of "Jimmy" (played by Heath Ledger). Jimmy is a young man...maybe late teens or thereabouts, who hasn\'t had a stable family background. He is on the fringes of society, and works as a \'tout\' for a sex club (encouraging people to enter the store). He is aware of an underworld figure called "Pando", who is a local bigwig in the Cross. It\'s Jimmy\'s hope that he will find himself on Pando\'s radar and get \'in\' with him...a short-cut to upward social mobility, he hopes.<br /><br />One night Jimmy meets the beautiful young woman Alex (played by the charming Rose Byrne). You just know that a love story will play out between them. On that night as well, Jimmy is first contacted by Pando (played by Bryan Brown). Pando has a \'job\' for Jimmy. It\'s the \'foot in the door\' that Jimmy has been waiting for!<br /><br />To reveal too much more would spoil the many surprises that this movie has in store for the viewer. Stylistically, if you like Quentin Tarantino or Guy Ritchie movies, you should be in tune with what to expect...twists and turns and black comedy.<br /><br />What\'s so great about this movie is its very \'Australian-ness\'. It\'s no mere knock off of Tarantino or Ritchie, but a genuine Australian contribution to the genre. <br /><br />A fascinating aspect to this movie is how it all hangs together. Sometimes you are introduced to characters who you wonder what the hell they\'re doing there. In the end, all these \'loose ends\' tie together beautifully. It\'s sort of like a celluloid Moebius strip.<br /><br />A highlight of the movie is Bryan Brown\'s character of Pando. Pando likes puzzles, and it\'s fun to see him play games with his cronies. It\'s the little details revealed about him which are so enjoyable...his taste in music, for starters!<br /><br />Of the Heath Ledger movies I have seen (The Dark Knight, 10 Things I hate about you), this is perhaps his best role. Wasn\'t taken with "10 things". If you are a Heath Ledger fan (Ledger recently died a tragic, accidental death), this is a chance to see him in his greatest Australian role, I think. There is great chemistry between Ledger and Byrne in this movie-so, on one level, it functions as nice love story.<br /><br />This movie doesn\'t have some of the horror of Tarantino and Ritchie underworld movies, but it does have some adult themes...scenes that surprise you with their coldness and beauty. In that sense, it\'s not an ideal movie for very young viewers, but it\'s not a movie that gore-hounds will get excited about either. <br /><br />Lastly, I have to say that it is great that Australia can make great movies like this. Usually the kind of movies my home country makes can be uniniviting. This movie has strengths where many Australian movies have weaknesses...i.e. it has a great story, great acting and a great script. We need more popular, quality movies like this to be made here in Australia. <br /><br />Highly recommended. Other Australian movies I have loved include:<br /><br />Breaker Morant (10/10) Mad Max 2 (10/10) My Brilliant Career (not reviewed here by me yet) Proof (nr) The Devil\'s Playground (nr) The Year My Voice Broke (nr) Bad Boy Bubby (nr. A great, dark comedy) The Dish (nr. A great, charming comedy)'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:
+
+
+
+
+You are the Proposer Agent. Your previous strategy did not achieve satisfactory explanation faithfulness.
+
+## Previous Strategy
+- Tools Used: []
+- Reasoning: N/A
+
+## Critic's Feedback on Your Strategy
+{"analysis": "Unable to parse proposer reflection", "tool_analysis": {}, "tools_to_keep": [], "tools_to_remove": [], "tools_to_add": [], "strategy_suggestions": [], "confidence": 0.0}
+
+## Your Task
+Based on the critic's feedback, generate an IMPROVED strategy for this contrastive Q4 question. Consider:
+1. Which tools to keep based on their effectiveness across both instances A and B
+2. Which tools to remove (low importance scores)
+3. Which tools to add for better contrastive coverage
+4. How to adjust tool priorities
+
+Generate a new strategy in the same JSON format as before.

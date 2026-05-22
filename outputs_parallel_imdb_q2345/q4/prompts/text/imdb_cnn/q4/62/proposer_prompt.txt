@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "Speed whic..." (predicted negative) and "Never has ..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9515)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "Speed which I believe is direct copy of the Hollywood movie Cellular (I haven't watched this one) gives an impression of a test match which is very exciting in first four days, but then gets in a very boring draw at the end. I have watched this movie today on 12th January 2008 on rented VCD. It's release date is 19th Oct 2007. But still fortunately for me I didn't know or heard much of this movie before except that it is a flop at box office. So in this situation when I watch the movie, I feel that this movie could have been a very good movie, but then the director again falls in the trap for Bollywood traditions and has wasted a very good chance.<br /><br />Off course as a Bhatt movie it must be copied from somewhere else. But now days it doesn't matter for me, if I haven't seen the original movie. I just found the main theme much similar to 'Nick of Time' and 'Badshah'. In the movie Sanjay Suri is shown an intelligence agent, but his wife thinks that he is a chef. This brings back the memory of 'True-Lies'. The only new part was the use if the phone. But that too I found out now is taken from movie Cellular. So when a movie is made with the mixture of so many other movies it's future is quite clear.<br /><br />The things I like about the movie is its pace. As the name suggest the things really happens fast, and there is not much time to think about in between the scenes. But this breaks in the last 20 minutes of so where the movie goes in traditional Bollywood style of Dhishum dhishum.<br /><br />The plot of the movie is also quite interesting. Three stories going parallel, one after the other. One of the kidnapping of Urmila, the other of the Zayed trying to help Urmila, and then the plan of murder of prime minister. These three stories gets mixed up naturally with each other as the movie continues.<br /><br />But then the very ordinary acting and unnecessary extra style has killed the spirit of the movie. Except Sanjay Suri, none other makes any impression. This goes even for Urmila, who is always promising in RGVs movies. Due to this ordinary acting some scenes doesn't really convey the feelings that director wanted. E.g. the scene at the end where Urmila leaves all hope and cut the phone, should have made a good impact. But instead we just wait for the end of that scene.<br /><br />Other than acting, some unnecessary love for style demoralizes the movie. Showing so cool villains is good for Hollywood movies not for Bollywood The background of London is also only for making style and not much intelligent advantage of this background can be seen. Especially at the end, all those dhishhum- dhishhum were utterly unnecessary. May be director has an impression that the climax in Hindi movies must have such fights. They look unrealistic, increase the length of the movie and make sure that the people are leaving theater before the movie ends.<br /><br />Over and all, I find the movie once watchable. If it is coming on TV or you can get it on rent its OK. But then again make sure that you have the remote and forward button handy. Next time, when the movie is on TV, you can safely watch other channels."}
+- Instance B: {'text': 'Never has the words "hidden gem" been so accurate. Bad movie lovers might search all over for the next hidden obscurity, sometimes coming up short with stuff like Weasels rip my flesh, but other times, luck will prevail and you might end up with something like Death Bed, then hopefully realizing it\'s not a bad movie at all, it just has a bad title, and not even a bad title, but a humorous one that might throw you off, but Somehow Death Bed still fits into the "bad" category. With a vibe that\'s somber and empty, Death Bed is a true masterpiece of low-budget horror, reserved only for those fortunate enough to appreciate such a dark shadow of a vision.<br /><br />Death Bed involves an incoherent, yet intriguing relationship between a demon in the bed and the sympathetic ghost trapped in the portrait, who only wishes he could spare someone from the awful fate of being devoured by the yellow suds. Although not all that scary, considering it\'s about a killer bed, Death Bed possesses the qualities that make for successful horror. A dark, desolate vibe, confusion, an eerie, subtle score and that dream quality that this masterpiece almost flaunts. Such a quality, or vibe usually seems unintentional. Not only is it intentional, but from what I\'ve read, Death Bed is based on an actual dream, George Barry, the director, successfully transferred dream to film, only a genius could accomplish such a task.<br /><br />Old mansions make for good quality horror, as do portraits, not sure what to make of the killer bed with its killer yellow liquid, quite a bizarre dream, indeed. Also, this isn\'t quite the brand of B-horror I was expecting, considering the title and all. Before viewing this Gothic gem I expected something more like Class Reunion Massacre, now thats a bad movie, if you\'ve seen it, you know what I\'m saying. After considering all of the above, I feel like Death Bed deserves only eight stars, but since it stayed so obscure for so long We\'ll say the bed that eats deserves nine.'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

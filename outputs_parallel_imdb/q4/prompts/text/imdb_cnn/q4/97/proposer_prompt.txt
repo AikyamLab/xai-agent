@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "This early..." (predicted positive) and "This prove..." (predicted negative) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9515)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "This early film from future goremeister Lucio Fulci is a very good addition to the giallo sub-genre. Set in rural Italy, there is a serial killer of children at large. Add to the mix an array of characters familiar to fans of giallo cinema \x96 a madwoman, a newspaper reporter, ineffectual police, a sexy siren, a priest, a mute girl, a mentally-retarded loner etc. This is one of the best Italian thrillers of the early 70's.<br /><br />Unusually for a giallo, the victims in this case are young boys, which makes a change from the more typical women in peril angle. The fact that it is kids who are the target of the maniac only serves to make things a little more uncomfortable. Fulci is pushing the envelope a bit here and he goes even further in a gloriously outrageous unPC scene where a young boy is subjected to the somewhat inappropriate attention of a sexy naked young woman (Barbara Bouchet) who he is tasked with delivering a drink to. She displays herself openly and actively invites the youngster to ogle her; ultimately asking him if he wants to go to bed with her. Although she is clearly playing around with him, it's still quite an unusual scene. Admittedly there are one or two unintentionally funny bits of dialogue here but it's very nicely photographed and Barbara Bouchet exudes high levels of confident sex-appeal. A standout scene. Even if you might feel slightly wrong watching it!<br /><br />Along with Barbara Bouchet, the other standout performance is from Florinda Bolkan, who plays a madwoman who is accused of murdering the children. She is not directly responsible but it is left to the viewer to decide whether her black magic may or may not have kicked off the subsequent killing spree. Irrespective, she is hunted down by a lynch mob and chain-whipped while a car radio blasts out rock music. This scene is very strong and unpleasant. Its viciousness indicates the path Fulci's career would subsequently go.<br /><br />Despite the visceral impact of the above murder it's maybe a little surprising that the other killings are either bloodless or committed off-screen. The only other death scene comparable with the lynch-mob is the demise of the killer at the end of the movie, although this sequence is kind of silly. The plot is convoluted and awash with red herrings, although personally, I found the identity of the killer a little predictable. This weakness is less problematic on subsequent viewings though \x96 like most gialli, Don't Torture A Duckling is eminently re-watchable.<br /><br />Technically, the film is well made with impressive camera-work, solid acting and effective music from Riz Ortolani \x96 particularly good is a recurring unaccompanied female vocal that sounds like it's coming from a distant hill. Fulci obviously went on to make more graphically violent horror movies but here he shows a talent for slightly more restrained material. It's still wild stuff though and is highly recommended to fans of giallo cinema."}
+- Instance B: {'text': "This proved to be a rare case of a poliziottesco made with British funding; unfortunately, the result is undistinguished (except by its exceeding unpleasantness and borderline-camp approach) despite stars and director. The former is led by a wooden Franco Nero and an ultra-hammy Telly Savalas as a couple of would-be robbers (if anyone is able to believe either actor \x96 who generally exude cool \x96 as a duo of bumbling crooks, he's more gullible than I am!).<br /><br />Their 'job' goes awry (ending in murder and saddled with cases of cutlery instead of jewels!) \x96 however, the mismatched criminals see an opening to their dilemma when they inadvertently 'kidnap' the son of a British diplomat (a miscast Lester, who even gets to kick trigger-happy Savalas where it hurts at one point). Still, they never actually ransom him and their sole intent is to cross the border into France; tagging along with them is Nero's girlfriend (a wasted Ely Galleani): soon enough, though, she's had enough and decides to run away while the others are sleeping; the crazy Savalas notices this and, following the girl, kills her. In the meantime, Nero and Lester have woken up \x96 the former thinks his accomplices may have double-crossed him, so he goes on the lam with the boy in tow; after a brief spell at a rich old lady's country estate (which features totally gratuitous rear nudes by both Nero and Lester!), Savalas catches up with them. They continue their trek, where the trio run into a family of German campers: the situation degenerates to the point where Savalas shuts them inside their trailer and tosses the lot into the river \x96 though he's badly hurt in the process himself; typically, it all ends with the 'heavies' getting killed just as they're about to reach the border.<br /><br />The film, therefore, contains most of the genre's typical elements \x96 sleaze, sadism, violence, chases (the aftermath of the opening robbery when the getaway car causes havoc in the city's narrow back-streets and even disrupts a funeral procession is downright farcical), etc.; one mildly interesting aspect to it is that, by the end, Lester himself is seen to have been definitely (irrevocably?) marked by the experience \x96 coming to feel excitement when an act of violence is committed."}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

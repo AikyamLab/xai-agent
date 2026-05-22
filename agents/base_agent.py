@@ -126,13 +126,14 @@ class BaseAgent(ABC):
         print(f"{self.agent_name} initialized")
         print(f"  Output directory: {self.output_dir}")
 
-    def invoke_vlm(self, prompt: str, images: Optional[List[str]] = None) -> str:
+    def invoke_vlm(self, prompt: str, images: Optional[List[str]] = None, **kwargs) -> str:
         """
         Invoke the VLM with a prompt and optional images.
 
         Args:
             prompt: Text prompt
             images: Optional list of image paths
+            **kwargs: Additional arguments to pass to VLM methods (e.g., force_json, enable_thinking)
 
         Returns:
             VLM response string
@@ -140,13 +141,13 @@ class BaseAgent(ABC):
         try:
             if images:
                 if hasattr(self.vlm, 'invoke_with_images'):
-                    return self.vlm.invoke_with_images(prompt, images)
+                    return self.vlm.invoke_with_images(prompt, images, **kwargs)
                 elif hasattr(self.vlm, 'invoke_multimodal'):
-                    return self.vlm.invoke_multimodal(prompt, images)
+                    return self.vlm.invoke_multimodal(prompt, images, **kwargs)
                 else:
                     raise RuntimeError(f"VLM does not support image input but {len(images)} images were provided")
             else:
-                return self.vlm.invoke(prompt)
+                return self.vlm.invoke(prompt, **kwargs)
         except Exception as e:
             error_msg = str(e)
             print(f"  Warning: VLM call failed: {error_msg}")
@@ -405,7 +406,8 @@ class BaseAgent(ABC):
         prompt: str,
         images: Optional[List[str]] = None,
         max_retries: int = 3,
-        retry_delay: float = 2.0
+        retry_delay: float = 2.0,
+        force_json: bool = True
     ) -> Dict[str, Any]:
         """
         Call VLM and parse JSON response, retrying on parse errors.
@@ -415,6 +417,7 @@ class BaseAgent(ABC):
             images: Optional list of image paths
             max_retries: Maximum number of attempts (default 3)
             retry_delay: Seconds to wait between retries (default 2)
+            force_json: Pass force_json flag to VLM (default True)
 
         Returns:
             Parsed JSON dictionary
@@ -424,7 +427,7 @@ class BaseAgent(ABC):
         """
         last_error = None
         for attempt in range(1, max_retries + 1):
-            response = self.invoke_vlm(prompt, images)
+            response = self.invoke_vlm(prompt, images, force_json=force_json)
             try:
                 return self.parse_json_response(response)
             except RuntimeError as e:

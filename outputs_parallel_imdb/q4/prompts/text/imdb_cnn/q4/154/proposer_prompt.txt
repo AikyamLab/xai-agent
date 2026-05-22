@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "Blake Edwa..." (predicted negative) and "I thought ..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9515)
+- Instance B: Predicted negative (Confidence: 0.9848)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': 'Blake Edwards tried very hard to change Julie Andrews image in this film. He tried to make her sexy not realizing she already was. I think they were both still a bit irked that Julie had not been chosen to film her Broadway success of Camelot and was passed over as not being sexy enough. Unfortunately, they chose this vehicle to try and assuage this belief. It gets to the point where it is almost funny seeing Rock Hudson, who we all know now was gay, kissing Julie every 2 minutes throughout this movie. It seems now that they were not only trying to make you believe that Julie was a femme fatale but that Rock was straight. Sadly, they have absolutely no chemistry together and the unending kissing scenes start grossing one out. The other error they made with this picture was not knowing what kind of movie they were making. It is almost three separate movies. There is the drama of Julie as the German spy trying to get military secrets from Rock. There is an air war movie with lots of footage of WWI vintage planes swooping about and there is the stupid attempts at humor that Blake Edwards seems to think he has to insert in every one of his pictures whether it is appropriate or not, In this case, it was not. The only truly redeeming qualities in this film are looking at the always lovely Dame Julie and hearing her sing in that crystal clear bell-like soprano. Of course if you love her, you may overlook the weaknesses of this film just because of her. You can always tell yourself, afterward, that it was a hell of a lot better than sitting through STAR!'}
+- Instance B: {'text': "I thought that this is a wonderfully written movie. I love little Scamp, and the street-wise Angel. This movie is very easy for little kids to understand, but a good movie for adults as well. I liked this movie because it continues the original Lady and the Tramp, and that movie is a classic. Lady and the Tramp 2 Scamp's Adventure was filled with new characters, catchy songs, brilliant animation, and unforgettable classic characters. I have loved the movie ever since I saw it for the first time. I also loved how they showed the different personalities of each character. It also shows the downfalls and good things of making new friends that you can hang out with. My favorite song in the movie was Always there because it showed the different characters sharing their views on how they feel. I definitely recommend this movie for everyone that was a fan of the original Lady and the Tramp."}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

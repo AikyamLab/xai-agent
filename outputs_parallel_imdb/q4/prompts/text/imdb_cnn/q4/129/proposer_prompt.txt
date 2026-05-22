@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "Due to thi..." (predicted positive) and "I have to ..." (predicted negative) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9515)
+- Instance B: Predicted negative (Confidence: 0.9848)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "Due to this show getting cut early I never realized why until I recently read the story behind the series. I felt this show never got its dues as one of the greatest shows, this show is iconic in nature and deserves the movie it was always intended to have if not with the original A team cast at least with the cast incorporated into the story line or a lengthy cameo, perhaps at the end commemorate it to the late Col. Hanibal Smith(Preppard). This cast gave so much to bring happiness to us growing up they deserve one last heave ho the fact that the series ended openly because they slashed the series is reason enough. This crew and cast made us realize as children the essence of being one of the good guys especially seeing how screwed up the world is today, I think a milder version like the original should be put into motion I have already read the previews and I know these are not the plans but if anything a straight to DVD movie, I sure would buy it. I really do not get how crappy shows get series finales but this great show which still runs regularly today and probably gets watched more than some of the current garbage shows of today don't we will always remember the Incredible Hulk series, Knight Rider, Airwolf, and the A team because those kind of shows carry through time, I am almost positive these knew ones you see about detectives will not even be remembered in 10 years so why not bring back something and show the people what staying power is all about and how these old shows really are all about."}
+- Instance B: {'text': "I have to agree that the movie is not the best I've ever seen, but I would like to make mention that the actors portraying Tommy and Jimmy Dorsey were the actual Dorsey brothers. As actors, they were wonderful musicians. The movie, based on their famous split, would have been better had professional actors played the parts. Many movies made during this time frame took advantage of the popularity of Big Bands. Most often, the movies were not that good because musicians are not actors by trade. Most of the movie-going audience didn't go to see Tommy or Jimmy Dorsey playing themselves; they went for the plot and the music. I've never been much of a Dorsey fan, but the music is good even today.<br /><br />I have to comment on a previous post regarding the actors who played Mom and Pop Dorsey and that their accents would be considered extreme by a Dublin audience. Arthur Shields and Sara Allgood were actually Irish actors, both born in Dublin. You might remember Mr. Shields as the Reverend Mr. Playfair in The Quiet Man and Ms. Allgood as Mrs. Monahan in Cheaper By The Dozen."}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

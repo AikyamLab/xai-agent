@@ -1,0 +1,52 @@
+You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on TEXT INPUTS.
+
+**User Question**: Why are the reviews "I had high..." (predicted negative) and "I cannot h..." (predicted positive) given different predictions?
+
+**Model Information**:
+- Model: imdb_cnn.pth
+- Architecture: CNN_IMDB
+
+**Instance Predictions**:
+- Instance A: Predicted negative (Confidence: 0.9848)
+- Instance B: Predicted negative (Confidence: 0.9515)
+
+
+**Input Content Descriptions**:
+- Instance A: {'text': "I had high hopes for this film, even though I had not read the book. Richard Gere and Diane Lane together--should be good already. But the film does not deliver on the promise. I kept waiting for more depth to the characters and there wasn't. I have no problem with the fact that it only took a weekend for them to fall in love. That can happen. But we never really get to know the characters. I would have liked more focus on them. The film reminded me in places of Bridges of Madison County, and that film was far better. I really felt for the characters in that film, and there was a chemistry (much more passion) between Clint Eastwood and Meryl Streep that there wasn't between Gere and Lane. Each of them are very good actors in his or her own right. Simply not the right movie for them together."}
+- Instance B: {'text': 'I cannot hate on the show. When the old (and better) tech TV had to hit the bricks, the channel was reformatted and new shows stepped in. "Attack of the Show" is the replacement for the Screen Savers, with 3 co-hosts in the beginning. They were Kevin Rose, Kevin Pereira and Sarah Lane. Brendan Moran came to be something of a co-host as well, but he mostly did prerecorded pieces for the show. Kevin Rose decided to leave the show, and eventually there was a contest to see who would be the third host, but that didn\'t pan out for some reason.<br /><br />Eventually (I just learned this from this very IMDb messageboard) Sarah Lane and Brendan Moran moved on because (hey, this is what I read) the two got married. That was a big secret to me! Now there is a new female co-host, the not-as-hot (my opinion) Olivia Munn. She\'s hiding something in those tops she wears, while Sarah Lane had a perfect body and she wasn\'t afraid to show it.<br /><br />AHEM! Sorry.<br /><br />"Attack of the Show" deals with everything young people want to know about. It\'s music, movies, comic books, the internet and television. This is what\'s great about the show. If you don\'t want to bother with scouring the net or waste time watching MTV, you can get all you want on AOTS. Some segments and bits they do are funny. They have regular guests and contributors who are in the industry, as well as guests who range from insignificant internet stars to actual big names.<br /><br />Even though the hosts aren\'t as geek as I\'d like them to be, I still have found "Attack of the Show" to be entertaining, even with its latest lineup.'}
+**Task**: Design a comprehensive strategy to identify which TEXT SPANS in EACH instance cause their DIFFERENT predictions. Find:
+- What tokens/phrases in Instance A cause prediction A
+- What tokens/phrases in Instance B cause prediction B
+
+**Available Methods**:
+1. **Autonomous Analysis**: Use your own reasoning capabilities to:
+   - Compare tokens/phrases between the two instances
+   - Reason about what causes each instance's different prediction
+   - Provide start and end indices for decisive tokens/phrases in each instance
+
+2. **External XAI Tools**: Use established explainability methods for comparative analysis:
+   - lime: Executes LIME (Local Interpretable Model-agnostic Explanations) for text. Returns word-level importance scores showing which words contributed to the prediction.
+   - integrated_gradients: Executes Integrated Gradients on text to compute per-token importance. Returns attribution scores for each token in the input text.
+   - shap: Executes SHAP (SHapley Additive exPlanations) for text using KernelExplainer. Returns word-level SHAP values showing each word's contribution to the prediction.
+   - sensitivity_analysis: Executes leave-one-out word ablation to measure each word's impact on prediction. Returns probability changes when each word is removed from the text.
+   - guided_backprop: Executes Guided Backpropagation on text to compute per-token importance using modified ReLU gradient rules. Returns attribution scores for each token without path integration. Requires the model to have ReLU activations.
+   - smoothgrad: Executes SmoothGrad on text by averaging saliency gradients over multiple noisy embedding perturbations. Produces stable, noise-reduced per-token importance scores.
+
+**Your Response Must Be Valid JSON** with the following structure:
+{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "Explain why you chose this strategy for comparing tokens/phrases between instances (2-3 sentences)",
+    "autonomous_tasks": [
+        {
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous comparative analysis",
+            "expected_output": "What should be extracted from this task"
+        }
+    ],
+    "tool_selection": {
+        "selected_tools": ["lime", "integrated_gradients", "shap", "sensitivity_analysis", "guided_backprop", "smoothgrad"],
+        "reasoning": "Why these tools for comparing text instances"
+    }
+}
+
+Provide your strategy as a JSON object:

@@ -29,6 +29,9 @@ BASE_DIR="/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
 DATASET_DIR="${BASE_DIR}/dataset"
 MODELS_DIR="${BASE_DIR}/models_to_read"
 OUTPUT_DIR="${BASE_DIR}/outputs"
+DATASET_VARIANT="default"   # default or ood
+DATASET_DIR_SET=false
+MODELS_DIR_SET=false
 
 # Default parameters (can be overridden by command line args)
 MODALITIES="vision"
@@ -57,12 +60,14 @@ VISION_DATASETS["stl10_resnet"]="vision/stl10_resnet.pth"
 VISION_DATASETS["stl10_densenet"]="vision/stl10_densenet.pth"
 VISION_DATASETS["cub_resnet"]="vision/cub_resnet.pth"
 VISION_DATASETS["cub_densenet"]="vision/cub_densenet.pth"
+VISION_DATASETS["cifar_resnet"]="vision/cifar_resnet.pth"
 
 declare -A TEXT_DATASETS
 TEXT_DATASETS["imdb_cnn"]="text/imdb_cnn.pth"
 TEXT_DATASETS["imdb_2layernn"]="text/imdb_2layernn.pth"
 TEXT_DATASETS["snli_cnn"]="text/snli_cnn.pth"
 TEXT_DATASETS["snli_2layernn"]="text/snli_2layernn.pth"
+TEXT_DATASETS["yelp_bert"]="text/yelp_bert.pth"
 
 declare -A TABULAR_DATASETS
 TABULAR_DATASETS["adult_census"]="tabular/adult_census.pth"
@@ -71,6 +76,9 @@ TABULAR_DATASETS["adult_2layernn"]="tabular/adult_2layernn.pth"
 TABULAR_DATASETS["cancer_2nn"]="tabular/cancer_2nn.pth"
 TABULAR_DATASETS["cancer_tabnn"]="tabular/cancer_tabnn.pth"
 TABULAR_DATASETS["cancer_2layernn"]="tabular/cancer_2layernn.pth"
+TABULAR_DATASETS["german_credit_3layernn"]="tabular/german_credit_3layernn.pth"
+
+OPTIONAL_LOCAL_CHECKPOINT_DATASETS="cifar_resnet yelp_bert"
 
 # ============================================================================
 # Helper Functions
@@ -117,7 +125,8 @@ Options:
                              Use "all" to auto-detect length from each JSON file
                              Use "N-all" (e.g. "1-all") to start from ID N to end
     --mode MODE              Dataset split to use: train or test (default: test)
-                             Benchmark JSONs are loaded from dataset/{mode}/{modality}/
+                              Benchmark JSONs are loaded from dataset/{mode}/{modality}/
+    --dataset_variant NAME   Variant defaults for dataset/models dirs: default or ood (default: default)
     --use_test_variant       Use _test variant dataset files if available
     --dry_run                Print commands without executing
     --no_eval                Skip faithfulness evaluation
@@ -134,6 +143,7 @@ Options:
     --tinker_lora_rank N     LoRA rank used during training (default: 16)
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
     --dataset_dir DIR        Dataset base directory (default: ${BASE_DIR}/dataset)
+    --models_dir DIR         Models base directory (default: ${BASE_DIR}/models_to_read)
     --parallel               Run jobs in parallel
     --max_jobs N             Maximum parallel jobs (default: 4)
     -h, --help               Show this help message
@@ -152,9 +162,9 @@ Examples:
     $0 --datasets "stl10_resnet" --q_types "1" --question_ids "0" --dry_run
 
 Available Datasets:
-    Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet
-    Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
-    Tabular: adult_census, adult_tabnn, adult_2layernn, cancer_2nn, cancer_tabnn, cancer_2layernn
+    Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet, cifar_resnet
+    Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn, yelp_bert
+    Tabular: adult_census, adult_tabnn, adult_2layernn, cancer_2nn, cancer_tabnn, cancer_2layernn, german_credit_3layernn
 EOF
     exit 0
 }
@@ -200,6 +210,24 @@ expand_range() {
 get_datasets_for_modality() {
     local modality="$1"
 
+    if [[ "$DATASET_VARIANT" == "ood" ]]; then
+        case "$modality" in
+            vision)
+                echo "cifar_resnet"
+                ;;
+            text)
+                echo "yelp_bert"
+                ;;
+            tabular)
+                echo "german_credit_3layernn"
+                ;;
+            *)
+                echo ""
+                ;;
+        esac
+        return
+    fi
+
     case "$modality" in
         vision)
             echo "stl10_resnet stl10_densenet cub_resnet cub_densenet"
@@ -231,10 +259,16 @@ get_model_path() {
         # Try common patterns
         if [[ -f "${MODELS_DIR}/vision/${dataset}.pth" ]]; then
             echo "${MODELS_DIR}/vision/${dataset}.pth"
+        elif [[ -f "${MODELS_DIR}/vision/${dataset}.h5" ]]; then
+            echo "${MODELS_DIR}/vision/${dataset}.h5"
         elif [[ -f "${MODELS_DIR}/text/${dataset}.pth" ]]; then
             echo "${MODELS_DIR}/text/${dataset}.pth"
+        elif [[ -f "${MODELS_DIR}/text/${dataset}.h5" ]]; then
+            echo "${MODELS_DIR}/text/${dataset}.h5"
         elif [[ -f "${MODELS_DIR}/tabular/${dataset}.pth" ]]; then
             echo "${MODELS_DIR}/tabular/${dataset}.pth"
+        elif [[ -f "${MODELS_DIR}/tabular/${dataset}.h5" ]]; then
+            echo "${MODELS_DIR}/tabular/${dataset}.h5"
         else
             echo ""
         fi
@@ -256,6 +290,16 @@ get_modality_for_dataset() {
     fi
 }
 
+is_optional_checkpoint_dataset() {
+    local dataset="$1"
+    for d in $OPTIONAL_LOCAL_CHECKPOINT_DATASETS; do
+        if [[ "$d" == "$dataset" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Build dataset file path
 # Benchmark JSONs live under dataset/{mode}/{modality}/
 get_dataset_path() {
@@ -268,22 +312,33 @@ get_dataset_path() {
     local base_name="${dataset}_q${q_type}"
     local dataset_subdir="${modality}"
     local mode_dir="${DATASET_DIR}/${mode}/${dataset_subdir}"
+    local flat_dir="${DATASET_DIR}/${dataset_subdir}"
+    local candidates=("$mode_dir" "$flat_dir")
 
-    # Try _test variant first if requested
-    if [[ "$use_test" == "true" ]]; then
-        local test_path="${mode_dir}/${base_name}_test.json"
-        if [[ -f "$test_path" ]]; then
-            echo "$test_path"
+    for candidate_dir in "${candidates[@]}"; do
+        # Try _test variant first if requested
+        if [[ "$use_test" == "true" ]]; then
+            local test_path="${candidate_dir}/${base_name}_test.json"
+            if [[ -f "$test_path" ]]; then
+                echo "$test_path"
+                return
+            fi
+        fi
+
+        # Try standard path
+        local standard_path="${candidate_dir}/${base_name}.json"
+        if [[ -f "$standard_path" ]]; then
+            echo "$standard_path"
             return
         fi
-    fi
 
-    # Try standard path
-    local standard_path="${mode_dir}/${base_name}.json"
-    if [[ -f "$standard_path" ]]; then
-        echo "$standard_path"
-        return
-    fi
+        # Try special case pairs files
+        local pairs_path="${candidate_dir}/${base_name}_pairs.json"
+        if [[ -f "$pairs_path" ]]; then
+            echo "$pairs_path"
+            return
+        fi
+    done
 
     # Not found
     echo ""
@@ -312,6 +367,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --mode)
             MODE="$2"
+            shift 2
+            ;;
+        --dataset_variant)
+            DATASET_VARIANT="$2"
             shift 2
             ;;
         --use_test_variant)
@@ -360,6 +419,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dataset_dir)
             DATASET_DIR="$2"
+            DATASET_DIR_SET=true
+            shift 2
+            ;;
+        --models_dir)
+            MODELS_DIR="$2"
+            MODELS_DIR_SET=true
             shift 2
             ;;
         --parallel)
@@ -385,6 +450,24 @@ done
 # ============================================================================
 print_header "XAI Pipeline Batch Runner"
 
+if [[ "$DATASET_VARIANT" != "default" && "$DATASET_VARIANT" != "ood" ]]; then
+    log_error "Invalid --dataset_variant '$DATASET_VARIANT' (must be 'default' or 'ood')"
+    exit 1
+fi
+
+if [[ "$DATASET_VARIANT" == "ood" ]]; then
+    if [[ "$DATASET_DIR_SET" != "true" ]]; then
+        DATASET_DIR="${BASE_DIR}/dataset_ood"
+    fi
+    if [[ "$MODELS_DIR_SET" != "true" ]]; then
+        if [[ -d "${BASE_DIR}/models_ood" ]]; then
+            MODELS_DIR="${BASE_DIR}/models_ood"
+        else
+            MODELS_DIR="${BASE_DIR}/models_to_read"
+        fi
+    fi
+fi
+
 # Expand modalities
 if [[ "$MODALITIES" == "all" ]]; then
     MODALITIES="vision text tabular"
@@ -396,8 +479,11 @@ if [[ "$QUESTION_IDS" != "all" ]] && [[ ! "$QUESTION_IDS" =~ ^[0-9]+-all$ ]]; th
 fi
 
 log_info "Configuration:"
+log_info "  Dataset variant: $DATASET_VARIANT"
 log_info "  Modalities: $MODALITIES"
 log_info "  Datasets: ${DATASETS:-auto-detect}"
+log_info "  Dataset dir: $DATASET_DIR"
+log_info "  Models dir: $MODELS_DIR"
 log_info "  Mode: $MODE"
 log_info "  Q Types: $Q_TYPES"
 log_info "  Question IDs: $QUESTION_IDS"
@@ -443,9 +529,17 @@ for dataset in $DATASETS_TO_RUN; do
 
     # Get model path
     model_path=$(get_model_path "$dataset")
-    if [[ -z "$model_path" || ! -f "$model_path" ]]; then
+    if [[ -z "$model_path" ]]; then
         log_warn "Model not found for dataset: $dataset, skipping"
         continue
+    fi
+    if [[ ! -f "$model_path" ]]; then
+        if is_optional_checkpoint_dataset "$dataset"; then
+            log_info "Model checkpoint not found locally for $dataset; loader will use pretrained weights."
+        else
+            log_warn "Model not found for dataset: $dataset, skipping"
+            continue
+        fi
     fi
 
     for q_type in $Q_TYPES; do
