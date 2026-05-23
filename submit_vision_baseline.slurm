@@ -34,11 +34,11 @@ cd "$REPO_ROOT"
 DATASET_NUM=$(( ($SLURM_ARRAY_TASK_ID / 20) + 1 ))
 QID=$(( $SLURM_ARRAY_TASK_ID % 20 ))
 
-DATASET="imagenet"
-if [ $DATASET_NUM -eq 1 ]; then DATASET="imagenet"; fi
-if [ $DATASET_NUM -eq 2 ]; then DATASET="cifar10"; fi
-if [ $DATASET_NUM -eq 3 ]; then DATASET="coco"; fi
-if [ $DATASET_NUM -eq 4 ]; then DATASET="cc3m"; fi
+DATASET="cub_densenet"
+if [ $DATASET_NUM -eq 1 ]; then DATASET="cub_densenet"; fi
+if [ $DATASET_NUM -eq 2 ]; then DATASET="cub_resnet"; fi
+if [ $DATASET_NUM -eq 3 ]; then DATASET="stl10_densenet"; fi
+if [ $DATASET_NUM -eq 4 ]; then DATASET="stl10_resnet"; fi
 
 echo "=== Vision Baseline Q6 Execution ==="
 echo "Job ID: $SLURM_JOB_ID"
@@ -54,6 +54,7 @@ python run_pipeline_batch.py \
   --q_types $Q_TYPE \
   --question_ids $QID \
   --dataset $DATASET \
+  --dataset_dir "dataset_full" \
   --vlm "$VLM" \
   --output_dir "$OUTPUT_DIR" \
   --no-improvement \
