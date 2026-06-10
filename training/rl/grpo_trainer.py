@@ -495,7 +495,7 @@ class GRPOTrainer:
 
         Args:
             dataset:         XAIRLDataset
-            env:             XAIRLEnv wrapping XAIPipelineV2 with RLSamplingVLM
+            env:             XAIRLEnv wrapping MEAPipeline with RLSamplingVLM
             sampling_client: Initial current-policy Tinker SamplingClient
             eval_fn:         Optional async callback, returns metrics dict or None
         """

@@ -1,12 +1,12 @@
 """
-XAIRLEnv — RL environment backed by XAIPipelineV2.
+XAIRLEnv — RL environment backed by MEAPipeline.
 
 Thin wrapper that calls pipeline.run() for each episode and converts the
 output into a Trajectory for GRPO training.
 
 All XAI logic (prompt building, tool execution, Q-type routing for
 Q4/Q9/Q10, improvement loop, faithfulness critic) lives inside
-XAIPipelineV2 — this class only:
+MEAPipeline — this class only:
   1. Calls pipeline.run() with the right flags from train.py args.
   2. Extracts the GRPO reward: for vision = size_score_l1 + tool_penalty;
      for other modalities = soft_score + tool_penalty.
@@ -25,12 +25,12 @@ from .rollout import Trajectory, Transition
 
 class XAIRLEnv:
     """
-    RL environment backed by XAIPipelineV2.
+    RL environment backed by MEAPipeline.
 
     Usage::
 
         rl_vlm   = RLSamplingVLM(sampling_client, tokenizer)
-        pipeline = XAIPipelineV2(vlm=rl_vlm, output_dir=..., ...)
+        pipeline = MEAPipeline(vlm=rl_vlm, output_dir=..., ...)
         env      = XAIRLEnv(pipeline=pipeline, rl_vlm=rl_vlm,
                              enable_improvement=False)
 
@@ -39,12 +39,11 @@ class XAIRLEnv:
         traj = env.run_episode(question, rollout_id=k)
 
     Args:
-        pipeline:               XAIPipelineV2 instance (created with vlm=rl_vlm).
-        rl_vlm:                 RLSamplingVLM — the VLM injected into the pipeline.
-        enable_improvement:     Forward to pipeline.run(enable_improvement=...).
-                                Default False for GRPO (improvement VLM calls would
-                                add extra transitions with mixed reward signal).
-        faithfulness_threshold: Forward to pipeline.run(faithfulness_threshold=...).
+        pipeline:           MEAPipeline instance (created with vlm=rl_vlm).
+        rl_vlm:             RLSamplingVLM — the VLM injected into the pipeline.
+        enable_improvement: Forward to pipeline.run(enable_improvement=...).
+                            Default False for GRPO (improvement VLM calls would
+                            add extra transitions with mixed reward signal).
     """
 
     def __init__(
@@ -52,16 +51,14 @@ class XAIRLEnv:
         pipeline,
         rl_vlm,
         enable_improvement: bool = False,
-        faithfulness_threshold: float = 0.1,
         use_tool_penalty: bool = True,
         diversity_lambda: float = 0.0,
     ):
-        self.pipeline               = pipeline
-        self.rl_vlm                 = rl_vlm
-        self.enable_improvement     = enable_improvement
-        self.faithfulness_threshold = faithfulness_threshold
-        self.use_tool_penalty       = use_tool_penalty
-        self.diversity_lambda       = diversity_lambda
+        self.pipeline           = pipeline
+        self.rl_vlm             = rl_vlm
+        self.enable_improvement = enable_improvement
+        self.use_tool_penalty   = use_tool_penalty
+        self.diversity_lambda   = diversity_lambda
 
     def run_episode(
         self,
@@ -118,7 +115,6 @@ class XAIRLEnv:
                 question_id=str(question["_question_idx"]),
                 target_model_url=model_url,
                 evaluate_faithfulness=True,
-                faithfulness_threshold=self.faithfulness_threshold,
                 enable_improvement=self.enable_improvement,
                 rollout_id=rollout_id,
             )

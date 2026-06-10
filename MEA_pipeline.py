@@ -25,7 +25,7 @@ from question_templates_new import (
     QUESTION_METADATA,
     Modality,
 )
-from three_agent_system_new import (
+from MEA_agent_system import (
     create_three_agent_system,
     ThreeAgentPipeline,
     ProposerAgent,
@@ -109,7 +109,7 @@ def load_model_loader_module(model_path: str, models_dir: str):
     return loader_module
 
 
-class XAIPipelineV2:
+class MEAPipeline:
     """
     XAI Pipeline V2 with New Modular Architecture
 
@@ -778,7 +778,6 @@ class XAIPipelineV2:
         target_model_url: Optional[str] = None,
         image_root: Optional[str] = None,
         evaluate_faithfulness: bool = True,
-        faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
@@ -793,7 +792,6 @@ class XAIPipelineV2:
             target_model_url: URL/path of target model
             image_root: Root directory for images
             evaluate_faithfulness: Whether to run faithfulness evaluation
-            faithfulness_threshold: Threshold for passing faithfulness
 
         Returns:
             Complete results dict
@@ -899,8 +897,8 @@ class XAIPipelineV2:
             faithfulness_score = faithfulness_result.get('score')
             if faithfulness_score is None:
                 faithfulness_score = 0.0
-            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= faithfulness_threshold)
-            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', faithfulness_threshold)
+            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= 0.1)
+            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', 0.1)
 
             if faithfulness_passed:
                 print("\n=== Step 7: Explanation Faithfulness Check (Q4) ===")
@@ -1033,7 +1031,6 @@ class XAIPipelineV2:
         template: "QuestionTemplate",
         target_model_url: Optional[str] = None,
         evaluate_faithfulness: bool = True,
-        faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
@@ -1170,8 +1167,8 @@ class XAIPipelineV2:
             if faithfulness_score is None:
                 faithfulness_score = 0.0
 
-            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= faithfulness_threshold)
-            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', faithfulness_threshold)
+            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= 0.1)
+            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', 0.1)
 
             if faithfulness_passed:
                 print("\n=== Step 7: Explanation Faithfulness Check ===")
@@ -1311,7 +1308,6 @@ class XAIPipelineV2:
         target_model_url: Optional[str] = None,
         image_path: Optional[str] = None,
         evaluate_faithfulness: bool = True,
-        faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
@@ -1324,7 +1320,6 @@ class XAIPipelineV2:
             target_model_url: URL/path of target model
             image_path: Path to image for vision modality
             evaluate_faithfulness: Whether to run faithfulness evaluation
-            faithfulness_threshold: Threshold for passing faithfulness (default: 0.1)
             enable_improvement: Whether to run improvement when below threshold
 
         Returns:
@@ -1353,7 +1348,6 @@ class XAIPipelineV2:
                 question_id=question_id,
                 target_model_url=target_model_url,
                 evaluate_faithfulness=evaluate_faithfulness,
-                faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
                 rollout_id=rollout_id,
             )
@@ -1366,7 +1360,6 @@ class XAIPipelineV2:
                 template=template,
                 target_model_url=target_model_url,
                 evaluate_faithfulness=evaluate_faithfulness,
-                faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
                 rollout_id=rollout_id,
             )
@@ -1460,8 +1453,8 @@ class XAIPipelineV2:
             if faithfulness_score is None:
                 faithfulness_score = 0.0
 
-            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= faithfulness_threshold)
-            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', faithfulness_threshold)
+            faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= 0.1)
+            evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', 0.1)
 
             if faithfulness_passed:
                 print("\n=== Step 7: Explanation Faithfulness Check ===")
@@ -2511,12 +2504,6 @@ def main():
         help="Skip faithfulness evaluation"
     )
     parser.add_argument(
-        "--faithfulness_threshold",
-        type=float,
-        default=0.1,
-        help="Threshold for explanation faithfulness (default: 0.1)"
-    )
-    parser.add_argument(
         "--no-improvement",
         action="store_true",
         help="Skip improvement phase even if faithfulness is below threshold"
@@ -2572,7 +2559,7 @@ def main():
             )
 
     # Create pipeline
-    pipeline = XAIPipelineV2(
+    pipeline = MEAPipeline(
         vlm_model_id=args.vlm,
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
@@ -2597,7 +2584,6 @@ def main():
         target_model_url=args.model_url,
         image_path=args.image_path,
         evaluate_faithfulness=not args.no_eval,
-        faithfulness_threshold=args.faithfulness_threshold,
         enable_improvement=not args.no_improvement,
     )
 

@@ -7,7 +7,7 @@ This module provides a unified interface to the refactored three-agent architect
 - CriticAgent: Explanation faithfulness evaluation
 
 Usage:
-    from three_agent_system_new import (
+    from MEA_agent_system import (
         create_three_agent_system,
         ProposerAgent,
         ActorAgent,

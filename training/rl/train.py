@@ -1,7 +1,7 @@
 """
 GRPO Training Entry Point for XAI Agent (Tinker backend).
 
-Uses XAIPipelineV2 directly for all XAI logic: prompt building, tool
+Uses MEAPipeline directly for all XAI logic: prompt building, tool
 execution, Q-type routing (Q4 contrastive, Q9/Q10 multi-instance,
 Q1-Q3/Q5-Q8 standard), improvement loop, and strategy faithfulness
 evaluation.
@@ -14,7 +14,7 @@ Flow:
   1. Load dataset (XAIRLDataset — stores _source_path per question)
   2. Set up Tinker TrainingClient + Tokenizer
   3. Create RLSamplingVLM (Tinker-backed, records transitions)
-  4. Create XAIPipelineV2(vlm=rl_vlm, ...) — pipeline owns all XAI logic
+  4. Create MEAPipeline(vlm=rl_vlm, ...) — pipeline owns all XAI logic
   5. Create XAIRLEnv(pipeline, rl_vlm, ...) — thin RL wrapper
   6. Run GRPOTrainer.fit(dataset, env, ...)
 
@@ -143,8 +143,6 @@ def parse_args():
                    action="store_false", default=True,
                    help="Disable proposer/actor improvement loop "
                         "(recommended for GRPO to avoid mixed-reward transitions)")
-    p.add_argument("--faithfulness_threshold", type=float, default=0.1,
-                   help="Faithfulness threshold passed to pipeline.run()")
     p.add_argument("--no-tool-penalty", dest="use_tool_penalty",
                    action="store_false", default=True,
                    help="Disable L1 tool-count penalty from the reward signal")
@@ -259,7 +257,7 @@ async def main():
     sampling_client = await training_client.save_weights_and_get_sampling_client_async()
 
     # ── 4. Create RLSamplingVLM ───────────────────────────────────────────────
-    # This VLM is injected into XAIPipelineV2 so every VLM call is recorded
+    # This VLM is injected into MEAPipeline so every VLM call is recorded
     # as an RLTransition for GRPO gradient computation.
     rl_vlm = RLSamplingVLM(
         sampling_client=sampling_client,
@@ -269,10 +267,10 @@ async def main():
         enable_thinking=args.enable_thinking,
     )
 
-    # ── 5. Create XAIPipelineV2 with rl_vlm injected ─────────────────────────
+    # ── 5. Create MEAPipeline with rl_vlm injected ─────────────────────────
     # The pipeline handles all XAI logic: prompt building, tool execution,
     # Q4/Q9/Q10 routing, improvement loop, SF evaluation, critic evaluation.
-    from xai_pipeline_v2 import XAIPipelineV2
+    from MEA_pipeline import MEAPipeline
     from prompts.output_size_config import OutputSizeConfig
     _output_size_cfg = OutputSizeConfig(
         fixed_percentage=0.25,
@@ -280,7 +278,7 @@ async def main():
         apply_to_text=True,
         apply_to_vision=False,
     )
-    pipeline = XAIPipelineV2(
+    pipeline = MEAPipeline(
         vlm=rl_vlm,
         output_dir=args.output_dir,
         dataset_dir=args.dataset_dir,
@@ -294,7 +292,6 @@ async def main():
         pipeline=pipeline,
         rl_vlm=rl_vlm,
         enable_improvement=args.enable_improvement,
-        faithfulness_threshold=args.faithfulness_threshold,
         use_tool_penalty=args.use_tool_penalty,
         diversity_lambda=args.diversity_lambda,
     )
@@ -314,7 +311,7 @@ async def main():
             temperature=args.temperature,
             enable_thinking=args.enable_thinking,
         )
-        w_pipeline = XAIPipelineV2(
+        w_pipeline = MEAPipeline(
             vlm=w_rl_vlm,
             output_dir=args.output_dir,
             dataset_dir=args.dataset_dir,
@@ -326,7 +323,6 @@ async def main():
             pipeline=w_pipeline,
             rl_vlm=w_rl_vlm,
             enable_improvement=args.enable_improvement,
-            faithfulness_threshold=args.faithfulness_threshold,
             use_tool_penalty=args.use_tool_penalty,
             diversity_lambda=args.diversity_lambda,
         )

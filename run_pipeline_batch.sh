@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # XAI Pipeline Batch Runner
-# Runs xai_pipeline_v2.py across multiple modalities, question types, and question IDs
+# Runs MEA_pipeline.py across multiple modalities, question types, and question IDs
 #
 # Usage:
 #   ./run_pipeline_batch.sh [OPTIONS]
@@ -44,7 +44,6 @@ USE_TEST_VARIANT=false
 DRY_RUN=false
 NO_EVAL=false
 NO_IMPROVEMENT=false
-FAITHFULNESS_THRESHOLD=0.1
 VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
 TINKER_CHECKPOINT=""   # e.g. "tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500"
 TINKER_LORA_RANK=16
@@ -131,7 +130,6 @@ Options:
     --dry_run                Print commands without executing
     --no_eval                Skip faithfulness evaluation
     --no_improvement         Skip improvement phase
-    --faithfulness_threshold Threshold for faithfulness (default: 0.1)
     --vlm MODEL              VLM model ID (default: Qwen/Qwen3-VL-8B-Instruct)
                              API models: gemini-2.5-pro, gemini-3-pro
                              Tinker base: tinker/Qwen3-VL-30B-A3B-Instruct
@@ -390,10 +388,6 @@ while [[ $# -gt 0 ]]; do
             NO_IMPROVEMENT=true
             shift
             ;;
-        --faithfulness_threshold)
-            FAITHFULNESS_THRESHOLD="$2"
-            shift 2
-            ;;
         --vlm)
             VLM_MODEL="$2"
             shift 2
@@ -492,8 +486,6 @@ log_info "  Use test variant: $USE_TEST_VARIANT"
 log_info "  Dry run: $DRY_RUN"
 log_info "  No eval: $NO_EVAL"
 log_info "  No improvement: $NO_IMPROVEMENT"
-log_info "  No strategy faithfulness: $NO_SF"
-log_info "  Faithfulness threshold: $FAITHFULNESS_THRESHOLD"
 log_info "  Output dir: $OUTPUT_DIR"
 if [[ -n "$TINKER_CHECKPOINT" ]]; then
     log_info "  Tinker checkpoint: $TINKER_CHECKPOINT (rank=$TINKER_LORA_RANK)"
@@ -572,7 +564,7 @@ for dataset in $DATASETS_TO_RUN; do
 
         for question_id in $RESOLVED_IDS; do
             # Build command
-            CMD="python ${BASE_DIR}/xai_pipeline_v2.py"
+            CMD="python ${BASE_DIR}/MEA_pipeline.py"
             CMD="$CMD --dataset $dataset_path"
             CMD="$CMD --question_id $question_id"
             CMD="$CMD --model_url $model_path"
@@ -581,7 +573,6 @@ for dataset in $DATASETS_TO_RUN; do
             CMD="$CMD --output_dir $OUTPUT_DIR"
             CMD="$CMD --vlm $VLM_MODEL"
             CMD="$CMD --mode $MODE"
-            CMD="$CMD --faithfulness_threshold $FAITHFULNESS_THRESHOLD"
 
             if [[ "$NO_EVAL" == "true" ]]; then
                 CMD="$CMD --no-eval"

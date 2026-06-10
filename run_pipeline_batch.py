@@ -2,7 +2,7 @@
 """
 XAI Pipeline Batch Runner
 
-Runs xai_pipeline_v2.py across multiple modalities, question types, and question IDs.
+Runs MEA_pipeline.py across multiple modalities, question types, and question IDs.
 
 Usage:
     python run_pipeline_batch.py --help
@@ -33,7 +33,6 @@ DEFAULT_CONFIG = {
     "models_dir": None,
     "output_dir": str(BASE_DIR / "outputs"),
     "vlm_model": "Qwen/Qwen3-VL-8B-Instruct",
-    "faithfulness_threshold": 0.1,
 }
 
 DEFAULT_DATASET_VARIANT_DIRS = {
@@ -378,7 +377,6 @@ def run_single_job(
     dataset_dir: str,
     models_dir: str,
     vlm_model: str,
-    faithfulness_threshold: float,
     no_eval: bool,
     no_improvement: bool,
     log_dir: Path,
@@ -393,7 +391,7 @@ def run_single_job(
     # Build command
     cmd = [
         sys.executable,
-        str(BASE_DIR / "xai_pipeline_v2.py"),
+        str(BASE_DIR / "MEA_pipeline.py"),
         "--dataset", job.dataset_path,
         "--question_id", str(job.question_id),
         "--model_url", job.model_path,
@@ -402,7 +400,6 @@ def run_single_job(
         "--output_dir", output_dir,
         "--vlm", vlm_model,
         "--mode", mode,
-        "--faithfulness_threshold", str(faithfulness_threshold),
     ]
 
     if no_eval:
@@ -494,7 +491,7 @@ def run_jobs_sequential(
             dataset_dir=config["dataset_dir"],
             models_dir=config["models_dir"],
             vlm_model=config["vlm_model"],
-            faithfulness_threshold=config["faithfulness_threshold"],
+
             no_eval=config.get("no_eval", False),
             no_improvement=config.get("no_improvement", False),
             log_dir=log_dir,
@@ -531,7 +528,7 @@ def run_jobs_parallel(
                 dataset_dir=config["dataset_dir"],
                 models_dir=config["models_dir"],
                 vlm_model=config["vlm_model"],
-                faithfulness_threshold=config["faithfulness_threshold"],
+    
                 no_eval=config.get("no_eval", False),
                 no_improvement=config.get("no_improvement", False),
                 log_dir=log_dir,
@@ -661,9 +658,6 @@ OOD Datasets (use --dataset_variant ood):
                         help="Skip faithfulness evaluation")
     parser.add_argument("--no_improvement", action="store_true",
                         help="Skip improvement phase")
-    parser.add_argument("--faithfulness_threshold", type=float, default=0.1,
-                        help="Threshold for faithfulness (default: 0.1)")
-
     # Execution options
     parser.add_argument("--parallel", action="store_true",
                         help="Run jobs in parallel")
@@ -705,7 +699,6 @@ OOD Datasets (use --dataset_variant ood):
         config["dataset_variant"] = args.dataset_variant
     config["output_dir"] = args.output_dir
     config["vlm_model"] = args.vlm
-    config["faithfulness_threshold"] = args.faithfulness_threshold
     config["no_eval"] = args.no_eval
     config["no_improvement"] = args.no_improvement
     config["mode"] = args.mode
@@ -792,7 +785,7 @@ OOD Datasets (use --dataset_variant ood):
         logger.info("\n--- Dry Run - Commands to execute ---")
         for job in jobs:
             parts = [
-                f"python xai_pipeline_v2.py",
+                f"python MEA_pipeline.py",
                 f"--dataset {job.dataset_path}",
                 f"--question_id {job.question_id}",
                 f"--model_url {job.model_path}",

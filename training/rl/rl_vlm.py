@@ -3,7 +3,7 @@ RLSamplingVLM — Tinker-backed VLM for GRPO rollouts.
 
 Wraps a Tinker SamplingClient to:
   - Serve synchronous invoke() / invoke_with_images() calls, matching the
-    interface expected by BaseAgent.invoke_vlm() inside XAIPipelineV2 agents.
+    interface expected by BaseAgent.invoke_vlm() inside MEAPipeline agents.
   - Record every VLM call as an RLTransition
     (prompt_token_ids, action_token_ids, action_logprobs, action_text).
   - Expose reset() / update_sampling_client() / get_transitions() for the
@@ -11,7 +11,7 @@ Wraps a Tinker SamplingClient to:
 
 Usage pattern:
     rl_vlm   = RLSamplingVLM(sampling_client, tokenizer, max_new_tokens=512)
-    pipeline = XAIPipelineV2(vlm=rl_vlm, ...)
+    pipeline = MEAPipeline(vlm=rl_vlm, ...)
     env      = XAIRLEnv(pipeline=pipeline, rl_vlm=rl_vlm)
 
     # Per rollout (k = 0 .. num_rollouts-1):
@@ -64,7 +64,7 @@ class RLSamplingVLM:
 
     Implements the same interface as VisionLanguageModel
     (invoke / invoke_with_images) so it can be injected into
-    XAIPipelineV2 via the ``vlm`` constructor parameter.
+    MEAPipeline via the ``vlm`` constructor parameter.
 
     Every call to invoke() / invoke_with_images():
       1. Builds a Tinker ModelInput in Qwen3-VL chat format.

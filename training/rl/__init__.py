@@ -1,13 +1,13 @@
 """
 GRPO (Group Relative Policy Optimization) Training Framework for XAI Agent
 
-Uses XAIPipelineV2 directly for all XAI logic (prompt building, tool
+Uses MEAPipeline directly for all XAI logic (prompt building, tool
 execution, Q-type routing, improvement loop, faithfulness evaluation).
 RLSamplingVLM is injected as the pipeline VLM to capture token trajectories.
 
 Core flow:
   1. RLSamplingVLM wraps Tinker SamplingClient; records every VLM call as RLTransition.
-  2. XAIPipelineV2(vlm=rl_vlm) runs the full XAI pipeline per episode.
+  2. MEAPipeline(vlm=rl_vlm) runs the full XAI pipeline per episode.
   3. XAIRLEnv calls pipeline.run() and extracts faithfulness score as reward.
   4. do_group_rollout() (sync) collects K trajectories per question.
   5. GRPOTrainer assembles Tinker Datums and runs async forward_backward + optim_step.
