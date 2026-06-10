@@ -32,6 +32,7 @@ OUTPUT_DIR="${BASE_DIR}/outputs"
 DATASET_VARIANT="default"   # default or ood
 DATASET_DIR_SET=false
 MODELS_DIR_SET=false
+DATA_DIR=""   # If set, passed to Python as --dataset_dir (for DataModelLoader); overrides DATASET_DIR for data loading only
 
 # Default parameters (can be overridden by command line args)
 MODALITIES="vision"
@@ -144,7 +145,8 @@ Options:
     --tinker_lora_rank N     LoRA rank used during training (default: 16)
     --temperature TEMP       Sampling temperature for the VLM (default: 0.0)
     --output_dir DIR         Output directory (default: ${BASE_DIR}/outputs)
-    --dataset_dir DIR        Dataset base directory (default: ${BASE_DIR}/dataset)
+    --dataset_dir DIR        Dataset base directory for JSON file lookup (default: ${BASE_DIR}/dataset)
+    --data_dir DIR           Data root for model/data loading (DataModelLoader); defaults to --dataset_dir
     --models_dir DIR         Models base directory (default: ${BASE_DIR}/models_to_read)
     --parallel               Run jobs in parallel
     --max_jobs N             Maximum parallel jobs (default: 4)
@@ -428,6 +430,10 @@ while [[ $# -gt 0 ]]; do
             DATASET_DIR_SET=true
             shift 2
             ;;
+        --data_dir)
+            DATA_DIR="$2"
+            shift 2
+            ;;
         --models_dir)
             MODELS_DIR="$2"
             MODELS_DIR_SET=true
@@ -581,7 +587,7 @@ for dataset in $DATASETS_TO_RUN; do
             CMD="$CMD --dataset $dataset_path"
             CMD="$CMD --question_id $question_id"
             CMD="$CMD --model_url $model_path"
-            CMD="$CMD --dataset_dir $DATASET_DIR"
+            CMD="$CMD --dataset_dir ${DATA_DIR:-$DATASET_DIR}"
             CMD="$CMD --models_dir $MODELS_DIR"
             CMD="$CMD --output_dir $OUTPUT_DIR"
             CMD="$CMD --vlm $VLM_MODEL"

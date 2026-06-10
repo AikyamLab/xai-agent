@@ -62,6 +62,12 @@ class Q4Evaluator(MultiInstanceEvaluator):
         features_a = output_data.get('input_A')
         features_b = output_data.get('input_B')
 
+        # Normalize: baseline agents may output a plain list instead of {"feature_keys": [...]}
+        if isinstance(features_a, list):
+            features_a = {"feature_keys": features_a}
+        if isinstance(features_b, list):
+            features_b = {"feature_keys": features_b}
+
         if features_a is None or features_b is None:
             return EvaluationResult(
                 score=0.0,

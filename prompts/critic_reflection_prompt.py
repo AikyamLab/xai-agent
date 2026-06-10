@@ -56,7 +56,13 @@ def build_critic_reflection_prompt(
     faith_score = faith_score if faith_score is not None else 0.0
     p_original = p_original if p_original is not None else 0.0
     p_modified = p_modified if p_modified is not None else 0.0
-    
+
+    tool_importance_section = (
+        f"\n## Tool Importance Analysis (Strategy Faithfulness)\n{tool_importance_details}\n"
+        if tool_importance_details and tool_importance_details != "No tool importance scores available."
+        else ""
+    )
+
     prompt = f"""You are a critical analyst evaluating an XAI agent's strategy and explanation.
 
 ## Original Question
@@ -81,11 +87,7 @@ def build_critic_reflection_prompt(
 - Status: {"PASSED" if faith_passed else "FAILED"}
 - Metric: {metric_name} ({metric_formula})
 - P_original: {p_original:.4f}, P_modified: {p_modified:.4f}
-
-## Tool Importance Analysis (Strategy Faithfulness)
-{tool_importance_details}
-
-## Your Task
+{tool_importance_section}## Your Task
 Analyze the strategy and results, then provide TWO separate JSON outputs:
 
 1. **Proposer Reflection**: Feedback for the Proposer Agent about tool selection strategy

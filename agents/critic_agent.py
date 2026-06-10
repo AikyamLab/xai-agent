@@ -644,15 +644,22 @@ class CriticAgent(BaseAgent):
         Parse the queried region from the example sentence.
 
         Text: extracts word from 'mask the word X' / 'remove/change the word X',
-              finds its character position in source text.
-        Tabular: extracts feature name from 'mask the X feature' / 'remove/change X, how'.
+              or paraphrase variants like "word 'X' were hidden/modified".
+              Finds the word's character position in the source text.
+        Tabular: extracts feature name from 'mask the X feature' /
+                 'remove/change X,' / paraphrase 'X feature were removed' /
+                 'if X were altered or removed'.
         Vision: returns None (evaluator resolves region from context).
         """
         if modality == 'text':
+            # Standard phrasing: "mask/remove/change the word 'X'"
             m = re.search(
                 r"(?:mask|remove/change|remove|change)\s+the\s+word\s+'([^']+)'",
                 example, re.IGNORECASE
             )
+            if not m:
+                # Paraphrase variants: "word 'X' were hidden/masked/removed/modified"
+                m = re.search(r"\bword\s+'([^']+)'", example, re.IGNORECASE)
             if not m:
                 return None
             word = m.group(1)
@@ -664,13 +671,27 @@ class CriticAgent(BaseAgent):
             return None
 
         elif modality == 'tabular':
-            # Q5: "mask the <feature> feature"
+            # Q5 standard: "mask the <feature> feature"
             m = re.search(r"mask\s+the\s+(.+?)\s+feature", example, re.IGNORECASE)
             if m:
                 return {"feature_key": m.group(1).strip()}
-            # Q7: "remove/change <feature>, how" or "remove/change <feature>?"
+            # Q5 paraphrase: "if the <feature> feature were removed/masked/hidden"
+            m = re.search(
+                r"if\s+the\s+(.+?)\s+feature\s+(?:were|was|is)\s+(?:removed|masked|hidden|eliminated)",
+                example, re.IGNORECASE
+            )
+            if m:
+                return {"feature_key": m.group(1).strip()}
+            # Q7 standard: "remove/change <feature>, how" or "remove/change <feature>?"
             m = re.search(
                 r"remove/change\s+(.+?)(?:\s*,|\s*\?|$)", example, re.IGNORECASE
+            )
+            if m:
+                return {"feature_key": m.group(1).strip()}
+            # Q7 paraphrase: "if <feature> were altered/removed/changed/modified"
+            m = re.search(
+                r"if\s+(?:the\s+)?(.+?)\s+(?:were|was)\s+(?:altered|removed|changed|modified)",
+                example, re.IGNORECASE
             )
             if m:
                 return {"feature_key": m.group(1).strip()}
@@ -683,18 +704,32 @@ class CriticAgent(BaseAgent):
         """
         Parse the target/expected class from a Q6 example sentence.
 
-        Text: "flip the model's prediction to <class>"
-        Tabular: "flip the model into <class>"
+        Text: "flip the model's prediction to <class>" or paraphrase
+              "cause the model to predict <class> instead".
+        Tabular: "flip the model into <class>" or paraphrase
+                 "flip the prediction to <class>".
         """
-        # Text pattern (handles apostrophe variants)
+        # Standard text pattern (handles apostrophe variants)
         m = re.search(
             r"flip the model['\u2019]?s prediction to\s+([^?.\n]+)",
             example, re.IGNORECASE
         )
         if m:
             return m.group(1).strip()
-        # Tabular pattern
+        # Standard tabular pattern
         m = re.search(r"flip the model into\s+([^?.\n]+)", example, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+        # Paraphrase tabular: "flip the prediction to <class>"
+        m = re.search(r"flip the prediction to\s+([^?.\n,]+)", example, re.IGNORECASE)
+        if m:
+            return m.group(1).strip().rstrip('?').strip()
+        # Paraphrase text: "cause the model to predict <class> instead"
+        #                  "model to predict <class>" / "switch to <class>"
+        m = re.search(
+            r"model to predict\s+([^?.\n,]+?)(?:\s+instead|\?|$)",
+            example, re.IGNORECASE
+        )
         if m:
             return m.group(1).strip()
         return None

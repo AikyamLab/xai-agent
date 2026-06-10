@@ -61,6 +61,12 @@ class Q10Evaluator(MultiInstanceEvaluator):
         correct_features = output_data.get('correct_instance_features')
         wrong_features = output_data.get('wrong_instance_features')
 
+        # Normalize: baseline agents may output a plain list instead of {"feature_keys": [...]}
+        if isinstance(correct_features, list):
+            correct_features = {"feature_keys": correct_features}
+        if isinstance(wrong_features, list):
+            wrong_features = {"feature_keys": wrong_features}
+
         if correct_features is None or wrong_features is None:
             return EvaluationResult(
                 score=0.0,

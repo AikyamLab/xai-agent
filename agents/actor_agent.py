@@ -2163,49 +2163,68 @@ Respond with ONLY valid JSON:"""
             parsed['output'] = output
             return parsed
 
-        # Try to find JSON in the response
+        # Strip <think>...</think> blocks (Qwen3 reasoning chains with {} inside break
+        # the greedy regex below).  Must be done before any JSON extraction.
+        response = re.sub(r'<think>.*?</think>', '', response, flags=re.DOTALL).strip()
+        if '<think>' in response and '</think>' not in response:
+            response = re.sub(r'<think>.*', '', response, flags=re.DOTALL).strip()
+
+        def _try_parse_and_validate(parsed: dict):
+            if 'output' in parsed:
+                return validate_and_fix_output(parsed, modality)
+            if 'change_plan' in parsed:
+                return validate_and_fix_output({
+                    "output": {"change_plan": parsed['change_plan']},
+                    "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                }, modality)
+            if modality == "vision" and 'bounding_box' in parsed:
+                clipped_bbox = clip_bounding_box(parsed['bounding_box'], width, height)
+                return {
+                    "output": {"bounding_box": clipped_bbox},
+                    "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                }
+            if modality == "text" and 'text_spans' in parsed:
+                return {
+                    "output": {"text_spans": parsed['text_spans']},
+                    "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                }
+            if modality == "tabular" and 'feature_key' in parsed:
+                feature_key = parsed['feature_key']
+                if available_features and feature_key not in available_features:
+                    feature_key = available_features[0] if available_features else "unknown"
+                return {
+                    "output": {"feature_keys": [feature_key]},
+                    "explanation": parsed.get('explanation', 'VLM direct analysis'),
+                }
+            return None
+
+        # Strategy 1: greedy regex (fast path for clean single-object responses)
         json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
             try:
-                parsed = json.loads(json_match.group())
-
-                if 'output' in parsed:
-                    return validate_and_fix_output(parsed, modality)
-
-                # Try to restructure if output fields are at top level
-                if 'change_plan' in parsed:
-                    return validate_and_fix_output({
-                        "output": {"change_plan": parsed['change_plan']},
-                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                    }, modality)
-                elif modality == "vision" and 'bounding_box' in parsed:
-                    clipped_bbox = clip_bounding_box(parsed['bounding_box'], width, height)
-                    return {
-                        "output": {"bounding_box": clipped_bbox},
-                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                    }
-                elif modality == "text" and 'text_spans' in parsed:
-                    return {
-                        "output": {"text_spans": parsed['text_spans']},
-                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                    }
-                elif modality == "tabular" and 'feature_key' in parsed:
-                    feature_key = parsed['feature_key']
-                    if available_features and feature_key not in available_features:
-                        feature_key = available_features[0] if available_features else "unknown"
-                    return {
-                        "output": {"feature_keys": [feature_key]},
-                        "explanation": parsed.get('explanation', 'VLM direct analysis'),
-                    }
-
+                result = _try_parse_and_validate(json.loads(json_match.group()))
+                if result is not None:
+                    return result
             except json.JSONDecodeError:
                 pass
 
-        # Try direct parse
+        # Strategy 2: raw_decode from first '{' — stops at the first complete JSON object,
+        # so it handles trailing commentary and duplicate JSON blocks correctly.
+        start = response.find('{')
+        if start != -1:
+            try:
+                parsed, _ = json.JSONDecoder().raw_decode(response, start)
+                result = _try_parse_and_validate(parsed)
+                if result is not None:
+                    return result
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Strategy 3: direct parse
         try:
-            parsed = json.loads(response)
-            if 'output' in parsed:
-                return validate_and_fix_output(parsed, modality)
+            result = _try_parse_and_validate(json.loads(response))
+            if result is not None:
+                return result
         except json.JSONDecodeError:
             pass
 
@@ -2744,6 +2763,13 @@ Respond with ONLY valid JSON:"""
                         image_width = img_size.get('width')
                         image_height = img_size.get('height')
                         break
+            if image_width is None or image_height is None:
+                # No XAI tools ran this round; read dimensions directly from the input image
+                image_path = context.get('image_path')
+                if image_path:
+                    from PIL import Image as PILImage
+                    with PILImage.open(image_path) as img:
+                        image_width, image_height = img.size
             if image_width is None or image_height is None:
                 raise RuntimeError(
                     "Cannot build vision constraints: no successful tool result contains "

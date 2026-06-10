@@ -498,45 +498,76 @@ class BaseAgent(ABC):
         """
         q_type = question.get('q_type')
         example = question.get('example', '') or question.get('question', '') or ''
-        q_template = question.get('q', '')
+        _q_raw = question.get('q', '')
+        q_template = str(_q_raw) if isinstance(_q_raw, str) else ''
         result = {}
 
         if q_type == 6:
-            # "flip the model into X" or "flip the model's prediction to X"
+            # Standard: "flip the model into X" or "flip the model's prediction to X"
             m = re.search(
                 r"flip the (?:model(?:'s prediction)?|prediction)(?:\s+into\s+|\s+to\s+)(.+?)(?:\?|$)",
                 example, re.IGNORECASE
             )
+            if not m:
+                # Paraphrase text: "cause the model to predict X instead"
+                m = re.search(
+                    r"model to predict\s+([^?.\n,]+?)(?:\s+instead|\?|$)",
+                    example, re.IGNORECASE
+                )
             if m:
                 result['target_class'] = m.group(1).strip().rstrip('?').strip()
 
         elif q_type == 5:
-            # Text pattern: "mask the word 'X' from this input"
+            # Standard text: "mask the word 'X' from this input"
             m = re.search(r"mask the word ['\"](.+?)['\"]", example, re.IGNORECASE)
+            if not m:
+                # Paraphrase text: "word 'X' were hidden/masked/removed"
+                m = re.search(r"\bword\s+['\"](.+?)['\"]", example, re.IGNORECASE)
             if m:
                 result['queried_part'] = m.group(1).strip()
             else:
-                # Tabular pattern: "mask the X feature of this" or "mask the X of this"
+                # Standard tabular: "mask the X feature of this"
                 m = re.search(r'mask the (.+?)(?:\s+feature\b|\s+(?:of|from)\s+this)', example, re.IGNORECASE)
+                if not m:
+                    # OOD tabular: "remove or alter the feature 'X' from this input"
+                    m = re.search(r"remove or alter(?:\s+the)?\s+feature\s+['\"](.+?)['\"]", example, re.IGNORECASE)
+                if not m:
+                    # Paraphrase tabular: "if the X feature were removed/masked/hidden"
+                    m = re.search(
+                        r"if\s+the\s+(.+?)\s+feature\s+(?:were|was|is)\s+(?:removed|masked|hidden|eliminated)",
+                        example, re.IGNORECASE
+                    )
                 if m:
                     result['queried_part'] = m.group(1).strip()
-                else:
+                elif q_template:
                     # Fallback: {placeholder} in q template (skip generic placeholders)
                     m2 = re.search(r'\{(.+?)\}', q_template)
                     if m2 and m2.group(1) not in ('certain', 'certain_part'):
                         result['queried_part'] = m2.group(1)
 
         elif q_type == 7:
-            # Text pattern: "remove/change the word 'X' from this input"
+            # Standard text: "remove/change the word 'X' from this input"
             m = re.search(r"remove/change (?:the )?word ['\"](.+?)['\"]", example, re.IGNORECASE)
+            if not m:
+                # Paraphrase text: "word 'X' were modified or removed"
+                m = re.search(r"\bword\s+['\"](.+?)['\"]", example, re.IGNORECASE)
             if m:
                 result['part_to_change'] = m.group(1).strip()
             else:
-                # Tabular/general pattern: "remove/change X,"
+                # Standard tabular/general: "remove/change X,"
                 m = re.search(r'remove/change\s+(.+?)(?:,|\?{1,2}|$)', example, re.IGNORECASE)
+                if not m:
+                    # OOD tabular: "remove or change the feature 'X'"
+                    m = re.search(r"remove or change(?:\s+the)?\s+feature\s+['\"](.+?)['\"]", example, re.IGNORECASE)
+                if not m:
+                    # Paraphrase tabular: "if X were altered/removed/changed"
+                    m = re.search(
+                        r"if\s+(?:the\s+)?(.+?)\s+(?:were|was)\s+(?:altered|removed|changed|modified)",
+                        example, re.IGNORECASE
+                    )
                 if m:
                     result['part_to_change'] = m.group(1).strip().rstrip('?,').strip()
-                else:
+                elif q_template:
                     # Fallback: {placeholder} in q template
                     m2 = re.search(r'\{(.+?)\}', q_template)
                     if m2:

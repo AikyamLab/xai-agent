@@ -476,8 +476,19 @@ class XAIPipelineV2:
         question['num_instances'] = 2
 
         # Set modality first so index extraction can use it
-        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular'}
-        question['modality'] = modality_map.get(question.get('modality', 'image'), 'vision')
+        modality_map = {'image': 'vision', 'text': 'text', 'tabular': 'tabular', 'vision': 'vision'}
+        _raw_mod = question.get('modality')  # may be None even if key exists
+        if _raw_mod:
+            question['modality'] = modality_map.get(_raw_mod, 'vision')
+        else:
+            # Infer from dataset path when field is absent or explicitly None
+            _pl = dataset_path.lower()
+            if '/tabular/' in _pl or '_tabular' in _pl:
+                question['modality'] = 'tabular'
+            elif '/text/' in _pl or '_text' in _pl:
+                question['modality'] = 'text'
+            else:
+                question['modality'] = 'vision'
 
         # Extract instance indices: prefer features.image_index, fall back to features.row_no, then inst.row_no
         def _get_image_index(inst):
@@ -1812,6 +1823,13 @@ class XAIPipelineV2:
 
         # Get question type and modality
         q_type = question.get('q_type')
+        # Fall back to extracting q_type from dataset filename (e.g. yelp_bert_q1.json -> 1)
+        if q_type is None:
+            import re as _re
+            _m = _re.search(r'_q(\d+)(?:_|\.|$)', os.path.basename(dataset_path), _re.IGNORECASE)
+            if _m:
+                q_type = int(_m.group(1))
+                question['q_type'] = q_type
         question['modality'] = modality
 
         # Detect multi-instance questions (Q4, Q9, Q10 or row_no is array)

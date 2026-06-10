@@ -635,11 +635,34 @@ class LIMETextTool(BaseTool):
             import numpy as np
             target_class = int(target_class)
 
+            # Detect HuggingFace tokenizers: calling them returns a BatchEncoding
+            # (dict-like but NOT a subclass of dict) rather than a plain list of ints.
+            # We probe with a short string and check for an 'input_ids' key.
+            _probe = processor(text[:64]) if processor is not None else None
+            _is_hf_tokenizer = _probe is not None and hasattr(_probe, 'get') and 'input_ids' in _probe
+
+            def _encode(t):
+                """Return (input_ids_tensor, attention_mask_tensor_or_None) on device."""
+                enc = processor(t, truncation=True, max_length=512) if _is_hf_tokenizer else processor(t)
+                if _is_hf_tokenizer:
+                    ids  = enc.get('input_ids')
+                    mask = enc.get('attention_mask')
+                    if not isinstance(ids, torch.Tensor):
+                        ids = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
+                    if mask is not None and not isinstance(mask, torch.Tensor):
+                        mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+                    return ids.to(device), (mask.to(device) if mask is not None else None)
+                else:
+                    # Legacy: plain list of int token IDs
+                    return torch.tensor([enc], dtype=torch.long).to(device), None
+
             if is_nli:
                 hypothesis_ids = sample_data.get('hypothesis_ids')
                 if hypothesis_ids is None and processor is not None:
-                    hypothesis_ids = processor(sample_data.get('hypothesis', ''))
-                hyp_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                    hyp_ids, _ = _encode(sample_data.get('hypothesis', ''))
+                else:
+                    hyp_ids = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                hyp_tensor = hyp_ids
 
             def predict_fn(texts):
                 """Generic predict function for any PyTorch text model."""
@@ -647,15 +670,18 @@ class LIMETextTool(BaseTool):
                 results = []
                 with torch.no_grad():
                     for t in texts:
-                        token_ids = processor(t)
-                        input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+                        input_ids, attention_mask = _encode(t)
 
                         if is_dual_input:
-                            logits = model(input_tensor, hyp_tensor)
+                            logits = model(input_ids, hyp_tensor)
                         elif is_nli:
-                            logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
+                            logits = model(torch.cat([input_ids, hyp_tensor], dim=1))
+                        elif _is_hf_tokenizer and attention_mask is not None:
+                            # HuggingFace model: must pass attention_mask via keyword args
+                            out = model(input_ids=input_ids, attention_mask=attention_mask)
+                            logits = out.logits if hasattr(out, 'logits') else out
                         else:
-                            logits = model(input_tensor)
+                            logits = model(input_ids)
 
                         if logits.shape[-1] == 1:
                             # Binary classification: sigmoid
@@ -766,23 +792,45 @@ class IntegratedGradientsTextTool(BaseTool):
             import re
             target_class = int(target_class)
 
-            # Get token IDs — for NLI, use premise_ids only
-            if is_nli:
-                token_ids = sample_data.get('premise_ids')
-                if token_ids is None:
-                    token_ids = processor(text)
-            else:
-                token_ids = self.data_model_loader.get_current_token_ids()
-                if token_ids is None:
-                    token_ids = processor(text)
+            # Detect HuggingFace tokenizers (BatchEncoding, not plain list of ints)
+            _probe = processor(text[:64]) if processor is not None else None
+            _is_hf_tokenizer = _probe is not None and hasattr(_probe, 'get') and 'input_ids' in _probe
 
-            input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+            def _encode(t):
+                enc = processor(t, truncation=True, max_length=512) if _is_hf_tokenizer else processor(t)
+                if _is_hf_tokenizer:
+                    ids = enc.get('input_ids')
+                    mask = enc.get('attention_mask')
+                    if not isinstance(ids, torch.Tensor):
+                        ids = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
+                    if mask is not None and not isinstance(mask, torch.Tensor):
+                        mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+                    return ids.to(device), (mask.to(device) if mask is not None else None)
+                else:
+                    return torch.tensor([enc], dtype=torch.long).to(device), None
+
+            # Build input_tensor and attention_mask
+            if _is_hf_tokenizer:
+                input_tensor, attention_mask_tensor = _encode(text)
+            else:
+                if is_nli:
+                    token_ids = sample_data.get('premise_ids')
+                    if token_ids is None:
+                        token_ids = processor(text)
+                else:
+                    token_ids = self.data_model_loader.get_current_token_ids()
+                    if token_ids is None:
+                        token_ids = processor(text)
+                input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+                attention_mask_tensor = None
 
             if is_nli:
                 hypothesis_ids = sample_data.get('hypothesis_ids')
                 if hypothesis_ids is None and processor is not None:
-                    hypothesis_ids = processor(sample_data.get('hypothesis', ''))
-                hyp_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                    hyp_ids, _ = _encode(sample_data.get('hypothesis', ''))
+                else:
+                    hyp_ids = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                hyp_tensor = hyp_ids
 
             # Find embedding layer
             embedding_layer = None
@@ -811,7 +859,8 @@ class IntegratedGradientsTextTool(BaseTool):
                     handle = embedding_layer.register_forward_hook(hook_fn)
                     expanded_input = input_tensor.expand(batch_size, -1)
                     expanded_hyp = hyp_tensor.expand(batch_size, -1)
-                    logits = model(expanded_input, expanded_hyp)
+                    out = model(expanded_input, expanded_hyp)
+                    logits = out.logits if hasattr(out, 'logits') else out
                     handle.remove()
                     if logits.shape[-1] == 1:
                         prob_pos = torch.sigmoid(logits)
@@ -828,7 +877,11 @@ class IntegratedGradientsTextTool(BaseTool):
             else:
                 # Standard single-input (IMDB or single-input SNLI): LayerIntegratedGradients
                 def forward_func(input_ids):
-                    logits = model(input_ids)
+                    if _is_hf_tokenizer and attention_mask_tensor is not None:
+                        out = model(input_ids=input_ids, attention_mask=attention_mask_tensor)
+                    else:
+                        out = model(input_ids)
+                    logits = out.logits if hasattr(out, 'logits') else out
                     if logits.shape[-1] == 1:
                         prob_pos = torch.sigmoid(logits)
                         probs = torch.cat([1.0 - prob_pos, prob_pos], dim=-1)
@@ -934,6 +987,23 @@ class SHAPTextTool(BaseTool):
             import re
             target_class = int(target_class)
 
+            # Detect HuggingFace tokenizers (BatchEncoding, not plain list of ints)
+            _probe = processor(text[:64]) if processor is not None else None
+            _is_hf_tokenizer = _probe is not None and hasattr(_probe, 'get') and 'input_ids' in _probe
+
+            def _encode(t):
+                enc = processor(t, truncation=True, max_length=512) if _is_hf_tokenizer else processor(t)
+                if _is_hf_tokenizer:
+                    ids = enc.get('input_ids')
+                    mask = enc.get('attention_mask')
+                    if not isinstance(ids, torch.Tensor):
+                        ids = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
+                    if mask is not None and not isinstance(mask, torch.Tensor):
+                        mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+                    return ids.to(device), (mask.to(device) if mask is not None else None)
+                else:
+                    return torch.tensor([enc], dtype=torch.long).to(device), None
+
             # Tokenize text into words
             words = text.split()
             n_words = len(words)
@@ -945,8 +1015,10 @@ class SHAPTextTool(BaseTool):
             if is_nli:
                 hypothesis_ids = sample_data.get('hypothesis_ids')
                 if hypothesis_ids is None and processor is not None:
-                    hypothesis_ids = processor(sample_data.get('hypothesis', ''))
-                hyp_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                    hyp_ids, _ = _encode(sample_data.get('hypothesis', ''))
+                else:
+                    hyp_ids = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                hyp_tensor = hyp_ids
 
             def predict_fn(masks):
                 """Predict from binary word masks. masks: (n_samples, n_words)"""
@@ -954,19 +1026,21 @@ class SHAPTextTool(BaseTool):
                 results = []
                 with torch.no_grad():
                     for mask in masks:
-                        # Reconstruct text from mask
                         masked_words = [w for w, m in zip(words, mask) if m == 1]
                         masked_text = ' '.join(masked_words) if masked_words else '.'
 
-                        token_ids = processor(masked_text)
-                        input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+                        input_ids, attention_mask = _encode(masked_text)
 
                         if is_dual_input:
-                            logits = model(input_tensor, hyp_tensor)
+                            out = model(input_ids, hyp_tensor)
                         elif is_nli:
-                            logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
+                            out = model(torch.cat([input_ids, hyp_tensor], dim=1))
+                        elif _is_hf_tokenizer and attention_mask is not None:
+                            out = model(input_ids=input_ids, attention_mask=attention_mask)
                         else:
-                            logits = model(input_tensor)
+                            out = model(input_ids)
+
+                        logits = out.logits if hasattr(out, 'logits') else out
 
                         if logits.shape[-1] == 1:
                             prob_pos = torch.sigmoid(logits).item()
@@ -1068,6 +1142,23 @@ class SensitivityAnalysisTextTool(BaseTool):
             import numpy as np
             target_class = int(target_class)
 
+            # Detect HuggingFace tokenizers (BatchEncoding, not plain list of ints)
+            _probe = processor(text[:64]) if processor is not None else None
+            _is_hf_tokenizer = _probe is not None and hasattr(_probe, 'get') and 'input_ids' in _probe
+
+            def _encode(t):
+                enc = processor(t, truncation=True, max_length=512) if _is_hf_tokenizer else processor(t)
+                if _is_hf_tokenizer:
+                    ids = enc.get('input_ids')
+                    mask = enc.get('attention_mask')
+                    if not isinstance(ids, torch.Tensor):
+                        ids = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
+                    if mask is not None and not isinstance(mask, torch.Tensor):
+                        mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+                    return ids.to(device), (mask.to(device) if mask is not None else None)
+                else:
+                    return torch.tensor([enc], dtype=torch.long).to(device), None
+
             words = text.split()
             n_words = len(words)
 
@@ -1078,22 +1169,27 @@ class SensitivityAnalysisTextTool(BaseTool):
             if is_nli:
                 hypothesis_ids = sample_data.get('hypothesis_ids')
                 if hypothesis_ids is None and processor is not None:
-                    hypothesis_ids = processor(sample_data.get('hypothesis', ''))
-                hyp_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                    hyp_ids, _ = _encode(sample_data.get('hypothesis', ''))
+                else:
+                    hyp_ids = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
+                hyp_tensor = hyp_ids
 
             def get_prob(input_text):
                 """Get target class probability for a text."""
                 model.eval()
                 with torch.no_grad():
-                    token_ids = processor(input_text)
-                    input_tensor = torch.tensor([token_ids], dtype=torch.long).to(device)
+                    input_ids, attention_mask = _encode(input_text)
 
                     if is_dual_input:
-                        logits = model(input_tensor, hyp_tensor)
+                        out = model(input_ids, hyp_tensor)
                     elif is_nli:
-                        logits = model(torch.cat([input_tensor, hyp_tensor], dim=1))
+                        out = model(torch.cat([input_ids, hyp_tensor], dim=1))
+                    elif _is_hf_tokenizer and attention_mask is not None:
+                        out = model(input_ids=input_ids, attention_mask=attention_mask)
                     else:
-                        logits = model(input_tensor)
+                        out = model(input_ids)
+
+                    logits = out.logits if hasattr(out, 'logits') else out
 
                     if logits.shape[-1] == 1:
                         prob_pos = torch.sigmoid(logits).item()

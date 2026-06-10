@@ -257,7 +257,8 @@ class ToolAttributionEvaluator:
                     input_paths=input_paths,
                     predictions=predictions,
                     input_tensors=input_tensors,
-                    ground_truths=ground_truths
+                    ground_truths=ground_truths,
+                    feature_modes=feature_modes
                 )
 
                 faithfulness_score = result.get('faithfulness_score', 0.0)
@@ -451,7 +452,8 @@ class ToolAttributionEvaluator:
         input_paths: Optional[List[str]] = None,
         predictions: Optional[List[Dict[str, Any]]] = None,
         input_tensors: Optional[List[Any]] = None,
-        ground_truths: Optional[List[Any]] = None
+        ground_truths: Optional[List[Any]] = None,
+        feature_modes: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Evaluate a specific tool configuration by filtering existing tool results.
@@ -556,7 +558,8 @@ class ToolAttributionEvaluator:
                 input_paths=input_paths,
                 predictions=predictions,
                 input_tensors=input_tensors,
-                ground_truths=ground_truths
+                ground_truths=ground_truths,
+                feature_modes=feature_modes
             )
 
         # For multi-instance, also build per-instance filtered tool results
@@ -704,7 +707,8 @@ class ToolAttributionEvaluator:
         input_paths: Optional[List[str]] = None,
         predictions: Optional[List[Dict[str, Any]]] = None,
         input_tensors: Optional[List[Any]] = None,
-        ground_truths: Optional[List[Any]] = None
+        ground_truths: Optional[List[Any]] = None,
+        feature_modes: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Evaluate the all-zeros config by having VLM analyze images directly

@@ -331,43 +331,68 @@ class BaseEvaluator(ABC):
                 if processor is None:
                     raise ValueError("Processor (tokenizer) required for NLI text input")
                 n_forward_params = len(inspect.signature(model.forward).parameters)
+                def _ids_to_tensor(text):
+                    enc = processor(text, truncation=True, max_length=512)
+                    if hasattr(enc, 'get') and 'input_ids' in enc:
+                        ids = enc.get('input_ids')
+                        return (torch.tensor(ids, dtype=torch.long).unsqueeze(0).to(device)
+                                if not isinstance(ids, torch.Tensor) else ids.to(device))
+                    return torch.tensor([enc], dtype=torch.long).to(device)
+
                 if n_forward_params >= 2:
                     # Dual-input model (e.g. CNN_SNLI): tokenize premise and hypothesis separately
-                    premise_ids = processor(input_data['premise'])
-                    hypothesis_ids = processor(input_data['hypothesis'])
-                    premise_tensor = torch.tensor([premise_ids], dtype=torch.long).to(device)
-                    hypothesis_tensor = torch.tensor([hypothesis_ids], dtype=torch.long).to(device)
-                    outputs = model(premise_tensor, hypothesis_tensor)
+                    premise_tensor = _ids_to_tensor(input_data['premise'])
+                    hypothesis_tensor = _ids_to_tensor(input_data['hypothesis'])
+                    outputs_raw = model(premise_tensor, hypothesis_tensor)
+                    outputs = outputs_raw.logits if hasattr(outputs_raw, 'logits') else outputs_raw
                 else:
-                    # Single-input model (e.g. TwoLayerNN_SNLI): tokenize as combined sequence
-                    # trained on raw concatenation without "Premise:"/"Hypothesis:" prefix labels
+                    # Single-input model: tokenize as combined sequence
                     combined = f"{input_data['premise']} {input_data['hypothesis']}"
-                    combined_ids = processor(combined)
-                    input_tensor = torch.tensor([combined_ids], dtype=torch.long).to(device)
-                    outputs = model(input_tensor)
+                    input_tensor = _ids_to_tensor(combined)
+                    outputs_raw = model(input_tensor)
+                    outputs = outputs_raw.logits if hasattr(outputs_raw, 'logits') else outputs_raw
             else:
                 # If input is already a tensor, use directly (skip processor)
                 # This handles tabular data where features are pre-processed tensors
                 if isinstance(input_data, torch.Tensor):
                     input_tensor = input_data
+                    if input_tensor.dim() == 1:
+                        input_tensor = input_tensor.unsqueeze(0)
+                    outputs_raw = model(input_tensor.to(device))
+                    outputs = outputs_raw.logits if hasattr(outputs_raw, 'logits') else outputs_raw
                 elif processor is not None:
-                    input_tensor = processor(input_data)
+                    try:
+                        _enc = processor(input_data, truncation=True, max_length=512)
+                    except TypeError:
+                        _enc = processor(input_data)
+                    # HuggingFace BatchEncoding: dict-like with 'input_ids' key
+                    if hasattr(_enc, 'get') and 'input_ids' in _enc:
+                        ids = _enc.get('input_ids')
+                        mask = _enc.get('attention_mask')
+                        if not isinstance(ids, torch.Tensor):
+                            ids = torch.tensor(ids, dtype=torch.long).unsqueeze(0)
+                        if mask is not None and not isinstance(mask, torch.Tensor):
+                            mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+                        ids = ids.to(device)
+                        mask = mask.to(device) if mask is not None else None
+                        outputs_raw = model(input_ids=ids, attention_mask=mask)
+                        outputs = outputs_raw.logits if hasattr(outputs_raw, 'logits') else outputs_raw
+                    else:
+                        # Legacy: plain list or tensor
+                        input_tensor = _enc
+                        if isinstance(input_tensor, list):
+                            input_tensor = torch.tensor([input_tensor], dtype=torch.long)
+                        if input_tensor.dim() == 1:
+                            input_tensor = input_tensor.unsqueeze(0)
+                        elif input_tensor.dim() == 3:
+                            input_tensor = input_tensor.unsqueeze(0)
+                        input_tensor = input_tensor.to(device)
+                        if input_tensor.dtype not in (torch.long, torch.int):
+                            input_tensor = input_tensor.float()
+                        outputs_raw = model(input_tensor)
+                        outputs = outputs_raw.logits if hasattr(outputs_raw, 'logits') else outputs_raw
                 else:
                     raise ValueError("Must provide processor or tensor input")
-
-                # Convert list (e.g. from tokenizer) to tensor
-                if isinstance(input_tensor, list):
-                    input_tensor = torch.tensor([input_tensor], dtype=torch.long)
-
-                if input_tensor.dim() == 1:
-                    input_tensor = input_tensor.unsqueeze(0)
-                elif input_tensor.dim() == 3:
-                    input_tensor = input_tensor.unsqueeze(0)
-
-                input_tensor = input_tensor.to(device)
-                if input_tensor.dtype not in (torch.long, torch.int):
-                    input_tensor = input_tensor.float()
-                outputs = model(input_tensor)
 
             # Handle binary classification (single logit output)
             if outputs.shape[-1] == 1:
