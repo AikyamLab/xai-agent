@@ -381,8 +381,6 @@ def run_single_job(
     faithfulness_threshold: float,
     no_eval: bool,
     no_improvement: bool,
-    no_sf: bool,
-    sf_max_samples: Optional[int],
     log_dir: Path,
     mode: str = "test",
     tinker_checkpoint: Optional[str] = None,
@@ -411,10 +409,6 @@ def run_single_job(
         cmd.append("--no-eval")
     if no_improvement:
         cmd.append("--no-improvement")
-    if no_sf:
-        cmd.append("--no-sf")
-    if sf_max_samples is not None:
-        cmd.extend(["--sf_max_samples", str(sf_max_samples)])
     if tinker_checkpoint is not None:
         cmd.extend(["--tinker_checkpoint", tinker_checkpoint])
         cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
@@ -503,8 +497,6 @@ def run_jobs_sequential(
             faithfulness_threshold=config["faithfulness_threshold"],
             no_eval=config.get("no_eval", False),
             no_improvement=config.get("no_improvement", False),
-            no_sf=config.get("no_sf", False),
-            sf_max_samples=config.get("sf_max_samples"),
             log_dir=log_dir,
             mode=config.get("mode", "test"),
             tinker_checkpoint=config.get("tinker_checkpoint"),
@@ -542,8 +534,6 @@ def run_jobs_parallel(
                 faithfulness_threshold=config["faithfulness_threshold"],
                 no_eval=config.get("no_eval", False),
                 no_improvement=config.get("no_improvement", False),
-                no_sf=config.get("no_sf", False),
-                sf_max_samples=config.get("sf_max_samples"),
                 log_dir=log_dir,
                 mode=config.get("mode", "test"),
                 tinker_checkpoint=config.get("tinker_checkpoint"),
@@ -671,10 +661,6 @@ OOD Datasets (use --dataset_variant ood):
                         help="Skip faithfulness evaluation")
     parser.add_argument("--no_improvement", action="store_true",
                         help="Skip improvement phase")
-    parser.add_argument("--no_sf", action="store_true",
-                        help="Skip strategy faithfulness evaluation")
-    parser.add_argument("--sf_max_samples", type=int, default=None,
-                        help="Max tool configs to sample for strategy faithfulness (default: None = full 2^N)")
     parser.add_argument("--faithfulness_threshold", type=float, default=0.1,
                         help="Threshold for faithfulness (default: 0.1)")
 
@@ -722,8 +708,6 @@ OOD Datasets (use --dataset_variant ood):
     config["faithfulness_threshold"] = args.faithfulness_threshold
     config["no_eval"] = args.no_eval
     config["no_improvement"] = args.no_improvement
-    config["no_sf"] = args.no_sf
-    config["sf_max_samples"] = args.sf_max_samples
     config["mode"] = args.mode
     config["tinker_checkpoint"] = args.tinker_checkpoint
     config["tinker_lora_rank"] = args.tinker_lora_rank

@@ -31,6 +31,7 @@ export TORCH_HOME=/path/to/torch_cache
 
 export ANTHROPIC_API_KEY=...
 export GEMINI_API_KEY=...
+export OPENAI_API_KEY=...
 export TINKER_API_KEY=...
 ```
 
@@ -79,14 +80,14 @@ Key flags:
 | Flag | Default | Description |
 |---|---|---|
 | `--mode` | `test` | Which split to use (`train` or `test`) |
-| `--vlm` | `Qwen/Qwen3-VL-8B-Instruct` | VLM backend. Options: local Qwen, `gemini-2.5-pro`, `claude-sonnet-4-5-20250929`, `tinker/...` |
+| `--vlm` | — | VLM backend. Tinker (primary): `tinker/Qwen/Qwen3.6-35B-A3B`. API: `gemini-2.5-pro`, `claude-sonnet-4-5-20250929`, `gpt-5.4`. Local: `Qwen/Qwen3-VL-8B-Instruct` |
 | `--no-eval` | off | Skip faithfulness evaluation |
 | `--no-improvement` | off | Skip improvement loop |
-| `--no-sf` | off | Skip strategy faithfulness evaluation |
-| `--sf_max_samples` | None | Cap tool-config samples for strategy faithfulness (2^N full by default) |
 | `--faithfulness_threshold` | `0.1` | Score below which improvement is triggered |
-| `--dataset_variant` | `default` | Path preset for dataset/model roots (`default` or `ood`) |
-| `--dataset_dir` / `--models_dir` | variant-dependent | Explicit root overrides for benchmark JSONs and model checkpoints |
+| `--temperature` | `0.0` | Sampling temperature for the VLM |
+| `--tinker_checkpoint` | — | Tinker LoRA checkpoint to evaluate (format: `tinker/<run_id>--<step>`) |
+| `--tinker_lora_rank` | `32` | LoRA rank used during training (must match training job) |
+| `--dataset_dir` / `--models_dir` | `./dataset` / `./models_to_read` | Explicit root overrides for benchmark JSONs and model checkpoints |
 
 ---
 
@@ -149,6 +150,8 @@ Logs go to `outputs/logs/<timestamp>/`.
 
 ## Available datasets
 
+### In-distribution (`dataset/`)
+
 | Name | Modality | Model file |
 |---|---|---|
 | `stl10_resnet` / `stl10_densenet` | vision | `models_to_read/vision/stl10_*.pth` |
@@ -156,7 +159,36 @@ Logs go to `outputs/logs/<timestamp>/`.
 | `imdb_cnn` / `imdb_2layernn` | text | `models_to_read/text/imdb_*.pth` |
 | `snli_cnn` / `snli_2layernn` | text | `models_to_read/text/snli_*.pth` |
 | `adult_census` / `adult_tabnn` / `adult_2layernn` | tabular | `models_to_read/tabular/adult_*.pth` |
-| `cancer_2nn` / `cancer_tabnn` / `cancer_2layernn` | tabular | `models_to_read/tabular/cancer_*.pth` |
+| `cancer_tabnn` / `cancer_2layernn` | tabular | `models_to_read/tabular/cancer_*.pth` |
+
+### Out-of-distribution (`dataset_ood/`)
+
+| Name | Modality | Model file |
+|---|---|---|
+| `cifar_resnet` | vision | `models_to_read/vision/cifar_resnet.pth` (loader: `load_cifar_resnet.py`) |
+| `yelp_bert` | text | (loader: `load_yelp_bert.py`) |
+| `german_credit_3layernn` | tabular | `models_to_read/tabular/german_credit_3layernn.pth` |
+
+For OOD runs, pass `--dataset_dir dataset_ood --models_dir models_to_read` (or use `--dataset_variant ood` if supported by the batch runner).
+
+---
+
+## Training
+
+GRPO/RL training is under `training/rl/`. The pipeline serves as the RL environment; GRPO gradients are computed from faithfulness rewards. The primary model is `tinker/Qwen/Qwen3.6-35B-A3B`.
+
+```bash
+python training/rl/train.py \
+    --dataset_name stl10_resnet \
+    --mode train \
+    --q_types 1 2 3 \
+    --model_name Qwen/Qwen3.6-35B-A3B \
+    --output_dir checkpoints/grpo_vision \
+    --num_rollouts 4 \
+    --no-improvement
+```
+
+SLURM job templates: `training/rl/train_grpo_*.slurm`.
 
 ---
 

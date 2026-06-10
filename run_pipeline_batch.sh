@@ -44,8 +44,6 @@ USE_TEST_VARIANT=false
 DRY_RUN=false
 NO_EVAL=false
 NO_IMPROVEMENT=false
-NO_SF=false
-SF_MAX_SAMPLES=""
 FAITHFULNESS_THRESHOLD=0.1
 VLM_MODEL="Qwen/Qwen3-VL-8B-Instruct"
 TINKER_CHECKPOINT=""   # e.g. "tinker/dpo_Qwen3-VL-30B-A3B-Instruct_1771865187--step-0500"
@@ -133,7 +131,6 @@ Options:
     --dry_run                Print commands without executing
     --no_eval                Skip faithfulness evaluation
     --no_improvement         Skip improvement phase
-    --no_sf                  Skip strategy faithfulness evaluation
     --faithfulness_threshold Threshold for faithfulness (default: 0.1)
     --vlm MODEL              VLM model ID (default: Qwen/Qwen3-VL-8B-Instruct)
                              API models: gemini-2.5-pro, gemini-3-pro
@@ -393,14 +390,6 @@ while [[ $# -gt 0 ]]; do
             NO_IMPROVEMENT=true
             shift
             ;;
-        --no_sf)
-            NO_SF=true
-            shift
-            ;;
-        --sf_max_samples)
-            SF_MAX_SAMPLES="$2"
-            shift 2
-            ;;
         --faithfulness_threshold)
             FAITHFULNESS_THRESHOLD="$2"
             shift 2
@@ -600,14 +589,6 @@ for dataset in $DATASETS_TO_RUN; do
 
             if [[ "$NO_IMPROVEMENT" == "true" ]]; then
                 CMD="$CMD --no-improvement"
-            fi
-
-            if [[ "$NO_SF" == "true" ]]; then
-                CMD="$CMD --no-sf"
-            fi
-
-            if [[ -n "$SF_MAX_SAMPLES" ]]; then
-                CMD="$CMD --sf_max_samples $SF_MAX_SAMPLES"
             fi
 
             if [[ -n "$TINKER_CHECKPOINT" ]]; then

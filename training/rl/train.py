@@ -22,8 +22,6 @@ Pipeline behaviour flags (forwarded to pipeline.run()):
   --no-improvement    Disable proposer/actor improvement loop.
                       Recommended for GRPO: improvement VLM calls would add
                       extra transitions with a mixed reward signal.
-  --no-sf             Disable strategy faithfulness evaluation.
-  --sf-max-samples N  Max samples for SF evaluation.
 
 Usage:
     python -m training.rl.train \\
@@ -33,8 +31,7 @@ Usage:
         --model_name   Qwen/Qwen3-VL-30B-A3B-Instruct \\
         --output_dir   checkpoints/grpo_tabular \\
         --num_rollouts 4 \\
-        --no-improvement \\
-        --no-sf
+        --no-improvement
 """
 
 from __future__ import annotations
@@ -146,12 +143,6 @@ def parse_args():
                    action="store_false", default=True,
                    help="Disable proposer/actor improvement loop "
                         "(recommended for GRPO to avoid mixed-reward transitions)")
-    p.add_argument("--no-sf", dest="enable_sf",
-                   action="store_false", default=True,
-                   help="Disable strategy faithfulness (SF) evaluation")
-    p.add_argument("--sf-max-samples", dest="sf_max_samples",
-                   type=int, default=None,
-                   help="Max samples for strategy faithfulness evaluation")
     p.add_argument("--faithfulness_threshold", type=float, default=0.1,
                    help="Faithfulness threshold passed to pipeline.run()")
     p.add_argument("--no-tool-penalty", dest="use_tool_penalty",
@@ -303,8 +294,6 @@ async def main():
         pipeline=pipeline,
         rl_vlm=rl_vlm,
         enable_improvement=args.enable_improvement,
-        enable_sf=args.enable_sf,
-        sf_max_samples=args.sf_max_samples,
         faithfulness_threshold=args.faithfulness_threshold,
         use_tool_penalty=args.use_tool_penalty,
         diversity_lambda=args.diversity_lambda,
@@ -337,8 +326,6 @@ async def main():
             pipeline=w_pipeline,
             rl_vlm=w_rl_vlm,
             enable_improvement=args.enable_improvement,
-            enable_sf=args.enable_sf,
-            sf_max_samples=args.sf_max_samples,
             faithfulness_threshold=args.faithfulness_threshold,
             use_tool_penalty=args.use_tool_penalty,
             diversity_lambda=args.diversity_lambda,

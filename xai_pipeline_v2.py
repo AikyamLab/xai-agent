@@ -5,7 +5,6 @@ Complete end-to-end XAI pipeline using:
 - Modular prompts (prompts/)
 - Modular agents (agents/)
 - Modular evaluation (evaluation/)
-- Strategy faithfulness evaluation with tool attribution
 """
 
 import argparse
@@ -33,7 +32,7 @@ from three_agent_system_new import (
     ActorAgent,
     CriticAgent,
 )
-from evaluation import get_evaluator, EvaluationResult, ToolAttributionEvaluator, set_masking_output_dir
+from evaluation import get_evaluator, EvaluationResult, set_masking_output_dir
 
 # Existing imports
 from vlm_wrapper import VisionLanguageModel, create_vlm
@@ -217,18 +216,8 @@ class XAIPipelineV2:
                 print(f"\nWarning: tinker_checkpoint is ignored in mode='{mode}' "
                       f"(only applied when mode='test').")
 
-        # Strategy faithfulness evaluator (lazy initialization)
-        self.tool_attribution_evaluator: Optional[ToolAttributionEvaluator] = None
-
-        # Create directories for strategy faithfulness and training data
-        self.sf_dir = self.output_dir / "strategy_faithfulness"
-        self.sf_dir.mkdir(parents=True, exist_ok=True)
-
         self.training_data_dir = self.output_dir / "training_data"
         self.training_data_dir.mkdir(parents=True, exist_ok=True)
-
-        self.sf_cache_dir = self.output_dir / "strategy_faithfulness_cache"
-        self.sf_cache_dir.mkdir(parents=True, exist_ok=True)
 
         print("\nXAI Pipeline V2 initialized successfully!")
 
@@ -791,8 +780,6 @@ class XAIPipelineV2:
         evaluate_faithfulness: bool = True,
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
-        enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
@@ -926,51 +913,8 @@ class XAIPipelineV2:
                     original_evaluation=evaluation
                 )
             else:
-                print("\n=== Step 7: Strategy Faithfulness Evaluation (Q4) ===")
+                print(f"\n=== Step 7: Faithfulness Check ===")
                 print(f"  Explanation faithfulness ({faithfulness_score:.4f}) failed (threshold: {evaluator_threshold})")
-
-                # Convert Q4 A/B dicts to lists for ToolAttributionEvaluator (same interface as Q9/Q10)
-                input_paths_list = [data_paths['A'], data_paths['B']]
-                predictions_list = [predictions['A'], predictions['B']]
-                input_tensors_list = [input_tensors['A'], input_tensors['B']]
-
-                if enable_sf:
-                    print("  Running strategy faithfulness evaluation...")
-                    if self.tool_attribution_evaluator is None:
-                        self.tool_attribution_evaluator = ToolAttributionEvaluator(
-                            cache_dir=str(self.sf_cache_dir),
-                            output_dir=str(self.sf_dir)
-                        )
-                        self.tool_attribution_evaluator.set_agents(self.actor, self.critic)
-
-                    original_tool_results = {
-                        'tool_results': results.get('tool_results', {}),
-                        'visualization_paths': results.get('visualization_paths', []),
-                        'tool_results_summary': results.get('tool_results_summary', '')
-                    }
-
-                    sf_result = self.tool_attribution_evaluator.compute_tool_importance(
-                        original_strategy=strategy,
-                        original_faithfulness=faithfulness_score,
-                        original_tool_results=original_tool_results,
-                        question=question,
-                        question_template=template,
-                        input_path=input_paths_list[0],
-                        model_info=model_info,
-                        prediction=predictions_list[0],
-                        input_tensor=input_tensors_list[0],
-                        faithfulness_threshold=faithfulness_threshold,
-                        processor=model_info.get('processor'),
-                        device=model_info.get('device', 'cuda'),
-                        max_samples=sf_max_samples,
-                        input_paths=input_paths_list,
-                        predictions=predictions_list,
-                        input_tensors=input_tensors_list,
-                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
-                    )
-                    self.tool_attribution_evaluator.save_result(sf_result, question)
-                else:
-                    print("  Strategy faithfulness evaluation skipped (--no-sf).")
 
                 # Step 8: Improvement Phase
                 if enable_improvement:
@@ -982,7 +926,7 @@ class XAIPipelineV2:
                         results=results,
                         question=question,
                         faithfulness_result=evaluation.get('faithfulness', {}),
-                        tool_importance_scores=sf_result.tool_importance_scores if sf_result else {},
+                        tool_importance_scores={},
                         threshold=evaluator_threshold
                     )
                     self.critic.save_reflections(proposer_reflection, actor_reflection, question)
@@ -1027,13 +971,11 @@ class XAIPipelineV2:
                         improved_faithfulness = 0.0
                     improvement_delta = improved_faithfulness - faithfulness_score
 
-                    # Save training datapoint with before/after improvement data
                     self._save_training_datapoint(
                         question=question,
                         original_strategy=strategy,
                         original_results=results,
                         original_evaluation=evaluation,
-                        strategy_faithfulness=sf_result,
                         proposer_reflection=proposer_reflection,
                         actor_reflection=actor_reflection,
                         improved_strategy=improved_strategy,
@@ -1093,8 +1035,6 @@ class XAIPipelineV2:
         evaluate_faithfulness: bool = True,
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
-        enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
@@ -1245,50 +1185,8 @@ class XAIPipelineV2:
                     original_evaluation=evaluation
                 )
             else:
-                print("\n=== Step 7: Strategy Faithfulness Evaluation ===")
+                print(f"\n=== Step 7: Faithfulness Check ===")
                 print(f"  Explanation faithfulness ({faithfulness_score:.4f}) failed (threshold: {evaluator_threshold})")
-
-                if enable_sf:
-                    print("  Running strategy faithfulness evaluation...")
-
-                    if self.tool_attribution_evaluator is None:
-                        self.tool_attribution_evaluator = ToolAttributionEvaluator(
-                            cache_dir=str(self.sf_cache_dir),
-                            output_dir=str(self.sf_dir)
-                        )
-                        self.tool_attribution_evaluator.set_agents(self.actor, self.critic)
-
-                    original_tool_results = {
-                        'tool_results': results.get('tool_results', {}),
-                        'visualization_paths': results.get('visualization_paths', []),
-                        'tool_results_summary': results.get('tool_results_summary', '')
-                    }
-
-                    sf_result = self.tool_attribution_evaluator.compute_tool_importance(
-                        original_strategy=strategy,
-                        original_faithfulness=faithfulness_score,
-                        original_tool_results=original_tool_results,
-                        question=question,
-                        question_template=template,
-                        input_path=data_paths[0] if data_paths else "",
-                        model_info=model_info,
-                        prediction=predictions_list[0] if predictions_list else {},
-                        input_tensor=input_tensors[0] if input_tensors else None,
-                        faithfulness_threshold=faithfulness_threshold,
-                        processor=model_info.get('processor'),
-                        device=model_info.get('device', 'cuda'),
-                        max_samples=sf_max_samples,
-                        input_paths=data_paths,
-                        predictions=predictions_list,
-                        input_tensors=input_tensors,
-                        ground_truths=ground_truths,
-                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
-                    )
-
-                    self.tool_attribution_evaluator.save_result(sf_result, question)
-                    complete_results['strategy_faithfulness'] = sf_result.to_dict()
-                else:
-                    print("  Strategy faithfulness evaluation skipped (--no-sf).")
 
                 # Step 8: Improvement Phase
                 if enable_improvement:
@@ -1300,7 +1198,7 @@ class XAIPipelineV2:
                         results=results,
                         question=question,
                         faithfulness_result=evaluation.get('faithfulness', {}),
-                        tool_importance_scores=sf_result.tool_importance_scores if sf_result else {},
+                        tool_importance_scores={},
                         threshold=evaluator_threshold
                     )
 
@@ -1378,13 +1276,11 @@ class XAIPipelineV2:
                         'improved': improvement_delta > 0
                     }
 
-                    # Save training datapoint
                     self._save_training_datapoint(
                         question=question,
                         original_strategy=strategy,
                         original_results=results,
                         original_evaluation=evaluation,
-                        strategy_faithfulness=sf_result,
                         proposer_reflection=proposer_reflection,
                         actor_reflection=actor_reflection,
                         improved_strategy=improved_strategy,
@@ -1417,15 +1313,10 @@ class XAIPipelineV2:
         evaluate_faithfulness: bool = True,
         faithfulness_threshold: float = 0.1,
         enable_improvement: bool = True,
-        enable_sf: bool = True,
-        sf_max_samples: Optional[int] = None,
         rollout_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Run complete XAI pipeline for a single question.
-
-        Includes strategy faithfulness evaluation and improvement
-        loop when explanation faithfulness is below threshold.
 
         Args:
             question_dataset_path: Path to question dataset JSON
@@ -1435,7 +1326,6 @@ class XAIPipelineV2:
             evaluate_faithfulness: Whether to run faithfulness evaluation
             faithfulness_threshold: Threshold for passing faithfulness (default: 0.1)
             enable_improvement: Whether to run improvement when below threshold
-            enable_sf: Whether to run strategy faithfulness evaluation
 
         Returns:
             Complete results dict
@@ -1465,8 +1355,6 @@ class XAIPipelineV2:
                 evaluate_faithfulness=evaluate_faithfulness,
                 faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
-                enable_sf=enable_sf,
-                sf_max_samples=sf_max_samples,
                 rollout_id=rollout_id,
             )
 
@@ -1480,8 +1368,6 @@ class XAIPipelineV2:
                 evaluate_faithfulness=evaluate_faithfulness,
                 faithfulness_threshold=faithfulness_threshold,
                 enable_improvement=enable_improvement,
-                enable_sf=enable_sf,
-                sf_max_samples=sf_max_samples,
                 rollout_id=rollout_id,
             )
 
@@ -1568,28 +1454,20 @@ class XAIPipelineV2:
         }
 
         # Step 7: Check explanation faithfulness and decide next steps
-        sf_result = None
         if evaluate_faithfulness and model_info and model_info.get('model'):
             faithfulness_result = evaluation.get('faithfulness', {})
             faithfulness_score = faithfulness_result.get('score')
             if faithfulness_score is None:
                 faithfulness_score = 0.0
 
-            # Use evaluator's passed field (respects question-specific threshold)
-            # Fall back to generic threshold if passed field is not available
             faithfulness_passed = faithfulness_result.get('passed', faithfulness_score >= faithfulness_threshold)
-
-            # Get threshold from evaluator for logging (if available)
             evaluator_threshold = faithfulness_result.get('details', {}).get('threshold', faithfulness_threshold)
 
             if faithfulness_passed:
-                # Explanation faithfulness is good enough - skip strategy faithfulness and reflection
                 print("\n=== Step 7: Explanation Faithfulness Check ===")
                 print(f"  Explanation faithfulness ({faithfulness_score:.4f}) passed (threshold: {evaluator_threshold})")
-                print("  Explanation is good enough. Skipping strategy faithfulness evaluation and reflection.")
                 print("  Saving training datapoint for passed sample.")
 
-                # Save training datapoint for passed samples
                 self._save_training_datapoint_passed(
                     question=question,
                     original_strategy=strategy,
@@ -1597,68 +1475,20 @@ class XAIPipelineV2:
                     original_evaluation=evaluation
                 )
             else:
-                # Explanation faithfulness is below threshold
-                print("\n=== Step 7: Strategy Faithfulness Evaluation ===")
+                print("\n=== Step 7: Faithfulness Check ===")
                 print(f"  Explanation faithfulness ({faithfulness_score:.4f}) failed (threshold: {evaluator_threshold})")
-
-                if enable_sf:
-                    print("  Running strategy faithfulness evaluation...")
-
-                    # Initialize tool attribution evaluator if needed
-                    if self.tool_attribution_evaluator is None:
-                        self.tool_attribution_evaluator = ToolAttributionEvaluator(
-                            cache_dir=str(self.sf_cache_dir),
-                            output_dir=str(self.sf_dir)
-                        )
-                        self.tool_attribution_evaluator.set_agents(self.actor, self.critic)
-
-                    # Build original_tool_results from Actor's results
-                    original_tool_results = {
-                        'tool_results': results.get('tool_results', {}),
-                        'visualization_paths': results.get('visualization_paths', []),
-                        'tool_results_summary': "; ".join([
-                            f"{k}: {'success' if v.get('success') else 'failed'}"
-                            for k, v in results.get('tool_results', {}).items()
-                            if isinstance(v, dict)
-                        ])
-                    }
-
-                    # Compute tool importance scores (reuses tool results, only re-runs feature extraction)
-                    sf_result = self.tool_attribution_evaluator.compute_tool_importance(
-                        original_strategy=strategy,
-                        original_faithfulness=faithfulness_score,
-                        original_tool_results=original_tool_results,
-                        question=question,
-                        question_template=template,
-                        input_path=data_path,
-                        model_info=model_info,
-                        prediction=prediction,
-                        input_tensor=input_tensor,
-                        faithfulness_threshold=faithfulness_threshold,
-                        processor=model_info.get('processor'),
-                        device=model_info.get('device', 'cuda'),
-                        max_samples=sf_max_samples,
-                        feature_modes=self.data_model_loader.get_feature_modes() if self.data_model_loader else None
-                    )
-
-                    # Save strategy faithfulness result
-                    self.tool_attribution_evaluator.save_result(sf_result, question)
-                    complete_results['strategy_faithfulness'] = sf_result.to_dict()
-                else:
-                    print("  Strategy faithfulness evaluation skipped (--no-sf).")
 
                 # Step 8: Improvement Phase (only if enabled and faithfulness below threshold)
                 if enable_improvement:
                     print("\n=== Step 8: Improvement Phase ===")
 
-                    # Generate reflections for both agents
                     print("  Generating Critic reflections...")
                     proposer_reflection, actor_reflection = self.critic.generate_reflections(
                         strategy=strategy,
                         results=results,
                         question=question,
                         faithfulness_result=evaluation.get('faithfulness', {}),
-                        tool_importance_scores=sf_result.tool_importance_scores if sf_result else {},
+                        tool_importance_scores={},
                         threshold=evaluator_threshold
                     )
 
@@ -1732,13 +1562,11 @@ class XAIPipelineV2:
                         'improved': improvement_delta > 0
                     }
 
-                    # Save training datapoint
                     self._save_training_datapoint(
                         question=question,
                         original_strategy=strategy,
                         original_results=results,
                         original_evaluation=evaluation,
-                        strategy_faithfulness=sf_result,
                         proposer_reflection=proposer_reflection,
                         actor_reflection=actor_reflection,
                         improved_strategy=improved_strategy,
@@ -2452,10 +2280,6 @@ class XAIPipelineV2:
             "evaluation": results["evaluation"]
         }
 
-        # Add strategy faithfulness if present
-        if "strategy_faithfulness" in results:
-            clean_results["strategy_faithfulness"] = results["strategy_faithfulness"]
-
         # Add improvement results if present
         if "reflections" in results:
             clean_results["reflections"] = results["reflections"]
@@ -2475,30 +2299,13 @@ class XAIPipelineV2:
         original_strategy: Dict[str, Any],
         original_results: Dict[str, Any],
         original_evaluation: Dict[str, Any],
-        strategy_faithfulness: Any,
         proposer_reflection: str,
         actor_reflection: str,
         improved_strategy: Dict[str, Any],
         improved_results: Dict[str, Any],
         improved_evaluation: Dict[str, Any]
     ):
-        """
-        Save a training datapoint containing all improvement data.
-
-        This datapoint can be used for training or fine-tuning agents.
-
-        Args:
-            question: Original question
-            original_strategy: Original strategy from Proposer
-            original_results: Original results from Actor
-            original_evaluation: Original evaluation from Critic
-            strategy_faithfulness: Strategy faithfulness evaluation result
-            proposer_reflection: Critic's feedback for Proposer (JSON string)
-            actor_reflection: Critic's feedback for Actor (JSON string)
-            improved_strategy: Improved strategy after reflection
-            improved_results: Improved results after reflection
-            improved_evaluation: Evaluation of improved results
-        """
+        """Save a training datapoint containing full improvement trajectory."""
         modality = question.get('modality', 'vision')
         dataset_base_name = question.get('dataset_base_name', 'unknown')
         row_no = question.get('row_no', question.get('question_id', 0))
@@ -2535,9 +2342,6 @@ class XAIPipelineV2:
                               if k not in ['raw_output', 'model', 'tool_results']},
                 "explanation_faithfulness": original_evaluation.get('faithfulness', {})
             },
-
-            # Strategy faithfulness
-            "strategy_faithfulness": strategy_faithfulness.to_dict() if hasattr(strategy_faithfulness, 'to_dict') else strategy_faithfulness,
 
             # Reflections (raw JSON strings for agents to consume)
             "proposer_reflection": proposer_reflection,
@@ -2718,17 +2522,6 @@ def main():
         help="Skip improvement phase even if faithfulness is below threshold"
     )
     parser.add_argument(
-        "--no-sf",
-        action="store_true",
-        help="Skip strategy faithfulness evaluation"
-    )
-    parser.add_argument(
-        "--sf_max_samples",
-        type=int,
-        default=32,
-        help="Max number of tool configs to sample for strategy faithfulness (default: None = full 2^N enumeration)"
-    )
-    parser.add_argument(
         "--mode",
         type=str,
         choices=["train", "test"],
@@ -2806,8 +2599,6 @@ def main():
         evaluate_faithfulness=not args.no_eval,
         faithfulness_threshold=args.faithfulness_threshold,
         enable_improvement=not args.no_improvement,
-        enable_sf=not args.no_sf,
-        sf_max_samples=args.sf_max_samples
     )
 
     print("\n" + "=" * 70)
@@ -2823,12 +2614,6 @@ def main():
         faith = results['evaluation']['faithfulness']
         print(f"Faithfulness Score: {faith.get('score', 'N/A')}")
         print(f"Faithfulness Passed: {faith.get('passed', 'N/A')}")
-
-    # Print strategy faithfulness if available
-    if results.get('strategy_faithfulness'):
-        sf = results['strategy_faithfulness']
-        print(f"\nStrategy Faithfulness:")
-        print(f"  Tool Importance Scores: {sf.get('tool_importance_scores', {})}")
 
     # Print improvement metrics if available
     if results.get('improvement_metrics'):
