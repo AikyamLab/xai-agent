@@ -1,4 +1,4 @@
-# XAI Agent Framework — Trial 2
+# MEA Framework
 
 A multi-agent (Proposer → Actor) pipeline for generating and evaluating XAI explanations across vision, text, and tabular modalities.
 
