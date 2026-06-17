@@ -1,16 +1,15 @@
 # MEA: Multi-modal Explanation Agent
 
-A three-agent framework for generating faithful, multi-modal XAI explanations across tabular, text, and vision domains.
+A framework for generating faithful, multi-modal XAI explanations across tabular, text, and vision domains.
 
 ## Overview
 
-MEA consists of three collaborating agents in a Proposer → Actor → Critic pipeline:
+MEA consists of two collaborating agents in a Proposer → Actor pipeline:
 
 - **Proposer**: Analyzes the question and selects an XAI strategy (tool selection, analysis plan)
 - **Actor**: Executes the chosen XAI tools and assembles the explanation
-- **Critic**: Evaluates the explanation quality against the model's actual behavior
 
-The framework addresses 10 question types (Q1–Q10) spanning feature attribution, contrastive reasoning, decision boundaries, robustness analysis, and counterfactual queries, across three modalities.
+Faithfulness of the generated explanation is evaluated by a perturb-and-measure protocol (not an agent). The framework addresses 10 question types (Q1–Q10) spanning feature attribution, contrastive reasoning, decision boundaries, robustness analysis, and counterfactual queries, across three modalities.
 
 ### Question Types
 
@@ -159,10 +158,22 @@ python run_pipeline_batch.py --config batch_config_example.json
 
 ## SLURM
 
-Edit `myjob.slurm` to set your datasets, question IDs, and VLM, then:
+Submit a batch evaluation job:
 
 ```bash
-sbatch myjob.slurm
+sbatch --job-name=mea_pipeline \
+       --partition=gpu \
+       --account=aikyam_agent \
+       --gres=gpu:a100:1 \
+       --constraint=a100_80gb \
+       --mem=128G \
+       --cpus-per-task=8 \
+       --time=24:00:00 \
+       --wrap="source setup_env.sh && python run_pipeline_batch.py \
+           --vlm tinker/Qwen/Qwen3.6-35B-A3B \
+           --datasets stl10_resnet cub_resnet \
+           --q_types 1 2 3 4 \
+           --output_dir outputs/"
 ```
 
 Logs go to `outputs/logs/<timestamp>/`.
@@ -171,22 +182,28 @@ Logs go to `outputs/logs/<timestamp>/`.
 
 ## Training
 
-MEA is trained with GRPO (Group Relative Policy Optimization) on `Qwen3.6-35B-A3B` via the Tinker SDK. The pipeline itself serves as the RL environment: faithfulness scores from the Critic are used as rewards to guide the Proposer and Actor.
+MEA is trained with GRPO (Group Relative Policy Optimization) on `Qwen3.6-35B-A3B` via the Tinker SDK. The pipeline itself serves as the RL environment: faithfulness scores are used as rewards to guide the Proposer and Actor.
 
 Training uses LoRA (rank 32) with a hybrid strategy combining in-distribution and OOD questions.
 
 ```bash
-python training/rl/train.py \
-    --dataset_name stl10_resnet \
-    --mode train \
-    --q_types 1 2 3 \
-    --model_name Qwen/Qwen3.6-35B-A3B \
-    --output_dir checkpoints/grpo_vision \
-    --num_rollouts 4 \
-    --no-improvement
+sbatch --job-name=mea_grpo \
+       --partition=gpu \
+       --account=aikyam_agent \
+       --gres=gpu:a100:1 \
+       --constraint=a100_80gb \
+       --mem=256G \
+       --cpus-per-task=16 \
+       --time=48:00:00 \
+       --wrap="source setup_env.sh && python -m training.rl.train \
+           --dataset_name stl10_resnet \
+           --mode train \
+           --q_types 1 2 3 \
+           --model_name Qwen/Qwen3.6-35B-A3B \
+           --output_dir checkpoints/grpo_vision \
+           --num_rollouts 4 \
+           --no-improvement"
 ```
-
-SLURM job templates: `training/rl/train_grpo_*.slurm`.
 
 ---
 
@@ -215,7 +232,7 @@ outputs/
 
 ```
 MEA_pipeline.py             # Main pipeline orchestrator (MEAPipeline class)
-MEA_agent_system.py         # Three-agent system (Proposer, Actor, Critic)
+MEA_agent_system.py         # Agent system (Proposer, Actor)
 run_pipeline_batch.py       # Python batch runner
 run_pipeline_batch.sh       # Shell batch runner
 agents/                     # Agent base classes

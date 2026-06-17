@@ -269,7 +269,7 @@ async def main():
 
     # ── 5. Create MEAPipeline with rl_vlm injected ─────────────────────────
     # The pipeline handles all XAI logic: prompt building, tool execution,
-    # Q4/Q9/Q10 routing, improvement loop, SF evaluation, critic evaluation.
+    # Q4/Q9/Q10 routing, improvement loop, faithfulness evaluation.
     from MEA_pipeline import MEAPipeline
     from prompts.output_size_config import OutputSizeConfig
     _output_size_cfg = OutputSizeConfig(
