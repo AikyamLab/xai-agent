@@ -82,7 +82,8 @@ def _save_heatmap_visualization(
     original_image: np.ndarray,
     heatmap: np.ndarray,
     output_path: str,
-    title: str = "Heatmap"
+    title: str = "Heatmap",
+    bbox: Optional[List[int]] = None,
 ) -> str:
     """
     Save a heatmap visualization overlaid on the original image.
@@ -95,6 +96,8 @@ def _save_heatmap_visualization(
         heatmap: 2D numpy array with activation values (normalized 0-1)
         output_path: Path to save the visualization
         title: Title for the visualization
+        bbox: Optional [x0, y0, x1, y1] box (e.g. `suggested_bounding_box`) to
+            draw on the heatmap and overlay panels
 
     Returns:
         Path to saved visualization
@@ -119,6 +122,17 @@ def _save_heatmap_visualization(
     axes[2].imshow(heatmap, cmap='jet', alpha=0.5)
     axes[2].set_title('Overlay')
     axes[2].axis('off')
+
+    if bbox is not None:
+        x0, y0, x1, y1 = bbox
+        w, h = x1 - x0, y1 - y0
+        for ax in (axes[1], axes[2]):
+            ax.add_patch(patches.Rectangle(
+                (x0, y0), w, h, linewidth=2.5, edgecolor='white', facecolor='none'
+            ))
+            ax.add_patch(patches.Rectangle(
+                (x0, y0), w, h, linewidth=1.2, edgecolor='black', facecolor='none', linestyle='--'
+            ))
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=150, bbox_inches='tight')
