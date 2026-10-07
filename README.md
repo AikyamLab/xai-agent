@@ -1,30 +1,33 @@
-# MEA: Multi-modal Explanation Agent
+# MEA: A Reward-Driven Multi-Agent System for Faithful Model Explanations
 
-A framework for generating faithful, multi-modal XAI explanations across tabular, text, and vision domains.
+[![arXiv](https://img.shields.io/badge/arXiv-2610.02480-b31b1b.svg)](https://arxiv.org/abs/2610.02480)
+[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-MEA--Benchmark-yellow)](https://huggingface.co/datasets/EstherrrCheng/mea-benchmark)
+
+Official code for **MEA** (Multimodal Explainability Agent), a multi-agent framework that turns post-hoc explanation tools into faithful natural-language explanations across tabular, text, and vision models. Paper: [arXiv:2610.02480](https://arxiv.org/abs/2610.02480) · Benchmark: [MEA-Benchmark on Hugging Face](https://huggingface.co/datasets/EstherrrCheng/mea-benchmark).
 
 ## Overview
 
 MEA consists of two collaborating agents in a Proposer → Actor pipeline:
 
-- **Proposer**: Analyzes the question and selects an XAI strategy (tool selection, analysis plan)
-- **Actor**: Executes the chosen XAI tools and assembles the explanation
+- **Proposer**: Selects and configures explanation tools based on the question and modality
+- **Actor**: Turns the tool outputs into a natural-language explanation grounded in model behavior; it is optimized end-to-end against faithfulness
 
-Faithfulness of the generated explanation is evaluated by a perturb-and-measure protocol (not an agent). The framework addresses 10 question types (Q1–Q10) spanning feature attribution, contrastive reasoning, decision boundaries, robustness analysis, and counterfactual queries, across three modalities.
+Faithfulness is evaluated by a perturbation-based protocol (not an agent). The benchmark has 10 question types (Q1–Q10) spanning feature attribution, counterfactual reasoning, and spurious feature detection, across tabular, text, and vision. Optimizing against faithfulness rewards with a modality-adaptive penalty improves faithfulness over the untrained backbone by +28% (tabular), +21% (text), and +34% (vision), and MEA outperforms post-hoc explainers, agentic, and closed-source baselines across six datasets.
 
 ### Question Types
 
 | Type | Description |
 |------|-------------|
-| Q1 | Feature importance — which features most influence the prediction |
-| Q2 | Comparative feature importance across instances |
-| Q3 | Contrastive explanation — why prediction A rather than B |
-| Q4 | Contrastive instance pair analysis |
-| Q5 | Decision boundary characterization |
-| Q6 | Global vs. local feature importance |
-| Q7 | Prediction robustness under feature perturbation |
-| Q8 | Robustness analysis across multiple instances |
-| Q9 | Counterfactual: minimal change to flip prediction |
-| Q10 | Multi-instance counterfactual analysis |
+| Q1 | Which part of the input was **most** responsible for the prediction? |
+| Q2 | Which part of the input was **least** responsible for the prediction? |
+| Q3 | Which parts distinguish the prediction from the next-best alternative? |
+| Q4 | Why are instances A and B given different predictions? |
+| Q5 | If a certain part is masked, would the prediction change? |
+| Q6 | How should the instance change to flip the prediction to a target class? |
+| Q7 | If one important part is removed/changed, how would the prediction change? |
+| Q8 | Is there an irrelevant (spurious) part causing the wrong prediction? |
+| Q9 | What shared feature makes multiple misclassified inputs difficult? |
+| Q10 | Why are two similar instances given different predictions (one correct, one wrong)? |
 
 ### XAI Tools
 
@@ -77,7 +80,7 @@ source setup_env.sh
 | CUB-200 (`cub_resnet`, `cub_densenet`) | vision | ResNet / DenseNet |
 | STL-10 (`stl10_resnet`, `stl10_densenet`) | vision | ResNet / DenseNet |
 
-Benchmark JSONs are in `dataset/{train,test}/{modality}/`. Model checkpoints are under `models_to_read/`.
+The benchmark is hosted on [Hugging Face](https://huggingface.co/datasets/EstherrrCheng/mea-benchmark); download it into `dataset/` so that JSONs are in `dataset/{train,test}/{modality}/`. Model checkpoints are under `models_to_read/`.
 
 ### Out-of-distribution (OOD)
 
@@ -241,4 +244,20 @@ evaluation/                 # Faithfulness evaluators (Q1–Q10)
 training/rl/                # GRPO training (env, trainer, dataset, rollout)
 data/                       # Dataset loader scripts (local only, not tracked in git)
 models_to_read/             # Pre-trained model checkpoints (local only)
+```
+
+---
+
+## Citation
+
+```bibtex
+@article{cheng2026mea,
+  title         = {{MEA}: A Reward-Driven Multi-Agent System for Faithful Model Explanations},
+  author        = {Cheng, Yuyang and Ravi, Raghav Kaushik and Sridhar, Srivarshinee and Saha, Sriparna and Ghosh, Akash and Agarwal, Chirag},
+  journal       = {arXiv preprint arXiv:2610.02480},
+  year          = {2026},
+  eprint        = {2610.02480},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.AI}
+}
 ```
