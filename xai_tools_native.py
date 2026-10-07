@@ -665,32 +665,65 @@ class LIMETextTool(BaseTool):
                 hyp_tensor = hyp_ids
 
             def predict_fn(texts):
-                """Generic predict function for any PyTorch text model."""
+                """Generic predict function for any PyTorch text model.
+
+                Batched (see SHAPTextTool.predict_fn's docstring for why --
+                identical fix, same underlying issue: LIME's explain_instance
+                calls this with num_samples texts (default 1000) per call;
+                looping one-forward-pass-per-text here made that 1000x the
+                per-call overhead instead of a handful of batched passes.
+                """
                 model.eval()
+                CHUNK_SIZE = 64
+                pad_id = getattr(processor, 'pad_token_id', None) if processor is not None else None
+                if pad_id is None:
+                    pad_id = 0
+
                 results = []
                 with torch.no_grad():
-                    for t in texts:
-                        input_ids, attention_mask = _encode(t)
+                    for start in range(0, len(texts), CHUNK_SIZE):
+                        chunk_texts = list(texts[start:start + CHUNK_SIZE])
+                        chunk_size = len(chunk_texts)
+
+                        if _is_hf_tokenizer:
+                            enc = processor(
+                                chunk_texts, truncation=True, max_length=512,
+                                padding=True, return_tensors='pt',
+                            )
+                            input_ids = enc['input_ids'].to(device)
+                            attention_mask = enc.get('attention_mask')
+                            attention_mask = attention_mask.to(device) if attention_mask is not None else None
+                        else:
+                            id_lists = [processor(t) for t in chunk_texts]
+                            max_len = max(len(ids) for ids in id_lists)
+                            input_ids = torch.full(
+                                (chunk_size, max_len), pad_id, dtype=torch.long,
+                            )
+                            for i, ids in enumerate(id_lists):
+                                input_ids[i, :len(ids)] = torch.tensor(ids, dtype=torch.long)
+                            input_ids = input_ids.to(device)
+                            attention_mask = None
 
                         if is_dual_input:
-                            logits = model(input_ids, hyp_tensor)
+                            hyp_batch = hyp_tensor.expand(chunk_size, -1)
+                            logits = model(input_ids, hyp_batch)
                         elif is_nli:
-                            logits = model(torch.cat([input_ids, hyp_tensor], dim=1))
+                            hyp_batch = hyp_tensor.expand(chunk_size, -1)
+                            logits = model(torch.cat([input_ids, hyp_batch], dim=1))
                         elif _is_hf_tokenizer and attention_mask is not None:
-                            # HuggingFace model: must pass attention_mask via keyword args
                             out = model(input_ids=input_ids, attention_mask=attention_mask)
                             logits = out.logits if hasattr(out, 'logits') else out
                         else:
                             logits = model(input_ids)
 
                         if logits.shape[-1] == 1:
-                            # Binary classification: sigmoid
-                            prob_pos = torch.sigmoid(logits).item()
-                            results.append([1.0 - prob_pos, prob_pos])
+                            probs_pos = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
+                            for p in probs_pos:
+                                results.append([1.0 - float(p), float(p)])
                         else:
-                            # Multi-class: softmax
-                            probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy()
-                            results.append(probs)
+                            probs = torch.softmax(logits, dim=-1).cpu().numpy()
+                            for row in probs:
+                                results.append(row)
                 return np.array(results)
 
             num_classes = predict_fn([text]).shape[1]
@@ -1021,20 +1054,63 @@ class SHAPTextTool(BaseTool):
                 hyp_tensor = hyp_ids
 
             def predict_fn(masks):
-                """Predict from binary word masks. masks: (n_samples, n_words)"""
+                """Predict from binary word masks. masks: (n_samples, n_words).
+
+                Batched (not one-forward-pass-per-mask): SHAP's KernelExplainer
+                calls this with up to `nsamples` masks per invocation (min(2*
+                n_words+2048, 5000) below) -- for a realistically long text
+                (IMDB reviews routinely have 150-300+ words), that maxes out
+                at 5000. Looping a single-example forward pass 5000 times
+                (each paying its own Python/tokenize/host-to-device-copy
+                overhead on top of the tiny model's own forward cost) measured
+                at ~45min wall time for one SHAP call in practice -- batching
+                cuts this to a small number of chunked forward passes.
+                """
                 model.eval()
+                CHUNK_SIZE = 64
+                masked_texts = [
+                    ' '.join([w for w, m in zip(words, mask) if m == 1]) or '.'
+                    for mask in masks
+                ]
+                pad_id = getattr(processor, 'pad_token_id', None) if processor is not None else None
+                if pad_id is None:
+                    pad_id = 0
+
                 results = []
                 with torch.no_grad():
-                    for mask in masks:
-                        masked_words = [w for w, m in zip(words, mask) if m == 1]
-                        masked_text = ' '.join(masked_words) if masked_words else '.'
+                    for start in range(0, len(masked_texts), CHUNK_SIZE):
+                        chunk_texts = masked_texts[start:start + CHUNK_SIZE]
+                        chunk_size = len(chunk_texts)
 
-                        input_ids, attention_mask = _encode(masked_text)
+                        if _is_hf_tokenizer:
+                            enc = processor(
+                                chunk_texts, truncation=True, max_length=512,
+                                padding=True, return_tensors='pt',
+                            )
+                            input_ids = enc['input_ids'].to(device)
+                            attention_mask = enc.get('attention_mask')
+                            attention_mask = attention_mask.to(device) if attention_mask is not None else None
+                        else:
+                            # Plain (non-HF) tokenizer: encode each text (cheap,
+                            # CPU-only) then pad the resulting id lists into one
+                            # batch tensor ourselves -- the forward pass below
+                            # is what actually gets batched.
+                            id_lists = [processor(t) for t in chunk_texts]
+                            max_len = max(len(ids) for ids in id_lists)
+                            input_ids = torch.full(
+                                (chunk_size, max_len), pad_id, dtype=torch.long,
+                            )
+                            for i, ids in enumerate(id_lists):
+                                input_ids[i, :len(ids)] = torch.tensor(ids, dtype=torch.long)
+                            input_ids = input_ids.to(device)
+                            attention_mask = None
 
                         if is_dual_input:
-                            out = model(input_ids, hyp_tensor)
+                            hyp_batch = hyp_tensor.expand(chunk_size, -1)
+                            out = model(input_ids, hyp_batch)
                         elif is_nli:
-                            out = model(torch.cat([input_ids, hyp_tensor], dim=1))
+                            hyp_batch = hyp_tensor.expand(chunk_size, -1)
+                            out = model(torch.cat([input_ids, hyp_batch], dim=1))
                         elif _is_hf_tokenizer and attention_mask is not None:
                             out = model(input_ids=input_ids, attention_mask=attention_mask)
                         else:
@@ -1043,11 +1119,13 @@ class SHAPTextTool(BaseTool):
                         logits = out.logits if hasattr(out, 'logits') else out
 
                         if logits.shape[-1] == 1:
-                            prob_pos = torch.sigmoid(logits).item()
-                            results.append([1.0 - prob_pos, prob_pos])
+                            probs_pos = torch.sigmoid(logits).squeeze(-1).cpu().numpy()
+                            for p in probs_pos:
+                                results.append([1.0 - float(p), float(p)])
                         else:
-                            probs = torch.softmax(logits, dim=-1).squeeze().cpu().numpy()
-                            results.append(probs)
+                            probs = torch.softmax(logits, dim=-1).cpu().numpy()
+                            for row in probs:
+                                results.append(row)
                 return np.array(results)
 
             # Background: no words present (empty text baseline).
@@ -2216,8 +2294,6 @@ class XAIToolRegistry:
             self._tools['lime'] = LIMETool(**tool_context)
         if 'shap' in available_tools:
             self._tools['shap'] = SHAPTool(**tool_context)
-
-
 
     def get_tool(self, tool_name: str) -> Optional[BaseTool]:
         """

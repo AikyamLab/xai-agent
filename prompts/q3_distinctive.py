@@ -60,6 +60,20 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
         desc_key = modality_config['description_key']
         desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
+        autonomous_bullets = (
+            f"   - Identify {modality_config['element_type']} that are distinctive for {top1_class} vs {top2_class}\n"
+            f"   - Reason about class-specific features that differentiate the two predictions\n"
+            f"   - Provide {modality_config['location_type']} for decisive {modality_config['element_type']}"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint=f"Explain why you chose this strategy for finding distinctive {modality_config['element_type']} between top-1 and top-2 (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -73,31 +87,10 @@ class Q3DistinctivePromptBuilder(PromptBuilder):
 
 {desc_section}**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} DISTINGUISH the top-1 prediction ({top1_class}) from the top-2 alternative ({top2_class}).
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Identify {modality_config['element_type']} that are distinctive for {top1_class} vs {top2_class}
-   - Reason about class-specific features that differentiate the two predictions
-   - Provide {modality_config['location_type']} for decisive {modality_config['element_type']}
-
-2. **External XAI Tools**: Use established explainability methods for contrastive analysis:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for finding distinctive {modality_config['element_type']} between top-1 and top-2 (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous contrastive analysis",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for contrastive {self.modality} analysis"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """

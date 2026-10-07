@@ -45,6 +45,20 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
         desc_key = modality_config['description_key']
         desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
+        autonomous_bullets = (
+            f"   - Assess the importance of the specified {modality_config['element_type']}\n"
+            f"   - Reason about what alternative prediction the model would make\n"
+            f"   - Consider the distribution of remaining {modality_config['element_type']} importance"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint="Explain why you chose this strategy for predicting outcome (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -61,31 +75,10 @@ class Q7ChangePredictionPromptBuilder(PromptBuilder):
 
 {desc_section}**Task**: Design a strategy to PREDICT how the model's prediction would change if we REMOVE or MODIFY the specified {modality_config['element_type']}.
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Assess the importance of the specified {modality_config['element_type']}
-   - Reason about what alternative prediction the model would make
-   - Consider the distribution of remaining {modality_config['element_type']} importance
-
-2. **External XAI Tools**: Use established explainability methods to predict outcome:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for predicting outcome (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous prediction analysis",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for predicting {self.modality} modification outcome"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """

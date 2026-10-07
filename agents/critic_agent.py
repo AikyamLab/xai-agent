@@ -618,6 +618,15 @@ class CriticAgent(BaseAgent):
         These are embedded in the natural language 'example' field of each benchmark entry.
         """
         kwargs: Dict = {}
+
+        if q_type == 11:
+            # Q11 (concept-level, CUB-only): the evaluator needs the grounded
+            # candidate-concept list (to check the Actor's answer isn't
+            # hallucinated) -- a structured field on the question dict, not
+            # parsed from NL.
+            kwargs['candidate_concepts'] = question.get('candidate_concepts', [])
+            return kwargs
+
         example = question.get('example', '')
         if not example:
             return kwargs

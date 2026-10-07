@@ -71,6 +71,20 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
             + "\n"
         ) if has_desc else ""
 
+        autonomous_bullets = (
+            f"   - Compare {modality_config['element_type']} between the two instances\n"
+            f"   - Reason about what causes each instance's different prediction\n"
+            f"   - Provide {modality_config['location_type']} for decisive {modality_config['element_type']} in each instance"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint=f"Explain why you chose this strategy for comparing {modality_config['element_type']} between instances (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -86,31 +100,10 @@ class Q4ContrastiveInstancesPromptBuilder(MultiInstancePromptBuilder):
 - What {modality_config['element_type']} in Instance A cause prediction A
 - What {modality_config['element_type']} in Instance B cause prediction B
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Compare {modality_config['element_type']} between the two instances
-   - Reason about what causes each instance's different prediction
-   - Provide {modality_config['location_type']} for decisive {modality_config['element_type']} in each instance
-
-2. **External XAI Tools**: Use established explainability methods for comparative analysis:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for comparing {modality_config['element_type']} between instances (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous comparative analysis",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for comparing {self.modality} instances"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """

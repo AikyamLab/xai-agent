@@ -566,7 +566,14 @@ class ActorAgent(BaseAgent):
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        return self.invoke_vlm_for_json(prompt, images)
+        # max_new_tokens=8192 (matches proposer_agent.py's strategy-call budget):
+        # multi-instance/vision explanation prompts routinely make the model
+        # write long free-form reasoning before ever reaching the JSON object,
+        # exhausting a small default budget and getting cut off mid-JSON (see
+        # invoke_vlm_for_json's docstring). This is the exact failure mode
+        # diagnosed from eval_step85_vision_full_testset's near-100% JSON
+        # parse failures.
+        return self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
     # =========================================================================
     # Q4 Specific Methods (instance_A / instance_B format)
@@ -972,7 +979,7 @@ class ActorAgent(BaseAgent):
     ) -> Dict[str, Any]:
         """Execute XAI tools based on strategy"""
         import re
-        from xai_tools import set_output_dir
+        from xai_tools import set_output_dir, GPU_TOOL_LOCK
 
         all_viz_paths = []
         tool_summaries = []
@@ -1039,12 +1046,21 @@ class ActorAgent(BaseAgent):
                     _torch.cuda.empty_cache()
             except Exception:
                 pass
-            result_str = tool.run(
-                image_path=input_path,
-                target_class=target_class,
-                image_id=f"{image_id_prefix}_{tool_name}",
-                **fixed_params
-            )
+            # GPU_TOOL_LOCK: also acquired around the WHOLE pipeline.run()
+            # call in training/rl/env.py -- this nested acquisition (same
+            # thread, RLock) is a harmless no-op when called from there, but
+            # keeps this call site self-defending if some other caller ever
+            # invokes execute_xai_tools outside that wrapper. See
+            # xai_tools.py's GPU_TOOL_LOCK definition for the full incident
+            # history (two separate real CUDA illegal-memory-access crashes
+            # from concurrent GPU access, at two different call sites).
+            with GPU_TOOL_LOCK:
+                result_str = tool.run(
+                    image_path=input_path,
+                    target_class=target_class,
+                    image_id=f"{image_id_prefix}_{tool_name}",
+                    **fixed_params
+                )
             result = json.loads(result_str)
 
             # suggested_bounding_box uses positive-only top-25% pixels (most responsible region).
@@ -1174,8 +1190,10 @@ class ActorAgent(BaseAgent):
                     if p and os.path.exists(p):
                         images.append(p)
 
-            # Call VLM and parse JSON, with retry on parse failure
-            parsed = self.invoke_vlm_for_json(prompt, images if images else None)
+            # Call VLM and parse JSON, with retry on parse failure.
+            # max_new_tokens=8192: same vision/multi-instance truncation fix
+            # as _generate_explanation_multi (see its comment).
+            parsed = self.invoke_vlm_for_json(prompt, images if images else None, max_new_tokens=8192)
 
             autonomous_results[task_type] = {
                 "success": True,
@@ -1704,6 +1722,36 @@ JSON Response:"""
             output_size_config=self.output_size_config
         )
 
+    def _get_tabular_numeric_ranges(self) -> Dict[str, Tuple[float, float]]:
+        """Observed (min, max) per numeric feature, in the same raw units shown to the
+        Actor in the tabular prompt. Used by Q6 to keep proposed new_values realistic
+        (RL otherwise learns to hit unbounded sentinel values like capital-gain=999999999
+        since the flip-prediction reward only checks target-class probability, not
+        plausibility). Returns {} if the active dataset isn't recognized so the prompt
+        silently falls back to its unconstrained form rather than erroring.
+        """
+        loader = self.data_model_loader
+        if loader is None:
+            return {}
+        model_name = getattr(loader, "model_name", "") or ""
+        try:
+            if model_name.startswith("adult"):
+                df = loader.loader_module._cache.get("df")
+                if df is None:
+                    return {}
+                numeric_cols = df.select_dtypes(include="number").columns
+                return {col: (float(df[col].min()), float(df[col].max())) for col in numeric_cols}
+            if model_name.startswith("cancer"):
+                from sklearn.datasets import load_breast_cancer
+                bc = load_breast_cancer()
+                return {
+                    name: (float(bc.data[:, i].min()), float(bc.data[:, i].max()))
+                    for i, name in enumerate(bc.feature_names)
+                }
+        except Exception:
+            return {}
+        return {}
+
     def _build_context(
         self,
         question: Dict[str, Any],
@@ -1754,6 +1802,8 @@ JSON Response:"""
             else:
                 context["data_description"] = str(features)[:400]
                 context["instance_data_single"] = {"features": {}}
+            if question.get("q_type") == 6:
+                context["tabular_numeric_ranges"] = self._get_tabular_numeric_ranges()
 
         # Add target_class / queried_part / part_to_change for counterfactual questions (Q5-Q7)
         if question.get("q_type") in [5, 6, 7]:
@@ -1763,6 +1813,12 @@ JSON Response:"""
                 context["queried_part"] = extracted["queried_part"]
             if "part_to_change" in extracted:
                 context["part_to_change"] = extracted["part_to_change"]
+
+        # Q11: grounding list of concepts actually present in this image, so
+        # the Actor's concept_name answer is verifiable (same principle as
+        # Q1-Q10's hallucination checks).
+        if question.get("q_type") == 11:
+            context["candidate_concepts"] = question.get("candidate_concepts", [])
 
         # For vision Q7: pass the full class list when it is small enough to be useful
         # (≤30 classes, e.g. STL-10).  Large datasets like CUB-200 are excluded until
@@ -1812,7 +1868,11 @@ JSON Response:"""
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        parsed = self.invoke_vlm_for_json(prompt, images)
+        # max_new_tokens=8192: same vision/multi-instance truncation fix as
+        # _generate_explanation_multi (see its comment) -- this is the main
+        # single-instance explanation call (Q1/Q2/Q3/Q5/Q6/Q7/Q8) and the one
+        # responsible for most of the observed vision JSON-parse failures.
+        parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Merge with tool results
         parsed['tool_results'] = tool_results.get('tool_results', {})
@@ -2830,7 +2890,9 @@ JSON Response:"""
             self._save_prompt(prompt, question, "actor_prompt_improved")
 
         images = self._collect_input_images(context, modality) or None
-        parsed = self.invoke_vlm_for_json(prompt, images)
+        # max_new_tokens=8192: same vision/multi-instance truncation fix as
+        # _generate_explanation_multi (see its comment).
+        parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         parsed['tool_results'] = tool_results.get('tool_results', {})
         parsed['visualization_paths'] = tool_results.get('visualization_paths', [])

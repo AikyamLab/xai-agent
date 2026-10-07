@@ -46,6 +46,20 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
         desc_key = modality_config['description_key']
         desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
+        autonomous_bullets = (
+            f"   - Identify {modality_config['element_type']} that are critical for the current prediction\n"
+            f"   - Reason about what modifications would shift the prediction to the target class\n"
+            f"   - Propose specific change plans with {modality_config['location_type']}"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint="Explain why you chose this strategy for finding counterfactual changes (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -60,31 +74,10 @@ class Q6FlipPredictionPromptBuilder(PromptBuilder):
 
 {desc_section}**Task**: Design a comprehensive strategy to identify what CHANGES to the input would FLIP the prediction from "{prediction.get('predicted_class_name', 'current')}" to "{target_class}".
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Identify {modality_config['element_type']} that are critical for the current prediction
-   - Reason about what modifications would shift the prediction to the target class
-   - Propose specific change plans with {modality_config['location_type']}
-
-2. **External XAI Tools**: Use established explainability methods to identify modification targets:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for finding counterfactual changes (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous counterfactual analysis",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for finding {self.modality} counterfactuals"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """
@@ -183,6 +176,16 @@ Provide your strategy as a JSON object:
             else:
                 feat_list = []
                 feat_preview = "N/A"
+            numeric_ranges = context.get('tabular_numeric_ranges', {}) or {}
+            range_preview = ", ".join(
+                f"{k} in [{lo:g}, {hi:g}]"
+                for k, (lo, hi) in numeric_ranges.items()
+                if k in orig_features
+            )
+            range_note = (
+                f"\n        // Realistic observed ranges for numeric features: {range_preview}"
+                if range_preview else ""
+            )
             output_format = f'''"change_plan": [
             {{
                 "feature_key": "feature_name",
@@ -193,7 +196,7 @@ Provide your strategy as a JSON object:
         // Available features: {feat_list}
         // Current values: {feat_preview}
         // Use original feature names (e.g. "occupation") and original value formats (e.g. "Exec-managerial" or 40)
-        // Include multiple entries if changing several features is needed to flip the prediction'''
+        // Include multiple entries if changing several features is needed to flip the prediction{range_note}'''
 
         output_size_constraint = self._build_output_size_constraint(context)
         # Q6 uses change_plan, override the constraint text
@@ -246,7 +249,8 @@ Propose a SPECIFIC change plan that would flip the prediction to "{target_class}
   - if the action is "delete", new_value automatically sets to null
   - bounding_box MUST be within image bounds (x in [0, {image_width}], y in [0, {image_height}])
 - For text: change_plan is a list; each entry has span_text (exact phrase from input), action, new_value
-- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format{output_size_constraint}
+- For tabular: feature_key must be an exact name from the available features list; new_value should match the original data format
+  - For NUMERIC features, new_value MUST stay within the realistic observed range listed above (if given). Do NOT propose unbounded, sentinel, or out-of-distribution values (e.g. age=150, capital-gain=999999999, hours-per-week=1000) — such values are not achievable in practice, even if they would trivially flip the prediction.{output_size_constraint}
 - The change should be MINIMAL but sufficient to flip prediction
 
 Respond with ONLY JSON:"""

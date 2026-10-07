@@ -63,15 +63,29 @@ DATASET_MODEL_MAP = {
     "adult_tabnn": "tabular/adult_tabnn.pth",
     "cancer_2layernn": "tabular/cancer_2layernn.pth",
     "cancer_tabnn": "tabular/cancer_tabnn.pth",
+    "adult_biased": "tabular/adult_biased.pth",
     # OOD
     "cifar_resnet": "vision/cifar_resnet.pth",
     "yelp_bert": "text/yelp_bert.pth",
     "german_credit_3layernn": "tabular/german_credit_3layernn.pth",
+    # OOD (new_ood drop)
+    "food101_swin": "vision/food101_swin.pth",
+    "food101_vit": "vision/food101_vit.pth",
+    "oxford_pet_resnet50": "vision/oxford_pet_resnet50.pth",
+    "oxford_pet_vit": "vision/oxford_pet_vit.pth",
+    "sst2_distilbert": "text/sst2_distilbert.pth",
+    "sst2_roberta": "text/sst2_roberta.pth",
 }
 
 OPTIONAL_LOCAL_CHECKPOINT_DATASETS = {
     "cifar_resnet",
     "yelp_bert",
+    "food101_swin",
+    "food101_vit",
+    "oxford_pet_resnet50",
+    "oxford_pet_vit",
+    "sst2_distilbert",
+    "sst2_roberta",
 }
 
 # Dataset to modality mapping
@@ -88,21 +102,37 @@ DATASET_MODALITY_MAP = {
     "adult_tabnn": "tabular",
     "cancer_2layernn": "tabular",
     "cancer_tabnn": "tabular",
+    "adult_biased": "tabular",
     # OOD
     "cifar_resnet": "vision",
     "yelp_bert": "text",
     "german_credit_3layernn": "tabular",
+    # OOD (new_ood drop)
+    "food101_swin": "vision",
+    "food101_vit": "vision",
+    "oxford_pet_resnet50": "vision",
+    "oxford_pet_vit": "vision",
+    "sst2_distilbert": "text",
+    "sst2_roberta": "text",
 }
 
 STANDARD_MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
-    "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn"],
+    "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn", "adult_biased"],
 }
 
 OOD_MODALITY_DATASETS = {
-    "vision": ["cifar_resnet"],
-    "text": ["yelp_bert"],
+    # oxford_pet_vit and food101_vit's q4 had a real prediction-vs-target
+    # mismatch (root cause: wrong/weak checkpoint for food101_vit; raw
+    # un-remapped model index instead of id2label text for oxford_pet_vit) --
+    # repaired via training/rl_local/repair_new_ood_predictions.py (job
+    # 20502887): prediction-vs-target match now food101_vit_q4 90.8%,
+    # oxford_pet_vit_q2/q3 99.0%, oxford_pet_vit_q4 93.3%. oxford_pet_vit's
+    # q2/q3 still have a separate SAMPLING issue (every row is "Samoyed",
+    # zero class diversity) -- not a label-correctness bug, left as-is.
+    "vision": ["cifar_resnet", "food101_swin", "food101_vit", "oxford_pet_resnet50", "oxford_pet_vit"],
+    "text": ["yelp_bert", "sst2_distilbert", "sst2_roberta"],
     "tabular": ["german_credit_3layernn"],
 }
 
@@ -384,6 +414,7 @@ def run_single_job(
     tinker_checkpoint: Optional[str] = None,
     tinker_lora_rank: int = 16,
     temperature: float = 0.0,
+    ablation_mode: Optional[str] = None,
 ) -> JobResult:
     """Execute a single pipeline job."""
     start_time = datetime.now()
@@ -411,6 +442,8 @@ def run_single_job(
         cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
     if temperature != 0.0:
         cmd.extend(["--temperature", str(temperature)])
+    if ablation_mode is not None:
+        cmd.extend(["--ablation_mode", ablation_mode])
 
     # Create log file
     log_file = log_dir / f"{job.job_id}.log"
@@ -499,6 +532,7 @@ def run_jobs_sequential(
             tinker_checkpoint=config.get("tinker_checkpoint"),
             tinker_lora_rank=config.get("tinker_lora_rank", 16),
             temperature=config.get("temperature", 0.0),
+            ablation_mode=config.get("ablation_mode"),
         )
 
         results.append(result)
@@ -536,6 +570,7 @@ def run_jobs_parallel(
                 tinker_checkpoint=config.get("tinker_checkpoint"),
                 tinker_lora_rank=config.get("tinker_lora_rank", 16),
                 temperature=config.get("temperature", 0.0),
+                ablation_mode=config.get("ablation_mode"),
             ): job
             for job in jobs
         }
@@ -623,8 +658,9 @@ Available Datasets:
     Tabular: adult_2layernn, adult_tabnn, cancer_2layernn, cancer_tabnn
 
 OOD Datasets (use --dataset_variant ood):
-    Vision:  cifar_resnet
-    Text:    yelp_bert
+    Vision:  cifar_resnet, food101_swin, food101_vit, oxford_pet_resnet50, oxford_pet_vit
+             (oxford_pet_vit q2/q3 have a known sampling issue: every row is class "Samoyed")
+    Text:    yelp_bert, sst2_distilbert, sst2_roberta
     Tabular: german_credit_3layernn
         """,
     )
@@ -682,6 +718,9 @@ OOD Datasets (use --dataset_variant ood):
                         help="LoRA rank used during DPO/LoRA training (must match training job, default: 16)")
     parser.add_argument("--temperature", type=float, default=0.0,
                         help="Sampling temperature for the VLM (default: 0.0)")
+    parser.add_argument("--ablation_mode", type=str, choices=["tool_only", "autonomous_only"], default=None,
+                        help="Restrict the Proposer's strategy space for an ablation run "
+                             "('tool_only' or 'autonomous_only'). Default: unrestricted.")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose logging")
 
@@ -705,6 +744,7 @@ OOD Datasets (use --dataset_variant ood):
     config["tinker_checkpoint"] = args.tinker_checkpoint
     config["tinker_lora_rank"] = args.tinker_lora_rank
     config["temperature"] = args.temperature
+    config["ablation_mode"] = args.ablation_mode
 
     variant_dirs = resolve_variant_dirs(
         dataset_variant=config["dataset_variant"],
@@ -761,6 +801,8 @@ OOD Datasets (use --dataset_variant ood):
     logger.info(f"  Output dir: {config['output_dir']}")
     if config["tinker_checkpoint"]:
         logger.info(f"  Tinker checkpoint: {config['tinker_checkpoint']} (rank={config['tinker_lora_rank']})")
+    if config["ablation_mode"]:
+        logger.info(f"  Ablation mode: {config['ablation_mode']}")
 
     # Build jobs
     jobs = build_jobs(
@@ -797,6 +839,8 @@ OOD Datasets (use --dataset_variant ood):
             if config["tinker_checkpoint"]:
                 parts.append(f"--tinker_checkpoint {config['tinker_checkpoint']}")
                 parts.append(f"--tinker_lora_rank {config['tinker_lora_rank']}")
+            if config["ablation_mode"]:
+                parts.append(f"--ablation_mode {config['ablation_mode']}")
             logger.info(f"\n{job.job_id}:")
             logger.info(f"  {' '.join(parts)}")
         sys.exit(0)

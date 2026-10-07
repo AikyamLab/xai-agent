@@ -42,9 +42,6 @@ from lime import lime_image
 import shap
 from skimage.segmentation import mark_boundaries
 
-# Computer Vision Libraries
-from ultralytics import YOLO
-
 
 # Thread-local output directory for XAI visualizations.
 # Using threading.local() instead of a module-level global so that parallel
@@ -52,12 +49,54 @@ from ultralytics import YOLO
 # without overwriting each other.
 _tls = threading.local()
 
-# GPU concurrency is controlled by limiting max_rollout_workers (=40) at the
-# trainer level instead of a per-tool semaphore.  40 concurrent workers × 1.5 GB
-# (LIME peak) + 3.7 GB model weights + 3 GB overhead ≈ 67 GB, safely within
-# the 79 GB GPU budget.  A semaphore caused severe queuing latency (164 workers
-# × 32 sequential semaphore acquisitions per LIME call → step time 66-93 min).
-_LIME_SHAP_GPU_SEM = threading.Semaphore(1000)  # effectively disabled
+# Serializes real GPU work (forward AND backward) across concurrent rollout
+# threads (ThreadPoolExecutor, see local_trainer.py's num_workers pooled
+# path). GPU memory headroom alone is NOT sufficient: a real training run
+# with num_workers=8 hit "CUDA error: an illegal memory access was
+# encountered" (surfaced later, asynchronously, inside dist.broadcast_
+# object_list -- PyTorch's own warning confirms the actual faulty kernel
+# launch happens earlier) after processing several tabular/text questions
+# whose strategies included GuidedBackprop/IntegratedGradients/SmoothGrad
+# (captum-based, real backward() + hooks on the shared explainee model).
+# The identical config with num_workers=1 (fully sequential) ran a complete
+# real step with zero CUDA errors, isolating the fault to concurrent GPU
+# access, not memory pressure.
+#
+# Originally acquired only around tool.run() (agents/actor_agent.py). A
+# later real, longer training run (job 19579910, several hundred rollouts
+# in) hit the IDENTICAL "illegal memory access" signature again, this time
+# from MEA_pipeline.py's _load_model_and_data_multi -> torch.cuda.
+# empty_cache() -- a DIFFERENT GPU-touching call (explainee model load +
+# .predict()) that tool.run()'s narrower lock never covered. Once a CUDA
+# context takes an illegal-memory-access hit it's permanently poisoned for
+# that process (every subsequent CUDA call fails the same way) until the
+# process restarts -- env.py's XAIRLEnv.run_episode() caught and "handled"
+# that first hit gracefully (reward=0.0, training continued), which is why
+# the job kept running for a while before finally dying, uncaught, at an
+# unrelated broadcast_object_list call much later. Rather than keep
+# reactively locking one more call site each time a new one surfaces, the
+# lock is now acquired around the ENTIRE per-question pipeline.run() call
+# (env.py's XAIRLEnv.run_episode) -- every GPU touch within one question's
+# execution happens somewhere inside that call, so this covers the whole
+# class of "two rollout threads touch the GPU at the same moment" bugs, not
+# just the ones found so far. threading.RLock() (not Lock()) because
+# agents/actor_agent.py's tool.run() call site also acquires this same lock
+# (harmless double-acquisition from the same thread once nested inside the
+# outer pipeline.run() wrap; would deadlock with a plain Lock()).
+#
+# This file used to hold a semaphore here that was deliberately disabled
+# (see git history) after an earlier attempt caused severe queuing latency
+# (66-93 min/step) -- but that was a *fine-grained* lock acquired once per
+# individual sample inside SHAP/LIME's then-unbatched predict_fn loop (up to
+# ~5000/1000 acquisitions per single tool call). SHAP/LIME's predict_fn is
+# now batched (chunks of 64), and this lock is acquired once per question
+# (env.py) plus once per tool call within it (actor_agent.py, now a no-op
+# re-entrant acquisition) -- coarse enough that it shouldn't reproduce that
+# latency blowup, but this is a real, load-bearing correctness fix (crash
+# avoidance), not a performance tweak -- do not widen its scope back to
+# per-sample without re-verifying both safety and step-time impact on real
+# hardware.
+GPU_TOOL_LOCK = threading.RLock()
 
 
 def set_output_dir(output_dir: str):
@@ -817,98 +856,6 @@ def execute_shap(
             f"{high_impact*100:.1f}% of regions show high impact (>0.6 threshold). "
             f"Mean SHAP impact: {mean_impact:.3f}. "
             f"Game-theoretic feature importance shows pixel contributions to prediction."
-        )
-    }
-
-    return result
-
-
-# ===================================================================
-# Object Detection Implementation
-# ===================================================================
-
-def execute_object_detection(
-    image: Image.Image,
-    image_id: str = "temp",
-    confidence_threshold: float = 0.25
-) -> Dict[str, Any]:
-    """
-    Execute object detection using YOLO with visualization.
-
-    This tool naturally returns bounding boxes as that's its purpose.
-    """
-    original_size = image.size
-
-    # Load YOLO model; force float32 to prevent auto-fp16 on CUDA
-    yolo_model = YOLO('yolov8n.pt')
-    yolo_model.model.float()
-
-    # Run detection (half=False: suppress ultralytics' fp16 auto-detection)
-    results = yolo_model(image, conf=confidence_threshold, half=False)
-
-    # Extract detection info
-    detections = []
-    img_np = np.array(image)
-
-    for result in results:
-        boxes = result.boxes
-        for box in boxes:
-            x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-            conf = float(box.conf[0].cpu().numpy())
-            cls = int(box.cls[0].cpu().numpy())
-            class_name = yolo_model.names[cls]
-
-            detections.append({
-                "class_name": class_name,
-                "class_id": cls,
-                "confidence": round(conf, 4),
-                "bbox": {
-                    "x1": int(x1),
-                    "y1": int(y1),
-                    "x2": int(x2),
-                    "y2": int(y2)
-                }
-            })
-
-            # Draw on image
-            cv2.rectangle(img_np, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-            label = f"{class_name}: {conf:.2f}"
-            cv2.putText(img_np, label, (int(x1), int(y1) - 10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-
-    # Sort by confidence
-    detections.sort(key=lambda x: x["confidence"], reverse=True)
-
-    # Save visualization
-    output_dir = get_output_dir()
-    viz_path = str(output_dir / f"detection_{image_id}.png")
-    cv2.imwrite(viz_path, cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
-
-    # Group by class
-    class_counts = {}
-    for det in detections:
-        cls = det["class_name"]
-        class_counts[cls] = class_counts.get(cls, 0) + 1
-
-    result = {
-        "success": True,
-        "method": "ObjectDetection",
-        "original_image_size": {"width": original_size[0], "height": original_size[1]},
-        "num_detections": len(detections),
-        "detections": detections,
-        "confidence_threshold": confidence_threshold,
-        "image_id": image_id,
-        "visualization_path": viz_path,
-        "statistics": {
-            "total_detections": len(detections),
-            "unique_classes": len(class_counts),
-            "class_counts": class_counts,
-            "avg_confidence": round(float(np.mean([d["confidence"] for d in detections])), 4) if detections else 0.0
-        },
-        "description": (
-            f"Object detection found {len(detections)} objects "
-            f"({len(class_counts)} unique classes). "
-            f"Detected: {', '.join([f'{c}({n})' for c, n in list(class_counts.items())[:5]])}."
         )
     }
 

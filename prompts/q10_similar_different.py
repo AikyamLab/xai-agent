@@ -81,6 +81,20 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
         desc_key = modality_config['description_key']
         desc_section = ("**Input Content**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
+        autonomous_bullets = (
+            f"   - Compare {modality_config['element_type']} between the correctly and incorrectly classified instances\n"
+            f"   - Identify what makes Instance A succeed where Instance B fails\n"
+            f"   - Find distinguishing characteristics between the two outcomes"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint="Explain why you chose this strategy for comparing correct vs incorrect predictions (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's predictions on SIMILAR {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -93,31 +107,10 @@ class Q10SimilarDifferentPromptBuilder(MultiInstancePromptBuilder):
 {instance_info}
 {desc_section}**Task**: Design a strategy to identify DISTINCT {modality_config['element_type']} that explain why some instances are classified CORRECTLY while others are MISCLASSIFIED. Find the features that differ between correctly and incorrectly classified instances.
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Compare {modality_config['element_type']} between the correctly and incorrectly classified instances
-   - Identify what makes Instance A succeed where Instance B fails
-   - Find distinguishing characteristics between the two outcomes
-
-2. **External XAI Tools**: Use established explainability methods for contrastive analysis:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for comparing correct vs incorrect predictions (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous correct/wrong comparison",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for comparing {self.modality} success vs failure"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """

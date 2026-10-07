@@ -126,27 +126,42 @@ class BaseAgent(ABC):
         print(f"{self.agent_name} initialized")
         print(f"  Output directory: {self.output_dir}")
 
-    def invoke_vlm(self, prompt: str, images: Optional[List[str]] = None) -> str:
+    def invoke_vlm(
+        self,
+        prompt: str,
+        images: Optional[List[str]] = None,
+        max_new_tokens: Optional[int] = None,
+    ) -> str:
         """
         Invoke the VLM with a prompt and optional images.
 
         Args:
             prompt: Text prompt
             images: Optional list of image paths
+            max_new_tokens: Optional per-call override of the generation
+                token budget. Every invoke/invoke_with_images/
+                invoke_multimodal implementation across vlm_wrapper.py,
+                training/rl/rl_vlm.py, and training/rl_local/local_vlm.py
+                already declares **kwargs, so passing this through is safe
+                everywhere -- only LocalSamplingVLM (the local RL rollout
+                path) actually acts on it; other VLM wrappers silently
+                ignore it via their **kwargs, i.e. unchanged behavior for
+                callers that don't pass this.
 
         Returns:
             VLM response string
         """
+        vlm_kwargs = {"max_new_tokens": max_new_tokens} if max_new_tokens is not None else {}
         try:
             if images:
                 if hasattr(self.vlm, 'invoke_with_images'):
-                    return self.vlm.invoke_with_images(prompt, images)
+                    return self.vlm.invoke_with_images(prompt, images, **vlm_kwargs)
                 elif hasattr(self.vlm, 'invoke_multimodal'):
-                    return self.vlm.invoke_multimodal(prompt, images)
+                    return self.vlm.invoke_multimodal(prompt, images, **vlm_kwargs)
                 else:
                     raise RuntimeError(f"VLM does not support image input but {len(images)} images were provided")
             else:
-                return self.vlm.invoke(prompt)
+                return self.vlm.invoke(prompt, **vlm_kwargs)
         except Exception as e:
             error_msg = str(e)
             print(f"  Warning: VLM call failed: {error_msg}")
@@ -405,7 +420,8 @@ class BaseAgent(ABC):
         prompt: str,
         images: Optional[List[str]] = None,
         max_retries: int = 3,
-        retry_delay: float = 2.0
+        retry_delay: float = 2.0,
+        max_new_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Call VLM and parse JSON response, retrying on parse errors.
@@ -415,6 +431,22 @@ class BaseAgent(ABC):
             images: Optional list of image paths
             max_retries: Maximum number of attempts (default 3)
             retry_delay: Seconds to wait between retries (default 2)
+            max_new_tokens: Optional per-call generation token budget
+                override (see invoke_vlm). Confirmed real cause of a class
+                of guaranteed-to-fail JSON parse retries: for hard vision/
+                multi-instance prompts, the (still lightly-trained) local
+                policy often writes long free-form reasoning before ever
+                reaching the JSON object, routinely exhausting the default
+                --max_new_tokens=4096 budget and getting cut off mid-JSON --
+                observed failed responses of 14000-17000+ chars (~4000+
+                tokens), all truncated, none malformed for any other
+                reason. Retrying with the SAME budget on the SAME prompt
+                fails again for the identical structural reason (not
+                random bad luck), burning up to max_retries full
+                generations for a guaranteed loss. Callers generating a
+                strategy JSON (the failure mode observed) should pass a
+                larger budget here; other JSON calls (e.g. short critic
+                verdicts) can leave this None.
 
         Returns:
             Parsed JSON dictionary
@@ -424,7 +456,7 @@ class BaseAgent(ABC):
         """
         last_error = None
         for attempt in range(1, max_retries + 1):
-            response = self.invoke_vlm(prompt, images)
+            response = self.invoke_vlm(prompt, images, max_new_tokens=max_new_tokens)
             try:
                 return self.parse_json_response(response)
             except RuntimeError as e:

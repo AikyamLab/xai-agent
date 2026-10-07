@@ -281,6 +281,17 @@ Q10_SCHEMA_TABULAR = {
 }
 
 # =============================================================================
+# Q11: Which concept was most responsible for this prediction? (CUB-only, vision)
+# =============================================================================
+
+Q11_SCHEMA_VISION = {
+    "output": {
+        "concept_name": "string"  # must exactly match one of the grounded candidate concepts for this image
+    },
+    "explanation": "string"
+}
+
+# =============================================================================
 # Master Schema Registry
 # =============================================================================
 
@@ -295,6 +306,7 @@ QUESTION_OUTPUT_SCHEMAS = {
     8: {"vision": Q8_SCHEMA_VISION, "text": Q8_SCHEMA_TEXT, "tabular": Q8_SCHEMA_TABULAR},
     9: {"vision": Q9_SCHEMA_VISION, "text": Q9_SCHEMA_TEXT, "tabular": Q9_SCHEMA_TABULAR},
     10: {"vision": Q10_SCHEMA_VISION, "text": Q10_SCHEMA_TEXT, "tabular": Q10_SCHEMA_TABULAR},
+    11: {"vision": Q11_SCHEMA_VISION},  # CUB-only, vision-only
 }
 
 
@@ -303,14 +315,14 @@ def get_output_schema(q_type: int, modality: str) -> Dict[str, Any]:
     Get the output schema for a specific question type and modality.
 
     Args:
-        q_type: Question type (1-10)
+        q_type: Question type (1-11)
         modality: Data modality ("vision", "text", "tabular")
 
     Returns:
         Schema dictionary
     """
     if q_type not in QUESTION_OUTPUT_SCHEMAS:
-        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-10.")
+        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-11.")
 
     schemas = QUESTION_OUTPUT_SCHEMAS[q_type]
     if modality not in schemas:
@@ -371,6 +383,13 @@ def validate_output(output: Dict[str, Any], q_type: int, modality: str) -> Tuple
             # Accept new multi-key format or legacy single-key
             if "feature_keys" not in output_data and "feature_key" not in output_data:
                 errors.append("Missing required field: 'output.feature_keys' (list of feature names)")
+
+    # Q11: named concept output (CUB-only, vision)
+    elif q_type == 11:
+        if "concept_name" not in output_data:
+            errors.append("Missing required field: 'output.concept_name'")
+        elif not isinstance(output_data["concept_name"], str) or not output_data["concept_name"].strip():
+            errors.append("'concept_name' must be a non-empty string")
 
     # Q4: two-instance output with named keys
     elif q_type == 4:

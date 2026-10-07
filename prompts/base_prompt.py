@@ -19,6 +19,7 @@ class QuestionCategory(Enum):
     FEATURE_ATTRIBUTION = "feature_attribution"
     COUNTERFACTUAL = "counterfactual"
     SPURIOUS_FEATURES = "spurious_features"
+    CONCEPT_ATTRIBUTION = "concept_attribution"
 
 
 class Modality(Enum):
@@ -316,6 +317,93 @@ class PromptBuilder(ABC):
         if available_tools:
             return _json.dumps(list(available_tools.keys()))
         return fallback_list
+
+    def _build_methods_section(
+        self,
+        context: Dict[str, Any],
+        autonomous_bullets: str,
+        tools_description: str,
+    ) -> str:
+        """
+        Build the '**Available Methods**' block of a proposer prompt.
+
+        Reads context['ablation_mode'] to decide which branch(es) to present:
+          - 'tool_only'        -> only the External XAI Tools branch
+          - 'autonomous_only'  -> only the Autonomous Analysis branch
+          - None / absent      -> both branches (normal, unrestricted strategy)
+
+        The forbidden branch is omitted entirely from the prompt text (not just
+        the JSON schema) so the ablation is enforced by construction rather than
+        by post-hoc filtering.
+        """
+        ablation_mode = context.get('ablation_mode')
+        sections = []
+        if ablation_mode != 'tool_only':
+            sections.append(
+                f"**Autonomous Analysis**: Use your own reasoning capabilities to:\n{autonomous_bullets}"
+            )
+        if ablation_mode != 'autonomous_only':
+            sections.append(
+                f"**External XAI Tools**: Use established explainability methods:\n{tools_description}"
+            )
+        numbered = "\n\n".join(f"{i + 1}. {s}" for i, s in enumerate(sections))
+        return f"**Available Methods**:\n{numbered}"
+
+    def _build_strategy_schema_block(
+        self,
+        context: Dict[str, Any],
+        tool_list: str,
+        reasoning_hint: str,
+    ) -> str:
+        """
+        Build the strategy JSON schema fragment for a proposer prompt, restricted
+        to the branch allowed by context['ablation_mode'] (see _build_methods_section).
+
+        'tool_only' drops the 'autonomous_tasks' field entirely and requires
+        'selected_tools' to be non-empty; 'autonomous_only' drops 'tool_selection'
+        and requires 'autonomous_tasks' to be non-empty. Both are hard requirements
+        stated in the prompt so the ablation arm can't silently degrade into the
+        pure-reasoning (no tools, no autonomous_tasks) fallback path.
+        """
+        ablation_mode = context.get('ablation_mode')
+        autonomous_tasks_fragment = f"""    "autonomous_tasks": [
+        {{
+            "task_type": "grounding" | "reasoning" | "comparison",
+            "query": "Specific query for autonomous analysis",
+            "expected_output": "What should be extracted from this task"
+        }}
+    ],"""
+        tool_selection_fragment = f"""    "tool_selection": {{
+        "selected_tools": {tool_list},
+        "reasoning": "Why these tools for {self.modality} modality"
+    }}"""
+
+        if ablation_mode == 'tool_only':
+            return f"""{{
+    "strategy_type": "tools",
+    "reasoning": "{reasoning_hint}",
+{tool_selection_fragment}
+}}
+
+IMPORTANT: This is a tool-only ablation run (no autonomous reasoning allowed). \
+You MUST select at least one tool in "selected_tools" -- it cannot be empty."""
+
+        if ablation_mode == 'autonomous_only':
+            return f"""{{
+    "strategy_type": "autonomous",
+    "reasoning": "{reasoning_hint}",
+{autonomous_tasks_fragment[:-1]}
+}}
+
+IMPORTANT: This is an autonomous-reasoning-only ablation run (no external tools allowed). \
+You MUST include at least one task in "autonomous_tasks" -- it cannot be empty."""
+
+        return f"""{{
+    "strategy_type": "autonomous" | "tools" | "hybrid",
+    "reasoning": "{reasoning_hint}",
+{autonomous_tasks_fragment}
+{tool_selection_fragment}
+}}"""
 
     def _get_modality_specific_output_format(self) -> str:
         """Get modality-specific output format description"""

@@ -132,6 +132,7 @@ class MEAPipeline:
         vlm: Optional[Any] = None,
         output_size_config=None,
         temperature: float = 0.0,
+        ablation_mode: Optional[str] = None,
     ):
         """
         Initialize XAI Pipeline V2.
@@ -151,6 +152,10 @@ class MEAPipeline:
             vlm: Optional pre-built VLM instance. When provided, vlm_model_id and
                  tinker_checkpoint are ignored. Useful for RL training where the VLM
                  is a custom RLSamplingVLM that records token trajectories.
+            ablation_mode: One of None, 'tool_only', 'autonomous_only'. When set, the
+                 Proposer's prompt hides the disallowed strategy branch and the
+                 generated strategy is validated to only use the allowed branch --
+                 see ProposerAgent._enforce_ablation_mode().
         """
         self.mode = mode
         self.output_size_config = output_size_config
@@ -205,7 +210,8 @@ class MEAPipeline:
             model=None,  # Will be set after loading target model
             output_dir=str(self.output_dir),
             models_dir=str(self.models_dir),
-            output_size_config=output_size_config
+            output_size_config=output_size_config,
+            ablation_mode=ablation_mode
         )
 
         # Load Tinker LoRA/DPO checkpoint for evaluation (test mode only)
@@ -1050,9 +1056,15 @@ class MEAPipeline:
             question['rollout_id'] = rollout_id
 
         # Step 2: Load model and data for all instances
-        model_info, predictions_list, data_paths, input_tensors = self._load_model_and_data_multi(
-            question, target_model_url
-        )
+        # GPU_TOOL_LOCK: serializes explainee model load + .predict() across
+        # concurrent rollout threads (local_trainer.py's num_workers pooled
+        # path) -- see xai_tools.py's GPU_TOOL_LOCK definition for the real
+        # CUDA-illegal-memory-access incident this fixes.
+        from xai_tools import GPU_TOOL_LOCK
+        with GPU_TOOL_LOCK:
+            model_info, predictions_list, data_paths, input_tensors = self._load_model_and_data_multi(
+                question, target_model_url
+            )
 
         # Build instances list for prompts
         image_indices = question.get('image_indices', question.get('row_no', []))
@@ -1365,9 +1377,13 @@ class MEAPipeline:
             )
 
         # Step 2: Load target model and data
-        model_info, prediction, data_path, input_tensor = self._load_model_and_data(
-            question, target_model_url, image_path=image_path
-        )
+        # GPU_TOOL_LOCK: see the identical note above _load_model_and_data_multi's
+        # call site in this file.
+        from xai_tools import GPU_TOOL_LOCK
+        with GPU_TOOL_LOCK:
+            model_info, prediction, data_path, input_tensor = self._load_model_and_data(
+                question, target_model_url, image_path=image_path
+            )
 
         # Step 4: Proposer generates strategy
         print("\n=== Step 3: Proposer Agent ===")
@@ -2538,6 +2554,18 @@ def main():
         default=0.0,
         help="Sampling temperature for the VLM (default: 0.0)"
     )
+    parser.add_argument(
+        "--ablation_mode",
+        type=str,
+        choices=["tool_only", "autonomous_only"],
+        default=None,
+        help=(
+            "Restrict the Proposer's strategy space for an ablation run. "
+            "'tool_only' hides autonomous reasoning and requires selecting an XAI tool; "
+            "'autonomous_only' hides external XAI tools and requires an autonomous task. "
+            "Default: unrestricted (both allowed)."
+        )
+    )
 
     args = parser.parse_args()
 
@@ -2568,6 +2596,7 @@ def main():
         tinker_checkpoint=args.tinker_checkpoint,
         tinker_lora_rank=args.tinker_lora_rank,
         temperature=args.temperature,
+        ablation_mode=args.ablation_mode,
         output_size_config=OutputSizeConfig(
             fixed_percentage=0.25,
             apply_to_tabular=True,

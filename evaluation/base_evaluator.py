@@ -325,14 +325,25 @@ class BaseEvaluator(ABC):
             Prediction dictionary with class and probabilities
         """
         model.eval()
-        with torch.no_grad():
+        # GPU_TOOL_LOCK: serializes this forward pass across concurrent
+        # rollout threads (local_trainer.py's num_workers pooled path) --
+        # get_prediction is the single shared choke point every q*_evaluator.py
+        # faithfulness check calls through. See xai_tools.py's GPU_TOOL_LOCK
+        # definition for the real CUDA-illegal-memory-access incident history
+        # (this and two other call sites were all found the same way: a real
+        # crash after enough concurrent rollouts, not by inspection alone).
+        from xai_tools import GPU_TOOL_LOCK
+        with torch.no_grad(), GPU_TOOL_LOCK:
             # Handle NLI dict input: {'premise': '...', 'hypothesis': '...'}
             if isinstance(input_data, dict) and 'premise' in input_data and 'hypothesis' in input_data:
                 if processor is None:
                     raise ValueError("Processor (tokenizer) required for NLI text input")
                 n_forward_params = len(inspect.signature(model.forward).parameters)
                 def _ids_to_tensor(text):
-                    enc = processor(text, truncation=True, max_length=512)
+                    try:
+                        enc = processor(text, truncation=True, max_length=512)
+                    except TypeError:
+                        enc = processor(text)
                     if hasattr(enc, 'get') and 'input_ids' in enc:
                         ids = enc.get('input_ids')
                         return (torch.tensor(ids, dtype=torch.long).unsqueeze(0).to(device)

@@ -47,6 +47,20 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
         desc_key = modality_config['description_key']
         desc_section = ("**Input Content Description**:\n" + str(context.get(desc_key)) + "\n") if context.get(desc_key) else ""
 
+        autonomous_bullets = (
+            f"   - Identify {modality_config['element_type']} that appear irrelevant to the predicted class\n"
+            f"   - Reason about which parts have minimal contribution\n"
+            f"   - Provide {modality_config['location_type']} for unimportant {modality_config['element_type']}"
+        )
+        methods_section = self._build_methods_section(
+            context, autonomous_bullets=autonomous_bullets, tools_description=tools_description
+        )
+        strategy_schema = self._build_strategy_schema_block(
+            context,
+            tool_list=tool_list,
+            reasoning_hint=f"Explain why you chose this strategy for finding least responsible {modality_config['element_type']} (2-3 sentences)",
+        )
+
         prompt = f"""You are an AI explainability expert designing a strategy to answer the following question about a machine learning model's prediction on {modality_config['input_type']}.
 
 **User Question**: {context.get('user_question', self.question_template)}
@@ -60,31 +74,10 @@ class Q2LeastResponsiblePromptBuilder(PromptBuilder):
 
 {desc_section}**Task**: Design a comprehensive strategy to identify which {modality_config['region_type']} of the input were LEAST RESPONSIBLE (had minimal impact) for this prediction.
 
-**Available Methods**:
-1. **Autonomous Analysis**: Use your own reasoning capabilities to:
-   - Identify {modality_config['element_type']} that appear irrelevant to the predicted class
-   - Reason about which parts have minimal contribution
-   - Provide {modality_config['location_type']} for unimportant {modality_config['element_type']}
-
-2. **External XAI Tools**: Use established explainability methods to find LOW attribution regions:
-{tools_description}
+{methods_section}
 
 **Your Response Must Be Valid JSON** with the following structure:
-{{
-    "strategy_type": "autonomous" | "tools" | "hybrid",
-    "reasoning": "Explain why you chose this strategy for finding least responsible {modality_config['element_type']} (2-3 sentences)",
-    "autonomous_tasks": [
-        {{
-            "task_type": "grounding" | "reasoning" | "comparison",
-            "query": "Specific query for autonomous analysis",
-            "expected_output": "What should be extracted from this task"
-        }}
-    ],
-    "tool_selection": {{
-        "selected_tools": {tool_list},
-        "reasoning": "Why these tools for {self.modality} modality"
-    }}
-}}
+{strategy_schema}
 
 Provide your strategy as a JSON object:
 """

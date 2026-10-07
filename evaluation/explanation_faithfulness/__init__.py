@@ -15,6 +15,7 @@ from .q7_evaluator import Q7Evaluator
 from .q8_evaluator import Q8Evaluator
 from .q9_evaluator import Q9Evaluator
 from .q10_evaluator import Q10Evaluator
+from .q11_evaluator import Q11Evaluator
 
 EVALUATOR_MAP = {
     1: Q1Evaluator,
@@ -27,6 +28,7 @@ EVALUATOR_MAP = {
     8: Q8Evaluator,
     9: Q9Evaluator,
     10: Q10Evaluator,
+    11: Q11Evaluator,
 }
 
 
@@ -35,7 +37,7 @@ def get_evaluator(q_type: int, modality: str = "vision", size_lambda: float = 0.
     Get the appropriate evaluator for a question type.
 
     Args:
-        q_type: Question type (1-10)
+        q_type: Question type (1-11)
         modality: Data modality ("vision", "text", "tabular")
         size_lambda: Weight for L1 size penalty (0.0 = disabled).
 
@@ -59,6 +61,7 @@ __all__ = [
     "Q8Evaluator",
     "Q9Evaluator",
     "Q10Evaluator",
+    "Q11Evaluator",
     "EVALUATOR_MAP",
     "get_evaluator",
 ]

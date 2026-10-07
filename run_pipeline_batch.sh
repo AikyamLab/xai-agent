@@ -76,6 +76,7 @@ TABULAR_DATASETS["cancer_2nn"]="tabular/cancer_2nn.pth"
 TABULAR_DATASETS["cancer_tabnn"]="tabular/cancer_tabnn.pth"
 TABULAR_DATASETS["cancer_2layernn"]="tabular/cancer_2layernn.pth"
 TABULAR_DATASETS["german_credit_3layernn"]="tabular/german_credit_3layernn.pth"
+TABULAR_DATASETS["adult_biased"]="tabular/adult_biased.pth"
 
 OPTIONAL_LOCAL_CHECKPOINT_DATASETS="cifar_resnet yelp_bert"
 

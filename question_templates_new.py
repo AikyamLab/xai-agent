@@ -56,6 +56,7 @@ from prompts.q7_change_prediction import Q7ChangePredictionPromptBuilder
 from prompts.q8_irrelevant_parts import Q8IrrelevantPartsPromptBuilder
 from prompts.q9_shared_feature import Q9SharedFeaturePromptBuilder
 from prompts.q10_similar_different import Q10SimilarDifferentPromptBuilder
+from prompts.q11_concept_attribution import Q11ConceptAttributionPromptBuilder
 
 
 # =============================================================================
@@ -73,6 +74,7 @@ PROMPT_BUILDER_MAP: Dict[int, Type[PromptBuilder]] = {
     8: Q8IrrelevantPartsPromptBuilder,
     9: Q9SharedFeaturePromptBuilder,
     10: Q10SimilarDifferentPromptBuilder,
+    11: Q11ConceptAttributionPromptBuilder,
 }
 
 # Question metadata
@@ -146,6 +148,13 @@ QUESTION_METADATA = {
         "category": QuestionCategory.SPURIOUS_FEATURES,
         "metric": "-Sim(F_correct, F_wrong)",
         "description": "Explain why similar instances have different outcomes"
+    },
+    11: {
+        "name": "Concept Attribution",
+        "template": "Which concept was most responsible for the model's prediction?",
+        "category": QuestionCategory.CONCEPT_ATTRIBUTION,
+        "metric": "Probability Drop (representation-space CAV ablation): max(0, P_original - P_modified)",
+        "description": "CUB-only: Actor names the semantic concept (grounded in Q1's attribution tools + candidate concept list); faithfulness is scored by ablating the concept's trained CAV direction from the model's penultimate representation, not by masking a spatial region"
     },
 }
 
@@ -223,7 +232,7 @@ def get_prompt_builder(q_type: int, modality: str = "vision") -> PromptBuilder:
         ValueError: If q_type is invalid
     """
     if q_type not in PROMPT_BUILDER_MAP:
-        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-10.")
+        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-11.")
 
     builder_class = PROMPT_BUILDER_MAP[q_type]
     return builder_class(modality=modality)
@@ -244,7 +253,7 @@ def get_question_template(q_type: int, modality: str = "vision") -> QuestionTemp
         ValueError: If q_type is invalid
     """
     if q_type not in QUESTION_METADATA:
-        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-10.")
+        raise ValueError(f"Invalid q_type: {q_type}. Must be 1-11.")
 
     metadata = QUESTION_METADATA[q_type]
     prompt_builder = get_prompt_builder(q_type, modality)
