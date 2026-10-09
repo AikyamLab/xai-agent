@@ -139,14 +139,8 @@ class BaseAgent(ABC):
             prompt: Text prompt
             images: Optional list of image paths
             max_new_tokens: Optional per-call override of the generation
-                token budget. Every invoke/invoke_with_images/
-                invoke_multimodal implementation across vlm_wrapper.py,
-                training/rl/rl_vlm.py, and training/rl_local/local_vlm.py
-                already declares **kwargs, so passing this through is safe
-                everywhere -- only LocalSamplingVLM (the local RL rollout
-                path) actually acts on it; other VLM wrappers silently
-                ignore it via their **kwargs, i.e. unchanged behavior for
-                callers that don't pass this.
+                token budget. Only VLM backends that support it act on this
+                value; the others ignore it.
 
         Returns:
             VLM response string
@@ -432,21 +426,11 @@ class BaseAgent(ABC):
             max_retries: Maximum number of attempts (default 3)
             retry_delay: Seconds to wait between retries (default 2)
             max_new_tokens: Optional per-call generation token budget
-                override (see invoke_vlm). Confirmed real cause of a class
-                of guaranteed-to-fail JSON parse retries: for hard vision/
-                multi-instance prompts, the (still lightly-trained) local
-                policy often writes long free-form reasoning before ever
-                reaching the JSON object, routinely exhausting the default
-                --max_new_tokens=4096 budget and getting cut off mid-JSON --
-                observed failed responses of 14000-17000+ chars (~4000+
-                tokens), all truncated, none malformed for any other
-                reason. Retrying with the SAME budget on the SAME prompt
-                fails again for the identical structural reason (not
-                random bad luck), burning up to max_retries full
-                generations for a guaranteed loss. Callers generating a
-                strategy JSON (the failure mode observed) should pass a
-                larger budget here; other JSON calls (e.g. short critic
-                verdicts) can leave this None.
+                override (see invoke_vlm). Responses that reason at length
+                before the JSON object can be truncated by a small default
+                budget, and retrying with the same budget fails the same way,
+                so callers generating long JSON (e.g. strategies) should pass
+                a larger value. Short JSON calls can leave this None.
 
         Returns:
             Parsed JSON dictionary

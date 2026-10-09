@@ -81,7 +81,7 @@ def load_model(model_path: str, embed_dim: int = EMBED_DIM, hidden_dim: int = HI
                num_classes: int = NUM_CLASSES):
     global global_vocab
 
-    vocab_path = Path("/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/text/vocab.pkl")
+    vocab_path = Path("models_to_read/text/vocab.pkl")
     print(f"Loading vocabulary from {vocab_path}...")
     global_vocab = _load_vocab(str(vocab_path))
 
@@ -191,7 +191,7 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    model_path = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/text/snli_2layernn.pth"
+    model_path = "models_to_read/text/snli_2layernn.pth"
 
     model, tok = load_model(model_path)
     print(f"Model loaded on {DEVICE}")

@@ -25,7 +25,7 @@ set -e  # Exit on error
 # ============================================================================
 # Default Configuration
 # ============================================================================
-BASE_DIR="/standard/AikyamLab/yuyang/xai_agent/framework/trial_2"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATASET_DIR="${BASE_DIR}/dataset"
 MODELS_DIR="${BASE_DIR}/models_to_read"
 OUTPUT_DIR="${BASE_DIR}/outputs"

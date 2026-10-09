@@ -18,7 +18,7 @@ def load_dataset(split="test"):
     ])
 
     dataset = STL10(
-        root="/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10",
+        root="dataset/image/stl-10",
         split=split,
         download=False,
         transform=transform
@@ -47,7 +47,7 @@ model = timm.create_model(
 )
 
 model.load_state_dict(
-    torch.load("/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/stl10_resnet_head.pth", map_location=device)
+    torch.load("models_to_read/vision/stl10_resnet_head.pth", map_location=device)
 )
 
 model = model.to(device)

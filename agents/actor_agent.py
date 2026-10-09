@@ -566,13 +566,9 @@ class ActorAgent(BaseAgent):
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192 (matches proposer_agent.py's strategy-call budget):
-        # multi-instance/vision explanation prompts routinely make the model
-        # write long free-form reasoning before ever reaching the JSON object,
-        # exhausting a small default budget and getting cut off mid-JSON (see
-        # invoke_vlm_for_json's docstring). This is the exact failure mode
-        # diagnosed from eval_step85_vision_full_testset's near-100% JSON
-        # parse failures.
+        # Larger generation budget (same as the proposer): vision/multi-instance
+        # prompts often produce long reasoning before the JSON object, which a
+        # small default budget would truncate mid-JSON.
         return self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
     # =========================================================================
@@ -1046,14 +1042,9 @@ class ActorAgent(BaseAgent):
                     _torch.cuda.empty_cache()
             except Exception:
                 pass
-            # GPU_TOOL_LOCK: also acquired around the WHOLE pipeline.run()
-            # call in training/rl/env.py -- this nested acquisition (same
-            # thread, RLock) is a harmless no-op when called from there, but
-            # keeps this call site self-defending if some other caller ever
-            # invokes execute_xai_tools outside that wrapper. See
-            # xai_tools.py's GPU_TOOL_LOCK definition for the full incident
-            # history (two separate real CUDA illegal-memory-access crashes
-            # from concurrent GPU access, at two different call sites).
+            # Serialize GPU access across rollout threads. The lock is
+            # re-entrant, so this is a no-op when already held by the caller
+            # (see GPU_TOOL_LOCK in xai_tools.py).
             with GPU_TOOL_LOCK:
                 result_str = tool.run(
                     image_path=input_path,
@@ -1191,8 +1182,7 @@ class ActorAgent(BaseAgent):
                         images.append(p)
 
             # Call VLM and parse JSON, with retry on parse failure.
-            # max_new_tokens=8192: same vision/multi-instance truncation fix
-            # as _generate_explanation_multi (see its comment).
+            # Larger generation budget so long responses are not cut off mid-JSON.
             parsed = self.invoke_vlm_for_json(prompt, images if images else None, max_new_tokens=8192)
 
             autonomous_results[task_type] = {
@@ -1868,10 +1858,7 @@ JSON Response:"""
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192: same vision/multi-instance truncation fix as
-        # _generate_explanation_multi (see its comment) -- this is the main
-        # single-instance explanation call (Q1/Q2/Q3/Q5/Q6/Q7/Q8) and the one
-        # responsible for most of the observed vision JSON-parse failures.
+        # Larger generation budget so long responses are not cut off mid-JSON.
         parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Merge with tool results
@@ -2890,8 +2877,7 @@ JSON Response:"""
             self._save_prompt(prompt, question, "actor_prompt_improved")
 
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192: same vision/multi-instance truncation fix as
-        # _generate_explanation_multi (see its comment).
+        # Larger generation budget so long responses are not cut off mid-JSON.
         parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         parsed['tool_results'] = tool_results.get('tool_results', {})

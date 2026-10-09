@@ -9,7 +9,7 @@ from pathlib import Path
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEFAULT_DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/stl-10"
+DEFAULT_DATASET_ROOT = "dataset/image/stl-10"
 DATASET_ROOT = DEFAULT_DATASET_ROOT
 NUM_CLASSES = 10
 
@@ -220,7 +220,7 @@ def get_model_info(model: torch.nn.Module) -> Dict[str, Any]:
 
 # Main function for testing
 if __name__ == "__main__":
-    model_path = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/stl10_resnet.pth"
+    model_path = "models_to_read/vision/stl10_resnet.pth"
 
     # Load model
     model, transform = load_model(model_path)

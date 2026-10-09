@@ -59,12 +59,6 @@ export ANTHROPIC_API_KEY=...    # optional, for Claude API baseline
 export OPENAI_API_KEY=...       # optional, for GPT API baseline
 ```
 
-The helper script `setup_env.sh` sets all of the above for this installation:
-
-```bash
-source setup_env.sh
-```
-
 ---
 
 ## Datasets
@@ -166,13 +160,12 @@ Submit a batch evaluation job:
 ```bash
 sbatch --job-name=mea_pipeline \
        --partition=gpu \
-       --account=aikyam_agent \
        --gres=gpu:a100:1 \
        --constraint=a100_80gb \
        --mem=128G \
        --cpus-per-task=8 \
        --time=24:00:00 \
-       --wrap="source setup_env.sh && python run_pipeline_batch.py \
+       --wrap="python run_pipeline_batch.py \
            --vlm tinker/Qwen/Qwen3.6-35B-A3B \
            --datasets stl10_resnet cub_resnet \
            --q_types 1 2 3 4 \
@@ -192,13 +185,12 @@ Training uses LoRA (rank 32) with a hybrid strategy combining in-distribution an
 ```bash
 sbatch --job-name=mea_grpo \
        --partition=gpu \
-       --account=aikyam_agent \
        --gres=gpu:a100:1 \
        --constraint=a100_80gb \
        --mem=256G \
        --cpus-per-task=16 \
        --time=48:00:00 \
-       --wrap="source setup_env.sh && python -m training.rl.train \
+       --wrap="python -m training.rl.train \
            --dataset_name stl10_resnet \
            --mode train \
            --q_types 1 2 3 \
@@ -242,8 +234,7 @@ agents/                     # Agent base classes
 prompts/                    # Per-question-type prompt builders (Q1–Q10)
 evaluation/                 # Faithfulness evaluators (Q1–Q10)
 training/rl/                # GRPO training (env, trainer, dataset, rollout)
-data/                       # Dataset loader scripts (local only, not tracked in git)
-models_to_read/             # Pre-trained model checkpoints (local only)
+models_to_read/             # Model checkpoints and loader scripts
 ```
 
 ---

@@ -2,8 +2,7 @@
 Compare region-based Q11 faithfulness (Part A: gray-fill masking a
 human-annotated spatial region) against representation-space concept
 ablation (Part B: orthogonal CAV projection), on the (image, concept) pairs
-covered by both. This is the key rebuttal evidence: if the two agree, that
-supports using the cheaper/agent-compatible local-perturbation proxy as a
+covered by both. If the two agree, that supports using the cheaper/agent-compatible local-perturbation proxy as a
 faithful stand-in for concept-level faithfulness in general.
 
 Requires concept_level/q11_results.csv (from eval_q11.py) and

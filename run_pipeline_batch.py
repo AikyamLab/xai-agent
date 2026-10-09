@@ -123,14 +123,6 @@ STANDARD_MODALITY_DATASETS = {
 }
 
 OOD_MODALITY_DATASETS = {
-    # oxford_pet_vit and food101_vit's q4 had a real prediction-vs-target
-    # mismatch (root cause: wrong/weak checkpoint for food101_vit; raw
-    # un-remapped model index instead of id2label text for oxford_pet_vit) --
-    # repaired via training/rl_local/repair_new_ood_predictions.py (job
-    # 20502887): prediction-vs-target match now food101_vit_q4 90.8%,
-    # oxford_pet_vit_q2/q3 99.0%, oxford_pet_vit_q4 93.3%. oxford_pet_vit's
-    # q2/q3 still have a separate SAMPLING issue (every row is "Samoyed",
-    # zero class diversity) -- not a label-correctness bug, left as-is.
     "vision": ["cifar_resnet", "food101_swin", "food101_vit", "oxford_pet_resnet50", "oxford_pet_vit"],
     "text": ["yelp_bert", "sst2_distilbert", "sst2_roberta"],
     "tabular": ["german_credit_3layernn"],

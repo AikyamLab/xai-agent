@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Constants
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEFAULT_DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset/image/CUB_200_2011"
+DEFAULT_DATASET_ROOT = "dataset/image/CUB_200_2011"
 DATASET_ROOT = DEFAULT_DATASET_ROOT
 NUM_CLASSES = 200
 
@@ -29,7 +29,7 @@ def get_label_map(root_path):
 
 LABEL_MAP = get_label_map(DATASET_ROOT)
 
-# Module-level dataset cache: same fix as load_cub_resnet.py.
+# Module-level dataset cache.
 _dataset_cache: dict = {}
 
 

@@ -667,11 +667,9 @@ class LIMETextTool(BaseTool):
             def predict_fn(texts):
                 """Generic predict function for any PyTorch text model.
 
-                Batched (see SHAPTextTool.predict_fn's docstring for why --
-                identical fix, same underlying issue: LIME's explain_instance
-                calls this with num_samples texts (default 1000) per call;
-                looping one-forward-pass-per-text here made that 1000x the
-                per-call overhead instead of a handful of batched passes.
+                Batched: LIME's explain_instance calls this with num_samples
+                texts (default 1000) per call, so texts are processed in
+                chunks rather than one forward pass per text.
                 """
                 model.eval()
                 CHUNK_SIZE = 64
@@ -1056,15 +1054,10 @@ class SHAPTextTool(BaseTool):
             def predict_fn(masks):
                 """Predict from binary word masks. masks: (n_samples, n_words).
 
-                Batched (not one-forward-pass-per-mask): SHAP's KernelExplainer
-                calls this with up to `nsamples` masks per invocation (min(2*
-                n_words+2048, 5000) below) -- for a realistically long text
-                (IMDB reviews routinely have 150-300+ words), that maxes out
-                at 5000. Looping a single-example forward pass 5000 times
-                (each paying its own Python/tokenize/host-to-device-copy
-                overhead on top of the tiny model's own forward cost) measured
-                at ~45min wall time for one SHAP call in practice -- batching
-                cuts this to a small number of chunked forward passes.
+                Batched: SHAP's KernelExplainer calls this with up to `nsamples`
+                masks per invocation (min(2 * n_words + 2048, 5000) below), so
+                masks are processed in chunks rather than one forward pass per
+                mask.
                 """
                 model.eval()
                 CHUNK_SIZE = 64

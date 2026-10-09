@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DEFAULT_DATASET_ROOT = "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/dataset_ood/image/cifar-10"
+DEFAULT_DATASET_ROOT = "dataset_ood/image/cifar-10"
 DATASET_ROOT = DEFAULT_DATASET_ROOT
 NUM_CLASSES = 10
 

@@ -48,13 +48,13 @@ if __name__ == "__main__":
     models_to_process = [
         {
             "url": "https://drive.google.com/file/d/1mAypR_7TAcAYQFoJKIGkJ_IZCXMlt6_q/view?usp=drive_link", # !!! REPLACE THIS WITH THE ACTUAL RESNET GOOGLE DRIVE LINK !!!
-            "output": "/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/text/snli_2layernn.pth",
+            "output": "models_to_read/text/snli_2layernn.pth",
             "name": "snli_2layernn.pth"
         }
     ]
 
     # Ensure the output directory exists
-    output_base_dir = "/sfs/ceph/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/vision/"
+    output_base_dir = "models_to_read/vision/"
     os.makedirs(output_base_dir, exist_ok=True)
 
     for model_info in models_to_process:

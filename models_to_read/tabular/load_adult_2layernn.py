@@ -279,7 +279,7 @@ def get_model_info(model: nn.Module) -> Dict[str, Any]:
 
 # Main function for testing
 if __name__ == "__main__":
-    model_path = "/sfs/ceph/standard/AikyamLab/yuyang/xai_agent/framework/trial_2/models_to_read/tabular/adult_2layernn.pth"
+    model_path = "models_to_read/tabular/adult_2layernn.pth"
 
     # Load model
     model, preprocessor = load_model(model_path)

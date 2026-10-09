@@ -446,14 +446,9 @@ class ProposerAgent(BaseAgent):
 
         modality = question.get('modality', 'vision') if question else 'vision'
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192 (double the trainer's default 4096): confirmed
-        # real cause of a class of guaranteed-repeat JSON parse failures on
-        # hard vision/multi-instance prompts -- the (lightly-trained) local
-        # policy often writes long free-form reasoning before the JSON
-        # object, exhausting the default budget and getting truncated
-        # mid-JSON (observed failed responses of 14000-17000+ chars, all
-        # truncated, none malformed any other way). See invoke_vlm_for_json's
-        # docstring for the full incident writeup.
+        # Larger generation budget: vision/multi-instance prompts often produce
+        # long reasoning before the JSON object, which the default budget would
+        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert tool_selection format if needed
@@ -489,14 +484,9 @@ class ProposerAgent(BaseAgent):
 
         modality = question.get('modality', 'vision') if question else 'vision'
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192 (double the trainer's default 4096): confirmed
-        # real cause of a class of guaranteed-repeat JSON parse failures on
-        # hard vision/multi-instance prompts -- the (lightly-trained) local
-        # policy often writes long free-form reasoning before the JSON
-        # object, exhausting the default budget and getting truncated
-        # mid-JSON (observed failed responses of 14000-17000+ chars, all
-        # truncated, none malformed any other way). See invoke_vlm_for_json's
-        # docstring for the full incident writeup.
+        # Larger generation budget: vision/multi-instance prompts often produce
+        # long reasoning before the JSON object, which the default budget would
+        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert tool_selection format if needed
@@ -841,14 +831,9 @@ Generate a new strategy in the same JSON format as before.
         self._save_prompt(prompt, question, "proposer_prompt")
 
         images = self._collect_input_images(context, modality) or None
-        # max_new_tokens=8192 (double the trainer's default 4096): confirmed
-        # real cause of a class of guaranteed-repeat JSON parse failures on
-        # hard vision/multi-instance prompts -- the (lightly-trained) local
-        # policy often writes long free-form reasoning before the JSON
-        # object, exhausting the default budget and getting truncated
-        # mid-JSON (observed failed responses of 14000-17000+ chars, all
-        # truncated, none malformed any other way). See invoke_vlm_for_json's
-        # docstring for the full incident writeup.
+        # Larger generation budget: vision/multi-instance prompts often produce
+        # long reasoning before the JSON object, which the default budget would
+        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert format if needed

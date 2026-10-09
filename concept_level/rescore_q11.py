@@ -1,10 +1,9 @@
 """
-Re-score the 240 already-answered Q11 questions (q11_outputs/base +
-q11_outputs/ckpt) using the newly trained (full-train-split) CAVs, without
-re-running the agent pipeline. The Actor's concept_name choice is already
-fixed in each complete_results.json; only the CAV-ablation faithfulness
-score depends on CAV quality, so this just re-invokes Q11Evaluator.evaluate()
-per question with the new CAVs now sitting in concept_level/cavs/.
+Re-score already-answered Q11 questions (q11_outputs/base and q11_outputs/ckpt)
+with the trained CAVs in concept_level/cavs/, without re-running the agent
+pipeline. The Actor's concept_name choice is stored in each
+complete_results.json; only the CAV-ablation faithfulness score depends on
+the CAVs, so this re-invokes Q11Evaluator.evaluate() per question.
 """
 import glob
 import json

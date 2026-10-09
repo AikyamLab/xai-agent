@@ -49,53 +49,13 @@ from skimage.segmentation import mark_boundaries
 # without overwriting each other.
 _tls = threading.local()
 
-# Serializes real GPU work (forward AND backward) across concurrent rollout
-# threads (ThreadPoolExecutor, see local_trainer.py's num_workers pooled
-# path). GPU memory headroom alone is NOT sufficient: a real training run
-# with num_workers=8 hit "CUDA error: an illegal memory access was
-# encountered" (surfaced later, asynchronously, inside dist.broadcast_
-# object_list -- PyTorch's own warning confirms the actual faulty kernel
-# launch happens earlier) after processing several tabular/text questions
-# whose strategies included GuidedBackprop/IntegratedGradients/SmoothGrad
-# (captum-based, real backward() + hooks on the shared explainee model).
-# The identical config with num_workers=1 (fully sequential) ran a complete
-# real step with zero CUDA errors, isolating the fault to concurrent GPU
-# access, not memory pressure.
-#
-# Originally acquired only around tool.run() (agents/actor_agent.py). A
-# later real, longer training run (job 19579910, several hundred rollouts
-# in) hit the IDENTICAL "illegal memory access" signature again, this time
-# from MEA_pipeline.py's _load_model_and_data_multi -> torch.cuda.
-# empty_cache() -- a DIFFERENT GPU-touching call (explainee model load +
-# .predict()) that tool.run()'s narrower lock never covered. Once a CUDA
-# context takes an illegal-memory-access hit it's permanently poisoned for
-# that process (every subsequent CUDA call fails the same way) until the
-# process restarts -- env.py's XAIRLEnv.run_episode() caught and "handled"
-# that first hit gracefully (reward=0.0, training continued), which is why
-# the job kept running for a while before finally dying, uncaught, at an
-# unrelated broadcast_object_list call much later. Rather than keep
-# reactively locking one more call site each time a new one surfaces, the
-# lock is now acquired around the ENTIRE per-question pipeline.run() call
-# (env.py's XAIRLEnv.run_episode) -- every GPU touch within one question's
-# execution happens somewhere inside that call, so this covers the whole
-# class of "two rollout threads touch the GPU at the same moment" bugs, not
-# just the ones found so far. threading.RLock() (not Lock()) because
-# agents/actor_agent.py's tool.run() call site also acquires this same lock
-# (harmless double-acquisition from the same thread once nested inside the
-# outer pipeline.run() wrap; would deadlock with a plain Lock()).
-#
-# This file used to hold a semaphore here that was deliberately disabled
-# (see git history) after an earlier attempt caused severe queuing latency
-# (66-93 min/step) -- but that was a *fine-grained* lock acquired once per
-# individual sample inside SHAP/LIME's then-unbatched predict_fn loop (up to
-# ~5000/1000 acquisitions per single tool call). SHAP/LIME's predict_fn is
-# now batched (chunks of 64), and this lock is acquired once per question
-# (env.py) plus once per tool call within it (actor_agent.py, now a no-op
-# re-entrant acquisition) -- coarse enough that it shouldn't reproduce that
-# latency blowup, but this is a real, load-bearing correctness fix (crash
-# avoidance), not a performance tweak -- do not widen its scope back to
-# per-sample without re-verifying both safety and step-time impact on real
-# hardware.
+# Serializes GPU work (forward and backward passes) across concurrent rollout
+# threads. Concurrent access to the shared explainee model can raise CUDA
+# "illegal memory access" errors, so the lock is held around each question's
+# full pipeline run (training/rl/env.py) and around individual tool calls
+# (agents/actor_agent.py). It is re-entrant so these nested acquisitions from
+# the same thread are safe. Keep its scope coarse: acquiring it per sample
+# inside SHAP/LIME's predict_fn causes severe queuing latency.
 GPU_TOOL_LOCK = threading.RLock()
 
 

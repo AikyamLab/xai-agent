@@ -325,13 +325,9 @@ class BaseEvaluator(ABC):
             Prediction dictionary with class and probabilities
         """
         model.eval()
-        # GPU_TOOL_LOCK: serializes this forward pass across concurrent
-        # rollout threads (local_trainer.py's num_workers pooled path) --
-        # get_prediction is the single shared choke point every q*_evaluator.py
-        # faithfulness check calls through. See xai_tools.py's GPU_TOOL_LOCK
-        # definition for the real CUDA-illegal-memory-access incident history
-        # (this and two other call sites were all found the same way: a real
-        # crash after enough concurrent rollouts, not by inspection alone).
+        # Serialize this forward pass across concurrent rollout threads; every
+        # evaluator's faithfulness check goes through get_prediction (see
+        # GPU_TOOL_LOCK in xai_tools.py).
         from xai_tools import GPU_TOOL_LOCK
         with torch.no_grad(), GPU_TOOL_LOCK:
             # Handle NLI dict input: {'premise': '...', 'hypothesis': '...'}

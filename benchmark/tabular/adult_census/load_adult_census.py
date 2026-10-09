@@ -68,4 +68,3 @@ def use_benchmark_adult(row_idx: int, random_seed: int = RANDOM_SEED, device: st
 
   return raw_instance, input_tensor
 
-# --- Example Usage (will be handled by the original call, now that the function is fixed) ---
