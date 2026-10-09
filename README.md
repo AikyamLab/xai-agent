@@ -153,29 +153,6 @@ python run_pipeline_batch.py --config batch_config_example.json
 
 ---
 
-## SLURM
-
-Submit a batch evaluation job:
-
-```bash
-sbatch --job-name=mea_pipeline \
-       --partition=gpu \
-       --gres=gpu:a100:1 \
-       --constraint=a100_80gb \
-       --mem=128G \
-       --cpus-per-task=8 \
-       --time=24:00:00 \
-       --wrap="python run_pipeline_batch.py \
-           --vlm tinker/Qwen/Qwen3.6-35B-A3B \
-           --datasets stl10_resnet cub_resnet \
-           --q_types 1 2 3 4 \
-           --output_dir outputs/"
-```
-
-Logs go to `outputs/logs/<timestamp>/`.
-
----
-
 ## Training
 
 MEA is trained with GRPO (Group Relative Policy Optimization) on `Qwen3.6-35B-A3B` via the Tinker SDK. The pipeline itself serves as the RL environment: faithfulness scores are used as rewards to guide the Proposer and Actor.
@@ -183,21 +160,14 @@ MEA is trained with GRPO (Group Relative Policy Optimization) on `Qwen3.6-35B-A3
 Training uses LoRA (rank 32) with a hybrid strategy combining in-distribution and OOD questions.
 
 ```bash
-sbatch --job-name=mea_grpo \
-       --partition=gpu \
-       --gres=gpu:a100:1 \
-       --constraint=a100_80gb \
-       --mem=256G \
-       --cpus-per-task=16 \
-       --time=48:00:00 \
-       --wrap="python -m training.rl.train \
-           --dataset_name stl10_resnet \
-           --mode train \
-           --q_types 1 2 3 \
-           --model_name Qwen/Qwen3.6-35B-A3B \
-           --output_dir checkpoints/grpo_vision \
-           --num_rollouts 4 \
-           --no-improvement"
+python -m training.rl.train \
+    --dataset_name stl10_resnet \
+    --mode train \
+    --q_types 1 2 3 \
+    --model_name Qwen/Qwen3.6-35B-A3B \
+    --output_dir checkpoints/grpo_vision \
+    --num_rollouts 4 \
+    --no-improvement
 ```
 
 ---

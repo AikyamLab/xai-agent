@@ -49,7 +49,7 @@ def _build_pipeline_pool() -> "_queue.Queue":
             raise RuntimeError(
                 "[SD Inpainting] No CUDA GPU found. "
                 "SD inpainting requires at least one GPU. "
-                "Add --gres=gpu:1 (or more) to your SLURM job."
+                "Run on a machine with a GPU."
             )
 
         pool: "_queue.Queue" = _queue.Queue()

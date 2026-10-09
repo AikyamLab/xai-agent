@@ -667,9 +667,7 @@ class LIMETextTool(BaseTool):
             def predict_fn(texts):
                 """Generic predict function for any PyTorch text model.
 
-                Batched: LIME's explain_instance calls this with num_samples
-                texts (default 1000) per call, so texts are processed in
-                chunks rather than one forward pass per text.
+                Processes texts in batches.
                 """
                 model.eval()
                 CHUNK_SIZE = 64
@@ -1054,10 +1052,7 @@ class SHAPTextTool(BaseTool):
             def predict_fn(masks):
                 """Predict from binary word masks. masks: (n_samples, n_words).
 
-                Batched: SHAP's KernelExplainer calls this with up to `nsamples`
-                masks per invocation (min(2 * n_words + 2048, 5000) below), so
-                masks are processed in chunks rather than one forward pass per
-                mask.
+                Processes masks in batches.
                 """
                 model.eval()
                 CHUNK_SIZE = 64

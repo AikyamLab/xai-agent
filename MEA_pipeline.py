@@ -79,9 +79,7 @@ def load_model_loader_module(model_path: str, models_dir: str):
     canonical_name = f"models_to_read.{model_path.parent.name}.{loader_path.stem}"
     import sys
 
-    # Return the cached module only if exec completed successfully (indicated
-    # by the presence of `load_model`); otherwise a partially initialised module
-    # left in sys.modules by a failed exec_module would be returned.
+    # Reuse the cached module only if it finished loading.
     if canonical_name in sys.modules:
         cached = sys.modules[canonical_name]
         if hasattr(cached, 'load_model'):
@@ -1056,8 +1054,6 @@ class MEAPipeline:
             question['rollout_id'] = rollout_id
 
         # Step 2: Load model and data for all instances
-        # Serialize explainee model load + predict across concurrent rollout
-        # threads (see GPU_TOOL_LOCK in xai_tools.py).
         from xai_tools import GPU_TOOL_LOCK
         with GPU_TOOL_LOCK:
             model_info, predictions_list, data_paths, input_tensors = self._load_model_and_data_multi(

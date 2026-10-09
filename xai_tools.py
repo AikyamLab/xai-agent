@@ -49,13 +49,7 @@ from skimage.segmentation import mark_boundaries
 # without overwriting each other.
 _tls = threading.local()
 
-# Serializes GPU work (forward and backward passes) across concurrent rollout
-# threads. Concurrent access to the shared explainee model can raise CUDA
-# "illegal memory access" errors, so the lock is held around each question's
-# full pipeline run (training/rl/env.py) and around individual tool calls
-# (agents/actor_agent.py). It is re-entrant so these nested acquisitions from
-# the same thread are safe. Keep its scope coarse: acquiring it per sample
-# inside SHAP/LIME's predict_fn causes severe queuing latency.
+# Serializes GPU work across concurrent rollout threads (re-entrant).
 GPU_TOOL_LOCK = threading.RLock()
 
 

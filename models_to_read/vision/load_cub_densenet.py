@@ -29,7 +29,6 @@ def get_label_map(root_path):
 
 LABEL_MAP = get_label_map(DATASET_ROOT)
 
-# Module-level dataset cache.
 _dataset_cache: dict = {}
 
 

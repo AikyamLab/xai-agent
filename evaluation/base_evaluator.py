@@ -325,9 +325,6 @@ class BaseEvaluator(ABC):
             Prediction dictionary with class and probabilities
         """
         model.eval()
-        # Serialize this forward pass across concurrent rollout threads; every
-        # evaluator's faithfulness check goes through get_prediction (see
-        # GPU_TOOL_LOCK in xai_tools.py).
         from xai_tools import GPU_TOOL_LOCK
         with torch.no_grad(), GPU_TOOL_LOCK:
             # Handle NLI dict input: {'premise': '...', 'hypothesis': '...'}

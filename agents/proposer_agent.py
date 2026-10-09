@@ -446,9 +446,6 @@ class ProposerAgent(BaseAgent):
 
         modality = question.get('modality', 'vision') if question else 'vision'
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget: vision/multi-instance prompts often produce
-        # long reasoning before the JSON object, which the default budget would
-        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert tool_selection format if needed
@@ -484,9 +481,6 @@ class ProposerAgent(BaseAgent):
 
         modality = question.get('modality', 'vision') if question else 'vision'
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget: vision/multi-instance prompts often produce
-        # long reasoning before the JSON object, which the default budget would
-        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert tool_selection format if needed
@@ -831,9 +825,6 @@ Generate a new strategy in the same JSON format as before.
         self._save_prompt(prompt, question, "proposer_prompt")
 
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget: vision/multi-instance prompts often produce
-        # long reasoning before the JSON object, which the default budget would
-        # truncate mid-JSON.
         strategy = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Convert format if needed

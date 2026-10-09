@@ -139,8 +139,7 @@ class BaseAgent(ABC):
             prompt: Text prompt
             images: Optional list of image paths
             max_new_tokens: Optional per-call override of the generation
-                token budget. Only VLM backends that support it act on this
-                value; the others ignore it.
+                token budget (ignored by backends that do not support it).
 
         Returns:
             VLM response string
@@ -426,11 +425,7 @@ class BaseAgent(ABC):
             max_retries: Maximum number of attempts (default 3)
             retry_delay: Seconds to wait between retries (default 2)
             max_new_tokens: Optional per-call generation token budget
-                override (see invoke_vlm). Responses that reason at length
-                before the JSON object can be truncated by a small default
-                budget, and retrying with the same budget fails the same way,
-                so callers generating long JSON (e.g. strategies) should pass
-                a larger value. Short JSON calls can leave this None.
+                override (see invoke_vlm)
 
         Returns:
             Parsed JSON dictionary

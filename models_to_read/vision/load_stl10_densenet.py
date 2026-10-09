@@ -38,7 +38,6 @@ def get_transform():
     ])
 
 
-# Module-level dataset cache.
 _dataset_cache: dict = {}
 
 

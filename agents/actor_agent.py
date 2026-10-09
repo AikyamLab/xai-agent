@@ -566,9 +566,6 @@ class ActorAgent(BaseAgent):
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget (same as the proposer): vision/multi-instance
-        # prompts often produce long reasoning before the JSON object, which a
-        # small default budget would truncate mid-JSON.
         return self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
     # =========================================================================
@@ -1042,9 +1039,6 @@ class ActorAgent(BaseAgent):
                     _torch.cuda.empty_cache()
             except Exception:
                 pass
-            # Serialize GPU access across rollout threads. The lock is
-            # re-entrant, so this is a no-op when already held by the caller
-            # (see GPU_TOOL_LOCK in xai_tools.py).
             with GPU_TOOL_LOCK:
                 result_str = tool.run(
                     image_path=input_path,
@@ -1182,7 +1176,6 @@ class ActorAgent(BaseAgent):
                         images.append(p)
 
             # Call VLM and parse JSON, with retry on parse failure.
-            # Larger generation budget so long responses are not cut off mid-JSON.
             parsed = self.invoke_vlm_for_json(prompt, images if images else None, max_new_tokens=8192)
 
             autonomous_results[task_type] = {
@@ -1858,7 +1851,6 @@ JSON Response:"""
 
         modality = (question or {}).get('modality', 'vision')
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget so long responses are not cut off mid-JSON.
         parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         # Merge with tool results
@@ -2877,7 +2869,6 @@ JSON Response:"""
             self._save_prompt(prompt, question, "actor_prompt_improved")
 
         images = self._collect_input_images(context, modality) or None
-        # Larger generation budget so long responses are not cut off mid-JSON.
         parsed = self.invoke_vlm_for_json(prompt, images, max_new_tokens=8192)
 
         parsed['tool_results'] = tool_results.get('tool_results', {})
