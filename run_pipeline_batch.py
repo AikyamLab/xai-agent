@@ -63,29 +63,16 @@ DATASET_MODEL_MAP = {
     "adult_tabnn": "tabular/adult_tabnn.pth",
     "cancer_2layernn": "tabular/cancer_2layernn.pth",
     "cancer_tabnn": "tabular/cancer_tabnn.pth",
-    "adult_biased": "tabular/adult_biased.pth",
     # OOD
     "cifar_resnet": "vision/cifar_resnet.pth",
     "yelp_bert": "text/yelp_bert.pth",
     "german_credit_3layernn": "tabular/german_credit_3layernn.pth",
     # OOD (new_ood drop)
-    "food101_swin": "vision/food101_swin.pth",
-    "food101_vit": "vision/food101_vit.pth",
-    "oxford_pet_resnet50": "vision/oxford_pet_resnet50.pth",
-    "oxford_pet_vit": "vision/oxford_pet_vit.pth",
-    "sst2_distilbert": "text/sst2_distilbert.pth",
-    "sst2_roberta": "text/sst2_roberta.pth",
 }
 
 OPTIONAL_LOCAL_CHECKPOINT_DATASETS = {
     "cifar_resnet",
     "yelp_bert",
-    "food101_swin",
-    "food101_vit",
-    "oxford_pet_resnet50",
-    "oxford_pet_vit",
-    "sst2_distilbert",
-    "sst2_roberta",
 }
 
 # Dataset to modality mapping
@@ -102,29 +89,22 @@ DATASET_MODALITY_MAP = {
     "adult_tabnn": "tabular",
     "cancer_2layernn": "tabular",
     "cancer_tabnn": "tabular",
-    "adult_biased": "tabular",
     # OOD
     "cifar_resnet": "vision",
     "yelp_bert": "text",
     "german_credit_3layernn": "tabular",
     # OOD (new_ood drop)
-    "food101_swin": "vision",
-    "food101_vit": "vision",
-    "oxford_pet_resnet50": "vision",
-    "oxford_pet_vit": "vision",
-    "sst2_distilbert": "text",
-    "sst2_roberta": "text",
 }
 
 STANDARD_MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
-    "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn", "adult_biased"],
+    "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn"],
 }
 
 OOD_MODALITY_DATASETS = {
-    "vision": ["cifar_resnet", "food101_swin", "food101_vit", "oxford_pet_resnet50", "oxford_pet_vit"],
-    "text": ["yelp_bert", "sst2_distilbert", "sst2_roberta"],
+    "vision": ["cifar_resnet"],
+    "text": ["yelp_bert"],
     "tabular": ["german_credit_3layernn"],
 }
 
@@ -650,9 +630,8 @@ Available Datasets:
     Tabular: adult_2layernn, adult_tabnn, cancer_2layernn, cancer_tabnn
 
 OOD Datasets (use --dataset_variant ood):
-    Vision:  cifar_resnet, food101_swin, food101_vit, oxford_pet_resnet50, oxford_pet_vit
-             (oxford_pet_vit q2/q3 have a known sampling issue: every row is class "Samoyed")
-    Text:    yelp_bert, sst2_distilbert, sst2_roberta
+    Vision:  cifar_resnet
+    Text:    yelp_bert
     Tabular: german_credit_3layernn
         """,
     )
