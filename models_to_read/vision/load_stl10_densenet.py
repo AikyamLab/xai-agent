@@ -55,7 +55,7 @@ def _resolve_dataset_root(dataset_dir: str) -> str:
 
 
 def set_dataset_root(dataset_dir: str) -> None:
-    """Configure STL-10 root dynamically (supports dataset and dataset_ood layouts)."""
+    """Configure STL-10 root dynamically."""
     global DATASET_ROOT
     DATASET_ROOT = _resolve_dataset_root(dataset_dir)
     _dataset_cache.clear()

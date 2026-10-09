@@ -46,7 +46,7 @@ def _resolve_dataset_root(dataset_dir: str) -> str:
 
 
 def set_dataset_root(dataset_dir: str) -> None:
-    """Configure CUB root dynamically (supports dataset and dataset_ood layouts)."""
+    """Configure CUB root dynamically."""
     global DATASET_ROOT, LABEL_MAP
     DATASET_ROOT = _resolve_dataset_root(dataset_dir)
     LABEL_MAP = get_label_map(DATASET_ROOT)

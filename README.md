@@ -63,8 +63,6 @@ export OPENAI_API_KEY=...       # optional, for GPT API baseline
 
 ## Datasets
 
-### In-distribution
-
 | Dataset | Modality | Model |
 |---------|----------|-------|
 | Adult Census (`adult_tabnn`, `adult_2layernn`) | tabular | 2-layer NN / TabNN |
@@ -75,16 +73,6 @@ export OPENAI_API_KEY=...       # optional, for GPT API baseline
 | STL-10 (`stl10_resnet`, `stl10_densenet`) | vision | ResNet / DenseNet |
 
 The benchmark is hosted on [Hugging Face](https://huggingface.co/datasets/EstherrrCheng/mea-benchmark); download it into `dataset/` so that JSONs are in `dataset/{train,test}/{modality}/`. Model checkpoints are under `models_to_read/`.
-
-### Out-of-distribution (OOD)
-
-| Dataset | Modality | Model |
-|---------|----------|-------|
-| German Credit (`german_credit_3layernn`) | tabular | 3-layer NN |
-| Yelp (`yelp_bert`) | text | BERT |
-| CIFAR-10 (`cifar_resnet`) | vision | ResNet-18 |
-
-OOD benchmarks are in `dataset_ood/`. Use `--dataset_variant ood` or explicit `--dataset_dir`/`--models_dir` overrides.
 
 ---
 
@@ -157,7 +145,7 @@ python run_pipeline_batch.py --config batch_config_example.json
 
 MEA is trained with GRPO (Group Relative Policy Optimization) on `Qwen3.6-35B-A3B` via the Tinker SDK. The pipeline itself serves as the RL environment: faithfulness scores are used as rewards to guide the Proposer and Actor.
 
-Training uses LoRA (rank 32) with a hybrid strategy combining in-distribution and OOD questions.
+Training uses LoRA (rank 32).
 
 ```bash
 python -m training.rl.train \

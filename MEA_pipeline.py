@@ -130,7 +130,6 @@ class MEAPipeline:
         vlm: Optional[Any] = None,
         output_size_config=None,
         temperature: float = 0.0,
-        ablation_mode: Optional[str] = None,
     ):
         """
         Initialize XAI Pipeline V2.
@@ -150,10 +149,6 @@ class MEAPipeline:
             vlm: Optional pre-built VLM instance. When provided, vlm_model_id and
                  tinker_checkpoint are ignored. Useful for RL training where the VLM
                  is a custom RLSamplingVLM that records token trajectories.
-            ablation_mode: One of None, 'tool_only', 'autonomous_only'. When set, the
-                 Proposer's prompt hides the disallowed strategy branch and the
-                 generated strategy is validated to only use the allowed branch --
-                 see ProposerAgent._enforce_ablation_mode().
         """
         self.mode = mode
         self.output_size_config = output_size_config
@@ -208,8 +203,7 @@ class MEAPipeline:
             model=None,  # Will be set after loading target model
             output_dir=str(self.output_dir),
             models_dir=str(self.models_dir),
-            output_size_config=output_size_config,
-            ablation_mode=ablation_mode
+            output_size_config=output_size_config
         )
 
         # Load Tinker LoRA/DPO checkpoint for evaluation (test mode only)
@@ -1654,7 +1648,7 @@ class MEAPipeline:
 
         # Get question type and modality
         q_type = question.get('q_type')
-        # Fall back to extracting q_type from dataset filename (e.g. yelp_bert_q1.json -> 1)
+        # Fall back to extracting q_type from dataset filename (e.g. stl10_resnet_q1.json -> 1)
         if q_type is None:
             import re as _re
             _m = _re.search(r'_q(\d+)(?:_|\.|$)', os.path.basename(dataset_path), _re.IGNORECASE)
@@ -2548,18 +2542,6 @@ def main():
         default=0.0,
         help="Sampling temperature for the VLM (default: 0.0)"
     )
-    parser.add_argument(
-        "--ablation_mode",
-        type=str,
-        choices=["tool_only", "autonomous_only"],
-        default=None,
-        help=(
-            "Restrict the Proposer's strategy space for an ablation run. "
-            "'tool_only' hides autonomous reasoning and requires selecting an XAI tool; "
-            "'autonomous_only' hides external XAI tools and requires an autonomous task. "
-            "Default: unrestricted (both allowed)."
-        )
-    )
 
     args = parser.parse_args()
 
@@ -2590,7 +2572,6 @@ def main():
         tinker_checkpoint=args.tinker_checkpoint,
         tinker_lora_rank=args.tinker_lora_rank,
         temperature=args.temperature,
-        ablation_mode=args.ablation_mode,
         output_size_config=OutputSizeConfig(
             fixed_percentage=0.25,
             apply_to_tabular=True,

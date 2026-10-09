@@ -3,7 +3,7 @@ Q11: Which concept was most responsible for the model's prediction? (CUB-only, v
 
 Mirrors Q1 exactly on the Proposer/tool-execution side: same 8 vision
 attribution tools (GradCAM, IntegratedGradients, LIME, SHAP, ObjectDetection,
-GuidedBackprop, SensitivityAnalysis, LayerCAM), same ablation_mode handling,
+GuidedBackprop, SensitivityAnalysis, LayerCAM),
 no bespoke Q11 tool. The difference is entirely in what the Actor is asked to
 report and how faithfulness is evaluated:
 

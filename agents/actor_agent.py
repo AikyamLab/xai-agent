@@ -418,7 +418,7 @@ class ActorAgent(BaseAgent):
           2. image_path_A, image_path_B, ... (letter, from _build_context_q4)
           3. image_path                      (single-instance fallback)
 
-        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing (ablation baseline).
+        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing.
         """
         if modality != 'vision' or os.environ.get('XAI_NO_VLM_IMAGE'):
             return []

@@ -28,22 +28,15 @@ from typing import Dict, List, Optional, Union
 # ============================================================================
 BASE_DIR = Path(__file__).parent.resolve()
 DEFAULT_CONFIG = {
-    "dataset_variant": "default",
     "dataset_dir": None,
     "models_dir": None,
     "output_dir": str(BASE_DIR / "outputs"),
     "vlm_model": "Qwen/Qwen3-VL-8B-Instruct",
 }
 
-DEFAULT_DATASET_VARIANT_DIRS = {
-    "default": {
-        "dataset_dir": BASE_DIR / "dataset",
-        "models_dir": BASE_DIR / "models_to_read",
-    },
-    "ood": {
-        "dataset_dir": BASE_DIR / "dataset_ood",
-        "models_dir": BASE_DIR / "models_ood",
-    },
+DEFAULT_DIRS = {
+    "dataset_dir": BASE_DIR / "dataset",
+    "models_dir": BASE_DIR / "models_to_read",
 }
 
 # Dataset to model mappings
@@ -63,16 +56,6 @@ DATASET_MODEL_MAP = {
     "adult_tabnn": "tabular/adult_tabnn.pth",
     "cancer_2layernn": "tabular/cancer_2layernn.pth",
     "cancer_tabnn": "tabular/cancer_tabnn.pth",
-    # OOD
-    "cifar_resnet": "vision/cifar_resnet.pth",
-    "yelp_bert": "text/yelp_bert.pth",
-    "german_credit_3layernn": "tabular/german_credit_3layernn.pth",
-    # OOD (new_ood drop)
-}
-
-OPTIONAL_LOCAL_CHECKPOINT_DATASETS = {
-    "cifar_resnet",
-    "yelp_bert",
 }
 
 # Dataset to modality mapping
@@ -89,23 +72,12 @@ DATASET_MODALITY_MAP = {
     "adult_tabnn": "tabular",
     "cancer_2layernn": "tabular",
     "cancer_tabnn": "tabular",
-    # OOD
-    "cifar_resnet": "vision",
-    "yelp_bert": "text",
-    "german_credit_3layernn": "tabular",
-    # OOD (new_ood drop)
 }
 
 STANDARD_MODALITY_DATASETS = {
     "vision": ["stl10_resnet", "stl10_densenet", "cub_resnet", "cub_densenet"],
     "text": ["imdb_cnn", "imdb_2layernn", "snli_cnn", "snli_2layernn"],
     "tabular": ["adult_2layernn", "adult_tabnn", "cancer_2layernn", "cancer_tabnn"],
-}
-
-OOD_MODALITY_DATASETS = {
-    "vision": ["cifar_resnet"],
-    "text": ["yelp_bert"],
-    "tabular": ["german_credit_3layernn"],
 }
 
 
@@ -211,35 +183,17 @@ def get_question_count(dataset_path: str) -> int:
     return 1  # single-question dict
 
 
-def resolve_variant_dirs(
-    dataset_variant: str,
+def resolve_dirs(
     configured_dataset_dir: Optional[str] = None,
     configured_models_dir: Optional[str] = None,
 ) -> Dict[str, str]:
-    """Resolve dataset/models directories from variant + optional overrides."""
-    defaults = DEFAULT_DATASET_VARIANT_DIRS.get(
-        dataset_variant,
-        DEFAULT_DATASET_VARIANT_DIRS["default"],
-    )
-
-    dataset_dir = Path(configured_dataset_dir).expanduser() if configured_dataset_dir else defaults["dataset_dir"]
-    models_dir = Path(configured_models_dir).expanduser() if configured_models_dir else defaults["models_dir"]
-
-    # For ood variant, allow falling back to models_to_read if models_ood is absent.
-    if dataset_variant == "ood" and not models_dir.exists():
-        fallback = DEFAULT_DATASET_VARIANT_DIRS["default"]["models_dir"]
-        models_dir = fallback
-
+    """Resolve dataset/models directories from optional overrides."""
+    dataset_dir = Path(configured_dataset_dir).expanduser() if configured_dataset_dir else DEFAULT_DIRS["dataset_dir"]
+    models_dir = Path(configured_models_dir).expanduser() if configured_models_dir else DEFAULT_DIRS["models_dir"]
     return {
         "dataset_dir": str(dataset_dir.resolve()),
         "models_dir": str(models_dir.resolve()),
     }
-
-
-def get_default_datasets_for_modality(dataset_variant: str, modality: str) -> List[str]:
-    if dataset_variant == "ood":
-        return OOD_MODALITY_DATASETS.get(modality, [])
-    return STANDARD_MODALITY_DATASETS.get(modality, [])
 
 
 def get_dataset_path(
@@ -258,7 +212,7 @@ def get_dataset_path(
     dataset_root = Path(dataset_dir)
     candidate_dirs = [
         dataset_root / mode / modality,  # canonical layout
-        dataset_root / modality,         # flat modality layout (used by some OOD drops)
+        dataset_root / modality,         # flat modality layout
     ]
 
     for mode_dir in candidate_dirs:
@@ -289,8 +243,6 @@ def get_model_path(dataset: str, models_dir: str) -> Optional[str]:
         model_rel_path = DATASET_MODEL_MAP[dataset]
         model_path = models_base / model_rel_path
         if model_path.exists():
-            return str(model_path)
-        if dataset in OPTIONAL_LOCAL_CHECKPOINT_DATASETS:
             return str(model_path)
 
     modality = DATASET_MODALITY_MAP.get(dataset)
@@ -386,7 +338,6 @@ def run_single_job(
     tinker_checkpoint: Optional[str] = None,
     tinker_lora_rank: int = 16,
     temperature: float = 0.0,
-    ablation_mode: Optional[str] = None,
 ) -> JobResult:
     """Execute a single pipeline job."""
     start_time = datetime.now()
@@ -414,8 +365,6 @@ def run_single_job(
         cmd.extend(["--tinker_lora_rank", str(tinker_lora_rank)])
     if temperature != 0.0:
         cmd.extend(["--temperature", str(temperature)])
-    if ablation_mode is not None:
-        cmd.extend(["--ablation_mode", ablation_mode])
 
     # Create log file
     log_file = log_dir / f"{job.job_id}.log"
@@ -504,7 +453,6 @@ def run_jobs_sequential(
             tinker_checkpoint=config.get("tinker_checkpoint"),
             tinker_lora_rank=config.get("tinker_lora_rank", 16),
             temperature=config.get("temperature", 0.0),
-            ablation_mode=config.get("ablation_mode"),
         )
 
         results.append(result)
@@ -542,7 +490,6 @@ def run_jobs_parallel(
                 tinker_checkpoint=config.get("tinker_checkpoint"),
                 tinker_lora_rank=config.get("tinker_lora_rank", 16),
                 temperature=config.get("temperature", 0.0),
-                ablation_mode=config.get("ablation_mode"),
             ): job
             for job in jobs
         }
@@ -629,10 +576,6 @@ Available Datasets:
     Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
     Tabular: adult_2layernn, adult_tabnn, cancer_2layernn, cancer_tabnn
 
-OOD Datasets (use --dataset_variant ood):
-    Vision:  cifar_resnet
-    Text:    yelp_bert
-    Tabular: german_credit_3layernn
         """,
     )
 
@@ -651,12 +594,10 @@ OOD Datasets (use --dataset_variant ood):
                         help="Path to JSON config file")
     parser.add_argument("--mode", type=str, choices=["train", "test"], default="test",
                         help="Dataset split to use: 'train' loads from dataset/train/, 'test' from dataset/test/ (default: test)")
-    parser.add_argument("--dataset_variant", type=str, choices=["default", "ood"], default=None,
-                        help="Dataset/model variant to use when dataset_dir/models_dir are not explicitly set (default: default)")
     parser.add_argument("--dataset_dir", type=str, default=None,
-                        help="Dataset base directory override (defaults to variant path)")
+                        help="Dataset base directory override (default: ./dataset)")
     parser.add_argument("--models_dir", type=str, default=None,
-                        help="Models base directory override (defaults to variant path)")
+                        help="Models base directory override (default: ./models_to_read)")
     parser.add_argument("--use_test_variant", action="store_true",
                         help="Use _test variant dataset files if available")
 
@@ -689,9 +630,6 @@ OOD Datasets (use --dataset_variant ood):
                         help="LoRA rank used during DPO/LoRA training (must match training job, default: 16)")
     parser.add_argument("--temperature", type=float, default=0.0,
                         help="Sampling temperature for the VLM (default: 0.0)")
-    parser.add_argument("--ablation_mode", type=str, choices=["tool_only", "autonomous_only"], default=None,
-                        help="Restrict the Proposer's strategy space for an ablation run "
-                             "('tool_only' or 'autonomous_only'). Default: unrestricted.")
     parser.add_argument("--verbose", action="store_true",
                         help="Verbose logging")
 
@@ -705,8 +643,6 @@ OOD Datasets (use --dataset_variant ood):
             config.update(file_config)
 
     # Override with command line args
-    if args.dataset_variant is not None:
-        config["dataset_variant"] = args.dataset_variant
     config["output_dir"] = args.output_dir
     config["vlm_model"] = args.vlm
     config["no_eval"] = args.no_eval
@@ -715,15 +651,13 @@ OOD Datasets (use --dataset_variant ood):
     config["tinker_checkpoint"] = args.tinker_checkpoint
     config["tinker_lora_rank"] = args.tinker_lora_rank
     config["temperature"] = args.temperature
-    config["ablation_mode"] = args.ablation_mode
 
-    variant_dirs = resolve_variant_dirs(
-        dataset_variant=config["dataset_variant"],
+    dirs = resolve_dirs(
         configured_dataset_dir=args.dataset_dir if args.dataset_dir is not None else config.get("dataset_dir"),
         configured_models_dir=args.models_dir if args.models_dir is not None else config.get("models_dir"),
     )
-    config["dataset_dir"] = variant_dirs["dataset_dir"]
-    config["models_dir"] = variant_dirs["models_dir"]
+    config["dataset_dir"] = dirs["dataset_dir"]
+    config["models_dir"] = dirs["models_dir"]
 
     # Set up logging
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -741,11 +675,10 @@ OOD Datasets (use --dataset_variant ood):
     elif args.modality:
         for mod in args.modality:
             if mod == "all":
-                source_map = OOD_MODALITY_DATASETS if config["dataset_variant"] == "ood" else STANDARD_MODALITY_DATASETS
-                for mod_datasets in source_map.values():
+                for mod_datasets in STANDARD_MODALITY_DATASETS.values():
                     datasets.extend(mod_datasets)
             else:
-                datasets.extend(get_default_datasets_for_modality(config["dataset_variant"], mod))
+                datasets.extend(STANDARD_MODALITY_DATASETS.get(mod, []))
     else:
         logger.error("Must specify --datasets or --modality")
         sys.exit(1)
@@ -755,7 +688,6 @@ OOD Datasets (use --dataset_variant ood):
 
     logger.info(f"Configuration:")
     logger.info(f"  Datasets: {datasets}")
-    logger.info(f"  Dataset variant: {config['dataset_variant']}")
     logger.info(f"  Dataset dir: {config['dataset_dir']}")
     logger.info(f"  Models dir: {config['models_dir']}")
     logger.info(f"  Mode: {config['mode']}")
@@ -772,8 +704,6 @@ OOD Datasets (use --dataset_variant ood):
     logger.info(f"  Output dir: {config['output_dir']}")
     if config["tinker_checkpoint"]:
         logger.info(f"  Tinker checkpoint: {config['tinker_checkpoint']} (rank={config['tinker_lora_rank']})")
-    if config["ablation_mode"]:
-        logger.info(f"  Ablation mode: {config['ablation_mode']}")
 
     # Build jobs
     jobs = build_jobs(
@@ -810,8 +740,6 @@ OOD Datasets (use --dataset_variant ood):
             if config["tinker_checkpoint"]:
                 parts.append(f"--tinker_checkpoint {config['tinker_checkpoint']}")
                 parts.append(f"--tinker_lora_rank {config['tinker_lora_rank']}")
-            if config["ablation_mode"]:
-                parts.append(f"--ablation_mode {config['ablation_mode']}")
             logger.info(f"\n{job.job_id}:")
             logger.info(f"  {' '.join(parts)}")
         sys.exit(0)

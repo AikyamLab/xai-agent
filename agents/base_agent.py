@@ -540,9 +540,6 @@ class BaseAgent(ABC):
                 # Standard tabular: "mask the X feature of this"
                 m = re.search(r'mask the (.+?)(?:\s+feature\b|\s+(?:of|from)\s+this)', example, re.IGNORECASE)
                 if not m:
-                    # OOD tabular: "remove or alter the feature 'X' from this input"
-                    m = re.search(r"remove or alter(?:\s+the)?\s+feature\s+['\"](.+?)['\"]", example, re.IGNORECASE)
-                if not m:
                     # Paraphrase tabular: "if the X feature were removed/masked/hidden"
                     m = re.search(
                         r"if\s+the\s+(.+?)\s+feature\s+(?:were|was|is)\s+(?:removed|masked|hidden|eliminated)",
@@ -567,9 +564,6 @@ class BaseAgent(ABC):
             else:
                 # Standard tabular/general: "remove/change X,"
                 m = re.search(r'remove/change\s+(.+?)(?:,|\?{1,2}|$)', example, re.IGNORECASE)
-                if not m:
-                    # OOD tabular: "remove or change the feature 'X'"
-                    m = re.search(r"remove or change(?:\s+the)?\s+feature\s+['\"](.+?)['\"]", example, re.IGNORECASE)
                 if not m:
                     # Paraphrase tabular: "if X were altered/removed/changed"
                     m = re.search(

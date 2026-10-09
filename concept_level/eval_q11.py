@@ -58,7 +58,6 @@ def run_pipeline(args):
         "--datasets", *MODELS,
         "--q_types", "11",
         "--question_ids", "all",
-        "--ablation_mode", "tool_only",
         "--output_dir", args.output_dir,
         "--vlm", args.vlm,
     ]

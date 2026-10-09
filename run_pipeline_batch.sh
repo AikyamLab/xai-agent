@@ -29,7 +29,6 @@ BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATASET_DIR="${BASE_DIR}/dataset"
 MODELS_DIR="${BASE_DIR}/models_to_read"
 OUTPUT_DIR="${BASE_DIR}/outputs"
-DATASET_VARIANT="default"   # default or ood
 DATASET_DIR_SET=false
 MODELS_DIR_SET=false
 DATA_DIR=""   # If set, passed to Python as --dataset_dir (for DataModelLoader); overrides DATASET_DIR for data loading only
@@ -59,14 +58,12 @@ VISION_DATASETS["stl10_resnet"]="vision/stl10_resnet.pth"
 VISION_DATASETS["stl10_densenet"]="vision/stl10_densenet.pth"
 VISION_DATASETS["cub_resnet"]="vision/cub_resnet.pth"
 VISION_DATASETS["cub_densenet"]="vision/cub_densenet.pth"
-VISION_DATASETS["cifar_resnet"]="vision/cifar_resnet.pth"
 
 declare -A TEXT_DATASETS
 TEXT_DATASETS["imdb_cnn"]="text/imdb_cnn.pth"
 TEXT_DATASETS["imdb_2layernn"]="text/imdb_2layernn.pth"
 TEXT_DATASETS["snli_cnn"]="text/snli_cnn.pth"
 TEXT_DATASETS["snli_2layernn"]="text/snli_2layernn.pth"
-TEXT_DATASETS["yelp_bert"]="text/yelp_bert.pth"
 
 declare -A TABULAR_DATASETS
 TABULAR_DATASETS["adult_census"]="tabular/adult_census.pth"
@@ -75,9 +72,6 @@ TABULAR_DATASETS["adult_2layernn"]="tabular/adult_2layernn.pth"
 TABULAR_DATASETS["cancer_2nn"]="tabular/cancer_2nn.pth"
 TABULAR_DATASETS["cancer_tabnn"]="tabular/cancer_tabnn.pth"
 TABULAR_DATASETS["cancer_2layernn"]="tabular/cancer_2layernn.pth"
-TABULAR_DATASETS["german_credit_3layernn"]="tabular/german_credit_3layernn.pth"
-
-OPTIONAL_LOCAL_CHECKPOINT_DATASETS="cifar_resnet yelp_bert"
 
 # ============================================================================
 # Helper Functions
@@ -125,7 +119,6 @@ Options:
                              Use "N-all" (e.g. "1-all") to start from ID N to end
     --mode MODE              Dataset split to use: train or test (default: test)
                               Benchmark JSONs are loaded from dataset/{mode}/{modality}/
-    --dataset_variant NAME   Variant defaults for dataset/models dirs: default or ood (default: default)
     --use_test_variant       Use _test variant dataset files if available
     --dry_run                Print commands without executing
     --no_eval                Skip faithfulness evaluation
@@ -161,9 +154,9 @@ Examples:
     $0 --datasets "stl10_resnet" --q_types "1" --question_ids "0" --dry_run
 
 Available Datasets:
-    Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet, cifar_resnet
-    Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn, yelp_bert
-    Tabular: adult_census, adult_tabnn, adult_2layernn, cancer_2nn, cancer_tabnn, cancer_2layernn, german_credit_3layernn
+    Vision:  stl10_resnet, stl10_densenet, cub_resnet, cub_densenet
+    Text:    imdb_cnn, imdb_2layernn, snli_cnn, snli_2layernn
+    Tabular: adult_census, adult_tabnn, adult_2layernn, cancer_2nn, cancer_tabnn, cancer_2layernn
 EOF
     exit 0
 }
@@ -208,24 +201,6 @@ expand_range() {
 # Get datasets for a modality
 get_datasets_for_modality() {
     local modality="$1"
-
-    if [[ "$DATASET_VARIANT" == "ood" ]]; then
-        case "$modality" in
-            vision)
-                echo "cifar_resnet"
-                ;;
-            text)
-                echo "yelp_bert"
-                ;;
-            tabular)
-                echo "german_credit_3layernn"
-                ;;
-            *)
-                echo ""
-                ;;
-        esac
-        return
-    fi
 
     case "$modality" in
         vision)
@@ -287,16 +262,6 @@ get_modality_for_dataset() {
     else
         echo ""
     fi
-}
-
-is_optional_checkpoint_dataset() {
-    local dataset="$1"
-    for d in $OPTIONAL_LOCAL_CHECKPOINT_DATASETS; do
-        if [[ "$d" == "$dataset" ]]; then
-            return 0
-        fi
-    done
-    return 1
 }
 
 # Build dataset file path
@@ -366,10 +331,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --mode)
             MODE="$2"
-            shift 2
-            ;;
-        --dataset_variant)
-            DATASET_VARIANT="$2"
             shift 2
             ;;
         --use_test_variant)
@@ -445,24 +406,6 @@ done
 # ============================================================================
 print_header "XAI Pipeline Batch Runner"
 
-if [[ "$DATASET_VARIANT" != "default" && "$DATASET_VARIANT" != "ood" ]]; then
-    log_error "Invalid --dataset_variant '$DATASET_VARIANT' (must be 'default' or 'ood')"
-    exit 1
-fi
-
-if [[ "$DATASET_VARIANT" == "ood" ]]; then
-    if [[ "$DATASET_DIR_SET" != "true" ]]; then
-        DATASET_DIR="${BASE_DIR}/dataset_ood"
-    fi
-    if [[ "$MODELS_DIR_SET" != "true" ]]; then
-        if [[ -d "${BASE_DIR}/models_ood" ]]; then
-            MODELS_DIR="${BASE_DIR}/models_ood"
-        else
-            MODELS_DIR="${BASE_DIR}/models_to_read"
-        fi
-    fi
-fi
-
 # Expand modalities
 if [[ "$MODALITIES" == "all" ]]; then
     MODALITIES="vision text tabular"
@@ -474,7 +417,6 @@ if [[ "$QUESTION_IDS" != "all" ]] && [[ ! "$QUESTION_IDS" =~ ^[0-9]+-all$ ]]; th
 fi
 
 log_info "Configuration:"
-log_info "  Dataset variant: $DATASET_VARIANT"
 log_info "  Modalities: $MODALITIES"
 log_info "  Datasets: ${DATASETS:-auto-detect}"
 log_info "  Dataset dir: $DATASET_DIR"
@@ -527,12 +469,8 @@ for dataset in $DATASETS_TO_RUN; do
         continue
     fi
     if [[ ! -f "$model_path" ]]; then
-        if is_optional_checkpoint_dataset "$dataset"; then
-            log_info "Model checkpoint not found locally for $dataset; loader will use pretrained weights."
-        else
-            log_warn "Model not found for dataset: $dataset, skipping"
-            continue
-        fi
+        log_warn "Model not found for dataset: $dataset, skipping"
+        continue
     fi
 
     for q_type in $Q_TYPES; do

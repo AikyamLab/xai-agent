@@ -33,8 +33,7 @@ class ProposerAgent(BaseAgent):
         vlm: Any,
         data_model_loader: Any = None,
         models_dir: Optional[str] = None,
-        output_dir: Optional[str] = None,
-        ablation_mode: Optional[str] = None
+        output_dir: Optional[str] = None
     ):
         """
         Initialize Proposer Agent.
@@ -44,20 +43,11 @@ class ProposerAgent(BaseAgent):
             data_model_loader: DataModelLoader instance
             models_dir: Directory containing models
             output_dir: Output directory
-            ablation_mode: One of None, 'tool_only', 'autonomous_only'. When set, the
-                proposer prompt hides the disallowed strategy branch entirely (see
-                PromptBuilder._build_methods_section/_build_strategy_schema_block) and
-                the generated strategy is validated/enforced to only use the allowed
-                branch -- see _enforce_ablation_mode().
         """
         super().__init__(vlm, output_dir, "ProposerAgent")
 
         self.data_model_loader = data_model_loader
         self.tool_registry = None  # Set via set_tool_registry() after ActorAgent.initialize_tools()
-
-        if ablation_mode not in (None, 'tool_only', 'autonomous_only'):
-            raise ValueError(f"Invalid ablation_mode: {ablation_mode!r}. Must be None, 'tool_only', or 'autonomous_only'.")
-        self.ablation_mode = ablation_mode
 
         if models_dir is None:
             models_dir = os.path.join(os.getcwd(), "models_to_read")
@@ -99,7 +89,7 @@ class ProposerAgent(BaseAgent):
           2. image_path_A, image_path_B, ...  (letter, from _build_context_q4)
           3. image_path                       (single-instance fallback)
 
-        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing (ablation baseline).
+        Set env var XAI_NO_VLM_IMAGE=1 to disable image passing.
         """
         if modality != 'vision' or os.environ.get('XAI_NO_VLM_IMAGE'):
             return []
@@ -302,7 +292,6 @@ class ProposerAgent(BaseAgent):
             "model_info": model_info,
             "prediction": prediction,
             "available_tools": self._get_tool_info_for_context(modality),
-            "ablation_mode": self.ablation_mode,
         }
 
         if modality == "vision":
@@ -362,7 +351,6 @@ class ProposerAgent(BaseAgent):
             "model_info": model_info,
             "num_instances": num_instances,
             "available_tools": self._get_tool_info_for_context(modality),
-            "ablation_mode": self.ablation_mode,
         }
 
         # Add all predictions
@@ -452,9 +440,7 @@ class ProposerAgent(BaseAgent):
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if self.ablation_mode:
-            strategy = self._enforce_ablation_mode(strategy)
-        elif not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
             print("  [Proposer] Pure-reasoning multi-instance strategy: actor will use direct VLM reasoning.")
 
         return strategy
@@ -487,9 +473,7 @@ class ProposerAgent(BaseAgent):
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if self.ablation_mode:
-            strategy = self._enforce_ablation_mode(strategy)
-        elif not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
             print("  [Proposer] Pure-reasoning strategy: actor will use direct VLM reasoning.")
 
         return strategy
@@ -513,44 +497,6 @@ class ProposerAgent(BaseAgent):
             })
 
         strategy['selected_tools'] = selected_tools
-        return strategy
-
-    def _enforce_ablation_mode(self, strategy: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Enforce self.ablation_mode on a generated strategy as a safety net on top of
-        the prompt-level restriction (PromptBuilder omits the disallowed branch and its
-        JSON schema field entirely -- this catches the rare case where the VLM still
-        emits it anyway, e.g. by copying a field name from few-shot memory).
-
-        Raises RuntimeError if the required branch is empty, rather than silently
-        letting the strategy fall through to the Actor's pure-reasoning-mode fallback
-        (no tools AND no autonomous_tasks), which would silently break ablation
-        isolation -- a 'tool_only' sample with zero tool calls is not a valid tool-only
-        sample, it's a mislabeled pure-reasoning sample.
-        """
-        if self.ablation_mode == 'tool_only':
-            if strategy.get('autonomous_tasks'):
-                print(f"  [Proposer] ablation_mode=tool_only: stripping {len(strategy['autonomous_tasks'])} "
-                      f"autonomous_task(s) the VLM proposed despite the prompt restriction.")
-            strategy['autonomous_tasks'] = []
-            if not strategy.get('selected_tools'):
-                raise RuntimeError(
-                    "ablation_mode=tool_only but the proposer strategy has no selected_tools "
-                    f"(strategy_type={strategy.get('strategy_type')!r}). Refusing to fall through "
-                    "to pure-reasoning mode, which would violate the ablation."
-                )
-        elif self.ablation_mode == 'autonomous_only':
-            if strategy.get('selected_tools'):
-                print(f"  [Proposer] ablation_mode=autonomous_only: stripping {len(strategy['selected_tools'])} "
-                      f"selected_tool(s) the VLM proposed despite the prompt restriction.")
-            strategy['selected_tools'] = []
-            strategy['tool_selection'] = {}
-            if not strategy.get('autonomous_tasks'):
-                raise RuntimeError(
-                    "ablation_mode=autonomous_only but the proposer strategy has no autonomous_tasks "
-                    f"(strategy_type={strategy.get('strategy_type')!r}). Refusing to fall through "
-                    "to pure-reasoning mode, which would violate the ablation."
-                )
         return strategy
 
     def _get_question_type_string(self, q_type: Optional[int]) -> str:
@@ -831,9 +777,7 @@ Generate a new strategy in the same JSON format as before.
         if not strategy.get('selected_tools') and strategy.get('tool_selection'):
             strategy = self._convert_tool_selection(strategy)
 
-        if self.ablation_mode:
-            strategy = self._enforce_ablation_mode(strategy)
-        elif not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
+        if not strategy.get('selected_tools') and not strategy.get('autonomous_tasks'):
             print("  [Proposer] Pure-reasoning Q4 strategy: actor will use direct VLM reasoning.")
 
         # Mark as Q4 strategy
@@ -865,7 +809,6 @@ Generate a new strategy in the same JSON format as before.
             "model_info": model_info,
             "num_instances": 2,
             "available_tools": self._get_tool_info_for_context(modality),
-            "ablation_mode": self.ablation_mode,
         }
 
         # Add predictions

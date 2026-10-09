@@ -48,8 +48,7 @@ def create_three_agent_system(
     data_model_loader: Any = None,
     output_dir: Optional[str] = None,
     models_dir: Optional[str] = None,
-    output_size_config=None,
-    ablation_mode: Optional[str] = None
+    output_size_config=None
 ) -> Tuple[ProposerAgent, ActorAgent, CriticAgent]:
     """
     Create the three-agent system with shared VLM.
@@ -60,8 +59,6 @@ def create_three_agent_system(
         data_model_loader: DataModelLoader instance (optional)
         output_dir: Output directory path
         models_dir: Models directory path
-        ablation_mode: One of None, 'tool_only', 'autonomous_only'. Passed to
-            ProposerAgent to restrict the strategy space for ablation runs.
 
     Returns:
         Tuple of (ProposerAgent, ActorAgent, CriticAgent)
@@ -70,8 +67,7 @@ def create_three_agent_system(
         vlm=vlm,
         data_model_loader=data_model_loader,
         models_dir=models_dir,
-        output_dir=output_dir,
-        ablation_mode=ablation_mode
+        output_dir=output_dir
     )
 
     actor = ActorAgent(
